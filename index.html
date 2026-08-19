@@ -1106,10 +1106,93 @@ const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"timeline", label:"Timeline", icon:ICONS.clock, sub:()=>{const n=CHART.dasha.at(new Date());return n.maha.lord+"/"+n.antar.lord}},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
-  {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>"42 terms"},
-  {id:"saved", label:"Saved insights", icon:ICONS.star, sub:()=>"none yet"},
+  {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
+  {id:"saved", label:"Saved insights", icon:ICONS.star, sub:()=>SAVED().length+""},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>"Lahiri"}
 ];
+
+
+const GLOSSARY=[
+ ["The frame",[
+  ["Lagna","The ascendant - the exact degree of the zodiac rising on the eastern horizon at your birth minute. It fixes house 1, and so fixes everything else."],
+  ["Bhava","A house. Twelve divisions of the chart, each covering an area of life. Houses stay put; signs rotate across them."],
+  ["Rashi","A zodiac sign. Twelve of them, 30 degrees each, measured against the fixed stars rather than the seasons."],
+  ["Graha","A 'grasper'. The nine bodies a chart reads - seven visible, plus Rahu and Ketu, which have no body at all."],
+  ["Ayanamsa","The gap between the tropical and sidereal zodiacs, currently about 24 degrees. Vedic astrology subtracts it; Western astrology does not. This is the single biggest difference between the two."]]],
+ ["Position",[
+  ["Nakshatra","A lunar mansion. Twenty-seven of them, 13 degrees 20 minutes each - a finer grid than the signs, and the one your dasha sequence is built from."],
+  ["Pada","A quarter of a nakshatra, 3 degrees 20 minutes wide. 108 padas cover the zodiac."],
+  ["Lord","The graha that owns a sign. A house is read through the lord of the sign sitting in it, and through where that lord landed."],
+  ["Drishti","Aspect, literally 'gaze'. Every graha looks at the 7th house from itself. Mars also looks at the 4th and 8th, Jupiter the 5th and 9th, Saturn the 3rd and 10th."],
+  ["Retrograde","Apparent backward motion. Nothing reverses in space - Earth overtakes the planet on the inside track. Read as a matter returned to rather than settled first time."]]],
+ ["Strength",[
+  ["Exalted","A graha in the sign where it is traditionally strongest. Saturn in Libra, Jupiter in Cancer, Mars in Capricorn."],
+  ["Debilitated","The opposite sign to exaltation, where it is traditionally weakest. Not a verdict - a debilitated graha can still be well placed."],
+  ["Own sign","A graha sitting in a sign it rules. Comfortable, and reliably itself."],
+  ["Moolatrikona","A specific degree range within a graha's own sign where it is at root strength."],
+  ["Kendra","Houses 1, 4, 7 and 10 - the angles. Traditionally the strongest positions."],
+  ["Trikona","Houses 1, 5 and 9 - the trines. Traditionally the most fortunate."],
+  ["Dusthana","Houses 6, 8 and 12 - the difficult ones. Debt, upheaval and loss."],
+  ["Shadbala","Six-fold strength. A numeric score for each graha across position, time, direction, motion, nature and aspect."],
+  ["Ashtakavarga","A bindu, or point, system giving each house a score. More points, more traditional support."]]],
+ ["Time",[
+  ["Dasha","A planetary period. The main timing system, dividing life into stretches each governed by one graha."],
+  ["Mahadasha","A major period. The nine run 120 years in total; yours began with Ketu because your Moon sits in Mula."],
+  ["Antardasha","A sub-period inside a mahadasha, following the same order and proportions."],
+  ["Vimshottari","The 120-year dasha system, the most widely used. Its starting point comes entirely from the Moon's nakshatra at birth."],
+  ["Gochara","Transit. Where the grahas are right now, as against where they were at your birth."],
+  ["Sade Sati","The roughly seven-and-a-half years Saturn spends transiting the signs before, on and after your natal Moon."]]],
+ ["People",[
+  ["Karaka","A natural significator. Jupiter signifies children wherever it sits; Venus signifies the spouse."],
+  ["Atmakaraka","The graha at the highest degree in the chart. Read as the soul's chief indicator."],
+  ["Darakaraka","The graha at the lowest degree. Traditionally read for the spouse."],
+  ["Gun Milan","Ashtakoota matching. Eight tests worth 36 points between two charts, weighted toward Nadi and Bhakoot."],
+  ["Gana","Temperament by nakshatra - Deva, Manushya or Rakshasa. A classification, not a judgement."],
+  ["Nadi","Constitution by nakshatra - Aadi, Madhya or Antya. The heaviest koota in matching, and the most argued over."],
+  ["Manglik","A chart with Mars in the 1st, 2nd, 4th, 7th, 8th or 12th. Traditionally flagged in matching; treated with far more weight in some regions than others."]]],
+ ["Combinations",[
+  ["Yoga","A named combination of placements. Hundreds exist; most charts carry several."],
+  ["Dosha","An affliction or flaw in a chart. Traditionally something to be aware of, not a sentence."],
+  ["Kalsarpa","All seven grahas caught between Rahu and Ketu."],
+  ["Combust","A graha too close to the Sun to be seen, and traditionally weakened by it."],
+  ["Conjunction","Two grahas sharing a sign, blending their significations."],
+  ["Divisional chart","A subdivision of the chart used for one area of life - D9 for marriage, D10 for career, D7 for children."]]]
+];
+
+function subGlossary(){
+  const n=GLOSSARY.reduce((a,g)=>a+g[1].length,0);
+  return backBar("Glossary")+`
+    <p class="muted" style="font-size:13px;margin:-6px 0 18px">${n} terms. Tap any one to open it.</p>
+    ${GLOSSARY.map(([group,items])=>`
+      <div class="eyebrow" style="margin:22px 0 8px">${group}</div>
+      <div class="list">${items.map(([t,d])=>`
+        <button class="item gitem" data-t="${t}"><span style="flex:1">
+          <b style="font-weight:600">${t}</b>
+          <span class="gdef">${d}</span></span></button>`).join("")}</div>`).join("")}
+    <p class="note">Definitions are written for a beginner first. In the finished app these
+    open in place wherever the term appears, rather than living only on this screen.</p>`;
+}
+
+const SAVED=()=>[
+ {t:"Saturn exalted in Libra",w:"Universe &#183; graha",
+  b:`Exalted and retrograde in your ${ordinal(CHART.get("Saturn").house)}, ruling your ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")}. Career and gains both answer to it.`},
+ {t:"Mercury debilitated, and combust",w:"Universe &#183; graha",
+  b:`Mercury sits in Pisces, its sign of debilitation, less than a degree from your Sun - close enough to be read as combust. Retrograde as well.`},
+ {t:"Moon mahadasha to 2028",w:"Timeline",
+  b:`Ten years governed by the lord of your 3rd, sitting in your 8th alongside Rahu. The antardasha inside it changes roughly every year.`},
+ {t:"Jupiter and the Moon in the 4th",w:"Universe &#183; house",
+  b:`Your 4th carries Leo. Jupiter sits there - the house of mother, home and rest.`}
+];
+function subSaved(){
+  return backBar("Saved insights")+`
+    <p class="muted" style="font-size:13px;margin:-6px 0 16px">Things you kept.</p>
+    ${SAVED().map(x=>`<div class="card" style="margin-bottom:11px">
+      <div class="eyebrow" style="margin-bottom:6px">${x.w}</div>
+      <b style="font-size:15px;font-weight:620;letter-spacing:-.01em">${x.t}</b>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">${x.b}</p></div>`).join("")}
+    <p class="note">Sample entries, to show the shape. Saving from a graha, house or period
+    is not wired up yet.</p>`;
+}
 
 let subView=null, subArg=null;
 
@@ -1140,7 +1223,7 @@ const backBar=title=>`<button class="backbtn" id="back">
 function renderSub(){
   const pg=document.getElementById("pg-you");
   const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,
-              glossary:()=>subStub("Glossary"),saved:()=>subStub("Saved insights"),
+              glossary:subGlossary,saved:subSaved,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -1283,7 +1366,15 @@ function wireTimeline(){
 
 /* ---- RELATIONSHIPS ---- */
 const PKEY="astro.partners.v1";
-const partners=()=>{try{return JSON.parse(localStorage.getItem(PKEY)||"[]")}catch(_){return []}};
+const DEMO=[{name:"Natasha",born:"1993-02-21T08:40:00+05:30",demo:true}];
+const partners=()=>{
+  try{
+    let l=JSON.parse(localStorage.getItem(PKEY)||"null");
+    if(!l){ l=DEMO.map(d=>({...d,moonL:moonSidereal(new Date(d.born))}));
+            localStorage.setItem(PKEY,JSON.stringify(l)); }
+    return l;
+  }catch(_){ return DEMO.map(d=>({...d,moonL:moonSidereal(new Date(d.born))})) }
+};
 const savePartners=list=>localStorage.setItem(PKEY,JSON.stringify(list));
 
 function subRel(){
@@ -1301,7 +1392,7 @@ function subRel(){
           <span class="pav" style="background:${COLOUR(["Venus","Jupiter","Moon","Mars"][i%4])}">${p.name[0].toUpperCase()}</span>
           <span><b style="font-weight:600">${p.name}</b>
             <span style="display:block;font-size:11.5px;color:var(--ink-3)">
-              ${NAK[nakOf(p.moonL)]} &#183; ${SIGNS[signOf(p.moonL)-1]}</span></span>
+              ${NAK[nakOf(p.moonL)]} &#183; ${SIGNS[signOf(p.moonL)-1]}${p.demo?" &#183; sample":""}</span></span>
           <span class="sub" style="color:${k.total>=18?"var(--mercury)":"var(--mars)"}">
             ${k.total}/36</span><span class="chev">&#8250;</span></button>`}).join("")}
     </div>`:`<div class="card" style="margin-top:16px"><p class="muted" style="font-size:13.5px">
@@ -1335,7 +1426,7 @@ function subPartner(){
   const verdict=k.total>=28?"Traditionally considered a strong match"
     :k.total>=18?"Above the threshold traditionally considered acceptable"
     :"Below the 18-point threshold traditionally considered acceptable";
-  return backBar(p.name)+`
+  return backBar(p.name+(p.demo?` <span class="pill" style="vertical-align:6px">sample data</span>`:""))+`
     <div class="scorecard">
       <div class="scorenum" style="color:${pct>=.5?"var(--mercury)":"var(--mars)"}">
         ${k.total}<small>/36</small></div>
@@ -1345,7 +1436,8 @@ function subPartner(){
         <p class="muted" style="font-size:12.5px;margin:0">${verdict}.</p>
       </div>
     </div>
-    ${rows([["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
+    ${rows([["Born",new Date(p.born).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})],
+            ["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
             ["Nakshatra",`${NAK[nakOf(p.moonL)]} &#183; pada ${padaOf(p.moonL)}`],
             ["Yours",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
             ["Manglik (yours)",manglik(CHART)?"Yes":"No"]])}

@@ -290,6 +290,74 @@ svg.asp{pointer-events:none}
 @keyframes pulse{50%{inset:-26%;opacity:.25}}
 
 /* -- you --------------------------------------------------------- */
+
+/* sub-screens */
+.backbtn{display:inline-flex;align-items:center;gap:5px;border:0;background:none;
+  color:var(--ink-2);font-family:var(--ff);font-size:14.5px;cursor:pointer;
+  padding:6px 10px 6px 0;margin:0 0 2px}
+.backbtn:active{opacity:.6}
+
+/* timeline: years left, rail right */
+.tlwrap{display:grid;grid-template-columns:1fr 40px;gap:14px;height:56dvh;min-height:340px}
+.tlcol{display:flex;flex-direction:column;border-radius:13px;overflow:hidden;
+  border:.5px solid rgba(110,135,195,.2)}
+.band{position:relative;display:grid;
+  grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
+  padding:0 12px;min-height:0;cursor:pointer;
+  border-bottom:.5px solid rgba(10,16,36,.7);
+  transition:filter .3s var(--ease),box-shadow .3s var(--ease)}
+.band:last-child{border-bottom:0}
+.band .yr{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.band .ld{font-size:13px;font-weight:620;letter-spacing:-.01em}
+.band .dur{font-family:var(--fm);font-size:9.5px;color:var(--ink-3)}
+.band.on{box-shadow:inset 3px 0 0 currentColor, inset 0 0 40px -12px rgba(255,255,255,.35)}
+.band.on .ld{color:var(--ink)!important}
+
+.vscroll{position:relative;border-radius:99px;cursor:grab;touch-action:none;
+  background:rgba(255,255,255,.045);border:.5px solid rgba(110,135,195,.2);outline:none}
+.vscroll:active{cursor:grabbing}
+.vscroll:focus-visible{box-shadow:0 0 0 2px var(--hot)}
+.vrail{position:absolute;left:50%;top:9px;bottom:9px;width:2px;margin-left:-1px;
+  border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05))}
+.vthumb{position:absolute;left:50%;width:26px;height:26px;margin:-13px 0 0 -13px;
+  border-radius:50%;background:var(--ink);
+  box-shadow:0 2px 10px rgba(0,0,0,.6),0 0 16px -2px rgba(180,205,255,.65);
+  pointer-events:none}
+.impact{font-size:13.5px;line-height:1.52;color:var(--ink-2);margin:0 0 9px;
+  padding-left:12px;border-left:2px solid var(--line-2)}
+
+/* relationships */
+.addrow{display:flex;align-items:center;gap:14px}
+.plus{flex:0 0 auto;width:42px;height:42px;border-radius:50%;cursor:pointer;
+  border:.5px solid rgba(140,175,255,.35);background:rgba(120,150,225,.2);
+  color:var(--ink);font-size:23px;line-height:1;font-family:var(--ff);
+  display:grid;place-items:center;transition:transform .2s var(--ease)}
+.plus:active{transform:scale(.92)}
+.pav{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;
+  place-items:center;font-size:13px;font-weight:700;color:#0A0F22}
+.scorecard{display:flex;align-items:center;gap:16px;padding:16px 17px;
+  border-radius:16px;margin-bottom:6px;
+  background:linear-gradient(168deg,rgba(30,44,88,.45),rgba(14,22,50,.35));
+  border:.5px solid rgba(110,135,195,.18)}
+.scorenum{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;
+  font-variant-numeric:tabular-nums}
+.scorenum small{font-size:15px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.koota{padding:13px 0;border-top:.5px solid var(--line)}
+.koota:last-of-type{border-bottom:.5px solid var(--line)}
+.ktop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.ktop b{font-size:14.5px;font-weight:620}
+.kscore{font-family:var(--fm);font-size:13px;font-variant-numeric:tabular-nums}
+.kbar{height:4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.kbar i{display:block;height:100%;border-radius:99px}
+.kabout{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin:8px 0 4px}
+.kvals{font-size:12.5px;color:var(--ink-2);margin:0}
+.kvals b{color:var(--ink);font-weight:600}
+.danger{width:100%;margin-top:22px;padding:13px;border-radius:12px;cursor:pointer;
+  border:.5px solid rgba(208,83,63,.4);background:rgba(208,83,63,.12);
+  color:#E88A78;font-family:var(--ff);font-size:14px}
+.danger:active{background:rgba(208,83,63,.22)}
+
 .me-head{display:flex;align-items:center;gap:15px;margin:6px 0 4px}
 .avatar{width:56px;height:56px;border-radius:50%;flex:0 0 auto;
   background:conic-gradient(from 210deg,var(--venus),var(--jupiter),var(--saturn),var(--venus));
@@ -497,6 +565,119 @@ const PANCHANG={Tithi:"Krishna Ashtami",Karana:"Kaulav",Yoga:"Variyan",
   Nakshatra:"Mula",Sunrise:"06:30:10",Sunset:"18:44:43"};
 const AVAKHADA={Varna:"Kshatriya",Vashya:"Nara",Yoni:"Shwaan",Gan:"Rakshasa",
   Nadi:"Adhya",Charan:"4",Tatva:"Fire",Paya:"Copper"};
+
+
+/* =============================================================== *
+ * LUNAR POSITION - Meeus low-precision series. Checked against the
+ * Astrotalk report for 26 Mar 1992: error 0.009 deg (32 arcseconds),
+ * and it reproduces both the Mula nakshatra and pada 4 independently.
+ * Good enough for nakshatra work; the licensed ephemeris replaces it.
+ * =============================================================== */
+const RAD=Math.PI/180, sind=d=>Math.sin(d*RAD);
+const julian=d=>d.getTime()/864e5+2440587.5;
+function moonTropical(JD){
+  const T=(JD-2451545)/36525;
+  const Lp=218.3164477+481267.88123421*T-0.0015786*T*T;
+  const D =297.8501921+445267.1114034*T-0.0018819*T*T;
+  const M =357.5291092+35999.0502909*T;
+  const Mp=134.9633964+477198.8675055*T+0.0087414*T*T;
+  const F =93.2720950+483202.0175233*T-0.0036539*T*T;
+  const l=Lp+6.288774*sind(Mp)+1.274027*sind(2*D-Mp)+0.658314*sind(2*D)
+    +0.213618*sind(2*Mp)-0.185116*sind(M)-0.114332*sind(2*F)
+    +0.058793*sind(2*D-2*Mp)+0.057066*sind(2*D-M-Mp)+0.053322*sind(2*D+Mp)
+    +0.045758*sind(2*D-M)-0.040923*sind(M-Mp)-0.034720*sind(D)
+    -0.030383*sind(M+Mp)+0.015327*sind(2*D-2*F)-0.012528*sind(Mp+2*F)
+    +0.010980*sind(Mp-2*F);
+  return norm(l);
+}
+const ayanamsa=JD=>23.85+0.0139721*((JD-2451545)/36525*100);
+const moonSidereal=date=>norm(moonTropical(julian(date))-ayanamsa(julian(date)));
+
+/* =============================================================== *
+ * ASHTAKOOTA (Gun Milan) - 36 points across eight kootas.
+ * Nakshatra indices below are 0-based to match NAK[].
+ * =============================================================== */
+const GANA=(()=>{const g=Array(27);
+  [0,4,6,7,12,14,16,21,26].forEach(i=>g[i]="Deva");
+  [1,3,5,10,11,19,20,24,25].forEach(i=>g[i]="Manushya");
+  [2,8,9,13,15,17,18,22,23].forEach(i=>g[i]="Rakshasa");
+  return g})();
+const NADI=(()=>{const n=Array(27);
+  [0,5,6,11,12,17,18,23,24].forEach(i=>n[i]="Aadi");
+  [1,4,7,10,13,16,19,22,25].forEach(i=>n[i]="Madhya");
+  [2,3,8,9,14,15,20,21,26].forEach(i=>n[i]="Antya");
+  return n})();
+const YONI=["Horse","Elephant","Sheep","Serpent","Serpent","Dog","Cat","Sheep","Cat",
+  "Rat","Rat","Cow","Buffalo","Tiger","Buffalo","Tiger","Deer","Deer","Dog","Monkey",
+  "Mongoose","Monkey","Lion","Horse","Lion","Cow","Elephant"];
+const YONI_ENEMIES=[["Horse","Buffalo"],["Elephant","Lion"],["Sheep","Monkey"],
+  ["Serpent","Mongoose"],["Dog","Deer"],["Cat","Rat"],["Cow","Tiger"]];
+const VARNA_BY_SIGN={4:"Brahmin",8:"Brahmin",12:"Brahmin",1:"Kshatriya",5:"Kshatriya",
+  9:"Kshatriya",2:"Vaishya",6:"Vaishya",10:"Vaishya",3:"Shudra",7:"Shudra",11:"Shudra"};
+const VARNA_RANK={Brahmin:4,Kshatriya:3,Vaishya:2,Shudra:1};
+const VASHYA_BY_SIGN={1:"Chatushpada",2:"Chatushpada",3:"Manava",4:"Jalachara",
+  5:"Vanachara",6:"Manava",7:"Manava",8:"Keeta",9:"Chatushpada",10:"Chatushpada",
+  11:"Manava",12:"Jalachara"};
+const FRIENDS={Sun:["Moon","Mars","Jupiter"],Moon:["Sun","Mercury"],
+  Mars:["Sun","Moon","Jupiter"],Mercury:["Sun","Venus"],Jupiter:["Sun","Moon","Mars"],
+  Venus:["Mercury","Saturn"],Saturn:["Mercury","Venus"]};
+const ENEMIES={Sun:["Venus","Saturn"],Moon:[],Mars:["Mercury"],Mercury:["Moon"],
+  Jupiter:["Mercury","Venus"],Venus:["Sun","Moon"],Saturn:["Sun","Moon","Mars"]};
+const relation=(a,b)=>a===b?"friend":(FRIENDS[a]||[]).includes(b)?"friend"
+  :(ENEMIES[a]||[]).includes(b)?"enemy":"neutral";
+
+function ashtakoota(boy,girl){
+  const bs=signOf(boy.moonL), gs=signOf(girl.moonL);
+  const bn=nakOf(boy.moonL),  gn=nakOf(girl.moonL);
+  const out=[];
+
+  const bv=VARNA_BY_SIGN[bs],gv=VARNA_BY_SIGN[gs];
+  out.push({name:"Varna",max:1,got:VARNA_RANK[bv]>=VARNA_RANK[gv]?1:0,
+    a:bv,b:gv,about:"Spiritual compatibility and the balance of ego."});
+
+  const bw=VASHYA_BY_SIGN[bs],gw=VASHYA_BY_SIGN[gs];
+  out.push({name:"Vashya",max:2,
+    got:bw===gw?2:((bw==="Vanachara")!==(gw==="Vanachara")&&(bw==="Chatushpada"||gw==="Chatushpada")?0:1),
+    a:bw,b:gw,about:"Mutual influence - who yields to whom.",simplified:true});
+
+  const tara=(f,t)=>{const c=((t-f)%27+27)%27+1; const r=c%9; return !(r===3||r===5||r===7)};
+  const t1=tara(bn,gn),t2=tara(gn,bn);
+  out.push({name:"Tara",max:3,got:t1&&t2?3:(t1||t2?1.5:0),
+    a:NAK[bn],b:NAK[gn],about:"Birth-star harmony, traditionally linked to health and fortune."});
+
+  const by=YONI[bn],gy=YONI[gn];
+  const sworn=YONI_ENEMIES.some(([x,y])=>(by===x&&gy===y)||(by===y&&gy===x));
+  out.push({name:"Yoni",max:4,got:by===gy?4:(sworn?0:2),a:by,b:gy,
+    about:"Physical and instinctive compatibility.",simplified:true});
+
+  const bl=SIGN_LORD[bs],gl=SIGN_LORD[gs];
+  const r1=relation(bl,gl),r2=relation(gl,bl);
+  const gm=(r1==="friend"&&r2==="friend")?5:(r1==="enemy"&&r2==="enemy")?0
+    :(r1==="neutral"&&r2==="neutral")?3:(r1==="enemy"||r2==="enemy")?1:4;
+  out.push({name:"Graha Maitri",max:5,got:gm,a:bl,b:gl,
+    about:"Mental and intellectual rapport, judged through the Moon-sign lords."});
+
+  const bg=GANA[bn],gg=GANA[gn];
+  const GT={Deva:{Deva:6,Manushya:6,Rakshasa:0},Manushya:{Deva:5,Manushya:6,Rakshasa:0},
+            Rakshasa:{Deva:1,Manushya:0,Rakshasa:6}};
+  out.push({name:"Gana",max:6,got:GT[bg][gg],a:bg,b:gg,
+    about:"Temperament. Deva, Manushya and Rakshasa describe disposition, not worth."});
+
+  const d1=((gs-bs)%12+12)%12+1, d2=((bs-gs)%12+12)%12+1;
+  const bad=[[2,12],[5,9],[6,8]].some(([x,y])=>(d1===x&&d2===y)||(d1===y&&d2===x));
+  out.push({name:"Bhakoot",max:7,got:bad?0:7,a:SIGNS[bs-1],b:SIGNS[gs-1],
+    about:"Family and material harmony, from the distance between Moon signs."});
+
+  const bnd=NADI[bn],gnd=NADI[gn];
+  out.push({name:"Nadi",max:8,got:bnd===gnd?0:8,a:bnd,b:gnd,
+    about:"Constitutional compatibility. The heaviest koota, and the one most argued over."});
+
+  const total=out.reduce((a,k)=>a+k.got,0);
+  return {kootas:out,total,max:36};
+}
+
+/* Mangal dosha: Mars in the 1st, 2nd, 4th, 7th, 8th or 12th from lagna. */
+const manglik=ch=>[1,2,4,7,8,12].includes(ch.get("Mars").house);
 
 const COLOUR=g=>`var(--${g.toLowerCase()})`;
 const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
@@ -920,130 +1101,287 @@ const ICONS={
   star:'<path d="M12 3.5l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.9l6-.8z"/>',
   gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>'
 };
+
+const SUBS=[
+  {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
+  {id:"timeline", label:"Timeline", icon:ICONS.clock, sub:()=>{const n=CHART.dasha.at(new Date());return n.maha.lord+"/"+n.antar.lord}},
+  {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
+  {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>"42 terms"},
+  {id:"saved", label:"Saved insights", icon:ICONS.star, sub:()=>"none yet"},
+  {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>"Lahiri"}
+];
+
+let subView=null, subArg=null;
+
 function renderYou(){
-  const now=CHART.dasha.at(new Date());
-  const moon=CHART.get("Moon");
+  if(subView) return renderSub();
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
       <div class="avatar">S</div>
       <div><h1 style="font-size:23px;margin:0">Sangram</h1>
-        <p class="muted" style="font-size:12.5px;margin:2px 0 0">
-          26 March 1992 &#183; 10:00 &#183; Kopargaon, Maharashtra</p></div>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 0">Vrishabha lagna</p></div>
     </div>
-
     <div class="section">
       <div class="list">
-        <button class="item" data-a="chart"><svg class="ico" viewBox="0 0 24 24">${ICONS.chart}</svg>
-          Birth chart<span class="sub">${SIGNS_SK[CHART.lagna-1]}</span><span class="chev">&#8250;</span></button>
-        <button class="item" data-a="timeline"><svg class="ico" viewBox="0 0 24 24">${ICONS.clock}</svg>
-          Timeline<span class="sub">${now.maha.lord}/${now.antar.lord}</span><span class="chev">&#8250;</span></button>
-        <button class="item" data-a="rel"><svg class="ico" viewBox="0 0 24 24">${ICONS.people}</svg>
-          Relationships<span class="sub">none yet</span><span class="chev">&#8250;</span></button>
-        <button class="item" data-a="glossary"><svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>
-          Glossary<span class="sub">42 terms</span><span class="chev">&#8250;</span></button>
-        <button class="item" data-a="saved"><svg class="ico" viewBox="0 0 24 24">${ICONS.star}</svg>
-          Saved insights<span class="sub">none yet</span><span class="chev">&#8250;</span></button>
-        <button class="item" data-a="settings"><svg class="ico" viewBox="0 0 24 24">${ICONS.gear}</svg>
-          Settings<span class="sub">Lahiri</span><span class="chev">&#8250;</span></button>
+        ${SUBS.map(v=>`<button class="item" data-v="${v.id}">
+          <svg class="ico" viewBox="0 0 24 24">${v.icon}</svg>${v.label}
+          <span class="sub">${v.sub()}</span><span class="chev">&#8250;</span></button>`).join("")}
       </div>
-    </div>
-
-    <div class="section">
-      <h2>Birth details</h2>
-      <div class="card">
-        ${rows([["Date","26 Mar 1992"],["Time","10:00 IST"],
-          ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88&#176;N  74.48&#176;E"],
-          ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
-          ["Ayanamsa","Lahiri"]])}
-        <div class="eyebrow" style="margin:16px 0 8px">Panchang at birth</div>
-        ${rows(Object.entries(PANCHANG).map(([k,v])=>[k,v]))}
-        <div class="eyebrow" style="margin:16px 0 8px">Avakhada</div>
-        ${rows(Object.entries(AVAKHADA).map(([k,v])=>[k,v]))}
-        <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:12px 0 0">
-          Panchang and Avakhada are carried from your report, not yet computed by the
-          engine. They are what marriage matching is built from, so they arrive properly
-          when Relationships does.</p>
-      </div>
-    </div>
-
-    <div class="section" id="tl"></div>`;
-
-  document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
-    buzz(6);
-    if(b.dataset.a==="timeline") openTimeline();
-    else if(b.dataset.a==="chart") go(1);
-    else placeholder(b.textContent.trim().split(/\s{2,}/)[0]);
-  });
-  openTimeline();
-}
-
-function placeholder(name){
-  document.getElementById("tl").innerHTML=`
-    <h2>${name}</h2>
-    <div class="card"><p class="muted" style="font-size:13.5px">
-      Not built yet. This screen exists in the architecture but has no
-      implementation &#8212; it is listed here so the shape of the app is visible,
-      not to suggest it works.</p></div>`;
-  document.getElementById("tl").scrollIntoView({behavior:"smooth",block:"nearest"});
-}
-
-let tlPos=null;
-function openTimeline(){
-  const d=CHART.dasha, mahas=d.mahas.slice(0,9);
-  const t0=mahas[0].start.getTime(), t1=mahas[mahas.length-1].end.getTime();
-  if(tlPos===null) tlPos=Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1);
-
-  document.getElementById("tl").innerHTML=`
-    <h2>Timeline</h2>
-    <p class="muted" style="font-size:13px;margin-bottom:4px">
-      Drag through your Vimshottari dasha. 120 years, in the order your Moon set.</p>
-    <div class="scrub">
-      <div class="track" id="track">
-        ${mahas.map(m=>`<div class="seg" style="flex:${m.years};background:${COLOUR(m.lord)};opacity:.72">
-          <span>${m.lord.slice(0,2).toUpperCase()}</span></div>`).join("")}
-        <div class="needle" id="needle"></div>
-      </div>
-      <input type="range" id="rng" min="0" max="1000" value="${Math.round(tlPos*1000)}"
-             aria-label="Move through time">
-      <div class="readout" id="ro"></div>
     </div>`;
+  document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
+    subView=b.dataset.v; subArg=null; buzz(7); renderSub();
+  });
+}
 
-  const rng=document.getElementById("rng");
+const backBar=title=>`<button class="backbtn" id="back">
+  <span style="font-size:17px;line-height:1">&#8249;</span> Back</button>
+  <h1 style="font-size:26px;margin:4px 0 14px">${title}</h1>`;
+
+function renderSub(){
+  const pg=document.getElementById("pg-you");
+  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,
+              glossary:()=>subStub("Glossary"),saved:()=>subStub("Saved insights"),
+              settings:subSettings}[subView];
+  pg.innerHTML=body();
+  pg.scrollTop=0;
+  const back=document.getElementById("back");
+  if(back) back.onclick=()=>{
+    buzz(5);
+    if(subView==="partner"){subView="rel";subArg=null;renderSub()}
+    else{subView=null;renderYou()}
+  };
+  if(subView==="timeline") wireTimeline();
+  if(subView==="rel") wireRel();
+  if(subView==="partner") wirePartner();
+}
+
+function subStub(name){
+  return backBar(name)+`<div class="card"><p class="muted" style="font-size:13.5px">
+    Not built yet. Listed so the architecture is visible, not to suggest it works.</p></div>`;
+}
+
+function subSettings(){
+  return backBar("Settings")+`
+    ${rows([["Ayanamsa","Lahiri"],["Chart style","North Indian"],
+            ["Nodal aspects","Off"],["Haptics","On"]])}
+    <p class="note">Ayanamsa is the sidereal offset. Lahiri is the Government of
+    India standard; changing it moves every graha slightly, and can move one across
+    a sign boundary.</p>`;
+}
+
+function subBirth(){
+  return backBar("Birth details")+`
+    ${rows([["Date","26 Mar 1992"],["Time","10:00 IST"],
+      ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
+      ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
+      ["Lagna nakshatra","Rohini"],["Ayanamsa","Lahiri"]])}
+    <div class="eyebrow" style="margin:22px 0 8px">Panchang at birth</div>
+    ${rows(Object.entries(PANCHANG))}
+    <div class="eyebrow" style="margin:22px 0 8px">Avakhada</div>
+    ${rows(Object.entries(AVAKHADA))}
+    <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
+    ${rows(CHART.placements.map(p=>[
+      `<span class="sw" style="background:${COLOUR(p.graha)}"></span>${p.graha}`,
+      `${SIGNS[p.sign-1]} ${p.degf}${p.retro?" R":""}`]))}
+    <p class="note">Panchang and Avakhada are carried from your Astrotalk report rather
+    than computed. Everything else on this screen is derived from the longitudes.</p>`;
+}
+
+/* ---- TIMELINE: years down the left, scrubber down the right ---- */
+let tlT=null;
+function subTimeline(){
+  const m=CHART.dasha.mahas.slice(0,9);
+  const t0=m[0].start.getTime(), t1=m[8].end.getTime();
+  if(tlT===null) tlT=Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1);
+  return backBar("Timeline")+`
+    <p class="muted" style="font-size:13px;margin:-6px 0 16px">
+      120 years of Vimshottari, in the order your Moon in Mula set. Drag the rail.</p>
+    <div class="tlwrap">
+      <div class="tlcol">
+        ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
+          background:linear-gradient(90deg, ${COLOUR(d.lord)}22, ${COLOUR(d.lord)}05)">
+          <span class="yr">${d.start.getFullYear()}</span>
+          <span class="ld" style="color:${COLOUR(d.lord)}">${d.lord}</span>
+          <span class="dur">${d.years.toFixed(1)}y</span>
+        </div>`).join("")}
+      </div>
+      <div class="vscroll" id="vs" role="slider" tabindex="0"
+           aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
+        <div class="vrail"></div><div class="vthumb" id="vt"></div>
+      </div>
+    </div>
+    <div id="ro" class="readout"></div>`;
+}
+
+function dashaImpact(lord){
+  const p=CHART.get(lord), ruled=CHART.housesRuled(lord);
+  const themes=ruled.map(h=>BHAVA[h-1][1]);
+  const seat=BHAVA[p.house-1][1];
+  const bits=[];
+  bits.push(ruled.length
+    ? `Rules your ${ruled.map(ordinal).join(" and ")} house${ruled.length>1?"s":""} &#8212; ${themes.join("; ").toLowerCase()}.`
+    : `Owns no sign, so rules no house. A shadow graha acts through whatever it sits with.`);
+  bits.push(`Sits in your ${ordinal(p.house)} &#8212; ${seat.toLowerCase()} &#8212; in ${SIGNS[p.sign-1]}${p.dig?`, ${p.dig.toLowerCase()}`:""}.`);
+  const conj=CHART.conjunct(lord);
+  if(conj.length) bits.push(`Shares that sign with ${conj.join(" and ")}.`);
+  bits.push(`Casts drishti on the ${CHART.aspectedBy(lord).map(ordinal).join(", ")}.`);
+  return bits;
+}
+
+function wireTimeline(){
+  const m=CHART.dasha.mahas.slice(0,9);
+  const t0=m[0].start.getTime(), t1=m[8].end.getTime();
+  const vs=document.getElementById("vs"), vt=document.getElementById("vt");
+  let lastLord=null;
+
   const paint=()=>{
-    tlPos=+rng.value/1000;
-    const when=new Date(t0+tlPos*(t1-t0));
-    document.getElementById("needle").style.left=(tlPos*100)+"%";
-    const now=d.at(when);
-    const ro=document.getElementById("ro");
-    if(!now){ro.innerHTML="";return}
+    vt.style.top=(tlT*100)+"%";
+    vs.setAttribute("aria-valuenow",Math.round(tlT*100));
+    const when=new Date(t0+tlT*(t1-t0));
+    const now=CHART.dasha.at(when); if(!now) return;
+    document.querySelectorAll(".band").forEach((b,i)=>
+      b.classList.toggle("on", m[i].lord===now.maha.lord && when>=m[i].start && when<m[i].end));
     const prog=(when-now.maha.start)/(now.maha.end-now.maha.start);
-    const age=Math.floor((when-CHART.birthDate)/(YDAYS*864e5));
-    ro.innerHTML=`
+    const age=Math.floor((when-CHART.birthDate)/(365.2425*864e5));
+    document.getElementById("ro").innerHTML=`
       <div class="eyebrow">${fmtDate(when)} &#183; age ${age}</div>
       <p class="big" style="color:${COLOUR(now.maha.lord)}">${now.maha.lord} mahadasha</p>
-      <p class="muted" style="font-size:13px;margin:0">
-        ${now.antar.lord} antardasha &#183; ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</p>
+      <p class="muted" style="font-size:13px;margin:0">${now.antar.lord} antardasha &#183;
+        ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</p>
       <div class="bar"><i style="width:${(prog*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i></div>
       <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:0">
-        ${Math.round(prog*100)}% through a ${now.maha.years.toFixed(1)}-year period &#183;
-        ends ${fmtDate(now.maha.end)}</p>
-      <p class="muted" style="font-size:13px;margin-top:13px">
-        ${(()=>{const r=CHART.housesRuled(now.maha.lord),h=ordinal(CHART.get(now.maha.lord).house);
-          return r.length? `${now.maha.lord} rules your ${r.map(ordinal).join(" and ")} house${r.length>1?"s":""} and sits in your ${h}`
-                         : `${now.maha.lord} owns no sign, and sits in your ${h}`})()}.
-        Within Vedic tradition this period is associated with the themes of those houses &#8212;
-        which is why the same dasha reads differently in different charts.</p>`;
+        ${Math.round(prog*100)}% through ${now.maha.years.toFixed(1)} years &#183; ends ${fmtDate(now.maha.end)}</p>
+      <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
+      ${dashaImpact(now.maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
+      <div class="eyebrow" style="margin:20px 0 8px">And within it, ${now.antar.lord}</div>
+      ${dashaImpact(now.antar.lord).slice(0,2).map(t=>`<p class="impact">${t}</p>`).join("")}
+      <p class="note">Traditional associations for the houses involved &#8212; not a
+      forecast of events.</p>`;
+    if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
-  let lastLord=null;
-  rng.oninput=()=>{
-    paint();
-    const now=d.at(new Date(t0+tlPos*(t1-t0)));
-    if(now&&now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}   /* boundary crossed */
+
+  const setFromY=cy=>{
+    const r=vs.getBoundingClientRect();
+    tlT=Math.min(Math.max((cy-r.top)/r.height,0),1); paint();
   };
+  let dragging=false;
+  vs.addEventListener("pointerdown",e=>{dragging=true;vs.setPointerCapture(e.pointerId);setFromY(e.clientY)});
+  vs.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY)});
+  vs.addEventListener("pointerup",()=>dragging=false);
+  vs.addEventListener("keydown",e=>{
+    const step=e.shiftKey?0.05:0.01;
+    if(e.key==="ArrowDown"){tlT=Math.min(tlT+step,1);paint();e.preventDefault()}
+    if(e.key==="ArrowUp"){tlT=Math.max(tlT-step,0);paint();e.preventDefault()}
+  });
+  document.querySelectorAll(".band").forEach(b=>b.onclick=()=>{
+    const d=m[+b.dataset.i];
+    tlT=(((d.start.getTime()+d.end.getTime())/2)-t0)/(t1-t0);
+    buzz(8); paint();
+  });
   paint();
 }
 
-/* &#9552;&#9552;&#9552; TABS &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+/* ---- RELATIONSHIPS ---- */
+const PKEY="astro.partners.v1";
+const partners=()=>{try{return JSON.parse(localStorage.getItem(PKEY)||"[]")}catch(_){return []}};
+const savePartners=list=>localStorage.setItem(PKEY,JSON.stringify(list));
+
+function subRel(){
+  const list=partners();
+  return backBar("Relationships")+`
+    <div class="addrow">
+      <p class="muted" style="font-size:13px;margin:0;flex:1">
+        Add someone to compare charts. Only a birth date and time are needed.</p>
+      <button class="plus" id="add" aria-label="Add a person">+</button>
+    </div>
+    ${list.length?`<div class="list" style="margin-top:16px">
+      ${list.map((p,i)=>{
+        const k=ashtakoota({moonL:CHART.get("Moon").L},{moonL:p.moonL});
+        return `<button class="item" data-i="${i}">
+          <span class="pav" style="background:${COLOUR(["Venus","Jupiter","Moon","Mars"][i%4])}">${p.name[0].toUpperCase()}</span>
+          <span><b style="font-weight:600">${p.name}</b>
+            <span style="display:block;font-size:11.5px;color:var(--ink-3)">
+              ${NAK[nakOf(p.moonL)]} &#183; ${SIGNS[signOf(p.moonL)-1]}</span></span>
+          <span class="sub" style="color:${k.total>=18?"var(--mercury)":"var(--mars)"}">
+            ${k.total}/36</span><span class="chev">&#8250;</span></button>`}).join("")}
+    </div>`:`<div class="card" style="margin-top:16px"><p class="muted" style="font-size:13.5px">
+      No one added yet. Tap + to compare a chart.</p></div>`}
+    <p class="note">Compatibility is computed from each person's Moon &#8212; nakshatra,
+    sign and its lord. It needs no birthplace, which is why only date and time are asked for.</p>`;
+}
+
+function wireRel(){
+  document.getElementById("add").onclick=()=>{
+    const name=prompt("Their name?"); if(!name) return;
+    const date=prompt("Date of birth (YYYY-MM-DD)?"); if(!date) return;
+    const time=prompt("Time of birth (HH:MM, 24h). Leave blank for 12:00.","12:00")||"12:00";
+    const d=new Date(`${date}T${time}:00+05:30`);
+    if(isNaN(d)){alert("That date could not be read. Use YYYY-MM-DD.");return}
+    const list=partners();
+    list.push({name:name.trim(),born:d.toISOString(),moonL:moonSidereal(d),
+               approx:time==="12:00"});
+    savePartners(list); buzz(12); renderSub();
+  };
+  document.querySelectorAll("#pg-you .item[data-i]").forEach(b=>b.onclick=()=>{
+    subArg=+b.dataset.i; subView="partner"; buzz(7); renderSub();
+  });
+}
+
+function subPartner(){
+  const p=partners()[subArg]; if(!p){subView="rel";return subRel()}
+  const me={moonL:CHART.get("Moon").L};
+  const k=ashtakoota(me,{moonL:p.moonL});
+  const pct=k.total/36;
+  const verdict=k.total>=28?"Traditionally considered a strong match"
+    :k.total>=18?"Above the threshold traditionally considered acceptable"
+    :"Below the 18-point threshold traditionally considered acceptable";
+  return backBar(p.name)+`
+    <div class="scorecard">
+      <div class="scorenum" style="color:${pct>=.5?"var(--mercury)":"var(--mars)"}">
+        ${k.total}<small>/36</small></div>
+      <div style="flex:1">
+        <div class="bar" style="margin:0 0 7px"><i style="width:${pct*100}%;
+          background:${pct>=.5?"var(--mercury)":"var(--mars)"}"></i></div>
+        <p class="muted" style="font-size:12.5px;margin:0">${verdict}.</p>
+      </div>
+    </div>
+    ${rows([["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
+            ["Nakshatra",`${NAK[nakOf(p.moonL)]} &#183; pada ${padaOf(p.moonL)}`],
+            ["Yours",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
+            ["Manglik (yours)",manglik(CHART)?"Yes":"No"]])}
+    <div class="eyebrow" style="margin:22px 0 10px">The eight kootas</div>
+    ${k.kootas.map(x=>`
+      <div class="koota">
+        <div class="ktop">
+          <b>${x.name}</b>
+          <span class="kscore" style="color:${x.got===0?"var(--mars)":x.got===x.max?"var(--mercury)":"var(--ink-2)"}">
+            ${x.got}<span style="color:var(--ink-3)">/${x.max}</span></span>
+        </div>
+        <div class="kbar"><i style="width:${(x.got/x.max)*100}%;
+          background:${x.got===0?"var(--mars)":x.got===x.max?"var(--mercury)":"var(--hot)"}"></i></div>
+        <p class="kabout">${x.about}</p>
+        <p class="kvals">You: <b>${x.a}</b> &#183; ${p.name}: <b>${x.b}</b>${
+          x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
+      </div>`).join("")}
+    <button class="danger" id="del">Remove ${p.name}</button>
+    <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
+      moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
+      which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
+      Gun Milan is one traditional method among several, and a score is not a verdict on a
+      relationship. Kootas marked <i>simplified rule</i> use a reduced version of a longer
+      classical table and will be completed later.</p>`;
+}
+
+function wirePartner(){
+  const d=document.getElementById("del");
+  if(d) d.onclick=()=>{
+    const list=partners(); const name=list[subArg].name;
+    if(!confirm(`Remove ${name}?`)) return;
+    list.splice(subArg,1); savePartners(list); buzz(9);
+    subView="rel"; subArg=null; renderSub();
+  };
+}
+
 const TABS=[
   {id:"today",label:"Today",icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'},
   {id:"universe",label:"Universe",icon:'<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M3.5 3.5l17 17M20.5 3.5l-17 17M12 3.5l8.5 8.5L12 20.5 3.5 12z"/>'},

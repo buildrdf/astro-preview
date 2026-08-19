@@ -404,6 +404,8 @@ const nakOf=L=>Math.floor(norm(L)/NSPAN);
 const padaOf=L=>Math.floor((norm(L)%NSPAN)/PSPAN)+1;
 const nakFrac=L=>(norm(L)%NSPAN)/NSPAN;
 const sep=(a,b)=>{const r=Math.abs(norm(a)-norm(b));return r>180?360-r:r};
+const spokenDeg=L=>{const d=degIn(L),i=Math.floor(d);
+  return `${i} degrees ${Math.floor((d-i)*60)} minutes`};
 const fmtDeg=L=>{const d=degIn(L),i=Math.floor(d);
   return `${String(i).padStart(2,"0")}&#176;${String(Math.floor((d-i)*60)).padStart(2,"0")}'`};
 const adv=(s,n)=>((s-1+n-1)%12+12)%12+1;
@@ -709,7 +711,9 @@ function renderUniverse(){
     b.style.setProperty("--fill",COLOUR(p.graha));
     b.style.setProperty("--glow",shadow(p.graha)?`0 0 12px -1px ${COLOUR(p.graha)}`
       :`0 0 16px -2px ${COLOUR(p.graha)}, 0 0 34px -8px ${COLOUR(p.graha)}`);
-    b.setAttribute("aria-label",`${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
+    b.setAttribute("aria-label",
+      `${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${spokenDeg(p.L)}. `+
+      `${p.nak} nakshatra, pada ${p.pada}.`+
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
     b.innerHTML=(p.graha==="Sun"?`<span class="corona"></span>`:``)+
       `<span class="body"><span class="surf"></span></span>`+

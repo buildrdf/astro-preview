@@ -1,0 +1,1093 @@
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#070C1E">
+<title>Astro App</title>
+<style>
+:root{
+  --void:#070C1E; --void-2:#0B1330; --raise:#111A38;
+  --line:#222E52; --line-2:#35456F; --hot:#7389B8;
+  --ink:#EFF1F7; --ink-2:#9BA5BE; --ink-3:#6B7590;
+  --brass:#C29B4E;
+  --sun:#F0A93B; --moon:#CFD8E8; --mars:#D0533F; --mercury:#5FBFA0;
+  --jupiter:#E0C067; --venus:#E7C6D0; --saturn:#7E90C4;
+  --rahu:#8B6BA8; --ketu:#967C68;
+  --ff:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --fm:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --tabh:70px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--void);color:var(--ink);font-family:var(--ff);
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+  height:100dvh;position:relative;
+}
+#sky{position:fixed;inset:0;z-index:0}
+.wash{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(115% 78% at 50% 22%, rgba(38,60,132,.30) 0%, rgba(12,20,52,.34) 44%, rgba(4,7,20,.9) 100%)}
+
+/* -- scaffold ---------------------------------------------------- */
+.app{position:relative;z-index:2;height:100dvh;display:flex;flex-direction:column}
+.pages{flex:1 1 auto;position:relative;min-height:0}
+.page{
+  position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding:max(12px,env(safe-area-inset-top)) 20px calc(var(--tabh) + 26px);
+  opacity:0;pointer-events:none;transform:translateY(8px);
+  transition:opacity .34s var(--ease), transform .34s var(--ease);
+}
+.page.on{opacity:1;pointer-events:auto;transform:none}
+.page::-webkit-scrollbar{display:none}
+
+/* -- tab bar ----------------------------------------------------- */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;
+  height:calc(var(--tabh) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  background:rgba(11,19,48,.72);
+  -webkit-backdrop-filter:saturate(180%) blur(26px);
+  backdrop-filter:saturate(180%) blur(26px);
+  border-top:.5px solid rgba(120,145,205,.20);
+}
+.tab{
+  border:0;background:none;cursor:pointer;color:var(--ink-3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-family:var(--ff);font-size:10px;letter-spacing:.01em;font-weight:520;
+  transition:color .26s var(--ease);padding:0;
+}
+.tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .4s var(--ease)}
+.tab.on{color:var(--ink)}
+.tab.on svg{transform:translateY(-1px) scale(1.06)}
+.tab:focus-visible{outline:2px solid var(--hot);outline-offset:-4px;border-radius:10px}
+
+/* -- shared type ------------------------------------------------- */
+h1{font-size:30px;font-weight:680;letter-spacing:-.03em;margin:0 0 2px;text-wrap:balance}
+h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
+.eyebrow{font-family:var(--fm);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.muted{color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0}
+.section{margin:30px 0 0}
+
+.card{
+  background:linear-gradient(168deg, rgba(30,44,88,.42), rgba(14,22,50,.34));
+  border:.5px solid rgba(110,135,195,.18);
+  border-radius:17px;padding:17px 18px;
+}
+.grid{display:flex;flex-direction:column;gap:11px}
+
+/* -- today ------------------------------------------------------- */
+.datestrip{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.datestrip::-webkit-scrollbar{display:none}
+.dchip{
+  flex:0 0 auto;border:0;cursor:pointer;font-family:var(--ff);
+  background:rgba(255,255,255,.045);color:var(--ink-3);
+  border-radius:13px;padding:8px 6px;width:46px;text-align:center;
+  transition:background .3s var(--ease), color .3s var(--ease), transform .3s var(--ease);
+}
+.dchip b{display:block;font-size:15px;font-weight:620;color:var(--ink-2);margin-top:2px}
+.dchip small{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase}
+.dchip.on{background:rgba(150,180,245,.17);color:var(--ink);transform:translateY(-2px)}
+.dchip.on b{color:var(--ink)}
+
+.moonrow{display:flex;align-items:center;gap:16px}
+.moondisc{
+  flex:0 0 auto;width:74px;height:74px;border-radius:50%;position:relative;
+  background:#0C1striped;overflow:hidden;
+  background:radial-gradient(circle at 36% 34%, #E8EDF7, #9FAEC6 62%, #5E6C8A 100%);
+  box-shadow:0 0 26px -6px rgba(190,210,245,.5);
+}
+.moondisc .shadow{
+  position:absolute;inset:0;border-radius:50%;
+  background:#070C1E;
+  transition:transform .8s var(--ease);
+}
+.moondisc .craters{position:absolute;inset:0;border-radius:50%;opacity:.5;
+  background:radial-gradient(circle at 40% 42%,rgba(60,72,96,.6) 0 9%,transparent 11%),
+             radial-gradient(circle at 63% 61%,rgba(60,72,96,.5) 0 6%,transparent 8%),
+             radial-gradient(circle at 30% 68%,rgba(60,72,96,.45) 0 5%,transparent 7%)}
+
+.cats{display:flex;flex-direction:column;gap:10px}
+.cat{
+  width:100%;text-align:left;border:0;cursor:pointer;font-family:var(--ff);
+  background:linear-gradient(168deg, rgba(30,44,88,.42), rgba(14,22,50,.34));
+  border:.5px solid rgba(110,135,195,.18);
+  border-radius:15px;padding:15px 16px;color:var(--ink);
+  display:grid;grid-template-columns:30px 1fr auto;gap:13px;align-items:start;
+  transition:background .3s var(--ease), transform .2s var(--ease);
+}
+.cat:active{transform:scale(.988)}
+.cat .dot{width:26px;height:26px;border-radius:50%;margin-top:1px;
+  box-shadow:0 0 14px -3px currentColor}
+.cat h3{margin:0 0 3px;font-size:15px;font-weight:620;letter-spacing:-.01em}
+.cat p{margin:0;font-size:13px;line-height:1.48;color:var(--ink-2)}
+.cat .why{
+  font-family:var(--fm);font-size:9px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin-top:7px;display:block}
+
+.tline{display:flex;gap:12px;padding:12px 0;border-top:.5px solid var(--line)}
+.tline:last-child{border-bottom:.5px solid var(--line)}
+.tline .when{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);
+  flex:0 0 74px;padding-top:2px;font-variant-numeric:tabular-nums}
+.tline .what{flex:1}
+.tline .what b{font-weight:600;font-size:14px}
+.tline .what p{margin:3px 0 0;font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.pill{display:inline-block;font-family:var(--fm);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;padding:2px 7px;border-radius:99px;
+  border:.5px solid var(--line-2);color:var(--ink-3);margin-left:6px}
+
+/* -- universe ---------------------------------------------------- */
+.stagewrap{display:grid;place-items:center;padding:6px 0 4px;
+  transition:transform .68s var(--ease)}
+.zoomed .stagewrap{transform:translateY(-8dvh)}
+.stage{position:relative;width:min(92vw,430px);aspect-ratio:1}
+.orbit{position:absolute;inset:0;transform-origin:50% 50%;
+  transition:transform .72s var(--ease),filter .5s var(--ease),opacity .5s var(--ease)}
+.stage.pmode .orbit{transform:scale(.94);filter:blur(2.4px) saturate(.55);opacity:.42}
+svg.chart,svg.asp{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+svg.asp{pointer-events:none}
+.hs{fill:rgba(255,255,255,.014);cursor:pointer;outline:none;
+  transition:fill .42s var(--ease),opacity .5s var(--ease)}
+.hs:hover{fill:rgba(255,255,255,.05)}
+.hs:focus-visible{fill:rgba(160,190,255,.12);stroke:var(--hot);stroke-width:1.4}
+.hs.sel{fill:rgba(150,180,240,.09)}
+.hs.lit{fill:rgba(194,155,78,.11)}
+.hs.dim{opacity:.13}
+.fr{fill:none;stroke:var(--line-2);stroke-width:1.1;vector-effect:non-scaling-stroke}
+.fr.in{stroke:var(--line);stroke-width:.9}
+.sn{font-family:var(--fm);font-size:3.6px;fill:var(--ink-3);text-anchor:middle;
+  dominant-baseline:middle;pointer-events:none;opacity:.75;
+  transition:opacity .45s var(--ease),fill .45s var(--ease)}
+.sn.dim{opacity:.08} .sn.sel{fill:var(--ink-2);opacity:1}
+.lg{fill:none;stroke:var(--brass);stroke-width:1.4;vector-effect:non-scaling-stroke;opacity:.5}
+.asclbl{font-family:var(--fm);font-size:3px;fill:var(--brass);letter-spacing:.35px;
+  text-anchor:middle;dominant-baseline:middle;pointer-events:none;opacity:.85}
+.al{fill:none;stroke-width:1;vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:0}
+.al.on{opacity:.85;animation:draw .78s var(--ease) forwards}
+@keyframes draw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+
+.plane{position:absolute;inset:0;pointer-events:none}
+.p{position:absolute;width:var(--d);height:var(--d);
+  margin-left:calc(var(--d)/-2);margin-top:calc(var(--d)/-2);
+  left:calc(var(--x)*100%);top:calc(var(--y)*100%);
+  border:0;padding:0;background:none;pointer-events:auto;cursor:pointer;
+  border-radius:50%;outline:none;perspective:240px;
+  transition:transform .72s var(--ease),opacity .5s var(--ease),filter .5s var(--ease)}
+.p .body{position:absolute;inset:0;border-radius:50%;background:var(--fill);
+  box-shadow:var(--glow);overflow:hidden}
+.p .surf{position:absolute;inset:0;border-radius:50%;background-size:200% 100%;opacity:.55}
+.p:not(.shadow) .body::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.52),rgba(255,255,255,0) 44%),
+             radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 52%,rgba(0,0,0,.42) 88%),
+             radial-gradient(circle at 74% 78%,rgba(0,0,0,.5),rgba(0,0,0,0) 55%)}
+.p[data-g="Jupiter"] .surf,.p[data-g="Saturn"] .surf{
+  background-image:repeating-linear-gradient(177deg,rgba(255,255,255,.26) 0 9%,
+    rgba(120,80,20,.2) 9% 15%,rgba(255,255,255,.1) 15% 22%,rgba(90,60,20,.16) 22% 30%)}
+.p[data-g="Mars"] .surf{background-image:
+  radial-gradient(ellipse at 34% 62%,rgba(80,20,10,.55) 0 20%,transparent 23%),
+  radial-gradient(ellipse at 68% 33%,rgba(255,190,150,.3) 0 13%,transparent 16%)}
+.p[data-g="Moon"] .surf{opacity:.7;background-image:
+  radial-gradient(circle at 38% 42%,rgba(40,50,70,.55) 0 10%,transparent 12%),
+  radial-gradient(circle at 62% 60%,rgba(40,50,70,.45) 0 7%,transparent 9%),
+  radial-gradient(circle at 30% 68%,rgba(40,50,70,.4) 0 5%,transparent 7%)}
+.p[data-g="Sun"] .body{box-shadow:0 0 20px -1px var(--sun),0 0 54px -10px var(--sun)}
+.p[data-g="Sun"] .body::after{background:radial-gradient(circle at 50% 50%,
+  rgba(255,246,214,.75) 0 22%,rgba(255,200,90,.25) 48%,transparent 72%)}
+.p .corona{position:absolute;inset:-38%;border-radius:50%;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(255,196,92,.3) 0deg 3deg,rgba(255,196,92,0) 3deg 11deg),
+    radial-gradient(circle,rgba(255,206,120,.34) 24%,rgba(255,180,70,0) 62%);
+  -webkit-mask:radial-gradient(circle,transparent 34%,#000 42%,#000 74%,transparent 88%);
+          mask:radial-gradient(circle,transparent 34%,#000 42%,#000 74%,transparent 88%)}
+.p .ring{position:absolute;left:-52%;top:-52%;width:204%;height:204%;border-radius:50%;
+  pointer-events:none;transform:rotateX(74deg) rotate(-17deg);
+  border:2px solid rgba(236,220,176,.42);
+  box-shadow:inset 0 0 0 1.5px rgba(10,14,28,.9),inset 0 0 0 4px rgba(226,206,158,.3),
+             0 0 6px -1px rgba(226,206,158,.35)}
+.p.shadow .body{background:#070A11;box-shadow:inset 0 0 8px rgba(0,0,0,.9)}
+.p.shadow .halo{position:absolute;inset:-16%;border-radius:50%;pointer-events:none;
+  border:1.6px solid var(--fill);opacity:.9;
+  box-shadow:0 0 12px -1px var(--fill),inset 0 0 8px -2px var(--fill)}
+.p[data-g="Ketu"] .halo{border-style:dashed;border-width:1.8px}
+.p .tag{position:absolute;left:50%;top:calc(100% + 4px);transform:translateX(-50%);
+  font-family:var(--fm);font-size:8.5px;letter-spacing:.07em;color:var(--ink-3);
+  white-space:nowrap;transition:opacity .4s var(--ease)}
+.p .retro{position:absolute;right:-3px;top:-3px;font-family:var(--fm);font-size:8px;
+  color:var(--ink-2);background:var(--void-2);border:1px solid var(--line-2);
+  border-radius:99px;padding:0 3px;line-height:11px}
+.p .name{position:absolute;left:50%;bottom:calc(100% + 14%);
+  transform:translate(-50%,10px);font-size:11px;font-weight:660;color:var(--ink);
+  white-space:nowrap;opacity:0;pointer-events:none;text-shadow:0 2px 18px rgba(0,0,0,.9);
+  transition:opacity .5s var(--ease) .18s,transform .6s var(--ease) .18s}
+.p .name small{display:block;font-size:6.2px;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+.p.focus .name{opacity:1;transform:translate(-50%,0)}
+.p.focus .tag{opacity:0}
+.p.dim{opacity:.16;filter:saturate(.4)} .p.hidden{opacity:0;pointer-events:none}
+.p.focus{z-index:40}
+.p.focus[data-g="Jupiter"] .surf,.p.focus[data-g="Saturn"] .surf{animation:drift 30s linear infinite}
+.p.focus[data-g="Mars"] .surf,.p.focus[data-g="Moon"] .surf{animation:turn 46s linear infinite}
+.p.focus[data-g="Sun"] .corona{animation:turn 120s linear infinite}
+.p.focus.retro .surf{animation-direction:reverse!important}
+.p.focus .ring{animation:tilt 18s ease-in-out infinite alternate}
+.p.focus .halo{animation:corona 5s ease-in-out infinite}
+@keyframes drift{to{background-position-x:-200%}}
+@keyframes turn{to{transform:rotate(360deg)}}
+@keyframes tilt{to{transform:rotateX(66deg) rotate(-11deg)}}
+@keyframes corona{50%{opacity:.55;inset:-20%}}
+
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:55;
+  padding:20px 20px calc(var(--tabh) + 22px);
+  background:linear-gradient(180deg,rgba(7,12,30,0) 0%,rgba(7,12,30,.94) 14%,#070C1E 30%);
+  transform:translateY(101%);transition:transform .68s var(--ease);
+  max-height:62dvh;overflow-y:auto;overscroll-behavior:contain}
+.sheet.up{transform:translateY(0)}
+.loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
+.lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
+  padding:9px 12px;background:rgba(120,150,220,.07);border-left:2px solid var(--hot);
+  border-radius:0 7px 7px 0}
+.lordline b{color:var(--ink);font-weight:600}
+.rows{display:flex;flex-direction:column;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:9px 0;border-top:.5px solid var(--line)}
+.row:last-child{border-bottom:.5px solid var(--line)}
+.k{font-size:12.5px;color:var(--ink-3)}
+.v{font-family:var(--fm);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.closebtn{position:fixed;top:max(12px,env(safe-area-inset-top));right:18px;z-index:56;
+  width:34px;height:34px;border-radius:50%;background:rgba(24,34,62,.85);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:.5px solid var(--line-2);color:var(--ink-2);font-size:15px;cursor:pointer;
+  display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
+.closebtn.on{opacity:1;pointer-events:auto}
+
+/* -- guide ------------------------------------------------------- */
+.chat{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.bubble{max-width:84%;padding:12px 15px;border-radius:19px;font-size:14.5px;line-height:1.5}
+.bubble.me{align-self:flex-end;background:rgba(120,150,225,.24);border-bottom-right-radius:6px}
+.bubble.it{align-self:flex-start;background:rgba(255,255,255,.055);
+  border:.5px solid rgba(110,135,195,.16);border-bottom-left-radius:6px;color:var(--ink-2)}
+.bubble.it b{color:var(--ink);font-weight:600}
+.cmd{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;
+  border-top:.5px solid var(--line);font-family:var(--fm);font-size:10px;
+  letter-spacing:.06em;color:var(--hot)}
+.asks{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.ask{border:.5px solid var(--line-2);background:rgba(255,255,255,.03);
+  color:var(--ink-2);border-radius:99px;padding:9px 14px;font-size:13px;
+  font-family:var(--ff);cursor:pointer;transition:background .25s var(--ease)}
+.ask:active{background:rgba(255,255,255,.08)}
+.voice{display:grid;place-items:center;margin:26px 0 8px}
+.orb{width:104px;height:104px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 38% 34%,rgba(150,185,255,.5),rgba(60,90,180,.22) 60%,transparent 72%);
+  box-shadow:0 0 44px -8px rgba(120,160,255,.55)}
+.orb::after{content:"";position:absolute;inset:-14%;border-radius:50%;
+  border:1px solid rgba(140,175,255,.3);animation:pulse 3.4s ease-in-out infinite}
+@keyframes pulse{50%{inset:-26%;opacity:.25}}
+
+/* -- you --------------------------------------------------------- */
+.me-head{display:flex;align-items:center;gap:15px;margin:6px 0 4px}
+.avatar{width:56px;height:56px;border-radius:50%;flex:0 0 auto;
+  background:conic-gradient(from 210deg,var(--venus),var(--jupiter),var(--saturn),var(--venus));
+  display:grid;place-items:center;font-size:19px;font-weight:700;color:#0A0F22}
+.list{display:flex;flex-direction:column;border-radius:15px;overflow:hidden;
+  border:.5px solid rgba(110,135,195,.18)}
+.item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:14px 16px;border:0;cursor:pointer;font-family:var(--ff);font-size:14.5px;
+  background:rgba(30,44,88,.30);color:var(--ink);
+  border-bottom:.5px solid rgba(110,135,195,.14);transition:background .22s var(--ease)}
+.item:last-child{border-bottom:0}
+.item:active{background:rgba(60,85,150,.38)}
+.item .ico{width:22px;height:22px;flex:0 0 auto;stroke:var(--ink-2);fill:none;stroke-width:1.7}
+.item .sub{margin-left:auto;font-family:var(--fm);font-size:11px;color:var(--ink-3)}
+.item .chev{color:var(--ink-3);font-size:13px;margin-left:6px}
+
+/* timeline */
+.scrub{margin-top:18px}
+.track{position:relative;height:66px;border-radius:13px;overflow:hidden;
+  border:.5px solid rgba(110,135,195,.2);background:rgba(10,18,44,.6);display:flex}
+.seg{position:relative;display:grid;place-items:center;
+  border-right:.5px solid rgba(10,16,36,.85);transition:filter .3s var(--ease)}
+.seg span{font-family:var(--fm);font-size:9px;letter-spacing:.05em;color:#0A0F22;
+  font-weight:700;opacity:.8}
+.needle{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);
+  box-shadow:0 0 12px 1px rgba(255,255,255,.6);pointer-events:none;border-radius:2px}
+input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:transparent}
+.readout{margin-top:16px}
+.readout .big{font-size:25px;font-weight:680;letter-spacing:-.025em;margin:0 0 4px}
+.bar{height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin:11px 0 5px}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--hot)}
+
+.note{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin-top:22px;
+  padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);
+  border:.5px solid rgba(110,135,195,.13)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important}
+  .page,.orbit,.p,.sheet,.stagewrap{transition-duration:.001s!important}
+  #sky{display:none}
+}
+</style>
+
+<canvas id="sky"></canvas>
+<div class="wash"></div>
+
+<div class="app">
+  <div class="pages">
+    <section class="page on" id="pg-today"></section>
+    <section class="page" id="pg-universe"></section>
+    <section class="page" id="pg-guide"></section>
+    <section class="page" id="pg-you"></section>
+  </div>
+</div>
+
+<button class="closebtn" id="close" aria-label="Close">&#10005;</button>
+<section class="sheet" id="sheet" aria-live="polite"></section>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<script type="module">
+/* &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+   ENGINE &#8212; ported from AstrologyKit (85 checks pass under `swift run
+   validate`), and re-verified in Node against the Swift results.
+   Signs, houses, lordships, dignity, nakshatra and dasha are DERIVED.
+   &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const SIGNS=["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya","Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
+const SIGN_LORD={1:"Mars",2:"Venus",3:"Mercury",4:"Moon",5:"Sun",6:"Mercury",7:"Venus",8:"Mars",9:"Jupiter",10:"Saturn",11:"Saturn",12:"Jupiter"};
+const NAK=["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+const ORDER=["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
+const YEARS={Ketu:7,Venus:20,Sun:6,Moon:10,Mars:7,Rahu:18,Jupiter:16,Saturn:19,Mercury:17};
+const NSPAN=360/27, PSPAN=NSPAN/4, YDAYS=365.2425;
+
+const BHAVA=[
+ ["Tanu","The self","Your body, temperament and the face you show the world. The lens every other house is read through."],
+ ["Dhana","Wealth and speech","What you accumulate and what you say &#8212; money, family line, food, and the voice you speak in."],
+ ["Sahaja","Siblings and courage","Younger siblings, nerve, short journeys, and the willingness to act on your own behalf."],
+ ["Bandhu","Mother and home","Your mother, land, vehicles and inner peace. The house of where you rest."],
+ ["Putra","Children and creativity","Children, intelligence, romance, and the merit carried in from past action."],
+ ["Ari","Illness, debt and rivals","Disease, borrowing, enemies and service &#8212; and the discipline that comes from meeting them."],
+ ["Yuvati","Marriage and partnership","Your spouse, business partners and contracts. Whoever stands opposite you."],
+ ["Randhra","Transformation and the hidden","Longevity, inheritance, upheaval, and the things that arrive unannounced."],
+ ["Dharma","Father, fortune and belief","Your father, teachers, philosophy, long journeys and grace."],
+ ["Karma","Career and standing","Work, authority, reputation and the mark you leave publicly."],
+ ["Labha","Gains and friends","Income, networks, elder siblings, and desires that come good."],
+ ["Vyaya","Loss and release","Expenditure, seclusion, foreign lands, sleep and liberation."]];
+
+const KARAKA={Sun:"Self, father, authority, vitality",Moon:"Mind, mother, emotion, memory",
+ Mars:"Courage, siblings, conflict, property",Mercury:"Intellect, speech, commerce, learning",
+ Jupiter:"Wisdom, children, wealth, teachers",Venus:"Spouse, beauty, pleasure, art",
+ Saturn:"Time, discipline, longevity, sorrow",Rahu:"Obsession, foreign things, disruption",
+ Ketu:"Detachment, liberation, past mastery"};
+const CORE={
+ Sun:"Authority, vitality, the self as it wants to be seen. Where the Sun sits is where you must be visible.",
+ Moon:"Mind, mood, memory and the mother &#8212; how you actually feel, as against how you present.",
+ Mars:"Drive, courage, conflict and sharp instruments. The will to cut through.",
+ Mercury:"Intellect, speech, commerce, calculation. How you process and transmit.",
+ Jupiter:"Expansion, teaching, faith, counsel. Jupiter enlarges whatever it touches.",
+ Venus:"Beauty, pleasure, art, partnership and value. What you are drawn toward.",
+ Saturn:"Time, structure, limitation and endurance. Saturn withholds, then rewards what survived the withholding.",
+ Rahu:"The north node &#8212; not a body but a point where eclipses occur. Hunger and appetite without a natural limit.",
+ Ketu:"The south node. Detachment, past mastery, and the impulse to release what Rahu grasps at."};
+const SK={Sun:"Surya",Moon:"Chandra",Mars:"Mangala",Mercury:"Budha",Jupiter:"Guru",
+ Venus:"Shukra",Saturn:"Shani",Rahu:"Rahu",Ketu:"Ketu"};
+
+const norm=d=>((d%360)+360)%360;
+const lon=(s,d,m=0)=>norm((s-1)*30+d+m/60);
+const signOf=L=>Math.floor(norm(L)/30)+1;
+const degIn=L=>norm(L)%30;
+const nakOf=L=>Math.floor(norm(L)/NSPAN);
+const padaOf=L=>Math.floor((norm(L)%NSPAN)/PSPAN)+1;
+const nakFrac=L=>(norm(L)%NSPAN)/NSPAN;
+const sep=(a,b)=>{const r=Math.abs(norm(a)-norm(b));return r>180?360-r:r};
+const fmtDeg=L=>{const d=degIn(L),i=Math.floor(d);
+  return `${String(i).padStart(2,"0")}&#176;${String(Math.floor((d-i)*60)).padStart(2,"0")}'`};
+const adv=(s,n)=>((s-1+n-1)%12+12)%12+1;
+const own=g=>Object.keys(SIGN_LORD).filter(s=>SIGN_LORD[s]===g).map(Number);
+const shadow=g=>g==="Rahu"||g==="Ketu";
+const EX={Sun:[1,10],Moon:[2,3],Mars:[10,28],Mercury:[6,15],Jupiter:[4,5],Venus:[12,27],Saturn:[7,20]};
+const MT={Sun:[5,0,20],Moon:[2,4,30],Mars:[1,0,12],Mercury:[6,16,20],Jupiter:[9,0,10],Venus:[7,0,15],Saturn:[11,0,20]};
+function dignity(g,L){
+  if(shadow(g))return null;
+  const s=signOf(L),d=degIn(L),e=EX[g],m=MT[g];
+  if(e&&e[0]===s)return "Exalted";
+  if(e&&adv(e[0],7)===s)return "Debilitated";
+  if(m&&m[0]===s&&d>=m[1]&&d<=m[2])return "Moolatrikona";
+  if(own(g).includes(s))return "Own sign";
+  return null;
+}
+const DR={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
+const offsets=g=>DR[g]||[7];
+
+function vimshottari(birth,moonL){
+  const li=nakOf(moonL)%9, birthLord=ORDER[li];
+  const balance=YEARS[birthLord]*(1-nakFrac(moonL));
+  const mahas=[]; let c=new Date(birth);
+  for(let i=0;i<10;i++){
+    const lord=ORDER[(li+i)%9], y=i===0?balance:YEARS[lord];
+    const end=new Date(c.getTime()+y*YDAYS*864e5);
+    mahas.push({lord,start:new Date(c),end,years:y}); c=end;
+  }
+  const antars=m=>{const st=ORDER.indexOf(m.lord),out=[];let c=m.start.getTime();
+    const span=m.end-m.start;
+    for(let i=0;i<9;i++){const lord=ORDER[(st+i)%9];
+      const end=c+span*(YEARS[lord]/120);
+      out.push({lord,start:new Date(c),end:new Date(end)});c=end}
+    return out};
+  const at=d=>{const m=mahas.find(x=>d>=x.start&&d<x.end);
+    return m?{maha:m,antar:antars(m).find(x=>d>=x.start&&d<x.end)}:null};
+  return {birthLord,balance,mahas,antars,at};
+}
+
+function buildChart({ascendant,placements,birthDate}){
+  const lagna=signOf(ascendant);
+  const houseOfSign=s=>((s-lagna)%12+12)%12+1;
+  const signOfHouse=h=>adv(lagna,h);
+  const ps=placements.map(p=>{
+    const s=signOf(p.L),ni=nakOf(p.L);
+    return {...p,sign:s,house:houseOfSign(s),degf:fmtDeg(p.L),
+      nak:NAK[ni],pada:padaOf(p.L),dig:dignity(p.graha,p.L)}});
+  const get=g=>ps.find(p=>p.graha===g);
+  const occupants=h=>ps.filter(p=>p.house===h);
+  const housesRuled=g=>shadow(g)?[]:own(g).map(houseOfSign).sort((a,b)=>a-b);
+  const aspectedBy=g=>{const p=get(g);return p?offsets(g).map(o=>adv(p.house,o)).sort((a,b)=>a-b):[]};
+  const aspecting=h=>ps.filter(p=>p.house!==h&&aspectedBy(p.graha).includes(h)).map(p=>p.graha);
+  const conjunct=g=>{const p=get(g);return p?ps.filter(q=>q.graha!==g&&q.sign===p.sign).map(q=>q.graha):[]};
+  const dasha=vimshottari(birthDate,placements.find(p=>p.graha==="Moon").L);
+  return {lagna,ascendant,placements:ps,birthDate,houseOfSign,signOfHouse,
+          get,occupants,housesRuled,aspectedBy,aspecting,conjunct,dasha};
+}
+
+const NEW_MOON=Date.UTC(2000,0,6,18,14), SYN=29.530588853;
+function moonPhase(d){
+  const f=(((d-NEW_MOON)/864e5/SYN)%1+1)%1;
+  const names=["New Moon","Waxing Crescent","First Quarter","Waxing Gibbous",
+               "Full Moon","Waning Gibbous","Last Quarter","Waning Crescent"];
+  return {f,illum:(1-Math.cos(2*Math.PI*f))/2,name:names[Math.round(f*8)%8],waxing:f<0.5};
+}
+
+/* &#9552;&#9552;&#9552; THE CHART &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+   Hand-placed longitudes for the prototype. Internally consistent &#8212;
+   Sun/Mercury within 28&#176;, Venus within 48&#176;, nodes exactly opposite &#8212;
+   but describing no real birth. Everything else is derived.          */
+const CHART=buildChart({
+  ascendant: lon(2,12,5.75),                      // Taurus 12&#176;05'45"
+  birthDate: new Date("1992-03-26T10:00:00+05:30"),
+  placements:[
+    {graha:"Sun",    L:lon(12,12, 1.08)},
+    {graha:"Moon",   L:lon(9, 12,55.95)},
+    {graha:"Mercury",L:lon(12,12,49.18), retro:true},
+    {graha:"Venus",  L:lon(11,21,17.72)},
+    {graha:"Mars",   L:lon(11, 4,46.47)},
+    {graha:"Jupiter",L:lon(5, 12,46.00), retro:true},
+    {graha:"Saturn", L:lon(10,21,39.68)},
+    {graha:"Rahu",   L:lon(9, 11,32.53), retro:true},
+    {graha:"Ketu",   L:lon(3, 11,32.53), retro:true}
+  ]});
+
+/* Panchang and Avakhada as recorded at birth. Not yet computed by the
+   engine - carried across from the report and labelled as such. */
+const PANCHANG={Tithi:"Krishna Ashtami",Karana:"Kaulav",Yoga:"Variyan",
+  Nakshatra:"Mula",Sunrise:"06:30:10",Sunset:"18:44:43"};
+const AVAKHADA={Varna:"Kshatriya",Vashya:"Nara",Yoni:"Shwaan",Gan:"Rakshasa",
+  Nadi:"Adhya",Charan:"4",Tatva:"Fire",Paya:"Copper"};
+
+const COLOUR=g=>`var(--${g.toLowerCase()})`;
+const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
+const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(_){}}
+const el=(t,a={})=>{const e=document.createElementNS("http://www.w3.org/2000/svg",t);
+  for(const k in a)e.setAttribute(k,a[k]);return e};
+const fmtDate=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+
+/* &#9552;&#9552;&#9552; GEOMETRY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const PT={tl:[0,0],tr:[100,0],br:[100,100],bl:[0,100],t:[50,0],r:[100,50],
+  b:[50,100],l:[0,50],c:[50,50],q1:[25,25],q2:[75,25],q3:[75,75],q4:[25,75]};
+const HOUSES={1:[PT.t,PT.q2,PT.c,PT.q1],2:[PT.tl,PT.t,PT.q1],3:[PT.tl,PT.q1,PT.l],
+  4:[PT.l,PT.q1,PT.c,PT.q4],5:[PT.bl,PT.l,PT.q4],6:[PT.bl,PT.q4,PT.b],
+  7:[PT.b,PT.q4,PT.c,PT.q3],8:[PT.br,PT.b,PT.q3],9:[PT.br,PT.q3,PT.r],
+  10:[PT.r,PT.q3,PT.c,PT.q2],11:[PT.tr,PT.r,PT.q2],12:[PT.tr,PT.q2,PT.t]};
+const cent=p=>[p.reduce((a,q)=>a+q[0],0)/p.length,p.reduce((a,q)=>a+q[1],0)/p.length];
+const ANCHOR={},LABEL={};
+for(const h in HOUSES){
+  const c=cent(HOUSES[h]),tri=HOUSES[h].length===3;
+  ANCHOR[h]=tri?[c[0]+(50-c[0])*.14,c[1]+(50-c[1])*.14]:c;
+  const outer=HOUSES[h].reduce((b,v)=>Math.hypot(v[0]-50,v[1]-50)>Math.hypot(b[0]-50,b[1]-50)?v:b,HOUSES[h][0]);
+  LABEL[h]=[c[0]+(outer[0]-c[0])*.56,c[1]+(outer[1]-c[1])*.56];
+}
+function locator(h){
+  const shapes=Object.keys(HOUSES).map(k=>
+    `<polygon points="${HOUSES[k].map(q=>q.join(",")).join(" ")}" fill="${+k===h?"var(--brass)":"transparent"}" fill-opacity="${+k===h?.9:0}" stroke="var(--line-2)" stroke-width="2.5"/>`).join("");
+  return `<svg class="loc" viewBox="-4 -4 108 108" aria-hidden="true"><rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="2.5"/>${shapes}</svg>`;
+}
+
+/* &#9552;&#9552;&#9552; TODAY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+let viewDate=new Date();
+
+const CATS=[
+  {key:"Career",     house:10, colour:"var(--saturn)"},
+  {key:"Wealth",     house:2,  colour:"var(--jupiter)"},
+  {key:"Relationships",house:7, colour:"var(--venus)"},
+  {key:"Wellbeing",  house:6,  colour:"var(--mars)"},
+  {key:"Inner life", house:12, colour:"var(--moon)"}
+];
+
+/* Readings are assembled from chart facts by template &#8212; never free text.
+   Each one can name the placement it came from, which is what makes the
+   "why am I seeing this?" answer possible. */
+function reading(cat){
+  const lord=SIGN_LORD[CHART.signOfHouse(cat.house)];
+  const lp=CHART.get(lord);
+  const occ=CHART.occupants(cat.house);
+  const now=CHART.dasha.at(viewDate);
+  const dashaTouch=now&&(now.maha.lord===lord||now.antar.lord===lord);
+
+  let s=`${BHAVA[cat.house-1][1]} is governed here by ${lord}, which sits in your ${ordinal(lp.house)} house`;
+  s+=lp.dig?` and is ${lp.dig.toLowerCase()}. `:`. `;
+  if(occ.length) s+=`${occ.map(o=>o.graha).join(" and ")} ${occ.length>1?"occupy":"occupies"} the house itself. `;
+  else s+=`No graha occupies the house, so it is read through its lord. `;
+  if(dashaTouch) s+=`${lord} also rules the period you are currently running, which traditionally brings this area forward.`;
+  else s+=`Traditionally read as steady rather than emphasised in the current period.`;
+  return {text:s.replace(/ {2,}/g," "), why:`${ordinal(cat.house)} house &#183; lord ${lord} in ${ordinal(lp.house)}${dashaTouch?" &#183; active dasha":""}`};
+}
+
+function renderToday(){
+  const mp=moonPhase(viewDate);
+  const now=CHART.dasha.at(viewDate);
+  const moon=CHART.get("Moon");
+
+  const days=[];
+  for(let i=-3;i<=3;i++){
+    const d=new Date(); d.setDate(d.getDate()+i);
+    const on=d.toDateString()===viewDate.toDateString();
+    days.push(`<button class="dchip ${on?"on":""}" data-off="${i}">
+      <small>${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</small>
+      <b>${d.getDate()}</b></button>`);
+  }
+
+  /* the shadow slides across the disc to show the actual phase */
+  const shift=mp.waxing? (1-mp.illum)*100 : -(1-mp.illum)*100;
+
+  document.getElementById("pg-today").innerHTML=`
+    <div class="eyebrow">${viewDate.toLocaleDateString("en-GB",{weekday:"long"})}</div>
+    <h1>${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}</h1>
+    <div class="datestrip" id="dates">${days.join("")}</div>
+
+    <div class="card moonrow">
+      <div class="moondisc"><div class="craters"></div>
+        <div class="shadow" style="transform:translateX(${shift}%)"></div></div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:4px">Moon</div>
+        <div style="font-size:17px;font-weight:640;letter-spacing:-.015em">${mp.name}</div>
+        <p class="muted" style="font-size:13px;margin-top:3px">
+          ${Math.round(mp.illum*100)}% illuminated. Your natal Moon sits in
+          ${SIGNS[moon.sign-1]}, ${moon.nak} pada ${moon.pada} &#8212; the nakshatra
+          that sets your entire dasha sequence.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Your sky today</h2>
+      <p class="muted">You are running a <b style="color:var(--ink)">${now.maha.lord}</b>
+      mahadasha with <b style="color:var(--ink)">${now.antar.lord}</b> antardasha.
+      ${now.maha.lord} rules ${(()=>{const r=CHART.housesRuled(now.maha.lord);
+        return r.length? `your ${r.map(ordinal).join(" and ")} house${r.length>1?"s":""}`
+                       : `no house, being a shadow graha`})()}, and sits in your
+      ${ordinal(CHART.get(now.maha.lord).house)}. That pairing colours the whole period &#8212;
+      everything below is read against it.</p>
+    </div>
+
+    <div class="section">
+      <h2>Where it lands</h2>
+      <div class="cats">${CATS.map(c=>{
+        const r=reading(c);
+        return `<button class="cat" data-house="${c.house}">
+          <span class="dot" style="background:${c.colour};color:${c.colour}"></span>
+          <span><h3>${c.key}</h3><p>${r.text}</p>
+            <span class="why">${r.why}</span></span>
+          <span class="chev" style="color:var(--ink-3)">&#8250;</span></button>`}).join("")}</div>
+    </div>
+
+    <div class="section">
+      <h2>Standing out in your chart</h2>
+      ${CHART.placements.filter(p=>p.dig==="Exalted"||p.retro).map(p=>`
+        <div class="tline">
+          <div class="when">${p.degf}</div>
+          <div class="what">
+            <b style="color:${COLOUR(p.graha)}">${p.graha}</b>
+            ${p.dig?`<span class="pill">${p.dig}</span>`:""}
+            ${p.retro&&!shadow(p.graha)?`<span class="pill">Retrograde</span>`:""}
+            <p>${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house &#183; ${p.nak} pada ${p.pada}.
+            Aspects the ${CHART.aspectedBy(p.graha).map(ordinal).join(", ")}.</p>
+          </div>
+        </div>`).join("")}
+    </div>
+
+    <div class="section">
+      <h2>Traditional practice</h2>
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:6px">Associated with ${now.maha.lord}</div>
+        <p class="muted" style="font-size:13.5px">Within Vedic tradition, periods governed by
+        ${now.maha.lord} are associated with practices directed to that graha &#8212; recitation,
+        charitable giving on its weekday, and reflective discipline.</p>
+        <p class="muted" style="font-size:12px;margin-top:9px;color:var(--ink-3)">
+        Specific mantras and remedies are deliberately not generated here. They will be
+        sourced and attributed rather than invented.</p>
+      </div>
+    </div>
+
+    <p class="note">Positions are reconstructed to the arcsecond from your Astrotalk report
+    of 5 Aug 2026. Houses, lordships, dignity, nakshatra and every dasha date below are
+    computed here from those longitudes &#8212; and reproduce that report's own tables.
+    Interpretation follows Vedic tradition and is not a prediction of events.</p>`;
+
+  document.getElementById("dates").onclick=e=>{
+    const b=e.target.closest(".dchip"); if(!b)return;
+    const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off);
+    viewDate=d; buzz(6); renderToday();
+  };
+  document.querySelectorAll(".cat").forEach(c=>c.onclick=()=>{
+    go(1); setTimeout(()=>openHouse(+c.dataset.house),340);
+  });
+}
+
+/* &#9552;&#9552;&#9552; UNIVERSE &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const PEL={};
+function renderUniverse(){
+  const pg=document.getElementById("pg-universe");
+  pg.innerHTML=`
+    <div class="eyebrow">Vrishabha lagna &#183; ${fmtDeg(CHART.ascendant)} &#183; Rohini</div>
+    <h1>Your universe</h1>
+    <p class="muted" style="margin-bottom:2px">Touch a house, or a graha.</p>
+    <div class="stagewrap" id="sw">
+      <div class="stage" id="stage">
+        <div class="orbit" id="orbit">
+          <svg class="chart" viewBox="0 0 100 100" id="chart"
+               aria-label="North Indian birth chart, twelve houses"></svg>
+          <svg class="asp" viewBox="0 0 100 100" id="asp"></svg>
+          <div class="plane" id="plane"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const chart=document.getElementById("chart"), plane=document.getElementById("plane");
+  for(let h=1;h<=12;h++){
+    const sg=CHART.signOfHouse(h), occ=CHART.occupants(h);
+    const s=el("polygon",{points:HOUSES[h].map(p=>p.join(",")).join(" "),
+      class:"hs","data-h":h,tabindex:"0",role:"button"});
+    s.setAttribute("aria-label",
+      `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
+      (occ.length?`${occ.map(o=>o.graha).join(", ")} ${occ.length>1?"occupy":"occupies"} this house.`:"No graha here."));
+    chart.appendChild(s);
+    const L=LABEL[h], t=el("text",{class:"sn",x:L[0],y:L[1],"data-h":h});
+    t.textContent=String(sg); chart.appendChild(t);
+  }
+  chart.appendChild(el("rect",{x:0,y:0,width:100,height:100,class:"fr"}));
+  chart.appendChild(el("line",{x1:0,y1:0,x2:100,y2:100,class:"fr in"}));
+  chart.appendChild(el("line",{x1:100,y1:0,x2:0,y2:100,class:"fr in"}));
+  chart.appendChild(el("polygon",{points:"50,0 100,50 50,100 0,50",class:"fr in"}));
+  chart.appendChild(el("polygon",{points:HOUSES[1].map(p=>p.join(",")).join(" "),class:"lg"}));
+  const asc=el("text",{class:"asclbl",x:50,y:9}); asc.textContent="ASC"; chart.appendChild(asc);
+
+  for(const p of CHART.placements){
+    const sibs=CHART.occupants(p.house), i=sibs.indexOf(p), n=sibs.length;
+    const a=ANCHOR[p.house], tri=HOUSES[p.house].length===3;
+    const step=n===2?(tri?9:11):(tri?7.6:10);
+    const spread=n===1?0:(i-(n-1)/2)*step;
+    const rise=n<=2?0:Math.abs(i-(n-1)/2)*(tri?3.2:4.2);
+    const x=(a[0]+spread)/100, y=(a[1]-3.5+rise)/100;
+    const sz={Sun:1.06,Moon:1.1,Mars:1,Mercury:.94,Jupiter:1.14,Venus:1,Saturn:1.08,Rahu:.92,Ketu:.9}[p.graha];
+
+    const b=document.createElement("button");
+    b.className="p"+(shadow(p.graha)?" shadow":"")+(p.retro?" retro":"");
+    b.dataset.g=p.graha;
+    b.style.setProperty("--x",x); b.style.setProperty("--y",y);
+    b.style.setProperty("--d",(n>=3?25:30)*sz+"px");
+    b.style.setProperty("--fill",COLOUR(p.graha));
+    b.style.setProperty("--glow",shadow(p.graha)?`0 0 12px -1px ${COLOUR(p.graha)}`
+      :`0 0 16px -2px ${COLOUR(p.graha)}, 0 0 34px -8px ${COLOUR(p.graha)}`);
+    b.setAttribute("aria-label",`${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
+      (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
+    b.innerHTML=(p.graha==="Sun"?`<span class="corona"></span>`:``)+
+      `<span class="body"><span class="surf"></span></span>`+
+      (p.graha==="Saturn"?`<span class="ring"></span>`:``)+
+      (shadow(p.graha)?`<span class="halo"></span>`:``)+
+      `<span class="name">${p.graha}<small>${SK[p.graha]}</small></span>`+
+      `<span class="tag">${p.graha.slice(0,2).toUpperCase()}</span>`+
+      (p.retro?`<span class="retro">R</span>`:``);
+    b._pos=[x,y]; plane.appendChild(b); PEL[p.graha]=b;
+  }
+
+  chart.onclick=e=>{const t=e.target.closest(".hs"); if(t)openHouse(+t.dataset.h)};
+  chart.onkeydown=e=>{const t=e.target.closest(".hs");
+    if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
+  plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation();openPlanet(b.dataset.g)}};
+}
+
+let mode=null,current=null;
+const sheet=document.getElementById("sheet"), closeBtn=document.getElementById("close");
+const qa=s=>Array.from(document.querySelectorAll(s));
+
+function clearMarks(){
+  qa(".hs").forEach(e=>e.classList.remove("sel","lit","dim"));
+  qa(".sn").forEach(e=>e.classList.remove("sel","dim"));
+  qa(".p").forEach(e=>e.classList.remove("dim","hidden","focus"));
+  document.getElementById("asp").innerHTML="";
+}
+function resetChart(){
+  mode=null;current=null;clearMarks();
+  const st=document.getElementById("stage"),ob=document.getElementById("orbit");
+  if(st)st.classList.remove("pmode");
+  if(ob){ob.style.transform="";ob.style.transformOrigin="50% 50%"}
+  qa(".p").forEach(b=>{b.style.transform="";b.style.zIndex=""});
+  sheet.classList.remove("up"); closeBtn.classList.remove("on");
+  document.getElementById("pg-universe").classList.remove("zoomed");
+}
+function showSheet(){
+  sheet.classList.add("up"); closeBtn.classList.add("on"); sheet.scrollTop=0;
+  document.getElementById("pg-universe").classList.add("zoomed");
+}
+
+function openHouse(h){
+  if(mode==="house"&&current===h)return;
+  mode="house";current=h;clearMarks();buzz(9);
+  const a=ANCHOR[h],k=HOUSES[h].length===3?2.5:2.15;
+  const ob=document.getElementById("orbit");
+  ob.style.transformOrigin=`${a[0]}% ${a[1]}%`;
+  ob.style.transform=`translate(${50-a[0]}%, ${30-a[1]}%) scale(${k})`;
+  qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
+  qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
+  CHART.placements.forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
+  sheetHouse(h); showSheet();
+}
+
+function openPlanet(g){
+  if(mode==="planet"&&current===g)return;
+  const p=CHART.get(g); mode="planet";current=g;clearMarks();buzz(12);
+  document.getElementById("stage").classList.add("pmode");
+  const b=PEL[g],[px,py]=b._pos,K=.94,T=[.5,.28];
+  b.classList.add("focus"); b.style.zIndex=40;
+  b.style.transform=`translate(${((T[0]-.5)/K+.5-px)*100}%, ${((T[1]-.5)/K+.5-py)*100}%) scale(${(2.5/K).toFixed(3)})`;
+  CHART.placements.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("hidden")});
+  qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===p.house?"lit":"dim"));
+  qa(".sn").forEach(e=>{if(+e.dataset.h!==p.house)e.classList.add("dim")});
+  drawAspects(p); sheetPlanet(p); showSheet();
+}
+
+function drawAspects(p){
+  const asp=document.getElementById("asp"), from=ANCHOR[p.house];
+  CHART.aspectedBy(p.graha).forEach((h,i)=>{
+    const to=ANCHOR[h], mx=(from[0]+to[0])/2, my=(from[1]+to[1])/2;
+    const path=el("path",{d:`M ${from[0]} ${from[1]} Q ${mx+(mx-50)*.3} ${my+(my-50)*.3} ${to[0]} ${to[1]}`,
+      class:"al",stroke:"var(--hot)"});
+    asp.appendChild(path);
+    const len=path.getTotalLength();
+    path.style.setProperty("--len",len);
+    path.style.strokeDasharray=len; path.style.strokeDashoffset=len;
+    path.style.animationDelay=(.18+i*.12)+"s";
+    requestAnimationFrame(()=>path.classList.add("on"));
+    const dot=el("circle",{cx:to[0],cy:to[1],r:1.6,fill:"var(--hot)",class:"al",stroke:"none"});
+    asp.appendChild(dot); dot.style.animationDelay=(.5+i*.12)+"s";
+    requestAnimationFrame(()=>dot.classList.add("on"));
+  });
+}
+
+const rows=l=>`<div class="rows">${l.map(([k,v])=>
+  `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")}</div>`;
+
+function sheetHouse(h){
+  const sg=CHART.signOfHouse(h), lord=SIGN_LORD[sg], lp=CHART.get(lord);
+  const occ=CHART.occupants(h), inc=CHART.aspecting(h);
+  const [sk,head,body]=BHAVA[h-1];
+  sheet.innerHTML=`
+    <div class="eyebrow">${locator(h)}${ordinal(h)} house &#183; ${sk} Bhava &#183; ${SIGNS_SK[sg-1]} rashi</div>
+    <h1 style="font-size:26px">${head}</h1>
+    <p class="muted" style="margin:0 0 14px">${body}</p>
+    <p class="lordline">Sign <b>${sg}</b> (${SIGNS[sg-1]}) &#183; ruled by <b>${lord}</b>, which sits in the <b>${ordinal(lp.house)}</b></p>
+    ${rows([
+      ["Sign",`${SIGNS[sg-1]} (${sg})`],
+      ["Grahas here",occ.length?occ.map(o=>`<span class="sw" style="background:${COLOUR(o.graha)}"></span>${o.graha}`).join("&nbsp; "):"&#8212;"],
+      ["Aspected by",inc.length?inc.join(", "):"&#8212;"],
+      ["Classification",[h===1||h===4||h===7||h===10?"Kendra":null,
+        [1,5,9].includes(h)?"Trikona":null,[6,8,12].includes(h)?"Dusthana":null,
+        [3,6,10,11].includes(h)?"Upachaya":null].filter(Boolean).join(" &#183; ")||"&#8212;"]
+    ])}
+    <p class="muted" style="font-size:13px">${occ.length
+      ? `${occ.map(o=>o.graha).join(" and ")} ${occ.length>1?"sit":"sits"} here in ${SIGNS[sg-1]}${occ[0].dig?`, ${occ[0].dig.toLowerCase()}`:""}. ${CORE[occ[0].graha]}`
+      : `No graha occupies this house, which in Vedic practice is not an empty subject &#8212; it is read through its lord, ${lord}, and through whatever drishti reaches it.`}</p>`;
+}
+
+function sheetPlanet(p){
+  const g=p.graha, ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
+  const now=CHART.dasha.at(new Date());
+  sheet.innerHTML=`
+    <div class="eyebrow">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
+    <h1 style="font-size:26px">${g}</h1>
+    <p class="muted" style="margin:0 0 14px">${CORE[g]}</p>
+    <p class="lordline">${ruled.length
+      ? `Lord of the <b>${ruled.map(ordinal).join(" & ")}</b>, sitting in the <b>${ordinal(p.house)}</b>`
+      : `Owns no sign, so rules no house. Sitting in the <b>${ordinal(p.house)}</b>`}</p>
+    ${rows([
+      ["Sign",`<span class="sw" style="background:${COLOUR(g)}"></span>${SIGNS[p.sign-1]} (${p.sign})`],
+      ["Degree",p.degf],
+      ["Nakshatra",`${p.nak} &#183; pada ${p.pada}`],
+      ["Motion",p.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
+      ["Dignity",p.dig||"&#8212;"],
+      ["Conjunct",conj.length?conj.join(", "):"&#8212;"],
+      ["Aspects",CHART.aspectedBy(g).map(ordinal).join(", ")],
+      ["Natural karaka",KARAKA[g]]
+    ])}
+    <p class="muted" style="font-size:13px">${
+      now.maha.lord===g?`You are currently running the <b style="color:var(--ink)">${g} mahadasha</b>, so this graha governs the present period.`
+      :now.antar.lord===g?`${g} rules your current <b style="color:var(--ink)">antardasha</b> &#8212; the sub-period inside a ${now.maha.lord} mahadasha.`
+      :`${g} does not rule the period you are currently running (${now.maha.lord}/${now.antar.lord}).`}</p>
+    ${p.retro&&!shadow(g)?`<p class="muted" style="font-size:12.5px;margin-top:10px">
+      Retrograde motion is apparent, not real. ${g} does not reverse in space &#8212; Earth
+      overtakes it on the inside of its orbit, the way a slower train seems to slide
+      backwards as yours passes. Tradition reads it as a matter returned to rather than
+      settled first time.</p>`:``}`;
+}
+
+closeBtn.onclick=resetChart;
+document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
+sheet.addEventListener("click",e=>e.stopPropagation());
+
+/* &#9552;&#9552;&#9552; GUIDE &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const ASKS=[
+  {q:"What does Saturn mean in my chart?",
+   cmd:"focusPlanet(Saturn)",
+   a:()=>{const s=CHART.get("Saturn");
+     return `Your <b>Saturn is exalted in Libra</b>, in the ${ordinal(s.house)} house, and retrograde. It rules your ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")} &#8212; so career and gains both answer to it. Exaltation strengthens it; the retrograde is traditionally read as work returned to rather than finished first time.`},
+   act:()=>{go(1);setTimeout(()=>openPlanet("Saturn"),340)}},
+  {q:"What period am I in?",
+   cmd:"showDasha(current)",
+   a:()=>{const n=CHART.dasha.at(new Date());
+     return `A <b>${n.maha.lord} mahadasha</b> with <b>${n.antar.lord} antardasha</b>. The sequence started from your Moon in ${CHART.get("Moon").nak} &#8212; that nakshatra alone fixes both the order and the starting point.`},
+   act:()=>{go(3);setTimeout(openTimeline,340)}},
+  {q:"Explain my seventh house.",
+   cmd:"focusHouse(7)",
+   a:()=>{const sg=CHART.signOfHouse(7),l=SIGN_LORD[sg];
+     return `Your 7th carries <b>${SIGNS[sg-1]}</b>, ruled by ${l}, which sits in your ${ordinal(CHART.get(l).house)}. Marriage and partnership are therefore read through where ${l} landed, not through the 7th alone.`},
+   act:()=>{go(1);setTimeout(()=>openHouse(7),340)}},
+  {q:"Why is Jupiter strong?",
+   cmd:"focusPlanet(Jupiter)",
+   a:()=>`<b>Jupiter is exalted in Cancer</b>, sharing the sign with your Moon in the 3rd. It rules your 8th and 11th. Exaltation plus a conjunction with the Moon is traditionally among the most benefic combinations a chart can carry.`,
+   act:()=>{go(1);setTimeout(()=>openPlanet("Jupiter"),340)}}
+];
+
+function renderGuide(){
+  document.getElementById("pg-guide").innerHTML=`
+    <div class="eyebrow">Guide</div>
+    <h1>Talk to your chart</h1>
+    <div class="voice"><div class="orb"></div></div>
+    <p class="muted" style="text-align:center;max-width:34ch;margin:0 auto">
+      Ask, and the chart moves to what you asked about.</p>
+    <div class="chat" id="chat"></div>
+    <div class="asks" id="asks">${ASKS.map((a,i)=>`<button class="ask" data-i="${i}">${a.q}</button>`).join("")}</div>
+    <p class="note"><b>Placeholder.</b> These answers are assembled from the chart engine
+    by template, not generated by a language model. The point being shown is the mechanism:
+    a reply carries a <i>UI command</i>, so the answer moves the chart instead of merely
+    describing it. Live conversation comes later &#8212; and the model will explain the
+    engine's facts, never calculate them.</p>`;
+
+  document.getElementById("asks").onclick=e=>{
+    const b=e.target.closest(".ask"); if(!b)return;
+    const item=ASKS[+b.dataset.i], chat=document.getElementById("chat");
+    chat.insertAdjacentHTML("beforeend",`<div class="bubble me">${item.q}</div>`);
+    buzz(6);
+    setTimeout(()=>{
+      chat.insertAdjacentHTML("beforeend",
+        `<div class="bubble it">${item.a()}<div class="cmd">&#9656; ${item.cmd}</div></div>`);
+      chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
+      setTimeout(item.act,900);
+    },420);
+  };
+}
+
+/* &#9552;&#9552;&#9552; YOU &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const ICONS={
+  chart:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  people:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3.2 3.2 0 010 5.6"/>',
+  book:'<path d="M4 5.5A2.5 2.5 0 016.5 3H19v15H6.5A2.5 2.5 0 004 20.5z"/><path d="M4 20.5V5.5"/>',
+  star:'<path d="M12 3.5l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.9l6-.8z"/>',
+  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>'
+};
+function renderYou(){
+  const now=CHART.dasha.at(new Date());
+  const moon=CHART.get("Moon");
+  document.getElementById("pg-you").innerHTML=`
+    <div class="me-head">
+      <div class="avatar">S</div>
+      <div><h1 style="font-size:23px;margin:0">Sangram</h1>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 0">
+          26 March 1992 &#183; 10:00 &#183; Kopargaon, Maharashtra</p></div>
+    </div>
+
+    <div class="section">
+      <div class="list">
+        <button class="item" data-a="chart"><svg class="ico" viewBox="0 0 24 24">${ICONS.chart}</svg>
+          Birth chart<span class="sub">${SIGNS_SK[CHART.lagna-1]}</span><span class="chev">&#8250;</span></button>
+        <button class="item" data-a="timeline"><svg class="ico" viewBox="0 0 24 24">${ICONS.clock}</svg>
+          Timeline<span class="sub">${now.maha.lord}/${now.antar.lord}</span><span class="chev">&#8250;</span></button>
+        <button class="item" data-a="rel"><svg class="ico" viewBox="0 0 24 24">${ICONS.people}</svg>
+          Relationships<span class="sub">none yet</span><span class="chev">&#8250;</span></button>
+        <button class="item" data-a="glossary"><svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>
+          Glossary<span class="sub">42 terms</span><span class="chev">&#8250;</span></button>
+        <button class="item" data-a="saved"><svg class="ico" viewBox="0 0 24 24">${ICONS.star}</svg>
+          Saved insights<span class="sub">none yet</span><span class="chev">&#8250;</span></button>
+        <button class="item" data-a="settings"><svg class="ico" viewBox="0 0 24 24">${ICONS.gear}</svg>
+          Settings<span class="sub">Lahiri</span><span class="chev">&#8250;</span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Birth details</h2>
+      <div class="card">
+        ${rows([["Date","26 Mar 1992"],["Time","10:00 IST"],
+          ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88&#176;N  74.48&#176;E"],
+          ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
+          ["Ayanamsa","Lahiri"]])}
+        <div class="eyebrow" style="margin:16px 0 8px">Panchang at birth</div>
+        ${rows(Object.entries(PANCHANG).map(([k,v])=>[k,v]))}
+        <div class="eyebrow" style="margin:16px 0 8px">Avakhada</div>
+        ${rows(Object.entries(AVAKHADA).map(([k,v])=>[k,v]))}
+        <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:12px 0 0">
+          Panchang and Avakhada are carried from your report, not yet computed by the
+          engine. They are what marriage matching is built from, so they arrive properly
+          when Relationships does.</p>
+      </div>
+    </div>
+
+    <div class="section" id="tl"></div>`;
+
+  document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
+    buzz(6);
+    if(b.dataset.a==="timeline") openTimeline();
+    else if(b.dataset.a==="chart") go(1);
+    else placeholder(b.textContent.trim().split(/\s{2,}/)[0]);
+  });
+  openTimeline();
+}
+
+function placeholder(name){
+  document.getElementById("tl").innerHTML=`
+    <h2>${name}</h2>
+    <div class="card"><p class="muted" style="font-size:13.5px">
+      Not built yet. This screen exists in the architecture but has no
+      implementation &#8212; it is listed here so the shape of the app is visible,
+      not to suggest it works.</p></div>`;
+  document.getElementById("tl").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+let tlPos=null;
+function openTimeline(){
+  const d=CHART.dasha, mahas=d.mahas.slice(0,9);
+  const t0=mahas[0].start.getTime(), t1=mahas[mahas.length-1].end.getTime();
+  if(tlPos===null) tlPos=Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1);
+
+  document.getElementById("tl").innerHTML=`
+    <h2>Timeline</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:4px">
+      Drag through your Vimshottari dasha. 120 years, in the order your Moon set.</p>
+    <div class="scrub">
+      <div class="track" id="track">
+        ${mahas.map(m=>`<div class="seg" style="flex:${m.years};background:${COLOUR(m.lord)};opacity:.72">
+          <span>${m.lord.slice(0,2).toUpperCase()}</span></div>`).join("")}
+        <div class="needle" id="needle"></div>
+      </div>
+      <input type="range" id="rng" min="0" max="1000" value="${Math.round(tlPos*1000)}"
+             aria-label="Move through time">
+      <div class="readout" id="ro"></div>
+    </div>`;
+
+  const rng=document.getElementById("rng");
+  const paint=()=>{
+    tlPos=+rng.value/1000;
+    const when=new Date(t0+tlPos*(t1-t0));
+    document.getElementById("needle").style.left=(tlPos*100)+"%";
+    const now=d.at(when);
+    const ro=document.getElementById("ro");
+    if(!now){ro.innerHTML="";return}
+    const prog=(when-now.maha.start)/(now.maha.end-now.maha.start);
+    const age=Math.floor((when-CHART.birthDate)/(YDAYS*864e5));
+    ro.innerHTML=`
+      <div class="eyebrow">${fmtDate(when)} &#183; age ${age}</div>
+      <p class="big" style="color:${COLOUR(now.maha.lord)}">${now.maha.lord} mahadasha</p>
+      <p class="muted" style="font-size:13px;margin:0">
+        ${now.antar.lord} antardasha &#183; ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</p>
+      <div class="bar"><i style="width:${(prog*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i></div>
+      <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:0">
+        ${Math.round(prog*100)}% through a ${now.maha.years.toFixed(1)}-year period &#183;
+        ends ${fmtDate(now.maha.end)}</p>
+      <p class="muted" style="font-size:13px;margin-top:13px">
+        ${(()=>{const r=CHART.housesRuled(now.maha.lord),h=ordinal(CHART.get(now.maha.lord).house);
+          return r.length? `${now.maha.lord} rules your ${r.map(ordinal).join(" and ")} house${r.length>1?"s":""} and sits in your ${h}`
+                         : `${now.maha.lord} owns no sign, and sits in your ${h}`})()}.
+        Within Vedic tradition this period is associated with the themes of those houses &#8212;
+        which is why the same dasha reads differently in different charts.</p>`;
+  };
+  let lastLord=null;
+  rng.oninput=()=>{
+    paint();
+    const now=d.at(new Date(t0+tlPos*(t1-t0)));
+    if(now&&now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}   /* boundary crossed */
+  };
+  paint();
+}
+
+/* &#9552;&#9552;&#9552; TABS &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+const TABS=[
+  {id:"today",label:"Today",icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'},
+  {id:"universe",label:"Universe",icon:'<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M3.5 3.5l17 17M20.5 3.5l-17 17M12 3.5l8.5 8.5L12 20.5 3.5 12z"/>'},
+  {id:"guide",label:"Guide",icon:'<path d="M20 15.5a2.5 2.5 0 01-2.5 2.5H8l-4 3V6a2.5 2.5 0 012.5-2.5h11A2.5 2.5 0 0120 6z"/>'},
+  {id:"you",label:"You",icon:'<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20.5c0-4.1 3.4-7.5 7.5-7.5s7.5 3.4 7.5 7.5"/>'}
+];
+const nav=document.getElementById("tabs");
+nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${i===0?"on":""}" role="tab" data-i="${i}">
+  <svg viewBox="0 0 24 24">${t.icon}</svg>${t.label}</button>`).join("");
+
+function go(i){
+  if(mode) resetChart();
+  TABS.forEach((t,j)=>{
+    document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
+    nav.children[j].classList.toggle("on",j===i);
+    nav.children[j].setAttribute("aria-selected",j===i);
+  });
+  buzz(5);
+}
+nav.onclick=e=>{const b=e.target.closest(".tab"); if(b)go(+b.dataset.i)};
+
+/* &#9552;&#9552;&#9552; SKY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
+(function(){
+  const cv=document.getElementById("sky"),ctx=cv.getContext("2d");
+  function paint(){
+    const dpr=Math.min(devicePixelRatio||1,2),w=innerWidth,h=innerHeight;
+    cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+"px";cv.style.height=h+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    let s=20260819;const rnd=()=>(s=(s*1664525+1013904223)%4294967296)/4294967296;
+    const g=ctx.createLinearGradient(0,h*.1,w,h*.85);
+    g.addColorStop(0,"rgba(46,70,140,0)");g.addColorStop(.42,"rgba(52,80,158,.30)");
+    g.addColorStop(.58,"rgba(42,66,138,.24)");g.addColorStop(1,"rgba(30,46,96,0)");
+    ctx.save();ctx.translate(w/2,h/2);ctx.rotate(-.42);ctx.translate(-w/2,-h/2);
+    ctx.filter="blur(38px)";ctx.fillStyle=g;ctx.fillRect(-w*.3,h*.24,w*1.6,h*.30);
+    ctx.restore();ctx.filter="none";
+    for(const L of [{n:250,r:[.15,.5],a:[.05,.2]},{n:95,r:[.5,.95],a:[.16,.42]},{n:28,r:[.9,1.5],a:[.34,.66]}]){
+      for(let i=0;i<L.n;i++){
+        const x=rnd()*w,y=rnd()*h,r=L.r[0]+rnd()*(L.r[1]-L.r[0]),a=L.a[0]+rnd()*(L.a[1]-L.a[0]),wm=rnd();
+        const col=wm>.88?"255,214,180":wm<.1?"196,214,255":"214,226,246";
+        if(r>.9){const hg=ctx.createRadialGradient(x,y,0,x,y,r*4.5);
+          hg.addColorStop(0,`rgba(${col},${a*.5})`);hg.addColorStop(1,`rgba(${col},0)`);
+          ctx.fillStyle=hg;ctx.beginPath();ctx.arc(x,y,r*4.5,0,6.284);ctx.fill()}
+        ctx.beginPath();ctx.arc(x,y,r,0,6.284);ctx.fillStyle=`rgba(${col},${a})`;ctx.fill();
+      }
+    }
+  }
+  paint();addEventListener("resize",paint);
+})();
+
+renderToday(); renderUniverse(); renderGuide(); renderYou();
+</script>

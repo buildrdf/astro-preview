@@ -11,6 +11,9 @@
   --line:#2C3155; --line-2:#3B4170; --hot:#8E97C8;
   --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
   --brass:#C29B4E;
+    --edge:rgba(150,162,235,.30);
+    --edge-soft:rgba(150,162,235,.16);
+    --violet:#5B4BD6;
   --sun:#F0A93B; --moon:#CFD8E8; --mars:#D0533F; --mercury:#5FBFA0;
   --jupiter:#E0C067; --venus:#E7C6D0; --saturn:#7E90C4;
   --rahu:#8B6BA8; --ketu:#967C68;
@@ -38,10 +41,10 @@ body{
   position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
   padding:max(12px,env(safe-area-inset-top)) 20px calc(var(--tabh) + 26px);
-  opacity:0;pointer-events:none;transform:translateY(8px);
-  transition:opacity .34s var(--ease), transform .34s var(--ease);
+  display:none;
 }
-.page.on{opacity:1;pointer-events:auto;transform:none}
+.page.on{display:block;animation:pagein .28s var(--ease)}
+@keyframes pagein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .page::-webkit-scrollbar{display:none}
 
 /* -- tab bar ----------------------------------------------------- */
@@ -79,9 +82,9 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .section{margin:30px 0 0}
 
 .card{
-  background:rgba(255,255,255,.062);
-  border:.5px solid rgba(170,180,235,.14);
-  border-radius:17px;padding:17px 18px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--edge);
+  border-radius:20px;padding:18px 19px;
 }
 .grid{display:flex;flex-direction:column;gap:11px}
 
@@ -90,7 +93,7 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .tophead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .tophead-actions{display:flex;align-items:center;gap:8px;padding-top:4px}
 .calbtn{width:36px;height:36px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
-  background:rgba(255,255,255,.07);border:.5px solid rgba(170,180,235,.18);color:var(--ink-2)}
+  background:rgba(255,255,255,.07);border:1px solid var(--edge);color:var(--ink-2)}
 .calbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;
   stroke-linecap:round;stroke-linejoin:round}
 .calbtn:active{background:rgba(255,255,255,.12)}
@@ -224,13 +227,17 @@ body.insub .page{padding-bottom:30px}
 .segmented{display:flex;gap:8px;margin:15px 0 20px}
 .segmented button{flex:1;cursor:pointer;font-family:var(--ff);font-size:13.5px;font-weight:560;
   color:var(--ink-2);padding:9px 0;border-radius:99px;background:none;
-  border:.5px solid rgba(170,180,235,.22);
+  border:1px solid var(--edge);
   transition:background .22s var(--ease),color .22s var(--ease),border-color .22s var(--ease)}
-.segmented button.on{background:rgba(170,180,235,.16);color:var(--ink);
-  border-color:rgba(170,180,235,.5)}
+.segmented button.on{background:rgba(150,162,235,.2);color:var(--ink);
+  border-color:rgba(150,162,235,.62)}
 .reading h2{font-size:22px;font-weight:680;letter-spacing:-.028em;margin:0 0 9px;text-wrap:balance}
 .reading p{font-size:15.5px;line-height:1.55;color:var(--ink);margin:0 0 10px;max-width:60ch}
 .reading .under{font-size:13.5px;color:var(--ink-3);line-height:1.5}
+.movingline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 0;
+  margin:4px 0 0;border-top:1px solid var(--edge-soft);font-size:13px;color:var(--ink-2)}
+.movingline i{width:3px;height:3px;border-radius:50%;background:var(--ink-3);margin:0 2px}
+.mvico{width:22px;height:22px;object-fit:contain}
 .moonline{display:flex;align-items:center;gap:11px;padding:11px 0;margin:6px 0 4px;
   border-top:.5px solid var(--line);border-bottom:.5px solid var(--line)}
 .moonline span{font-size:13px;color:var(--ink-2)}
@@ -258,11 +265,12 @@ body.insub .page{padding-bottom:30px}
              radial-gradient(circle at 30% 68%,rgba(60,72,96,.45) 0 5%,transparent 7%)}
 
 .cats{display:flex;flex-direction:column;gap:10px}
+/* cards carry a visible edge, the way the reference does */
 .cat{
   width:100%;text-align:left;border:0;cursor:pointer;font-family:var(--ff);
   background:rgba(255,255,255,.062);
-  border:.5px solid rgba(170,180,235,.14);
-  border-radius:15px;padding:15px 16px;color:var(--ink);
+  border:1px solid var(--edge-soft);
+  border-radius:18px;padding:16px 17px;color:var(--ink);
   display:grid;grid-template-columns:30px 1fr auto;gap:13px;align-items:start;
   transition:background .3s var(--ease), transform .2s var(--ease);
 }
@@ -370,9 +378,15 @@ svg.asp{pointer-events:none}
   padding:20px 20px calc(var(--tabh) + 22px);
   background:linear-gradient(180deg,rgba(23,26,51,0) 0%,rgba(23,26,51,.96) 6%,#171A33 13%);
   transform:translateY(101%);transition:transform .68s var(--ease);
-  max-height:calc(100dvh - 52px - env(safe-area-inset-top));
-  overflow-y:auto;overscroll-behavior:contain;
-  padding-top:calc(52px + env(safe-area-inset-top))}
+  height:54dvh;overflow-y:auto;overscroll-behavior:contain;padding-top:8px;
+  transition:transform .58s var(--ease),height .48s var(--ease)}
+.sheet.full{height:calc(100dvh - 46px - env(safe-area-inset-top));
+  padding-top:calc(50px + env(safe-area-inset-top))}
+.grab{position:sticky;top:0;z-index:3;display:block;width:100%;height:22px;border:0;
+  background:none;cursor:grab;padding:0}
+.grab::before{content:"";display:block;width:38px;height:4px;margin:4px auto 0;border-radius:99px;
+  background:rgba(255,255,255,.28)}
+.sheet.full .grab{background:var(--void)}
 .sheet.up{transform:translateY(0)}
 .loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
 .lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
@@ -406,7 +420,7 @@ svg.asp{pointer-events:none}
   background:linear-gradient(180deg,rgba(23,26,51,0),rgba(23,26,51,.92) 30%,#171A33);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .composer input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
-  background:rgba(255,255,255,.07);border:.5px solid rgba(170,180,235,.2);
+  background:rgba(255,255,255,.07);border:1px solid var(--edge);
   border-radius:99px;padding:12px 16px;-webkit-appearance:none}
 .composer input:focus{outline:none;border-color:var(--hot);background:rgba(255,255,255,.11)}
 .cmp-btn{width:38px;height:38px;flex:0 0 auto;border:0;background:none;cursor:pointer;
@@ -421,7 +435,7 @@ svg.asp{pointer-events:none}
 .bubble{max-width:84%;padding:12px 15px;border-radius:19px;font-size:14.5px;line-height:1.5}
 .bubble.me{align-self:flex-end;background:rgba(255,255,255,.12);border-bottom-right-radius:6px}
 .bubble.it{align-self:flex-start;background:rgba(255,255,255,.055);
-  border:.5px solid rgba(170,180,235,.12);border-bottom-left-radius:6px;color:var(--ink-2)}
+  border:1px solid var(--edge-soft);border-bottom-left-radius:6px;color:var(--ink-2)}
 .bubble.it b{color:var(--ink);font-weight:600}
 .cmd{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;
   border-top:.5px solid var(--line);font-family:var(--fm);font-size:10px;
@@ -451,7 +465,7 @@ svg.asp{pointer-events:none}
 .tl2{display:grid;grid-template-columns:56px 1fr;gap:15px;align-items:start}
 .spine{position:sticky;top:6px;height:62dvh;min-height:330px;border-radius:14px;
   overflow:hidden;cursor:grab;touch-action:none;outline:none;
-  border:.5px solid rgba(170,180,235,.18);background:rgba(255,255,255,.05);
+  border:1px solid var(--edge);background:rgba(255,255,255,.05);
   -webkit-mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%);
           mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%)}
 .spine:active{cursor:grabbing}
@@ -530,7 +544,7 @@ svg.asp{pointer-events:none}
   text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
 .fld input,.fld textarea,.fld select{width:100%;font-family:var(--ff);font-size:16px;
   color:var(--ink);background:rgba(255,255,255,.055);border-radius:12px;padding:12px 13px;
-  border:.5px solid rgba(170,180,235,.18);-webkit-appearance:none;appearance:none}
+  border:1px solid var(--edge);-webkit-appearance:none;appearance:none}
 .fld select{background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
   linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
   background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
@@ -539,8 +553,8 @@ svg.asp{pointer-events:none}
   border-color:var(--hot);background:rgba(255,255,255,.09)}
 .fld textarea{resize:vertical;line-height:1.5}
 .fnote{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin:-4px 0 18px}
-.primary{width:100%;padding:14px;border-radius:13px;cursor:pointer;border:0;
-  background:var(--ink);color:#141731;font-family:var(--ff);font-size:15px;font-weight:620}
+.primary{width:100%;padding:15px;border-radius:99px;cursor:pointer;border:0;
+  background:#F7F8FC;color:#141731;font-family:var(--ff);font-size:16px;font-weight:640}
 .primary:active{opacity:.82}
 .evdel{border:.5px solid var(--line-2);background:none;color:var(--ink-3);font-size:11.5px;
   cursor:pointer;line-height:1;padding:5px 10px;border-radius:99px;font-family:var(--ff)}
@@ -549,7 +563,7 @@ svg.asp{pointer-events:none}
 .gico{display:inline-block;vertical-align:-4px;margin-right:7px;object-fit:contain}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pillrow{display:flex;flex-direction:column;gap:9px}
-.mpill{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:14px;
+.mpill{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;
   background:rgba(255,255,255,.062);
   border:.5px solid rgba(110,135,195,.18)}
 .mpico{width:34px;height:34px;flex:0 0 auto;object-fit:contain;
@@ -564,8 +578,8 @@ svg.asp{pointer-events:none}
 .plus:active{transform:scale(.92)}
 .pav{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;
   place-items:center;font-size:13px;font-weight:700;color:#141731}
-.scorecard{display:flex;align-items:center;gap:16px;padding:16px 17px;
-  border-radius:16px;margin-bottom:6px;
+.scorecard{display:flex;align-items:center;gap:16px;padding:17px 18px;
+  border-radius:20px;margin-bottom:6px;
   background:rgba(255,255,255,.07);
   border:.5px solid rgba(110,135,195,.18)}
 .scorenum{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;
@@ -590,7 +604,7 @@ svg.asp{pointer-events:none}
 .avatar{width:56px;height:56px;border-radius:50%;flex:0 0 auto;
   background:conic-gradient(from 210deg,var(--venus),var(--jupiter),var(--saturn),var(--venus));
   display:grid;place-items:center;font-size:19px;font-weight:700;color:#141731}
-.list{display:flex;flex-direction:column;border-radius:15px;overflow:hidden;
+.list{display:flex;flex-direction:column;border-radius:18px;overflow:hidden;
   border:.5px solid rgba(110,135,195,.18)}
 .item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
   padding:14px 16px;border:0;cursor:pointer;font-family:var(--ff);font-size:14.5px;
@@ -605,7 +619,7 @@ svg.asp{pointer-events:none}
 /* timeline */
 .scrub{margin-top:18px}
 .track{position:relative;height:66px;border-radius:13px;overflow:hidden;
-  border:.5px solid rgba(170,180,235,.16);background:rgba(10,18,44,.6);display:flex}
+  border:1px solid var(--edge-soft);background:rgba(10,18,44,.6);display:flex}
 .seg{position:relative;display:grid;place-items:center;
   border-right:.5px solid rgba(10,16,36,.85);transition:filter .3s var(--ease)}
 .seg span{font-family:var(--fm);font-size:9px;letter-spacing:.05em;color:#141731;
@@ -685,7 +699,10 @@ body.glossary .page{padding-right:30px}
 </div>
 
 <button class="closebtn" id="close" aria-label="Close">&#10005;</button>
-<section class="sheet" id="sheet" aria-live="polite"></section>
+<section class="sheet" id="sheet" aria-live="polite">
+  <button class="grab" id="grab" aria-label="Expand"></button>
+  <div id="sheetbody"></div>
+</section>
 <div class="calsheet" id="calsheet" role="dialog" aria-label="Choose a date"></div>
 
 <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -1180,27 +1197,10 @@ function renderToday(){
         ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
     </div>
 
-    <div class="section">
-      <h2>Where it lands</h2>
-      <div class="cats">${CATS.map(c=>{
-        const r=reading(c,tr);
-        return `<button class="cat" data-house="${c.house}">
-          <img class="catico" src="assets/graha/${SIGN_LORD[CHART.signOfHouse(c.house)].toLowerCase()}.png" alt="">
-          <span><h3>${c.key}</h3><p>${r.text}</p><span class="why">${r.why}</span></span>
-          <span class="chev" style="color:var(--ink-3)">&#8250;</span></button>`}).join("")}</div>
-    </div>
-
-    <div class="section">
-      <h2>Moving today</h2>
-      <div class="pillrow">
-      ${[["Moon",tr.moon,"2-3 days"],["Sun",tr.sun,"a month"]].map(([g,t,rate])=>`
-        <div class="mpill">
-          <img class="mpico" src="assets/graha/${g.toLowerCase()}.png" alt="">
-          <div><b style="color:${COLOUR(g)}">${g}</b>
-            <span class="mpsub">${SIGNS[t.sign-1]} &#183; ${ordinal(t.house)} house</span>
-            <span class="mpsub2">${t.nak} pada ${t.pada} &#183; moves every ${rate}</span></div>
-        </div>`).join("")}
-      </div>
+    <div class="movingline">
+      ${moonImg(viewDate,22)}<span>Moon in ${SIGNS[tr.moon.sign-1]}, your ${ordinal(mHouse)}</span>
+      <i></i>
+      <img class="mvico" src="assets/graha/sun.png" alt=""><span>Sun in ${SIGNS[tr.sun.sign-1]}, your ${ordinal(sHouse)}</span>
     </div>
 
     <div class="section">${practiceFor(now.maha.lord)}</div>
@@ -1228,9 +1228,7 @@ function renderToday(){
     const b=e.target.closest("button[data-k]"); if(!b)return;
     horoPeriod=b.dataset.k; buzz(6); renderToday();
   };
-  document.querySelectorAll(".cat").forEach(c=>c.onclick=()=>{
-    go(CHART_INDEX); setTimeout(()=>openHouse(+c.dataset.house),340);
-  });
+
 }
 
 const PEL={};
@@ -1238,8 +1236,7 @@ function renderUniverse(){
   setTopBar("Vrishabha lagna",{sub:fmtDeg(CHART.ascendant)+" \u00b7 Rohini"});
   const pg=document.getElementById("pg-universe");
   pg.innerHTML=`
-    <div class="eyebrow">Vrishabha lagna &#183; ${fmtDeg(CHART.ascendant)} &#183; Rohini</div>
-    <p class="muted" style="margin:2px 0 0">Touch a house, or a graha.</p>
+    <p class="muted" style="margin:0;font-size:13px;color:var(--ink-3)">Touch a house, or a graha.</p>
     <div class="stagewrap" id="sw">
       <div class="stage" id="stage">
         <div class="orbit" id="orbit">
@@ -1338,7 +1335,7 @@ function resetChart(){
   document.getElementById("pg-universe").classList.remove("zoomed");
 }
 function showSheet(){
-  sheet.classList.add("up"); closeBtn.classList.add("on"); sheet.scrollTop=0;
+  sheet.classList.add("up"); sheet.classList.remove("full"); sheet.scrollTop=0; closeBtn.classList.add("on"); sheet.scrollTop=0;
   document.getElementById("pg-universe").classList.add("zoomed");
 }
 
@@ -1393,7 +1390,7 @@ function sheetHouse(h){
   const sg=CHART.signOfHouse(h), lord=SIGN_LORD[sg], lp=CHART.get(lord);
   const occ=CHART.occupants(h), inc=CHART.aspecting(h);
   const [sk,head,body]=BHAVA[h-1];
-  sheet.innerHTML=`
+  document.getElementById("sheetbody").innerHTML=`
     <div class="eyebrow">${locator(h)}${ordinal(h)} house &#183; ${sk} Bhava &#183; ${SIGNS_SK[sg-1]} rashi</div>
     <h1 style="font-size:26px">${head}</h1>
     <p class="muted" style="margin:0 0 14px">${body}</p>
@@ -1414,7 +1411,7 @@ function sheetHouse(h){
 function sheetPlanet(p){
   const g=p.graha, ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
   const now=CHART.dasha.at(new Date());
-  sheet.innerHTML=`
+  document.getElementById("sheetbody").innerHTML=`
     <div class="sheethead">
       <img class="sheetart" src="assets/graha/${g.toLowerCase()}.png" alt="" draggable="false">
       <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
@@ -1445,6 +1442,19 @@ function sheetPlanet(p){
       settled first time.</p>`:``}`;
 }
 
+(()=>{
+  /* drag the handle up to read full-screen, down to see the chart again */
+  const g=document.getElementById("grab"); let y0=null;
+  g.addEventListener("pointerdown",e=>{y0=e.clientY;g.setPointerCapture(e.pointerId)});
+  g.addEventListener("pointermove",e=>{
+    if(y0===null)return;
+    const dy=e.clientY-y0;
+    if(dy<-26){sheet.classList.add("full");y0=null;buzz(7)}
+    if(dy>26){ if(sheet.classList.contains("full")){sheet.classList.remove("full");y0=null;buzz(7)} }
+  });
+  g.addEventListener("pointerup",()=>{y0=null});
+  g.addEventListener("click",()=>{sheet.classList.toggle("full");buzz(7)});
+})();
 closeBtn.onclick=resetChart;
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
 sheet.addEventListener("click",e=>e.stopPropagation());
@@ -1543,7 +1553,8 @@ const SUBS=[
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
-  {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>"Lahiri"}
+  {id:"report", label:"Detailed report", icon:ICONS.book, sub:()=>"PDF"},
+  {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
 ];
 
 
@@ -1703,12 +1714,14 @@ function renderYou(){
   if(subView) return renderSub();
   document.body.classList.remove("insub");
   document.body.classList.remove("glossary");
-  setTopBar("Sangram",{sub:"26 Mar 1992 \u00b7 Kopargaon"});
+  setTopBar("Profile");
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
       <div class="avatar">S</div>
-      <div><h1 style="font-size:23px;margin:0">Sangram</h1>
-        <p class="muted" style="font-size:12.5px;margin:2px 0 0">Vrishabha lagna</p></div>
+      <div class="me-id"><h1>Sangram</h1>
+        <p>26 March 1992 &#183; Kopargaon</p></div>
+      <button class="switcher" id="switchuser" aria-label="Switch person">
+        <svg viewBox="0 0 24 24"><path d="M8 7h11l-3-3M16 17H5l3 3"/></svg></button>
     </div>
     <div class="section">
       <div class="list">
@@ -1737,12 +1750,12 @@ function renderSub(){
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
-    glossary:"Glossary",settings:"Settings",addpartner:subArg!=null?"Edit person":"Add a person",
+    glossary:"Glossary",settings:"Settings",report:"Detailed report",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
   setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
-              glossary:subGlossary,
+              glossary:subGlossary,report:subReport,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -1756,6 +1769,7 @@ function renderSub(){
   document.body.classList.toggle("glossary",subView==="glossary");
   if(subView==="glossary") wireGlossary();
   if(subView==="settings") wireSettings();
+  if(subView==="report") wireReport();
   if(subView==="addpartner") wireAddPartner();
   if(subView==="addevent") wireAddEvent();
   if(subView==="partner") wirePartner();
@@ -1768,27 +1782,54 @@ function subStub(name){
 
 const PREFS=()=>{try{return JSON.parse(localStorage.getItem("astro.prefs")||"{}")}catch(_){return{}}};
 const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",JSON.stringify(p));};
+
+function subReport(){
+  const now=CHART.dasha.at(new Date());
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="eyebrow" style="margin-bottom:7px">What you get</div>
+      <p class="muted" style="font-size:14px;margin:0 0 12px">A full written chart -
+      every graha with sign, degree, nakshatra and dignity; all twelve houses and their
+      lords; the complete Vimshottari sequence; drishti; and the yogas your chart carries.</p>
+      ${rows([["Pages","~40"],["Chart","Vrishabha lagna"],
+              ["Current period",`${now.maha.lord}/${now.antar.lord}`],
+              ["Format","PDF"]])}
+    </div>
+    <button class="primary" id="buyreport">Get the report &#183; &#8377;499</button>
+    <p class="note">Not built yet. When it is, it will be generated from the same engine
+    the app runs on, so the report and the screens can never disagree. Nothing here is
+    sold on fear, and no remedy is gated behind payment.</p>`;
+}
+function wireReport(){
+  const b=document.getElementById("buyreport");
+  if(b) b.onclick=()=>alert("Not wired up yet - this is a placeholder.");
+}
+
 function subSettings(){
   const pr=PREFS();
-  const sel=(id,label,opts,val,note="")=>`
-    <label class="fld"><span class="flabel">${label}</span>
-      <select id="${id}">${opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>
-      ${note?`<span class="fnote" style="margin:6px 0 0;display:block">${note}</span>`:""}</label>`;
-  const tog=(id,label,on,note="")=>`
-    <div class="togrow"><div><b>${label}</b>${note?`<span class="tognote">${note}</span>`:""}</div>
-      <button class="switch${on?" on":""}" id="${id}" role="switch" aria-checked="${on}"><i></i></button></div>`;
+  const row=(label,control,note)=>`
+    <div class="setrow">
+      <div class="setlabel"><b>${label}</b>${note?`<span>${note}</span>`:""}</div>
+      ${control}
+    </div>`;
+  const sel=(id,val,opts)=>`<select id="${id}" class="setsel">${
+    opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>`;
+  const tog=(id,on)=>`<button class="switch${on?" on":""}" id="${id}" role="switch"
+    aria-checked="${on}"><i></i></button>`;
   return `
-    ${sel("s_ayan","Ayanamsa",["Lahiri","Raman","Krishnamurti (KP)","Yukteshwar"],
-      pr.ayanamsa||"Lahiri",
-      "The sidereal offset. Lahiri is the Government of India standard. Changing it shifts every graha slightly, and can move one across a sign boundary.")}
-    ${sel("s_style","Chart style",["North Indian","South Indian"],pr.style||"North Indian",
-      "South Indian charts keep the signs fixed and rotate the houses. Not yet drawn.")}
-    ${tog("s_nodal","Nodal drishti",!!pr.nodal,
-      "Whether Rahu and Ketu cast aspects on the 5th and 9th. Schools disagree; off by default.")}
-    ${tog("s_haptics","Haptics",pr.haptics!==false,"Vibration on selection and period changes.")}
-    <p class="note">Ayanamsa and chart style are recorded but not yet applied &#8212; both need
-    the licensed ephemeris and the South Indian geometry. Nodal drishti and haptics work now.</p>`;
+    <div class="setgroup">
+      ${row("Ayanamsa",sel("s_ayan",pr.ayanamsa||"Lahiri",
+        ["Lahiri","Raman","Krishnamurti (KP)","Yukteshwar"]),"Sidereal offset")}
+      ${row("Chart style",sel("s_style",pr.style||"North Indian",
+        ["North Indian","South Indian"]))}
+    </div>
+    <div class="setgroup">
+      ${row("Nodal drishti",tog("s_nodal",!!pr.nodal),"Rahu and Ketu aspect the 5th and 9th")}
+      ${row("Haptics",tog("s_haptics",pr.haptics!==false))}
+    </div>
+    <p class="note">Ayanamsa and chart style are saved but not yet applied.</p>`;
 }
+
 function wireSettings(){
   document.getElementById("s_ayan").onchange=e=>{setPref("ayanamsa",e.target.value);buzz(6)};
   document.getElementById("s_style").onchange=e=>{setPref("style",e.target.value);buzz(6)};
@@ -2096,7 +2137,7 @@ function wireTimeline(){
       ${practiceFor(now.maha.lord)}
       <p class="note">Traditional associations &#8212; not a forecast.</p>`;
     setTopBar(when.toLocaleDateString("en-GB",{month:"long",year:"numeric"}),
-      {sub:`${when.getDate()} \u00b7 age ${ageAt(when)}`,
+      {sub:`age ${ageAt(when)}`,
        actions:isToday(when)?`<span class="nowbadge">today</span>`
          :`<button class="tb-btn txt" id="tlnow">Today</button>`});
     const tn=document.getElementById("tlnow");
@@ -2107,9 +2148,15 @@ function wireTimeline(){
   const setFromY=cy=>{const r=spine.getBoundingClientRect();
     tlT=Math.min(Math.max((cy-r.top)/r.height,0),1); paint()};
   let dragging=false, moved=false;
+  /* a tap should not teleport you across a century - only dragging moves time */
+  let dragY=0, dragT=0;
   spine.addEventListener("pointerdown",e=>{dragging=true;moved=false;
-    spine.setPointerCapture(e.pointerId);setFromY(e.clientY)});
-  spine.addEventListener("pointermove",e=>{if(dragging){moved=true;setFromY(e.clientY)}});
+    dragY=e.clientY;dragT=tlT;spine.setPointerCapture(e.pointerId)});
+  spine.addEventListener("pointermove",e=>{
+    if(!dragging)return;
+    const r=spine.getBoundingClientRect();
+    tlT=Math.min(Math.max(dragT+(e.clientY-dragY)/r.height,0),1); moved=true; paint();
+  });
   spine.addEventListener("pointerup",()=>dragging=false);
   spine.addEventListener("keydown",e=>{const step=e.shiftKey?0.05:0.01;
     if(e.key==="ArrowDown"){tlT=Math.min(tlT+step,1);paint();e.preventDefault()}

@@ -82,6 +82,23 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .grid{display:flex;flex-direction:column;gap:11px}
 
 /* -- today ------------------------------------------------------- */
+
+.tophead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.tophead-actions{display:flex;align-items:center;gap:8px;padding-top:4px}
+.calbtn{width:36px;height:36px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.05);border:.5px solid rgba(110,135,195,.22);color:var(--ink-2)}
+.calbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+.calbtn:active{background:rgba(255,255,255,.12)}
+.calinput{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.todaychip{border:0;cursor:pointer;font-family:var(--ff);font-size:12.5px;font-weight:590;
+  color:#0A0F22;background:var(--ink);border-radius:99px;padding:8px 13px;
+  animation:popin .34s var(--ease)}
+.todaychip:active{opacity:.8}
+@keyframes popin{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+.nowdot{position:absolute;left:50%;bottom:5px;width:3.5px;height:3.5px;margin-left:-1.75px;
+  border-radius:50%;background:var(--brass)}
+.dchip{position:relative}
 .datestrip{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .datestrip::-webkit-scrollbar{display:none}
 .dchip{
@@ -297,33 +314,60 @@ svg.asp{pointer-events:none}
   padding:6px 10px 6px 0;margin:0 0 2px}
 .backbtn:active{opacity:.6}
 
-/* timeline: years left, rail right */
-.tlwrap{display:grid;grid-template-columns:1fr 40px;gap:14px;height:56dvh;min-height:340px}
-.tlcol{display:flex;flex-direction:column;border-radius:13px;overflow:hidden;
-  border:.5px solid rgba(110,135,195,.2)}
-.band{position:relative;display:grid;
-  grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
-  padding:0 12px;min-height:0;cursor:pointer;
+/* timeline: a short window over a taller proportional column */
+.tlwrap{display:grid;grid-template-columns:1fr 40px;gap:14px}
+.tlview{position:relative;height:186px;border-radius:13px;overflow:hidden;
+  border:.5px solid rgba(110,135,195,.2);background:rgba(10,18,44,.5);
+  -webkit-mask:linear-gradient(180deg,transparent 0,#000 22%,#000 78%,transparent 100%);
+          mask:linear-gradient(180deg,transparent 0,#000 22%,#000 78%,transparent 100%)}
+.tlcol{display:flex;flex-direction:column;will-change:transform;
+  transition:transform .18s cubic-bezier(.33,1,.68,1)}
+.tlfocus{position:absolute;left:0;right:0;top:50%;height:1px;margin-top:-.5px;
+  background:linear-gradient(90deg,rgba(255,255,255,.45),rgba(255,255,255,.06));
+  pointer-events:none}
+.band{position:relative;display:grid;grid-template-columns:auto 1fr auto;
+  align-items:center;gap:10px;padding:0 12px;min-height:0;cursor:pointer;
   border-bottom:.5px solid rgba(10,16,36,.7);
-  transition:filter .3s var(--ease),box-shadow .3s var(--ease)}
+  transition:filter .3s var(--ease),opacity .3s var(--ease)}
 .band:last-child{border-bottom:0}
-.band .yr{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);
-  font-variant-numeric:tabular-nums}
+.band .yr{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .band .ld{font-size:13px;font-weight:620;letter-spacing:-.01em}
 .band .dur{font-family:var(--fm);font-size:9.5px;color:var(--ink-3)}
-.band.on{box-shadow:inset 3px 0 0 currentColor, inset 0 0 40px -12px rgba(255,255,255,.35)}
+.band.on{box-shadow:inset 3px 0 0 currentColor}
 .band.on .ld{color:var(--ink)!important}
+.band:not(.on){opacity:.5}
 
-.vscroll{position:relative;border-radius:99px;cursor:grab;touch-action:none;
+.vscroll{position:relative;border-radius:99px;cursor:grab;touch-action:none;height:186px;
   background:rgba(255,255,255,.045);border:.5px solid rgba(110,135,195,.2);outline:none}
 .vscroll:active{cursor:grabbing}
 .vscroll:focus-visible{box-shadow:0 0 0 2px var(--hot)}
-.vrail{position:absolute;left:50%;top:9px;bottom:9px;width:2px;margin-left:-1px;
-  border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05))}
-.vthumb{position:absolute;left:50%;width:26px;height:26px;margin:-13px 0 0 -13px;
-  border-radius:50%;background:var(--ink);
-  box-shadow:0 2px 10px rgba(0,0,0,.6),0 0 16px -2px rgba(180,205,255,.65);
+.vrail{position:absolute;left:50%;top:9px;bottom:9px;width:2px;margin-left:-1px;border-radius:2px;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05))}
+.nowtick{position:absolute;left:4px;right:4px;height:2px;margin-top:-1px;border-radius:2px;
+  background:var(--brass);box-shadow:0 0 8px -1px var(--brass);pointer-events:none}
+.evdot{position:absolute;left:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
+  box-shadow:0 0 6px -1px currentColor;pointer-events:none;opacity:.9}
+.vthumb{position:absolute;left:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  background:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.6),0 0 16px -2px rgba(180,205,255,.65);
   pointer-events:none}
+.tlbar{display:flex;align-items:center;gap:12px;margin:13px 0 4px}
+
+/* life events */
+.evcard{display:flex;gap:12px;padding:13px 0;border-top:.5px solid var(--line)}
+.evcard:last-of-type{border-bottom:.5px solid var(--line)}
+.evkey{flex:0 0 auto;width:4px;border-radius:2px;align-self:stretch}
+.evtop{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.evtop b{font-size:14.5px;font-weight:620;letter-spacing:-.01em}
+.evdel{border:0;background:none;color:var(--ink-3);font-size:17px;cursor:pointer;
+  line-height:1;padding:0 2px}
+.evdel:active{color:var(--mars)}
+.evmeta{display:block;font-family:var(--fm);font-size:10.5px;color:var(--ink-3);margin-top:3px}
+.evdash{font-size:13px;line-height:1.45;color:var(--ink-2);margin:7px 0 0}
+.evdash b{font-weight:600}
+.evrow{display:flex;gap:11px;padding:9px 0;border-top:.5px solid var(--line)}
+.evrow b{font-size:13.5px;font-weight:600}
+.practice{margin-top:20px;padding:13px 14px;border-radius:12px;
+  background:rgba(194,155,78,.07);border:.5px solid rgba(194,155,78,.22)}
 .impact{font-size:13.5px;line-height:1.52;color:var(--ink-2);margin:0 0 9px;
   padding-left:12px;border-left:2px solid var(--line-2)}
 
@@ -701,6 +745,31 @@ for(const h in HOUSES){
   const outer=HOUSES[h].reduce((b,v)=>Math.hypot(v[0]-50,v[1]-50)>Math.hypot(b[0]-50,b[1]-50)?v:b,HOUSES[h][0]);
   LABEL[h]=[c[0]+(outer[0]-c[0])*.56,c[1]+(outer[1]-c[1])*.56];
 }
+
+/* Point-in-polygon, so a graha can never be drawn into a neighbouring
+   house. Candidate positions are pulled toward the house anchor until
+   they sit inside a shrunk copy of the polygon - shrunk by roughly the
+   graha's own radius, so the disc clears the border too. */
+function inPoly(pt,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const [xi,yi]=poly[i],[xj,yj]=poly[j];
+    if(((yi>pt[1])!==(yj>pt[1])) && (pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+const shrinkPoly=(poly,k)=>{const c=cent(poly);
+  return poly.map(v=>[v[0]+(c[0]-v[0])*k, v[1]+(c[1]-v[1])*k])};
+function fitInside(pt,poly,anchor,margin){
+  const sp=shrinkPoly(poly,margin);
+  if(inPoly(pt,sp)) return pt;
+  for(let t=0.08;t<=1;t+=0.08){
+    const q=[pt[0]+(anchor[0]-pt[0])*t, pt[1]+(anchor[1]-pt[1])*t];
+    if(inPoly(q,sp)) return q;
+  }
+  return anchor;
+}
+
 function locator(h){
   const shapes=Object.keys(HOUSES).map(k=>
     `<polygon points="${HOUSES[k].map(q=>q.join(",")).join(" ")}" fill="${+k===h?"var(--brass)":"transparent"}" fill-opacity="${+k===h?.9:0}" stroke="var(--line-2)" stroke-width="2.5"/>`).join("");
@@ -709,6 +778,8 @@ function locator(h){
 
 /* &#9552;&#9552;&#9552; TODAY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 let viewDate=new Date();
+const isToday=d=>d.toDateString()===new Date().toDateString();
+const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
 const CATS=[
   {key:"Career",     house:10, colour:"var(--saturn)"},
@@ -744,19 +815,31 @@ function renderToday(){
 
   const days=[];
   for(let i=-3;i<=3;i++){
-    const d=new Date(); d.setDate(d.getDate()+i);
-    const on=d.toDateString()===viewDate.toDateString();
+    const d=new Date(viewDate); d.setDate(d.getDate()+i);
+    const on=i===0;
     days.push(`<button class="dchip ${on?"on":""}" data-off="${i}">
       <small>${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</small>
-      <b>${d.getDate()}</b></button>`);
+      <b>${d.getDate()}</b>${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
   /* the shadow slides across the disc to show the actual phase */
   const shift=mp.waxing? (1-mp.illum)*100 : -(1-mp.illum)*100;
 
   document.getElementById("pg-today").innerHTML=`
-    <div class="eyebrow">${viewDate.toLocaleDateString("en-GB",{weekday:"long"})}</div>
-    <h1>${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}</h1>
+    <div class="tophead">
+      <div>
+        <div class="eyebrow">${viewDate.toLocaleDateString("en-GB",{weekday:"long"})}</div>
+        <h1>${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}${
+          viewDate.getFullYear()!==new Date().getFullYear()?` ${viewDate.getFullYear()}`:""}</h1>
+      </div>
+      <div class="tophead-actions">
+        ${isToday(viewDate)?"":`<button class="todaychip" id="totoday">Today</button>`}
+        <button class="calbtn" id="calbtn" aria-label="Choose a date">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
+            <path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></button>
+        <input type="date" id="caldate" class="calinput" aria-hidden="true" tabindex="-1">
+      </div>
+    </div>
     <div class="datestrip" id="dates">${days.join("")}</div>
 
     <div class="card moonrow">
@@ -829,9 +912,17 @@ function renderToday(){
 
   document.getElementById("dates").onclick=e=>{
     const b=e.target.closest(".dchip"); if(!b)return;
-    const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off);
+    const d=new Date(viewDate); d.setDate(d.getDate()+ +b.dataset.off);
     viewDate=d; buzz(6); renderToday();
   };
+  const cal=document.getElementById("caldate"), calb=document.getElementById("calbtn");
+  cal.value=isoOf(viewDate);
+  calb.onclick=()=>{ if(cal.showPicker) cal.showPicker(); else cal.click(); };
+  cal.onchange=()=>{ if(!cal.value) return;
+    const [y,m,dd]=cal.value.split("-").map(Number);
+    viewDate=new Date(y,m-1,dd); buzz(8); renderToday(); };
+  const tt=document.getElementById("totoday");
+  if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
   document.querySelectorAll(".cat").forEach(c=>c.onclick=()=>{
     go(1); setTimeout(()=>openHouse(+c.dataset.house),340);
   });
@@ -877,24 +968,28 @@ function renderUniverse(){
 
   for(const p of CHART.placements){
     const sibs=CHART.occupants(p.house), i=sibs.indexOf(p), n=sibs.length;
-    const a=ANCHOR[p.house], tri=HOUSES[p.house].length===3;
-    const step=n===2?(tri?9:11):(tri?7.6:10);
-    const spread=n===1?0:(i-(n-1)/2)*step;
-    const rise=n<=2?0:Math.abs(i-(n-1)/2)*(tri?3.2:4.2);
-    const x=(a[0]+spread)/100, y=(a[1]-3.5+rise)/100;
+    const a=ANCHOR[p.house], poly=HOUSES[p.house], tri=poly.length===3;
     const sz={Sun:1.06,Moon:1.1,Mars:1,Mercury:.94,Jupiter:1.14,Venus:1,Saturn:1.08,Rahu:.92,Ketu:.9}[p.graha];
+    const dpx=(n>=3?23:n===2?26:30)*sz;
+
+    /* lay the group out on a short arc centred on the anchor, then clamp
+       every member inside the house */
+    const step=n===1?0:(tri?7.0:9.5);
+    const spread=(i-(n-1)/2)*step;
+    const rise=n<=2?0:Math.abs(i-(n-1)/2)*(tri?2.6:3.6);
+    const margin=tri?0.46:0.30;
+    const fit=fitInside([a[0]+spread, a[1]-2.6+rise], poly, a, margin);
+    const x=fit[0]/100, y=fit[1]/100;
 
     const b=document.createElement("button");
     b.className="p"+(shadow(p.graha)?" shadow":"")+(p.retro?" retro":"");
     b.dataset.g=p.graha;
     b.style.setProperty("--x",x); b.style.setProperty("--y",y);
-    b.style.setProperty("--d",(n>=3?25:30)*sz+"px");
+    b.style.setProperty("--d",dpx+"px");
     b.style.setProperty("--fill",COLOUR(p.graha));
     b.style.setProperty("--glow",shadow(p.graha)?`0 0 12px -1px ${COLOUR(p.graha)}`
       :`0 0 16px -2px ${COLOUR(p.graha)}, 0 0 34px -8px ${COLOUR(p.graha)}`);
-    b.setAttribute("aria-label",
-      `${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${spokenDeg(p.L)}. `+
-      `${p.nak} nakshatra, pada ${p.pada}.`+
+    b.setAttribute("aria-label",`${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
     b.innerHTML=(p.graha==="Sun"?`<span class="corona"></span>`:``)+
       `<span class="body"><span class="surf"></span></span>`+
@@ -1105,6 +1200,7 @@ const ICONS={
 const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"timeline", label:"Timeline", icon:ICONS.clock, sub:()=>{const n=CHART.dasha.at(new Date());return n.maha.lord+"/"+n.antar.lord}},
+  {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
   {id:"saved", label:"Saved insights", icon:ICONS.star, sub:()=>SAVED().length+""},
@@ -1222,7 +1318,7 @@ const backBar=title=>`<button class="backbtn" id="back">
 
 function renderSub(){
   const pg=document.getElementById("pg-you");
-  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,
+  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,events:subEvents,
               glossary:subGlossary,saved:subSaved,
               settings:subSettings}[subView];
   pg.innerHTML=body();
@@ -1235,6 +1331,7 @@ function renderSub(){
   };
   if(subView==="timeline") wireTimeline();
   if(subView==="rel") wireRel();
+  if(subView==="events") wireEvents();
   if(subView==="partner") wirePartner();
 }
 
@@ -1270,101 +1367,230 @@ function subBirth(){
     than computed. Everything else on this screen is derived from the longitudes.</p>`;
 }
 
-/* ---- TIMELINE: years down the left, scrubber down the right ---- */
+/* ---- TIMELINE: a short window over proportional bands ----------
+   Bands stay proportional because their length is information - Saturn's
+   19 years should dwarf the Sun's 6. So instead of shrinking them to fit,
+   the column is taller than its viewport and scrolls, holding the selected
+   moment in the middle. The rail carries a Today tick and a dot per event. */
 let tlT=null;
-function subTimeline(){
+const TL_H=780;                     // full column height, px
+function tlBounds(){
   const m=CHART.dasha.mahas.slice(0,9);
-  const t0=m[0].start.getTime(), t1=m[8].end.getTime();
-  if(tlT===null) tlT=Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1);
+  return {m, t0:m[0].start.getTime(), t1:m[8].end.getTime()};
+}
+const tlNowT=()=>{const {t0,t1}=tlBounds();
+  return Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1)};
+
+function subEventsMarkup(){
+  const {t0,t1}=tlBounds();
+  return events().map(e=>{
+    const t=(new Date(e.d+"T12:00:00").getTime()-t0)/(t1-t0);
+    if(t<0||t>1) return "";
+    return `<span class="evdot" style="top:${t*100}%;background:${KIND_COLOUR[e.k]||"var(--hot)"}"
+             title="${e.t}"></span>`;
+  }).join("");
+}
+
+function subTimeline(){
+  const {m}=tlBounds();
+  if(tlT===null) tlT=tlNowT();
   return backBar("Timeline")+`
-    <p class="muted" style="font-size:13px;margin:-6px 0 16px">
-      120 years of Vimshottari, in the order your Moon in Mula set. Drag the rail.</p>
+    <p class="muted" style="font-size:13px;margin:-6px 0 14px">
+      120 years of Vimshottari, in the order your Moon in Mula set.</p>
     <div class="tlwrap">
-      <div class="tlcol">
-        ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
-          background:linear-gradient(90deg, ${COLOUR(d.lord)}22, ${COLOUR(d.lord)}05)">
-          <span class="yr">${d.start.getFullYear()}</span>
-          <span class="ld" style="color:${COLOUR(d.lord)}">${d.lord}</span>
-          <span class="dur">${d.years.toFixed(1)}y</span>
-        </div>`).join("")}
+      <div class="tlview">
+        <div class="tlcol" id="tlcol" style="height:${TL_H}px">
+          ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
+            background:linear-gradient(90deg, ${COLOUR(d.lord)}26, ${COLOUR(d.lord)}06)">
+            <span class="yr">${d.start.getFullYear()}</span>
+            <span class="ld" style="color:${COLOUR(d.lord)}">${d.lord}</span>
+            <span class="dur">${d.years.toFixed(1)}y</span></div>`).join("")}
+        </div>
+        <div class="tlfocus"></div>
       </div>
       <div class="vscroll" id="vs" role="slider" tabindex="0"
            aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
-        <div class="vrail"></div><div class="vthumb" id="vt"></div>
+        <div class="vrail"></div>
+        <span class="nowtick" id="nowtick"></span>
+        ${subEventsMarkup()}
+        <div class="vthumb" id="vt"></div>
       </div>
+    </div>
+    <div class="tlbar">
+      <button class="todaychip" id="tlnow">Today</button>
+      <span class="muted" style="font-size:11.5px;color:var(--ink-3)">Drag the rail, or tap a period</span>
     </div>
     <div id="ro" class="readout"></div>`;
 }
 
 function dashaImpact(lord){
   const p=CHART.get(lord), ruled=CHART.housesRuled(lord);
-  const themes=ruled.map(h=>BHAVA[h-1][1]);
-  const seat=BHAVA[p.house-1][1];
   const bits=[];
   bits.push(ruled.length
-    ? `Rules your ${ruled.map(ordinal).join(" and ")} house${ruled.length>1?"s":""} &#8212; ${themes.join("; ").toLowerCase()}.`
+    ? `Rules your ${ruled.map(ordinal).join(" and ")} house${ruled.length>1?"s":""} &#8212; ${ruled.map(h=>BHAVA[h-1][1]).join("; ").toLowerCase()}.`
     : `Owns no sign, so rules no house. A shadow graha acts through whatever it sits with.`);
-  bits.push(`Sits in your ${ordinal(p.house)} &#8212; ${seat.toLowerCase()} &#8212; in ${SIGNS[p.sign-1]}${p.dig?`, ${p.dig.toLowerCase()}`:""}.`);
+  bits.push(`Sits in your ${ordinal(p.house)} &#8212; ${BHAVA[p.house-1][1].toLowerCase()} &#8212; in ${SIGNS[p.sign-1]}${p.dig?`, ${p.dig.toLowerCase()}`:""}.`);
   const conj=CHART.conjunct(lord);
   if(conj.length) bits.push(`Shares that sign with ${conj.join(" and ")}.`);
   bits.push(`Casts drishti on the ${CHART.aspectedBy(lord).map(ordinal).join(", ")}.`);
   return bits;
 }
 
+/* Traditional practice, surfaced only where a graha is the reason - never
+   as a catalogue. Attributed, and with no outcome promised (CLAUDE.md 69). */
+const WEEKDAY={Sun:"Sunday",Moon:"Monday",Mars:"Tuesday",Mercury:"Wednesday",
+  Jupiter:"Thursday",Venus:"Friday",Saturn:"Saturday",Rahu:"Saturday",Ketu:"Tuesday"};
+function practiceFor(lord){
+  return `<div class="practice">
+    <div class="eyebrow" style="margin-bottom:6px">Traditional practice &#183; ${lord}</div>
+    <p class="muted" style="font-size:13px;margin:0">Within Vedic tradition, periods governed by
+    ${lord} are associated with observances directed to that graha &#8212; recitation, giving on
+    ${WEEKDAY[lord]}, and reflective discipline.</p>
+    <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:8px 0 0">
+    Specific mantras are not generated here. They will be sourced and attributed rather than
+    invented, and no practice is offered as a guarantee of outcome.</p></div>`;
+}
+
 function wireTimeline(){
-  const m=CHART.dasha.mahas.slice(0,9);
-  const t0=m[0].start.getTime(), t1=m[8].end.getTime();
+  const {m,t0,t1}=tlBounds();
   const vs=document.getElementById("vs"), vt=document.getElementById("vt");
+  const col=document.getElementById("tlcol"), view=col.parentElement;
   let lastLord=null;
+
+  document.getElementById("nowtick").style.top=(tlNowT()*100)+"%";
 
   const paint=()=>{
     vt.style.top=(tlT*100)+"%";
     vs.setAttribute("aria-valuenow",Math.round(tlT*100));
+    const vh=view.clientHeight;
+    col.style.transform=`translateY(${-(tlT*TL_H - vh/2)}px)`;
+
     const when=new Date(t0+tlT*(t1-t0));
     const now=CHART.dasha.at(when); if(!now) return;
     document.querySelectorAll(".band").forEach((b,i)=>
-      b.classList.toggle("on", m[i].lord===now.maha.lord && when>=m[i].start && when<m[i].end));
+      b.classList.toggle("on", when>=m[i].start && when<m[i].end));
+
     const prog=(when-now.maha.start)/(now.maha.end-now.maha.start);
     const age=Math.floor((when-CHART.birthDate)/(365.2425*864e5));
+    const inPeriod=events().filter(e=>{const d=new Date(e.d+"T12:00:00");
+      return d>=now.maha.start && d<now.maha.end});
+
     document.getElementById("ro").innerHTML=`
-      <div class="eyebrow">${fmtDate(when)} &#183; age ${age}</div>
+      <div class="eyebrow">${fmtDate(when)} &#183; age ${age}${isToday(when)?' &#183; today':''}</div>
       <p class="big" style="color:${COLOUR(now.maha.lord)}">${now.maha.lord} mahadasha</p>
       <p class="muted" style="font-size:13px;margin:0">${now.antar.lord} antardasha &#183;
         ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</p>
       <div class="bar"><i style="width:${(prog*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i></div>
       <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:0">
         ${Math.round(prog*100)}% through ${now.maha.years.toFixed(1)} years &#183; ends ${fmtDate(now.maha.end)}</p>
+      ${inPeriod.length?`
+        <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
+        ${inPeriod.map(e=>{const ed=eventDasha(e.d);
+          return `<div class="evrow">
+            <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
+            <span><b>${e.t}</b>
+              <span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))} &#183;
+              ${ed?`${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
+        <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:2px 0 0">
+          Shown alongside the period that was running, not as its result.</p>`:``}
       <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
       ${dashaImpact(now.maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
       <div class="eyebrow" style="margin:20px 0 8px">And within it, ${now.antar.lord}</div>
       ${dashaImpact(now.antar.lord).slice(0,2).map(t=>`<p class="impact">${t}</p>`).join("")}
-      <p class="note">Traditional associations for the houses involved &#8212; not a
-      forecast of events.</p>`;
+      ${practiceFor(now.maha.lord)}
+      <p class="note">Traditional associations for the houses involved &#8212; not a forecast.</p>`;
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
 
-  const setFromY=cy=>{
-    const r=vs.getBoundingClientRect();
-    tlT=Math.min(Math.max((cy-r.top)/r.height,0),1); paint();
-  };
+  const setFromY=cy=>{const r=vs.getBoundingClientRect();
+    tlT=Math.min(Math.max((cy-r.top)/r.height,0),1); paint()};
   let dragging=false;
   vs.addEventListener("pointerdown",e=>{dragging=true;vs.setPointerCapture(e.pointerId);setFromY(e.clientY)});
   vs.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY)});
   vs.addEventListener("pointerup",()=>dragging=false);
-  vs.addEventListener("keydown",e=>{
-    const step=e.shiftKey?0.05:0.01;
+  vs.addEventListener("keydown",e=>{const step=e.shiftKey?0.05:0.01;
     if(e.key==="ArrowDown"){tlT=Math.min(tlT+step,1);paint();e.preventDefault()}
-    if(e.key==="ArrowUp"){tlT=Math.max(tlT-step,0);paint();e.preventDefault()}
-  });
+    if(e.key==="ArrowUp"){tlT=Math.max(tlT-step,0);paint();e.preventDefault()}});
   document.querySelectorAll(".band").forEach(b=>b.onclick=()=>{
     const d=m[+b.dataset.i];
-    tlT=(((d.start.getTime()+d.end.getTime())/2)-t0)/(t1-t0);
-    buzz(8); paint();
-  });
+    tlT=(((d.start.getTime()+d.end.getTime())/2)-t0)/(t1-t0); buzz(8); paint()});
+  document.getElementById("tlnow").onclick=()=>{tlT=tlNowT();buzz(10);paint()};
   paint();
 }
 
+/* ---- LIFE EVENTS SCREEN ---- */
+function subEvents(){
+  const list=events();
+  return backBar("Life events")+`
+    <div class="addrow">
+      <p class="muted" style="font-size:13px;margin:0;flex:1">
+        Moments worth remembering. Each is shown against the period that was running.</p>
+      <button class="plus" id="addev" aria-label="Add an event">+</button>
+    </div>
+    ${list.length?`<div style="margin-top:18px">
+      ${list.map((e,i)=>{const ed=eventDasha(e.d);
+        return `<div class="evcard">
+          <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
+          <div style="flex:1">
+            <div class="evtop"><b>${e.t}</b>
+              <button class="evdel" data-i="${i}" aria-label="Remove">&#215;</button></div>
+            <span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))} &#183;
+              ${EVENT_KINDS[e.k]||"Milestone"}${e.demo?" &#183; sample":""}</span>
+            ${ed?`<p class="evdash">You were running
+              <b style="color:${COLOUR(ed.maha.lord)}">${ed.maha.lord}</b> mahadasha,
+              <b style="color:${COLOUR(ed.antar.lord)}">${ed.antar.lord}</b> antardasha.</p>`:""}
+          </div></div>`}).join("")}
+    </div>`:`<div class="card" style="margin-top:16px"><p class="muted" style="font-size:13.5px">
+      Nothing recorded yet. Tap + to add a moment.</p></div>`}
+    <p class="note">These are yours, stored on this device only. Astrology is offered here as
+    a frame for reflection &#8212; a period is never presented as the cause of an event.</p>`;
+}
+
+function wireEvents(){
+  document.getElementById("addev").onclick=()=>{
+    const t=prompt("What happened?"); if(!t) return;
+    const d=prompt("When? (YYYY-MM-DD)"); if(!d||isNaN(new Date(d+"T12:00:00"))) {
+      if(d) alert("That date could not be read. Use YYYY-MM-DD."); return; }
+    const k=(prompt("Kind? career / relationship / home / study / health / milestone / loss","milestone")||"milestone").toLowerCase();
+    const l=events().filter(x=>!x.demo||true);
+    l.push({d,t:t.trim(),k:EVENT_KINDS[k]?k:"milestone"});
+    saveEvents(l); buzz(12); renderSub();
+  };
+  document.querySelectorAll(".evdel").forEach(b=>b.onclick=()=>{
+    const l=events(); const e=l[+b.dataset.i];
+    if(!confirm(`Remove "${e.t}"?`)) return;
+    l.splice(+b.dataset.i,1); saveEvents(l); buzz(9); renderSub();
+  });
+}
+
 /* ---- RELATIONSHIPS ---- */
+
+/* ---- LIFE EVENTS -------------------------------------------------
+   The user's own history, laid against astrological time. Framing is
+   deliberate and fixed by CLAUDE.md 51: an event is shown alongside the
+   period that was running, never as something the period caused. */
+const LKEY="astro.events.v1";
+const EVENT_KINDS={career:"Career",relationship:"Relationship",home:"Home",
+  study:"Study",health:"Health",milestone:"Milestone",loss:"Loss"};
+const KIND_COLOUR={career:"var(--saturn)",relationship:"var(--venus)",home:"var(--moon)",
+  study:"var(--mercury)",health:"var(--mars)",milestone:"var(--jupiter)",loss:"var(--ketu)"};
+const DEMO_EVENTS=[
+  {d:"2010-08-02",t:"Started university",k:"study",demo:true},
+  {d:"2014-07-14",t:"First job",k:"career",demo:true},
+  {d:"2018-03-09",t:"Moved city",k:"home",demo:true},
+  {d:"2021-11-18",t:"Founded the company",k:"career",demo:true},
+  {d:"2025-02-06",t:"Shipped the first product",k:"milestone",demo:true}
+];
+const events=()=>{
+  try{
+    let l=JSON.parse(localStorage.getItem(LKEY)||"null");
+    if(!l){ l=DEMO_EVENTS.slice(); localStorage.setItem(LKEY,JSON.stringify(l)); }
+    return l.sort((a,b)=>a.d<b.d?-1:1);
+  }catch(_){ return DEMO_EVENTS.slice() }
+};
+const saveEvents=l=>localStorage.setItem(LKEY,JSON.stringify(l));
+const eventDasha=iso=>CHART.dasha.at(new Date(iso+"T12:00:00"));
+
 const PKEY="astro.partners.v1";
 const DEMO=[{name:"Natasha",born:"1993-02-21T08:40:00+05:30",demo:true}];
 const partners=()=>{

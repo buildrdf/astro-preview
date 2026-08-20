@@ -20,6 +20,7 @@
   --tabh:70px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body,button{touch-action:manipulation}
 html,body{margin:0;height:100%}
 body{
   background:var(--void);color:var(--ink);font-family:var(--ff);
@@ -108,6 +109,15 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 
 /* month calendar, Apple Fitness layout with lunar phases in the cells */
 body.noscroll{overflow:hidden}
+body.insub .tabs{transform:translateY(110%);pointer-events:none}
+.tabs{transition:transform .38s var(--ease)}
+body.insub .page{padding-bottom:30px}
+.subhead{display:flex;align-items:center;gap:9px;margin:2px 0 16px}
+.subhead .backarrow{flex:0 0 auto;width:32px;height:32px;border-radius:50%;cursor:pointer;
+  border:0;background:rgba(255,255,255,.07);color:var(--ink);display:grid;place-items:center;
+  font-size:17px;line-height:1;padding:0 2px 0 0}
+.subhead .backarrow:active{background:rgba(255,255,255,.16)}
+.subhead h1{font-size:25px;margin:0;letter-spacing:-.028em}
 .calsheet{
   position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
   background:rgba(7,12,30,.86);
@@ -159,6 +169,10 @@ body.noscroll{overflow:hidden}
 .dchip.on b{color:var(--ink)}
 
 .moonrow{display:flex;align-items:center;gap:16px}
+.moonbig{flex:0 0 auto;display:grid;place-items:center;width:66px;height:66px;
+  filter:drop-shadow(0 0 18px rgba(190,210,245,.35))}
+.datesub{font-size:13.5px;color:var(--ink-2);margin:3px 0 0}
+.datestrip{scroll-behavior:smooth}
 .moondisc{
   flex:0 0 auto;width:74px;height:74px;border-radius:50%;position:relative;
   background:#0C1striped;overflow:hidden;
@@ -241,41 +255,19 @@ svg.asp{pointer-events:none}
   border:0;padding:0;background:none;pointer-events:auto;cursor:pointer;
   border-radius:50%;outline:none;perspective:240px;
   transition:transform .72s var(--ease),opacity .5s var(--ease),filter .5s var(--ease)}
-.p .body{position:absolute;inset:0;border-radius:50%;background:var(--fill);
-  box-shadow:var(--glow);overflow:hidden}
-.p .surf{position:absolute;inset:0;border-radius:50%;background-size:200% 100%;opacity:.55}
-.p:not(.shadow) .body::after{content:"";position:absolute;inset:0;border-radius:50%;
-  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.52),rgba(255,255,255,0) 44%),
-             radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 52%,rgba(0,0,0,.42) 88%),
-             radial-gradient(circle at 74% 78%,rgba(0,0,0,.5),rgba(0,0,0,0) 55%)}
-.p[data-g="Jupiter"] .surf,.p[data-g="Saturn"] .surf{
-  background-image:repeating-linear-gradient(177deg,rgba(255,255,255,.26) 0 9%,
-    rgba(120,80,20,.2) 9% 15%,rgba(255,255,255,.1) 15% 22%,rgba(90,60,20,.16) 22% 30%)}
-.p[data-g="Mars"] .surf{background-image:
-  radial-gradient(ellipse at 34% 62%,rgba(80,20,10,.55) 0 20%,transparent 23%),
-  radial-gradient(ellipse at 68% 33%,rgba(255,190,150,.3) 0 13%,transparent 16%)}
-.p[data-g="Moon"] .surf{opacity:.7;background-image:
-  radial-gradient(circle at 38% 42%,rgba(40,50,70,.55) 0 10%,transparent 12%),
-  radial-gradient(circle at 62% 60%,rgba(40,50,70,.45) 0 7%,transparent 9%),
-  radial-gradient(circle at 30% 68%,rgba(40,50,70,.4) 0 5%,transparent 7%)}
-.p[data-g="Sun"] .body{box-shadow:0 0 20px -1px var(--sun),0 0 54px -10px var(--sun)}
-.p[data-g="Sun"] .body::after{background:radial-gradient(circle at 50% 50%,
-  rgba(255,246,214,.75) 0 22%,rgba(255,200,90,.25) 48%,transparent 72%)}
-.p .corona{position:absolute;inset:-38%;border-radius:50%;pointer-events:none;
-  background:repeating-conic-gradient(from 0deg,rgba(255,196,92,.3) 0deg 3deg,rgba(255,196,92,0) 3deg 11deg),
-    radial-gradient(circle,rgba(255,206,120,.34) 24%,rgba(255,180,70,0) 62%);
-  -webkit-mask:radial-gradient(circle,transparent 34%,#000 42%,#000 74%,transparent 88%);
-          mask:radial-gradient(circle,transparent 34%,#000 42%,#000 74%,transparent 88%)}
-.p .ring{position:absolute;left:-52%;top:-52%;width:204%;height:204%;border-radius:50%;
-  pointer-events:none;transform:rotateX(74deg) rotate(-17deg);
-  border:2px solid rgba(236,220,176,.42);
-  box-shadow:inset 0 0 0 1.5px rgba(10,14,28,.9),inset 0 0 0 4px rgba(226,206,158,.3),
-             0 0 6px -1px rgba(226,206,158,.35)}
-.p.shadow .body{background:#070A11;box-shadow:inset 0 0 8px rgba(0,0,0,.9)}
-.p.shadow .halo{position:absolute;inset:-16%;border-radius:50%;pointer-events:none;
-  border:1.6px solid var(--fill);opacity:.9;
-  box-shadow:0 0 12px -1px var(--fill),inset 0 0 8px -2px var(--fill)}
-.p[data-g="Ketu"] .halo{border-style:dashed;border-width:1.8px}
+.p .art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+  -webkit-user-drag:none;user-select:none;
+  filter:drop-shadow(0 2px 10px rgba(0,0,0,.55)) drop-shadow(0 0 13px var(--fill));
+  transition:filter .5s var(--ease),transform .5s var(--ease)}
+.p:focus-visible .art{outline:2.5px solid rgba(150,190,255,.9);outline-offset:2px;border-radius:50%}
+.p.focus .art{filter:drop-shadow(0 6px 22px rgba(0,0,0,.7)) drop-shadow(0 0 30px var(--fill))}
+.p.focus[data-g="Sun"] .art{animation:breathe 6s ease-in-out infinite}
+.p.focus[data-g="Jupiter"] .art,.p.focus[data-g="Mars"] .art,
+.p.focus[data-g="Venus"] .art,.p.focus[data-g="Mercury"] .art,
+.p.focus[data-g="Saturn"] .art{animation:bob 9s ease-in-out infinite}
+@keyframes breathe{50%{filter:drop-shadow(0 6px 22px rgba(0,0,0,.7)) drop-shadow(0 0 46px var(--fill))}}
+@keyframes bob{50%{transform:translateY(-3%)}}
+
 .p .tag{position:absolute;left:50%;top:calc(100% + 4px);transform:translateX(-50%);
   font-family:var(--fm);font-size:8.5px;letter-spacing:.07em;color:var(--ink-3);
   white-space:nowrap;transition:opacity .4s var(--ease)}
@@ -360,44 +352,44 @@ svg.asp{pointer-events:none}
   padding:6px 10px 6px 0;margin:0 0 2px}
 .backbtn:active{opacity:.6}
 
-/* timeline: a short window over a taller proportional column */
-.tlwrap{display:grid;grid-template-columns:1fr 40px;gap:14px}
-.tlview{position:relative;height:186px;border-radius:13px;overflow:hidden;
-  border:.5px solid rgba(110,135,195,.2);background:rgba(10,18,44,.5);
-  -webkit-mask:linear-gradient(180deg,transparent 0,#000 22%,#000 78%,transparent 100%);
-          mask:linear-gradient(180deg,transparent 0,#000 22%,#000 78%,transparent 100%)}
-.tlcol{display:flex;flex-direction:column;will-change:transform;
-  transition:transform .18s cubic-bezier(.33,1,.68,1)}
-.tlfocus{position:absolute;left:0;right:0;top:50%;height:1px;margin-top:-.5px;
-  background:linear-gradient(90deg,rgba(255,255,255,.45),rgba(255,255,255,.06));
-  pointer-events:none}
-.band{position:relative;display:grid;grid-template-columns:auto 1fr auto;
-  align-items:center;gap:10px;padding:0 12px;min-height:0;cursor:pointer;
-  border-bottom:.5px solid rgba(10,16,36,.7);
-  transition:filter .3s var(--ease),opacity .3s var(--ease)}
-.band:last-child{border-bottom:0}
-.band .yr{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.band .ld{font-size:13px;font-weight:620;letter-spacing:-.01em}
-.band .dur{font-family:var(--fm);font-size:9.5px;color:var(--ink-3)}
-.band.on{box-shadow:inset 3px 0 0 currentColor}
-.band.on .ld{color:var(--ink)!important}
-.band:not(.on){opacity:.5}
-
-.vscroll{position:relative;border-radius:99px;cursor:grab;touch-action:none;height:186px;
-  background:rgba(255,255,255,.045);border:.5px solid rgba(110,135,195,.2);outline:none}
-.vscroll:active{cursor:grabbing}
-.vscroll:focus-visible{box-shadow:0 0 0 2px var(--hot)}
-.vrail{position:absolute;left:50%;top:9px;bottom:9px;width:2px;margin-left:-1px;border-radius:2px;
-  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05))}
-.nowtick{position:absolute;left:4px;right:4px;height:2px;margin-top:-1px;border-radius:2px;
-  background:var(--brass);box-shadow:0 0 8px -1px var(--brass);pointer-events:none}
-.evdot{position:absolute;left:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
-  box-shadow:0 0 6px -1px currentColor;pointer-events:none;opacity:.9}
-.vthumb{position:absolute;left:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
-  background:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.6),0 0 16px -2px rgba(180,205,255,.65);
-  pointer-events:none}
-.tlbar{display:flex;align-items:center;gap:12px;margin:13px 0 4px}
-
+/* timeline: the spine IS the scrubber - drag it directly (CLAUDE.md 79) */
+.tl2{display:grid;grid-template-columns:56px 1fr;gap:15px;align-items:start}
+.spine{position:sticky;top:6px;height:62dvh;min-height:330px;border-radius:14px;
+  overflow:hidden;cursor:grab;touch-action:none;outline:none;
+  border:.5px solid rgba(110,135,195,.22);background:rgba(10,18,44,.55);
+  -webkit-mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%);
+          mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%)}
+.spine:active{cursor:grabbing}
+.spine:focus-visible{box-shadow:0 0 0 2px var(--hot)}
+.spinecol{display:flex;flex-direction:column;will-change:transform;
+  transition:transform .16s cubic-bezier(.33,1,.68,1)}
+.band{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  min-height:0;border-bottom:.5px solid rgba(10,16,36,.75);transition:opacity .3s var(--ease)}
+.band:not(.on){opacity:.42}
+.byr{font-family:var(--fm);font-size:9px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.bld{font-size:12px;font-weight:700;letter-spacing:.02em}
+.spinemark{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;
+  background:var(--ink);box-shadow:0 0 10px rgba(255,255,255,.5);pointer-events:none}
+.nowtick{position:absolute;left:3px;right:3px;height:2px;margin-top:-1px;border-radius:2px;
+  background:var(--brass);box-shadow:0 0 8px -1px var(--brass);pointer-events:none;z-index:2}
+.evdot{position:absolute;left:4px;width:6px;height:6px;margin-top:-3px;border-radius:50%;
+  box-shadow:0 0 6px -1px currentColor;pointer-events:none;z-index:2}
+.tlbody{min-width:0}
+.tlbar{margin:16px 0 4px}
+.spanrow{display:flex;align-items:center;gap:10px;margin:10px 0 12px}
+.spanrow>div{flex:1}
+.spanrow .sk{display:block;font-family:var(--fm);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3)}
+.spanrow b{display:block;font-size:14px;font-weight:620;margin-top:2px}
+.spanrow .sa{font-family:var(--fm);font-size:10.5px;color:var(--ink-3)}
+.sarrow{color:var(--ink-3);flex:0 0 auto}
+.bar{position:relative}
+.barnow{position:absolute;top:-3px;width:2px;height:11px;background:var(--ink);
+  border-radius:2px;margin-left:-1px;box-shadow:0 0 6px rgba(255,255,255,.7)}
+.poslabel{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:9px 0 0}
+.poslabel b{color:var(--ink);font-weight:600}
+.antar{margin-top:18px;padding:11px 13px;border-radius:12px;
+  background:rgba(255,255,255,.035);border:.5px solid rgba(110,135,195,.16)}
 /* life events */
 .evcard{display:flex;gap:12px;padding:13px 0;border-top:.5px solid var(--line)}
 .evcard:last-of-type{border-bottom:.5px solid var(--line)}
@@ -418,6 +410,27 @@ svg.asp{pointer-events:none}
   padding-left:12px;border-left:2px solid var(--line-2)}
 
 /* relationships */
+
+.fld{display:block;margin-bottom:15px}
+.flabel{display:block;font-family:var(--fm);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.fld input,.fld textarea,.fld select{width:100%;font-family:var(--ff);font-size:15.5px;
+  color:var(--ink);background:rgba(255,255,255,.055);border-radius:12px;padding:12px 13px;
+  border:.5px solid rgba(110,135,195,.22);-webkit-appearance:none;appearance:none}
+.fld select{background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
+  linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;
+  border-color:var(--hot);background:rgba(255,255,255,.09)}
+.fld textarea{resize:vertical;line-height:1.5}
+.fnote{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin:-4px 0 18px}
+.primary{width:100%;padding:14px;border-radius:13px;cursor:pointer;border:0;
+  background:var(--ink);color:#0A0F22;font-family:var(--ff);font-size:15px;font-weight:620}
+.primary:active{opacity:.82}
+.evdel{border:.5px solid var(--line-2);background:none;color:var(--ink-3);font-size:11.5px;
+  cursor:pointer;line-height:1;padding:5px 10px;border-radius:99px;font-family:var(--ff)}
+.evdel:active{background:rgba(255,255,255,.1)}
 .addrow{display:flex;align-items:center;gap:14px}
 .plus{flex:0 0 auto;width:42px;height:42px;border-radius:50%;cursor:pointer;
   border:.5px solid rgba(140,175,255,.35);background:rgba(120,150,225,.2);
@@ -636,6 +649,18 @@ function sunTropical(JD){
    An earlier version counted mean lunations from a fixed epoch and drifted
    by days: it put 28 Aug 2026 dark when that date carries a lunar eclipse.
    Checked against the Aug 2026 eclipses: 12 Aug reads 0%, 28 Aug reads 100%. */
+const sunSidereal=date=>{const J=julian(date);return norm(sunTropical(J)-ayanamsa(J))};
+
+/* Where the sky actually is on a given day, read against the natal chart.
+   The Moon changes sign every ~2.3 days, so this is what makes one day
+   differ from the next - without it a "daily" screen is just the chart again. */
+function transits(date){
+  const mL=moonSidereal(date), sL=sunSidereal(date);
+  const mk=(L)=>({L,sign:signOf(L),house:CHART.houseOfSign(signOf(L)),
+    nak:NAK[nakOf(L)],pada:padaOf(L),deg:fmtDeg(L)});
+  return {moon:mk(mL), sun:mk(sL), phase:moonPhase(date)};
+}
+
 function moonPhase(date){
   const J=julian(date);
   const e=norm(moonTropical(J)-sunTropical(J));
@@ -795,6 +820,16 @@ const HOUSES={1:[PT.t,PT.q2,PT.c,PT.q1],2:[PT.tl,PT.t,PT.q1],3:[PT.tl,PT.q1,PT.l
   4:[PT.l,PT.q1,PT.c,PT.q4],5:[PT.bl,PT.l,PT.q4],6:[PT.bl,PT.q4,PT.b],
   7:[PT.b,PT.q4,PT.c,PT.q3],8:[PT.br,PT.b,PT.q3],9:[PT.br,PT.q3,PT.r],
   10:[PT.r,PT.q3,PT.c,PT.q2],11:[PT.tr,PT.r,PT.q2],12:[PT.tr,PT.q2,PT.t]};
+const CHART_PX=430;
+function inradius(poly){
+  const c=cent(poly); let m=Infinity;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const [x1,y1]=poly[j],[x2,y2]=poly[i];
+    const L=Math.hypot(x2-x1,y2-y1);
+    m=Math.min(m, Math.abs((x2-x1)*(y1-c[1])-(x1-c[0])*(y2-y1))/L);
+  }
+  return m;
+}
 const cent=p=>[p.reduce((a,q)=>a+q[0],0)/p.length,p.reduce((a,q)=>a+q[1],0)/p.length];
 const ANCHOR={},LABEL={};
 for(const h in HOUSES){
@@ -828,6 +863,20 @@ function fitInside(pt,poly,anchor,margin){
   return anchor;
 }
 
+/* Each house has a different shape: house 2 is wide and flat, house 11 is
+   tall and narrow. Spreading grahas horizontally in both crowds the narrow
+   ones, so the group is laid out along the polygon's own longest axis. */
+const AXIS={};
+for(const h in HOUSES){
+  const v=HOUSES[h]; let best=0, ax=[1,0];
+  for(let i=0;i<v.length;i++) for(let j=i+1;j<v.length;j++){
+    const d=Math.hypot(v[i][0]-v[j][0], v[i][1]-v[j][1]);
+    if(d>best+0.01){best=d; ax=[(v[j][0]-v[i][0])/d, (v[j][1]-v[i][1])/d]}
+  }
+  /* diamonds are square in both directions - horizontal reads better there */
+  AXIS[h]= v.length===4 ? [1,0] : ax;
+}
+
 function locator(h){
   const shapes=Object.keys(HOUSES).map(k=>
     `<polygon points="${HOUSES[k].map(q=>q.join(",")).join(" ")}" fill="${+k===h?"var(--brass)":"transparent"}" fill-opacity="${+k===h?.9:0}" stroke="var(--line-2)" stroke-width="2.5"/>`).join("");
@@ -850,129 +899,121 @@ const CATS=[
 /* Readings are assembled from chart facts by template &#8212; never free text.
    Each one can name the placement it came from, which is what makes the
    "why am I seeing this?" answer possible. */
-function reading(cat){
+function reading(cat,tr){
   const lord=SIGN_LORD[CHART.signOfHouse(cat.house)];
   const lp=CHART.get(lord);
   const occ=CHART.occupants(cat.house);
   const now=CHART.dasha.at(viewDate);
   const dashaTouch=now&&(now.maha.lord===lord||now.antar.lord===lord);
 
+  const moonHere = tr && tr.moon.house===cat.house;
   let s=`${BHAVA[cat.house-1][1]} is governed here by ${lord}, which sits in your ${ordinal(lp.house)} house`;
   s+=lp.dig?` and is ${lp.dig.toLowerCase()}. `:`. `;
   if(occ.length) s+=`${occ.map(o=>o.graha).join(" and ")} ${occ.length>1?"occupy":"occupies"} the house itself. `;
   else s+=`No graha occupies the house, so it is read through its lord. `;
-  if(dashaTouch) s+=`${lord} also rules the period you are currently running, which traditionally brings this area forward.`;
-  else s+=`Traditionally read as steady rather than emphasised in the current period.`;
-  return {text:s.replace(/ {2,}/g," "), why:`${ordinal(cat.house)} house &#183; lord ${lord} in ${ordinal(lp.house)}${dashaTouch?" &#183; active dasha":""}`};
+  if(moonHere) s+=`The Moon is crossing this house today, which traditionally brings it briefly forward. `;
+  if(dashaTouch) s+=`${lord} also rules the period you are running.`;
+  else if(!moonHere) s+=`Traditionally read as steady rather than emphasised right now.`;
+  return {text:s.replace(/ {2,}/g," "),
+    why:`${ordinal(cat.house)} house &#183; lord ${lord} in ${ordinal(lp.house)}${dashaTouch?" &#183; active dasha":""}${moonHere?" &#183; moon transiting":""}`};
 }
 
 function renderToday(){
-  const mp=moonPhase(viewDate);
+  const tr=transits(viewDate), mp=tr.phase;
   const now=CHART.dasha.at(viewDate);
-  const moon=CHART.get("Moon");
+  const natalMoon=CHART.get("Moon");
 
+  /* a fixed window around today, so selecting a day highlights it in place
+     instead of re-centring the strip under your finger */
   const days=[];
-  for(let i=-3;i<=3;i++){
-    const d=new Date(viewDate); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
-    const on=i===0;
+  for(let i=-14;i<=14;i++){
+    const d=new Date(); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
+    const on=d.toDateString()===viewDate.toDateString();
     days.push(`<button class="dchip ${on?"on":""}" data-off="${i}">
       <small>${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</small>
       <b>${d.getDate()}</b>${moonSVG(d,20)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
-  /* the shadow slides across the disc to show the actual phase */
-  const shift=mp.waxing? (1-mp.illum)*100 : -(1-mp.illum)*100;
-
+  const mHouse=tr.moon.house, sHouse=tr.sun.house;
   document.getElementById("pg-today").innerHTML=`
     <div class="tophead">
       <div>
-        <div class="eyebrow">${viewDate.toLocaleDateString("en-GB",{weekday:"long"})}</div>
-        <h1>${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}${
-          viewDate.getFullYear()!==new Date().getFullYear()?` ${viewDate.getFullYear()}`:""}</h1>
+        <h1 style="font-size:27px">Hi Sangram</h1>
+        <p class="datesub">${viewDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
       </div>
       <div class="tophead-actions">
-        ${isToday(viewDate)?"":`<button class="todaychip" id="totoday">Today</button>`}
+        ${isToday(viewDate)?"":`<button class="todaychip" id="totoday">Go to today</button>`}
         <button class="calbtn" id="calbtn" aria-label="Choose a date">
           <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
             <path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></button>
-
       </div>
     </div>
     <div class="datestrip" id="dates">${days.join("")}</div>
 
     <div class="card moonrow">
-      <div class="moondisc"><div class="craters"></div>
-        <div class="shadow" style="transform:translateX(${shift}%)"></div></div>
+      <div class="moonbig">${moonArt(viewDate,66)}</div>
       <div>
-        <div class="eyebrow" style="margin-bottom:4px">Moon</div>
+        <div class="eyebrow" style="margin-bottom:4px">Moon today</div>
         <div style="font-size:17px;font-weight:640;letter-spacing:-.015em">${mp.name}</div>
         <p class="muted" style="font-size:13px;margin-top:3px">
-          ${Math.round(mp.illum*100)}% illuminated. Your natal Moon sits in
-          ${SIGNS[moon.sign-1]}, ${moon.nak} pada ${moon.pada} &#8212; the nakshatra
-          that sets your entire dasha sequence.</p>
+          ${Math.round(mp.illum*100)}% lit, in ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}.
+          Passing through your <b style="color:var(--ink)">${ordinal(mHouse)} house</b> &#8212;
+          ${BHAVA[mHouse-1][1].toLowerCase()}.</p>
       </div>
     </div>
 
     <div class="section">
       <h2>Your sky today</h2>
-      <p class="muted">You are running a <b style="color:var(--ink)">${now.maha.lord}</b>
-      mahadasha with <b style="color:var(--ink)">${now.antar.lord}</b> antardasha.
-      ${now.maha.lord} rules ${(()=>{const r=CHART.housesRuled(now.maha.lord);
-        return r.length? `your ${r.map(ordinal).join(" and ")} house${r.length>1?"s":""}`
-                       : `no house, being a shadow graha`})()}, and sits in your
-      ${ordinal(CHART.get(now.maha.lord).house)}. That pairing colours the whole period &#8212;
-      everything below is read against it.</p>
+      <p class="muted">The Moon is crossing your ${ordinal(mHouse)}, so
+      ${BHAVA[mHouse-1][1].toLowerCase()} is where the day's attention sits &#8212; it moves on
+      in a day or two. The Sun is in your ${ordinal(sHouse)} for this month.
+      Underneath both, you are running a <b style="color:var(--ink)">${now.maha.lord}</b>
+      mahadasha with <b style="color:var(--ink)">${now.antar.lord}</b> antardasha, which
+      colours the whole period.</p>
+    </div>
+
+    <div class="section">
+      <h2>Moving today</h2>
+      ${[["Moon",tr.moon,"every 2-3 days"],["Sun",tr.sun,"about a month"]].map(([g,t,rate])=>`
+        <div class="tline">
+          <div class="when">${t.deg}</div>
+          <div class="what">
+            <b style="color:${COLOUR(g)}">${g}</b>
+            <span class="pill">${ordinal(t.house)} house</span>
+            <p>${SIGNS[t.sign-1]} &#183; ${t.nak} pada ${t.pada}. Stays about ${rate}.</p>
+          </div></div>`).join("")}
+      <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:10px 0 0">
+        Transit positions computed for this date. The slower grahas are not yet
+        included &#8212; they need the licensed ephemeris.</p>
     </div>
 
     <div class="section">
       <h2>Where it lands</h2>
       <div class="cats">${CATS.map(c=>{
-        const r=reading(c);
+        const r=reading(c,tr);
         return `<button class="cat" data-house="${c.house}">
           <span class="dot" style="background:${c.colour};color:${c.colour}"></span>
-          <span><h3>${c.key}</h3><p>${r.text}</p>
-            <span class="why">${r.why}</span></span>
+          <span><h3>${c.key}</h3><p>${r.text}</p><span class="why">${r.why}</span></span>
           <span class="chev" style="color:var(--ink-3)">&#8250;</span></button>`}).join("")}</div>
     </div>
 
     <div class="section">
-      <h2>Standing out in your chart</h2>
-      ${CHART.placements.filter(p=>p.dig==="Exalted"||p.retro).map(p=>`
-        <div class="tline">
-          <div class="when">${p.degf}</div>
-          <div class="what">
-            <b style="color:${COLOUR(p.graha)}">${p.graha}</b>
-            ${p.dig?`<span class="pill">${p.dig}</span>`:""}
-            ${p.retro&&!shadow(p.graha)?`<span class="pill">Retrograde</span>`:""}
-            <p>${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house &#183; ${p.nak} pada ${p.pada}.
-            Aspects the ${CHART.aspectedBy(p.graha).map(ordinal).join(", ")}.</p>
-          </div>
-        </div>`).join("")}
-    </div>
-
-    <div class="section">
       <h2>Traditional practice</h2>
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:6px">Associated with ${now.maha.lord}</div>
-        <p class="muted" style="font-size:13.5px">Within Vedic tradition, periods governed by
-        ${now.maha.lord} are associated with practices directed to that graha &#8212; recitation,
-        charitable giving on its weekday, and reflective discipline.</p>
-        <p class="muted" style="font-size:12px;margin-top:9px;color:var(--ink-3)">
-        Specific mantras and remedies are deliberately not generated here. They will be
-        sourced and attributed rather than invented.</p>
-      </div>
+      ${practiceFor(now.maha.lord)}
     </div>
 
-    <p class="note">Positions are reconstructed to the arcsecond from your Astrotalk report
-    of 5 Aug 2026. Houses, lordships, dignity, nakshatra and every dasha date below are
-    computed here from those longitudes &#8212; and reproduce that report's own tables.
-    Interpretation follows Vedic tradition and is not a prediction of events.</p>`;
+    <p class="note">Natal positions are reconstructed from your Astrotalk report; the Sun and
+    Moon are computed for the selected date. Interpretation follows Vedic tradition and is not
+    a prediction of events.</p>`;
 
-  document.getElementById("dates").onclick=e=>{
+  const strip=document.getElementById("dates");
+  strip.onclick=e=>{
     const b=e.target.closest(".dchip"); if(!b)return;
-    const d=new Date(viewDate); d.setDate(d.getDate()+ +b.dataset.off);
+    const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off); d.setHours(12,0,0,0);
     viewDate=d; buzz(6); renderToday();
   };
+  const sel=strip.querySelector(".dchip.on");
+  if(sel) strip.scrollLeft=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
   document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
   if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
@@ -981,7 +1022,6 @@ function renderToday(){
   });
 }
 
-/* &#9552;&#9552;&#9552; UNIVERSE &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 const PEL={};
 function renderUniverse(){
   const pg=document.getElementById("pg-universe");
@@ -1022,16 +1062,26 @@ function renderUniverse(){
   for(const p of CHART.placements){
     const sibs=CHART.occupants(p.house), i=sibs.indexOf(p), n=sibs.length;
     const a=ANCHOR[p.house], poly=HOUSES[p.house], tri=poly.length===3;
-    const sz={Sun:1.06,Moon:1.1,Mars:1,Mercury:.94,Jupiter:1.14,Venus:1,Saturn:1.08,Rahu:.92,Ketu:.9}[p.graha];
-    const dpx=(n>=3?23:n===2?26:30)*sz;
+    /* the illustrations fill their frame, and the Sun's corona and Saturn's
+       ring extend past the disc - so these weights are about apparent size,
+       not radius */
+    const sz={Sun:1.14,Moon:1.0,Mars:.98,Mercury:.9,Jupiter:1.06,Venus:.98,
+              Saturn:1.16,Rahu:.94,Ketu:.9}[p.graha];
+    const dpx=(n>=3?22:n===2?25:29)*sz;
 
     /* lay the group out on a short arc centred on the anchor, then clamp
        every member inside the house */
-    const step=n===1?0:(tri?7.0:9.5);
-    const spread=(i-(n-1)/2)*step;
-    const rise=n<=2?0:Math.abs(i-(n-1)/2)*(tri?2.6:3.6);
-    const margin=tri?0.46:0.30;
-    const fit=fitInside([a[0]+spread, a[1]-2.6+rise], poly, a, margin);
+    const [ux,uy]=AXIS[p.house];
+    const step=n===1?0:(tri?12:13.5);
+    const t=(i-(n-1)/2)*step;
+    /* nudge perpendicular to the axis so three-graha groups do not sit in a line */
+    const perp=n<=2?0:Math.abs(i-(n-1)/2)*(tri?3.0:4.0);
+    /* shrink the polygon by the disc's own radius, expressed as a fraction of
+       the house's inradius - a fixed guess either clips or over-pulls */
+    const radiusUnits=dpx/2/CHART_PX*100;
+    const margin=Math.min(radiusUnits/inradius(poly), 0.42);
+    const fit=fitInside([a[0]+ux*t - uy*perp, a[1]+uy*t + ux*perp - (uy?0:2.2)],
+                        poly, a, margin);
     const x=fit[0]/100, y=fit[1]/100;
 
     const b=document.createElement("button");
@@ -1044,10 +1094,7 @@ function renderUniverse(){
       :`0 0 16px -2px ${COLOUR(p.graha)}, 0 0 34px -8px ${COLOUR(p.graha)}`);
     b.setAttribute("aria-label",`${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
-    b.innerHTML=(p.graha==="Sun"?`<span class="corona"></span>`:``)+
-      `<span class="body"><span class="surf"></span></span>`+
-      (p.graha==="Saturn"?`<span class="ring"></span>`:``)+
-      (shadow(p.graha)?`<span class="halo"></span>`:``)+
+    b.innerHTML=`<img class="art" src="assets/graha/${p.graha.toLowerCase()}.png" alt="" draggable="false">`+
       `<span class="name">${p.graha}<small>${SK[p.graha]}</small></span>`+
       `<span class="tag">${p.graha.slice(0,2).toUpperCase()}</span>`+
       (p.retro?`<span class="retro">R</span>`:``);
@@ -1256,7 +1303,6 @@ const SUBS=[
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
-  {id:"saved", label:"Saved insights", icon:ICONS.star, sub:()=>SAVED().length+""},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>"Lahiri"}
 ];
 
@@ -1347,6 +1393,7 @@ let subView=null, subArg=null;
 
 function renderYou(){
   if(subView) return renderSub();
+  document.body.classList.remove("insub");
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
       <div class="avatar">S</div>
@@ -1365,26 +1412,30 @@ function renderYou(){
   });
 }
 
-const backBar=title=>`<button class="backbtn" id="back">
-  <span style="font-size:17px;line-height:1">&#8249;</span> Back</button>
-  <h1 style="font-size:26px;margin:4px 0 14px">${title}</h1>`;
+const backBar=title=>`<div class="subhead">
+  <button class="backarrow" id="back" aria-label="Back">&#8249;</button>
+  <h1>${title}</h1></div>`;
 
 function renderSub(){
+  document.body.classList.add("insub");
   const pg=document.getElementById("pg-you");
-  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,events:subEvents,
-              glossary:subGlossary,saved:subSaved,
+  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
+              glossary:subGlossary,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
   const back=document.getElementById("back");
   if(back) back.onclick=()=>{
     buzz(5);
-    if(subView==="partner"){subView="rel";subArg=null;renderSub()}
+    if(subView==="partner"||subView==="addpartner"){subView="rel";subArg=null;renderSub()}
+    else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
     else{subView=null;renderYou()}
   };
   if(subView==="timeline") wireTimeline();
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
+  if(subView==="addpartner") wireAddPartner();
+  if(subView==="addevent") wireAddEvent();
   if(subView==="partner") wirePartner();
 }
 
@@ -1435,6 +1486,15 @@ function moonPath(r,k,waxing){
   const limb=waxing?1:0;
   const term=waxing?(k<0.5?0:1):(k<0.5?1:0);
   return `M 0,${-r} A ${r},${r} 0 0 ${limb} 0,${r} A ${rx},${r} 0 0 ${term} 0,${-r} Z`;
+}
+let mcid=0;
+function moonArt(date,size){
+  const ph=moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
+  return `<svg class="mn" viewBox="${-size/2} ${-size/2} ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+    <defs><clipPath id="${id}"><path d="${moonPath(r,ph.illum,ph.waxing)}"/></clipPath></defs>
+    <circle r="${r}" fill="#0E1526" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>
+    ${ph.illum>0.012?`<image href="assets/graha/moon.png" x="${-r}" y="${-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})"/>`:``}
+  </svg>`;
 }
 function moonSVG(date,size){
   const ph=moonPhase(date), r=size/2-0.5;
@@ -1540,41 +1600,9 @@ function subEventsMarkup(){
   }).join("");
 }
 
-function subTimeline(){
-  const {m}=tlBounds();
-  if(tlT===null) tlT=tlNowT();
-  return backBar("Timeline")+`
-    <p class="muted" style="font-size:13px;margin:-6px 0 14px">
-      120 years of Vimshottari, in the order your Moon in Mula set.</p>
-    <div class="tlwrap">
-      <div class="tlview">
-        <div class="tlcol" id="tlcol" style="height:${TL_H}px">
-          ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
-            background:linear-gradient(90deg, ${COLOUR(d.lord)}26, ${COLOUR(d.lord)}06)">
-            <span class="yr">${d.start.getFullYear()}</span>
-            <span class="ld" style="color:${COLOUR(d.lord)}">${d.lord}</span>
-            <span class="dur">${d.years.toFixed(1)}y</span></div>`).join("")}
-        </div>
-        <div class="tlfocus"></div>
-      </div>
-      <div class="vscroll" id="vs" role="slider" tabindex="0"
-           aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
-        <div class="vrail"></div>
-        <span class="nowtick" id="nowtick"></span>
-        ${subEventsMarkup()}
-        <div class="vthumb" id="vt"></div>
-      </div>
-    </div>
-    <div class="tlbar">
-      <button class="todaychip" id="tlnow">Today</button>
-      <span class="muted" style="font-size:11.5px;color:var(--ink-3)">Drag the rail, or tap a period</span>
-    </div>
-    <div id="ro" class="readout"></div>`;
-}
 
 function dashaImpact(lord){
-  const p=CHART.get(lord), ruled=CHART.housesRuled(lord);
-  const bits=[];
+  const p=CHART.get(lord), ruled=CHART.housesRuled(lord), bits=[];
   bits.push(ruled.length
     ? `Rules your ${ruled.map(ordinal).join(" and ")} house${ruled.length>1?"s":""} &#8212; ${ruled.map(h=>BHAVA[h-1][1]).join("; ").toLowerCase()}.`
     : `Owns no sign, so rules no house. A shadow graha acts through whatever it sits with.`);
@@ -1585,8 +1613,8 @@ function dashaImpact(lord){
   return bits;
 }
 
-/* Traditional practice, surfaced only where a graha is the reason - never
-   as a catalogue. Attributed, and with no outcome promised (CLAUDE.md 69). */
+/* Traditional practice, surfaced only where a graha is the reason - never a
+   catalogue. Attributed, and promising no outcome (CLAUDE.md 69). */
 const WEEKDAY={Sun:"Sunday",Moon:"Monday",Mars:"Tuesday",Mercury:"Wednesday",
   Jupiter:"Thursday",Venus:"Friday",Saturn:"Saturday",Rahu:"Saturday",Ketu:"Tuesday"};
 function practiceFor(lord){
@@ -1600,18 +1628,43 @@ function practiceFor(lord){
     invented, and no practice is offered as a guarantee of outcome.</p></div>`;
 }
 
+function subTimeline(){
+  const {m}=tlBounds();
+  if(tlT===null) tlT=tlNowT();
+  return backBar("Timeline")+`
+    <p class="muted" style="font-size:13px;margin:-8px 0 14px">
+      120 years of Vimshottari, in the order your Moon in Mula set. Drag the spine.</p>
+    <div class="tl2">
+      <div class="spine" id="spine" role="slider" tabindex="0"
+           aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
+        <div class="spinecol" id="spinecol" style="height:${TL_H}px">
+          ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
+            background:linear-gradient(180deg, ${COLOUR(d.lord)}30, ${COLOUR(d.lord)}0c)">
+            <span class="byr">${d.start.getFullYear()}</span>
+            <span class="bld" style="color:${COLOUR(d.lord)}">${d.lord.slice(0,2)}</span>
+          </div>`).join("")}
+        </div>
+        <span class="nowtick" id="nowtick" title="today"></span>
+        ${subEventsMarkup()}
+        <div class="spinemark"></div>
+      </div>
+      <div class="tlbody" id="ro"></div>
+    </div>
+    <div class="tlbar"><button class="todaychip" id="tlnow">Go to today</button></div>`;
+}
+
+const ageAt=d=>Math.floor((d-CHART.birthDate)/(365.2425*864e5));
+
 function wireTimeline(){
   const {m,t0,t1}=tlBounds();
-  const vs=document.getElementById("vs"), vt=document.getElementById("vt");
-  const col=document.getElementById("tlcol"), view=col.parentElement;
+  const spine=document.getElementById("spine");
+  const col=document.getElementById("spinecol");
   let lastLord=null;
-
   document.getElementById("nowtick").style.top=(tlNowT()*100)+"%";
 
   const paint=()=>{
-    vt.style.top=(tlT*100)+"%";
-    vs.setAttribute("aria-valuenow",Math.round(tlT*100));
-    const vh=view.clientHeight;
+    spine.setAttribute("aria-valuenow",Math.round(tlT*100));
+    const vh=spine.clientHeight;
     col.style.transform=`translateY(${-(tlT*TL_H - vh/2)}px)`;
 
     const when=new Date(t0+tlT*(t1-t0));
@@ -1619,52 +1672,142 @@ function wireTimeline(){
     document.querySelectorAll(".band").forEach((b,i)=>
       b.classList.toggle("on", when>=m[i].start && when<m[i].end));
 
-    const prog=(when-now.maha.start)/(now.maha.end-now.maha.start);
-    const age=Math.floor((when-CHART.birthDate)/(365.2425*864e5));
+    const pos=(when-now.maha.start)/(now.maha.end-now.maha.start);
     const inPeriod=events().filter(e=>{const d=new Date(e.d+"T12:00:00");
       return d>=now.maha.start && d<now.maha.end});
 
     document.getElementById("ro").innerHTML=`
-      <div class="eyebrow">${fmtDate(when)} &#183; age ${age}${isToday(when)?' &#183; today':''}</div>
       <p class="big" style="color:${COLOUR(now.maha.lord)}">${now.maha.lord} mahadasha</p>
-      <p class="muted" style="font-size:13px;margin:0">${now.antar.lord} antardasha &#183;
-        ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</p>
-      <div class="bar"><i style="width:${(prog*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i></div>
-      <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:0">
-        ${Math.round(prog*100)}% through ${now.maha.years.toFixed(1)} years &#183; ends ${fmtDate(now.maha.end)}</p>
+      <div class="spanrow">
+        <div><span class="sk">from</span><b>${fmtDate(now.maha.start)}</b>
+          <span class="sa">age ${ageAt(now.maha.start)}</span></div>
+        <span class="sarrow">&#8594;</span>
+        <div><span class="sk">to</span><b>${fmtDate(now.maha.end)}</b>
+          <span class="sa">age ${ageAt(now.maha.end)}</span></div>
+      </div>
+      <div class="bar"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i>
+        <span class="barnow" style="left:${(pos*100).toFixed(1)}%"></span></div>
+      <p class="poslabel">You are looking at <b>${fmtDate(when)}</b>, age ${ageAt(when)}
+        ${isToday(when)?`<span class="pill">today</span>`:``} &#8212;
+        ${Math.round(pos*100)}% of the way through this ${now.maha.years.toFixed(1)}-year period.</p>
+      <div class="antar">
+        <div class="eyebrow" style="margin-bottom:5px">Sub-period running then</div>
+        <b style="color:${COLOUR(now.antar.lord)};font-size:15px">${now.antar.lord} antardasha</b>
+        <span class="evmeta">${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</span>
+      </div>
       ${inPeriod.length?`
         <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
         ${inPeriod.map(e=>{const ed=eventDasha(e.d);
-          return `<div class="evrow">
-            <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
-            <span><b>${e.t}</b>
-              <span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))} &#183;
-              ${ed?`${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
+          return `<div class="evrow"><span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
+            <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
+            &#183; ${ed?`${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
         <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:2px 0 0">
           Shown alongside the period that was running, not as its result.</p>`:``}
       <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
       ${dashaImpact(now.maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
-      <div class="eyebrow" style="margin:20px 0 8px">And within it, ${now.antar.lord}</div>
-      ${dashaImpact(now.antar.lord).slice(0,2).map(t=>`<p class="impact">${t}</p>`).join("")}
       ${practiceFor(now.maha.lord)}
       <p class="note">Traditional associations for the houses involved &#8212; not a forecast.</p>`;
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
 
-  const setFromY=cy=>{const r=vs.getBoundingClientRect();
+  const setFromY=cy=>{const r=spine.getBoundingClientRect();
     tlT=Math.min(Math.max((cy-r.top)/r.height,0),1); paint()};
-  let dragging=false;
-  vs.addEventListener("pointerdown",e=>{dragging=true;vs.setPointerCapture(e.pointerId);setFromY(e.clientY)});
-  vs.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY)});
-  vs.addEventListener("pointerup",()=>dragging=false);
-  vs.addEventListener("keydown",e=>{const step=e.shiftKey?0.05:0.01;
+  let dragging=false, moved=false;
+  spine.addEventListener("pointerdown",e=>{dragging=true;moved=false;
+    spine.setPointerCapture(e.pointerId);setFromY(e.clientY)});
+  spine.addEventListener("pointermove",e=>{if(dragging){moved=true;setFromY(e.clientY)}});
+  spine.addEventListener("pointerup",()=>dragging=false);
+  spine.addEventListener("keydown",e=>{const step=e.shiftKey?0.05:0.01;
     if(e.key==="ArrowDown"){tlT=Math.min(tlT+step,1);paint();e.preventDefault()}
     if(e.key==="ArrowUp"){tlT=Math.max(tlT-step,0);paint();e.preventDefault()}});
-  document.querySelectorAll(".band").forEach(b=>b.onclick=()=>{
-    const d=m[+b.dataset.i];
-    tlT=(((d.start.getTime()+d.end.getTime())/2)-t0)/(t1-t0); buzz(8); paint()});
   document.getElementById("tlnow").onclick=()=>{tlT=tlNowT();buzz(10);paint()};
   paint();
+}
+
+
+/* ---- FORMS -------------------------------------------------------
+   Replacing prompt() chains, which lose everything on a mistyped field
+   and cannot show a date picker. */
+const field=(id,label,type,val="",hint="",attrs="")=>`
+  <label class="fld"><span class="flabel">${label}</span>
+    ${type==="area"
+      ? `<textarea id="${id}" rows="3" placeholder="${hint}">${val}</textarea>`
+      : `<input id="${id}" type="${type}" value="${val}" placeholder="${hint}" ${attrs}>`}
+  </label>`;
+
+function subAddPartner(){
+  const ed=subArg!=null?partners()[subArg]:null;
+  const b=ed?new Date(ed.born):null;
+  const pad=n=>String(n).padStart(2,"0");
+  return backBar(ed?`Edit ${ed.name}`:"Add a person")+`
+    <p class="muted" style="font-size:13px;margin:-8px 0 18px">
+      Compatibility is read from the Moon, so the date and time of birth are what matter.
+      Time especially &#8212; the Moon moves about 13&#176; a day.</p>
+    ${field("f_name","Name","text",ed?ed.name:"","Their name")}
+    ${field("f_date","Date of birth","date",b?`${b.getFullYear()}-${pad(b.getMonth()+1)}-${pad(b.getDate())}`:"")}
+    ${field("f_time","Time of birth","time",b?`${pad(b.getHours())}:${pad(b.getMinutes())}`:"","",'')}
+    ${field("f_place","Birth place","text",ed?ed.place||"":"","City, country")}
+    <p class="fnote">Birth place is stored for later &#8212; it is needed for their ascendant
+    and houses, which arrive with the licensed ephemeris. It does not affect the Gun Milan
+    score below, which needs only the Moon.</p>
+    <button class="primary" id="fsave">${ed?"Save changes":"Add person"}</button>
+    ${ed?`<button class="danger" id="fdel">Remove ${ed.name}</button>`:""}`;
+}
+function wireAddPartner(){
+  document.getElementById("fsave").onclick=()=>{
+    const name=document.getElementById("f_name").value.trim();
+    const date=document.getElementById("f_date").value;
+    const time=document.getElementById("f_time").value||"12:00";
+    const place=document.getElementById("f_place").value.trim();
+    if(!name||!date){alert("A name and a date of birth are needed.");return}
+    const d=new Date(`${date}T${time}:00+05:30`);
+    if(isNaN(d)){alert("That date could not be read.");return}
+    const l=partners();
+    const rec={name,born:d.toISOString(),place,moonL:moonSidereal(d),
+               approx:!document.getElementById("f_time").value};
+    if(subArg!=null) l[subArg]={...l[subArg],...rec,demo:false}; else l.push(rec);
+    savePartners(l); buzz(12);
+    subView=subArg!=null?"partner":"rel"; renderSub();
+  };
+  const del=document.getElementById("fdel");
+  if(del) del.onclick=()=>{
+    const l=partners(); if(!confirm(`Remove ${l[subArg].name}?`))return;
+    l.splice(subArg,1); savePartners(l); buzz(9); subArg=null; subView="rel"; renderSub();
+  };
+}
+
+function subAddEvent(){
+  const ed=subArg!=null?events()[subArg]:null;
+  return backBar(ed?"Edit event":"Add a life event")+`
+    <p class="muted" style="font-size:13px;margin:-8px 0 18px">
+      Record what happened and when. The app lays it against the planetary period that was
+      running, so you can look for patterns yourself &#8212; astrology as a frame for
+      reflection, not a claim about cause.</p>
+    ${field("e_date","When","date",ed?ed.d:"")}
+    ${field("e_title","What happened","text",ed?ed.t:"","Started a job, moved city...")}
+    ${field("e_note","What it meant to you","area",ed&&ed.n?ed.n:"","Optional")}
+    <label class="fld"><span class="flabel">Kind</span>
+      <select id="e_kind">${Object.entries(EVENT_KINDS).map(([k,v])=>
+        `<option value="${k}"${ed&&ed.k===k?" selected":""}>${v}</option>`).join("")}</select></label>
+    <button class="primary" id="esave">${ed?"Save changes":"Add event"}</button>
+    ${ed?`<button class="danger" id="edel">Remove</button>`:""}`;
+}
+function wireAddEvent(){
+  document.getElementById("esave").onclick=()=>{
+    const d=document.getElementById("e_date").value;
+    const t=document.getElementById("e_title").value.trim();
+    const n=document.getElementById("e_note").value.trim();
+    const k=document.getElementById("e_kind").value;
+    if(!d||!t){alert("A date and a description are needed.");return}
+    const l=events();
+    if(subArg!=null) l[subArg]={...l[subArg],d,t,n,k,demo:false}; else l.push({d,t,n,k});
+    saveEvents(l); buzz(12); subArg=null; subView="events"; renderSub();
+  };
+  const del=document.getElementById("edel");
+  if(del) del.onclick=()=>{
+    const l=events(); if(!confirm(`Remove "${l[subArg].t}"?`))return;
+    l.splice(subArg,1); saveEvents(l); buzz(9); subArg=null; subView="events"; renderSub();
+  };
 }
 
 /* ---- LIFE EVENTS SCREEN ---- */
@@ -1673,7 +1816,9 @@ function subEvents(){
   return backBar("Life events")+`
     <div class="addrow">
       <p class="muted" style="font-size:13px;margin:0;flex:1">
-        Moments worth remembering. Each is shown against the period that was running.</p>
+        Add the moments that mattered, and the app lays each one against the planetary
+        period you were running at the time. Over years it becomes a way to look for
+        patterns in your own life &#8212; a frame for reflection, not a claim of cause.</p>
       <button class="plus" id="addev" aria-label="Add an event">+</button>
     </div>
     ${list.length?`<div style="margin-top:18px">
@@ -1682,7 +1827,7 @@ function subEvents(){
           <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
           <div style="flex:1">
             <div class="evtop"><b>${e.t}</b>
-              <button class="evdel" data-i="${i}" aria-label="Remove">&#215;</button></div>
+              <button class="evdel" data-i="${i}" aria-label="Edit">Edit</button></div>
             <span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))} &#183;
               ${EVENT_KINDS[e.k]||"Milestone"}${e.demo?" &#183; sample":""}</span>
             ${ed?`<p class="evdash">You were running
@@ -1696,19 +1841,9 @@ function subEvents(){
 }
 
 function wireEvents(){
-  document.getElementById("addev").onclick=()=>{
-    const t=prompt("What happened?"); if(!t) return;
-    const d=prompt("When? (YYYY-MM-DD)"); if(!d||isNaN(new Date(d+"T12:00:00"))) {
-      if(d) alert("That date could not be read. Use YYYY-MM-DD."); return; }
-    const k=(prompt("Kind? career / relationship / home / study / health / milestone / loss","milestone")||"milestone").toLowerCase();
-    const l=events().filter(x=>!x.demo||true);
-    l.push({d,t:t.trim(),k:EVENT_KINDS[k]?k:"milestone"});
-    saveEvents(l); buzz(12); renderSub();
-  };
+  document.getElementById("addev").onclick=()=>{subArg=null;subView="addevent";buzz(7);renderSub()};
   document.querySelectorAll(".evdel").forEach(b=>b.onclick=()=>{
-    const l=events(); const e=l[+b.dataset.i];
-    if(!confirm(`Remove "${e.t}"?`)) return;
-    l.splice(+b.dataset.i,1); saveEvents(l); buzz(9); renderSub();
+    subArg=+b.dataset.i; subView="addevent"; buzz(7); renderSub();
   });
 }
 
@@ -1777,17 +1912,7 @@ function subRel(){
 }
 
 function wireRel(){
-  document.getElementById("add").onclick=()=>{
-    const name=prompt("Their name?"); if(!name) return;
-    const date=prompt("Date of birth (YYYY-MM-DD)?"); if(!date) return;
-    const time=prompt("Time of birth (HH:MM, 24h). Leave blank for 12:00.","12:00")||"12:00";
-    const d=new Date(`${date}T${time}:00+05:30`);
-    if(isNaN(d)){alert("That date could not be read. Use YYYY-MM-DD.");return}
-    const list=partners();
-    list.push({name:name.trim(),born:d.toISOString(),moonL:moonSidereal(d),
-               approx:time==="12:00"});
-    savePartners(list); buzz(12); renderSub();
-  };
+  document.getElementById("add").onclick=()=>{subArg=null;subView="addpartner";buzz(7);renderSub()};
   document.querySelectorAll("#pg-you .item[data-i]").forEach(b=>b.onclick=()=>{
     subArg=+b.dataset.i; subView="partner"; buzz(7); renderSub();
   });
@@ -1830,7 +1955,7 @@ function subPartner(){
         <p class="kvals">You: <b>${x.a}</b> &#183; ${p.name}: <b>${x.b}</b>${
           x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
       </div>`).join("")}
-    <button class="danger" id="del">Remove ${p.name}</button>
+    <button class="primary" id="edit">Edit ${p.name}</button>
     <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
@@ -1840,13 +1965,8 @@ function subPartner(){
 }
 
 function wirePartner(){
-  const d=document.getElementById("del");
-  if(d) d.onclick=()=>{
-    const list=partners(); const name=list[subArg].name;
-    if(!confirm(`Remove ${name}?`)) return;
-    list.splice(subArg,1); savePartners(list); buzz(9);
-    subView="rel"; subArg=null; renderSub();
-  };
+  const e=document.getElementById("edit");
+  if(e) e.onclick=()=>{subView="addpartner";buzz(7);renderSub()};
 }
 
 const TABS=[
@@ -1859,8 +1979,12 @@ const nav=document.getElementById("tabs");
 nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${i===0?"on":""}" role="tab" data-i="${i}">
   <svg viewBox="0 0 24 24">${t.icon}</svg>${t.label}</button>`).join("");
 
+let activeTab=0;
 function go(i){
   if(mode) resetChart();
+  /* iOS convention: tapping the tab you are already on pops to its root */
+  if(i!==3 || activeTab===3){ subView=null; subArg=null; document.body.classList.remove("insub"); }
+  activeTab=i;
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
     nav.children[j].classList.toggle("on",j===i);
@@ -1868,7 +1992,11 @@ function go(i){
   });
   buzz(5);
 }
-nav.onclick=e=>{const b=e.target.closest(".tab"); if(b)go(+b.dataset.i)};
+nav.onclick=e=>{const b=e.target.closest(".tab"); if(!b)return;
+  const i=+b.dataset.i;
+  go(i);
+  if(i===3) renderYou();
+};
 
 /* &#9552;&#9552;&#9552; SKY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 (function(){

@@ -46,45 +46,7 @@ body{
 
 /* -- tab bar ----------------------------------------------------- */
 
-/* top bar - one line, content passes behind it */
-.topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
-  display:flex;align-items:center;gap:4px;padding:0 16px;
-  padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
-  background:linear-gradient(180deg,rgba(7,12,30,.92),rgba(7,12,30,.72) 70%,rgba(7,12,30,0));
-  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
-  pointer-events:none}
-.topbar>*{pointer-events:auto}
-.tb-title{font-size:17px;font-weight:640;letter-spacing:-.02em;flex:1;min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
-  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
-.tb-back.on{width:24px;opacity:1;margin-left:-6px}
-.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.tb-btn{width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
-  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.2);color:var(--ink-2)}
-.tb-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
-  stroke-linecap:round;stroke-linejoin:round}
-.tb-btn.txt{width:auto;padding:0 13px;font-family:var(--ff);font-size:13.5px;font-weight:560;
-  color:var(--ink);background:rgba(255,255,255,.12)}
-.tb-btn:active{background:rgba(255,255,255,.18)}
-.page{padding-top:calc(64px + env(safe-area-inset-top))}
-.subhead{display:none}
 
-/* five tabs, the chart raised in the centre */
-.tabs{grid-template-columns:repeat(5,1fr)}
-.tab .tabico{display:grid;place-items:center;width:26px;height:26px}
-.tab svg{width:23px;height:23px}
-.tab.hero{position:relative}
-.tab.hero .tabico{width:50px;height:50px;border-radius:50%;margin-top:-22px;
-  background:linear-gradient(165deg,#243companion,#16204a);
-  background:linear-gradient(165deg,#2b3a72,#141d40);
-  border:.5px solid rgba(150,180,255,.34);
-  box-shadow:0 6px 20px -6px rgba(0,0,0,.75),0 0 22px -8px rgba(130,165,255,.7);
-  transition:transform .34s var(--ease),box-shadow .34s var(--ease)}
-.tab.hero svg{width:26px;height:26px}
-.tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
-  box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
-.tab.hero .tablbl{margin-top:-18px}
 .tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:60;
   height:calc(var(--tabh) + env(safe-area-inset-bottom));
@@ -149,7 +111,7 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 
 /* month calendar, Apple Fitness layout with lunar phases in the cells */
 body.noscroll{overflow:hidden}
-body.insub 
+body.insub .tabs{transform:translateY(115%);pointer-events:none}
 /* top bar - one line, content passes behind it */
 .topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
   display:flex;align-items:center;gap:4px;padding:0 16px;
@@ -189,47 +151,8 @@ body.insub
 .tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
   box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
 .tab.hero .tablbl{margin-top:-18px}
-.tabs{transform:translateY(110%);pointer-events:none}
 
-/* top bar - one line, content passes behind it */
-.topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
-  display:flex;align-items:center;gap:4px;padding:0 16px;
-  padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
-  background:linear-gradient(180deg,rgba(7,12,30,.92),rgba(7,12,30,.72) 70%,rgba(7,12,30,0));
-  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
-  pointer-events:none}
-.topbar>*{pointer-events:auto}
-.tb-title{font-size:17px;font-weight:640;letter-spacing:-.02em;flex:1;min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
-  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
-.tb-back.on{width:24px;opacity:1;margin-left:-6px}
-.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.tb-btn{width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
-  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.2);color:var(--ink-2)}
-.tb-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
-  stroke-linecap:round;stroke-linejoin:round}
-.tb-btn.txt{width:auto;padding:0 13px;font-family:var(--ff);font-size:13.5px;font-weight:560;
-  color:var(--ink);background:rgba(255,255,255,.12)}
-.tb-btn:active{background:rgba(255,255,255,.18)}
-.page{padding-top:calc(64px + env(safe-area-inset-top))}
-.subhead{display:none}
 
-/* five tabs, the chart raised in the centre */
-.tabs{grid-template-columns:repeat(5,1fr)}
-.tab .tabico{display:grid;place-items:center;width:26px;height:26px}
-.tab svg{width:23px;height:23px}
-.tab.hero{position:relative}
-.tab.hero .tabico{width:50px;height:50px;border-radius:50%;margin-top:-22px;
-  background:linear-gradient(165deg,#243companion,#16204a);
-  background:linear-gradient(165deg,#2b3a72,#141d40);
-  border:.5px solid rgba(150,180,255,.34);
-  box-shadow:0 6px 20px -6px rgba(0,0,0,.75),0 0 22px -8px rgba(130,165,255,.7);
-  transition:transform .34s var(--ease),box-shadow .34s var(--ease)}
-.tab.hero svg{width:26px;height:26px}
-.tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
-  box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
-.tab.hero .tablbl{margin-top:-18px}
 .tabs{transition:transform .38s var(--ease)}
 body.insub .page{padding-bottom:30px}
 .subhead{display:flex;align-items:center;gap:9px;margin:2px 0 16px}
@@ -250,9 +173,9 @@ body.insub .page{padding-bottom:30px}
 .calhead span{font-size:18px;font-weight:640;letter-spacing:-.02em;
   min-width:11ch;text-align:center}
 .calnav{display:flex;gap:2px}
-.calnav button{width:32px;height:32px;border:0;border-radius:9px;cursor:pointer;
-  background:rgba(255,255,255,.07);color:var(--ink-2);font-size:15px;line-height:1}
-.calnav button:active{background:rgba(255,255,255,.16)}
+.calnav button{width:26px;height:32px;border:0;background:none;cursor:pointer;
+  color:var(--ink-2);font-size:17px;line-height:1;padding:0}
+.calnav button:active{color:var(--ink);opacity:.6}
 .calhead{gap:8px}
 .calclose{position:absolute;right:18px;top:max(12px,env(safe-area-inset-top));
   width:34px;height:34px;border-radius:50%;cursor:pointer;display:grid;place-items:center;
@@ -1683,13 +1606,6 @@ function renderSub(){
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
-  const back=document.getElementById("back");
-  if(back) back.onclick=()=>{
-    buzz(5);
-    if(subView==="partner"||subView==="addpartner"){subView="rel";subArg=null;renderSub()}
-    else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
-    else{subView=null;renderYou()}
-  };
   const ta=document.getElementById("tbadd"), te=document.getElementById("tbaddev"),
         ted=document.getElementById("tbedit");
   if(ta) ta.onclick=()=>{subArg=null;subView="addpartner";buzz(7);renderSub()};
@@ -2318,7 +2234,10 @@ function setTopBar(title,{back=false,actions=""}={}){
   document.getElementById("tbact").innerHTML=actions;
 }
 document.getElementById("tbback").onclick=()=>{
-  const b=document.getElementById("back"); if(b) b.click();
+  buzz(5);
+  if(subView==="partner"||subView==="addpartner"){subView="rel";subArg=null;renderSub()}
+  else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
+  else{subView=null;subArg=null;renderYou()}
 };
 const nav=document.getElementById("tabs");
 nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"on":""}"

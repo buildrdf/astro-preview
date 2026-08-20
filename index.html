@@ -27,7 +27,7 @@ body{
   -webkit-font-smoothing:antialiased;overflow:hidden;
   height:100dvh;position:relative;
 }
-#sky{position:fixed;inset:0;z-index:0}
+
 .wash{display:none;
   }
 
@@ -629,9 +629,44 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
   .page,.orbit,.p,.sheet,.stagewrap{transition-duration:.001s!important}
   #sky{display:none}
 }
+
+/* glossary, on the Contacts pattern: persistent search, sticky letter
+   headers, generous rows, and an index rail pinned to the right edge */
+.gsearch{position:relative;margin:0 0 6px}
+.gsearch input{width:100%;font-family:var(--ff);font-size:16px;color:var(--ink);
+  background:rgba(255,255,255,.075);border:0;border-radius:10px;
+  padding:10px 34px;-webkit-appearance:none;appearance:none}
+.gsearch input::-webkit-search-cancel-button{display:none}
+.gsearch input::placeholder{color:var(--ink-3)}
+.gsearch input:focus{outline:none;background:rgba(255,255,255,.1)}
+.gsico{position:absolute;left:10px;top:11px;width:16px;height:16px;fill:none;
+  stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
+.gclear{position:absolute;right:6px;top:6px;width:26px;height:26px;border:0;border-radius:50%;
+  background:rgba(255,255,255,.12);color:var(--ink-2);font-size:15px;cursor:pointer;line-height:1}
+.gsec{margin:0}
+.gletter{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:5;
+  margin:0;padding:6px 0 6px 2px;
+  font-size:13px;font-weight:680;letter-spacing:.03em;color:var(--ink-2);
+  background:var(--void);border-bottom:.5px solid rgba(170,180,235,.13)}
+.gterm{padding:14px 2px 15px;border-bottom:.5px solid rgba(170,180,235,.09)}
+.gterm:last-child{border-bottom:0}
+.gterm h4{margin:0 0 5px;font-size:16px;font-weight:640;letter-spacing:-.015em;color:var(--ink)}
+.gterm .gdef{margin:0;font-size:14px;line-height:1.5;color:var(--ink-2);max-width:56ch}
+.gmine{margin:9px 0 0;padding-left:11px;border-left:2px solid rgba(194,155,78,.55);
+  font-size:13.5px;line-height:1.45;color:var(--brass);max-width:52ch}
+.gmine b{color:var(--brass);font-weight:660}
+.gempty{font-size:14px;color:var(--ink-3);margin:26px 0}
+.azrail{position:fixed;right:2px;top:50%;transform:translateY(-50%);z-index:20;
+  display:flex;flex-direction:column;align-items:center;
+  padding:7px 5px;border-radius:99px;background:rgba(23,26,51,.55);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.azrail button{border:0;background:none;color:var(--hot);font-family:var(--ff);
+  font-size:10.5px;font-weight:600;line-height:1.32;cursor:pointer;padding:0;width:16px}
+.azrail button.off{opacity:.25}
+.azrail button:active{color:var(--ink)}
+body.glossary .page{padding-right:30px}
 </style>
 
-<canvas id="sky"></canvas>
 <div class="wash"></div>
 
 <div class="app">
@@ -1599,32 +1634,34 @@ function subGlossary(){
   const all=GLOSS_FLAT();
   const q=glossQ.trim().toLowerCase();
   const hits=q?all.filter(x=>x.t.toLowerCase().includes(q)||x.d.toLowerCase().includes(q)):all;
-  const letters=[...new Set(all.map(x=>x.t[0].toUpperCase()))];
+  const letters=[...new Set(all.map(x=>x.t[0].toUpperCase()))].sort();
   const groups={};
   hits.forEach(x=>{const L=x.t[0].toUpperCase();(groups[L]=groups[L]||[]).push(x)});
   const mine=t=>{const f=PERSONAL[t]; if(!f) return "";
-    let v=""; try{v=f()}catch(_){}; return v?`<span class="gmine">${v}</span>`:""};
+    let v=""; try{v=f()}catch(_){}; return v?`<p class="gmine">${v}</p>`:""};
+
   return `
-    ${glossOpen?`<div class="gsearch">
+    <div class="gsearch">
       <svg viewBox="0 0 24 24" class="gsico"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-      <input id="gq" value="${glossQ}" placeholder="Search ${all.length} terms" autofocus
-        aria-label="Search the glossary">
+      <input id="gq" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
       ${glossQ?`<button class="gclear" id="gclear" aria-label="Clear">&#215;</button>`:""}
-    </div>`:""}
-    <div class="glosswrap">
-      <div class="glosslist" id="glosslist">
-        ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
-          <div class="gletter" id="L-${L}">${L}</div>
-          ${groups[L].map(x=>`
-            <div class="gterm"><b>${x.t}</b>
-              <span class="gdef">${x.d}</span>${mine(x.t)}</div>`).join("")}`).join("")
-          :`<p class="muted" style="font-size:13.5px;margin-top:20px">Nothing matches &#8220;${glossQ}&#8221;.</p>`}
-      </div>
-      <div class="azrail" id="azrail">
-        ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
-      </div>
-    </div>`;
+    </div>
+    ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
+      <section class="gsec">
+        <h3 class="gletter" id="L-${L}">${L}</h3>
+        ${groups[L].map(x=>`
+          <article class="gterm">
+            <h4>${x.t}</h4>
+            <p class="gdef">${x.d}</p>
+            ${mine(x.t)}
+          </article>`).join("")}
+      </section>`).join("")
+      :`<p class="gempty">No results for &#8220;${glossQ}&#8221;</p>`}
+    <nav class="azrail" id="azrail" aria-label="Jump to letter">
+      ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
+    </nav>`;
 }
+
 function wireGlossary(){
   const q=document.getElementById("gq");
   if(q) q.oninput=()=>{glossQ=q.value; const at=q.selectionStart; renderSub();
@@ -1665,6 +1702,7 @@ let subView=null, subArg=null;
 function renderYou(){
   if(subView) return renderSub();
   document.body.classList.remove("insub");
+  document.body.classList.remove("glossary");
   setTopBar("Sangram",{sub:"26 Mar 1992 \u00b7 Kopargaon"});
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
@@ -1697,8 +1735,6 @@ function renderSub(){
     events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
-    glossary:`<button class="tb-btn" id="tbsearch" aria-label="Search">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>`
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",addpartner:subArg!=null?"Edit person":"Add a person",
@@ -1715,11 +1751,9 @@ function renderSub(){
   if(ta) ta.onclick=()=>{subArg=null;subView="addpartner";buzz(7);renderSub()};
   if(te) te.onclick=()=>{subArg=null;subView="addevent";buzz(7);renderSub()};
   if(ted) ted.onclick=()=>{subView="addpartner";buzz(7);renderSub()};
-  const ts=document.getElementById("tbsearch");
-  if(ts) ts.onclick=()=>{glossOpen=!glossOpen; if(!glossOpen) glossQ=""; renderSub();
-    const f=document.getElementById("gq"); if(f) f.focus();};
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
+  document.body.classList.toggle("glossary",subView==="glossary");
   if(subView==="glossary") wireGlossary();
   if(subView==="settings") wireSettings();
   if(subView==="addpartner") wireAddPartner();
@@ -2376,26 +2410,8 @@ nav.onclick=e=>{const b=e.target.closest(".tab"); if(!b)return;
 };
 
 /* &#9552;&#9552;&#9552; SKY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
-(function(){
-  const cv=document.getElementById("sky"),ctx=cv.getContext("2d");
-  function paint(){
-    const dpr=Math.min(devicePixelRatio||1,2),w=innerWidth,h=innerHeight;
-    cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+"px";cv.style.height=h+"px";
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-    let s=20260819;const rnd=()=>(s=(s*1664525+1013904223)%4294967296)/4294967296;
-    for(const L of [{n:250,r:[.15,.5],a:[.05,.2]},{n:95,r:[.5,.95],a:[.16,.42]},{n:28,r:[.9,1.5],a:[.34,.66]}]){
-      for(let i=0;i<L.n;i++){
-        const x=rnd()*w,y=rnd()*h,r=L.r[0]+rnd()*(L.r[1]-L.r[0]),a=L.a[0]+rnd()*(L.a[1]-L.a[0]),wm=rnd();
-        const col=wm>.88?"255,214,180":wm<.1?"196,214,255":"214,226,246";
-        if(r>.9){const hg=ctx.createRadialGradient(x,y,0,x,y,r*4.5);
-          hg.addColorStop(0,`rgba(${col},${a*.5})`);hg.addColorStop(1,`rgba(${col},0)`);
-          ctx.fillStyle=hg;ctx.beginPath();ctx.arc(x,y,r*4.5,0,6.284);ctx.fill()}
-        ctx.beginPath();ctx.arc(x,y,r,0,6.284);ctx.fillStyle=`rgba(${col},${a})`;ctx.fill();
-      }
-    }
-  }
-  paint();addEventListener("resize",paint);
-})();
+/* The starfield was removed: it carried no information and competed
+   with the chart. A solid ground is what Apple's own list screens use. */
 
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();

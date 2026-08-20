@@ -402,8 +402,7 @@ svg.asp{pointer-events:none}
   border-top:1px solid var(--edge);
   border-radius:26px 26px 0 0;
   box-shadow:0 -18px 44px -18px rgba(0,0,0,.85)}
-.sheet.up{opacity:1}
-.sheet.up .sheetcard{pointer-events:auto}
+.sheet.up{opacity:1;pointer-events:auto}
 .loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
 .lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
   padding:9px 12px;background:rgba(255,255,255,.07);border-left:2px solid var(--hot);
@@ -686,10 +685,8 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
   font-size:13.5px;line-height:1.45;color:var(--brass);max-width:52ch}
 .gmine b{color:var(--brass);font-weight:660}
 .gempty{font-size:14px;color:var(--ink-3);margin:26px 0}
-.azrail{position:fixed;right:2px;top:50%;transform:translateY(-50%);z-index:20;
-  display:flex;flex-direction:column;align-items:center;
-  padding:7px 5px;border-radius:99px;background:rgba(23,26,51,.55);
-  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.azrail{position:fixed;right:3px;top:50%;transform:translateY(-50%);z-index:20;
+  display:flex;flex-direction:column;align-items:center;padding:6px 4px;background:none}
 .azrail button{border:0;background:none;color:var(--hot);font-family:var(--ff);
   font-size:10.5px;font-weight:600;line-height:1.32;cursor:pointer;padding:0;width:16px}
 .azrail button.off{opacity:.25}
@@ -1256,7 +1253,7 @@ function renderToday(){
 
 const PEL={};
 function renderUniverse(){
-  setTopBar("Vrishabha lagna",{sub:fmtDeg(CHART.ascendant)+" \u00b7 Rohini"});
+  setTopBar("Sangram\u2019s birth chart",{sub:`${SIGNS_SK[CHART.lagna-1]} lagna \u00b7 ${fmtDeg(CHART.ascendant)} \u00b7 ${CHART.get("Moon").nak} Moon`});
   const pg=document.getElementById("pg-universe");
   pg.innerHTML=`
     <p class="muted" style="margin:0;font-size:13px;color:var(--ink-3)">Touch a house, or a graha.</p>
@@ -1483,6 +1480,16 @@ function sheetPlanet(p){
       settled first time.</p>`:``}`;
 }
 
+/* the transparent gap shows the chart; a tap there should reach it, but the
+   panel still has to own scrolling - so forward the hit by hand */
+document.querySelector(".sheetgap").addEventListener("click",e=>{
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  const under=document.elementsFromPoint(e.clientX,e.clientY)
+    .find(n=>n.classList&&(n.classList.contains("hs")||n.classList.contains("p")));
+  if(under&&under.classList.contains("hs")) openHouse(+under.dataset.h);
+  else if(under&&under.dataset.g) openPlanet(under.dataset.g);
+  else resetChart();
+});
 closeBtn.onclick=resetChart;
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
 sheet.addEventListener("click",e=>e.stopPropagation());
@@ -1580,6 +1587,7 @@ const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
+  {id:"learn", label:"Learn astrology", icon:ICONS.book, sub:()=>LEARN.length+" topics"},
   {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
   {id:"report", label:"Detailed report", icon:ICONS.book, sub:()=>"PDF"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
@@ -1695,6 +1703,11 @@ function subGlossary(){
     let v=""; try{v=f()}catch(_){}; return v?`<p class="gmine">${v}</p>`:""};
 
   return `
+    <div class="gsearch" id="gsearch">
+      <svg viewBox="0 0 24 24" class="gsico"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="gq" type="search" value="${glossQ}" placeholder="Search ${all.length} terms"
+             aria-label="Search the glossary">
+    </div>
     ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
       <section class="gsec">
         <h3 class="gletter" id="L-${L}">${L}</h3>
@@ -1712,16 +1725,40 @@ function subGlossary(){
 }
 
 function wireGlossary(){
-  const q=document.getElementById("gq");
-  if(q) q.oninput=()=>{glossQ=q.value; const at=q.selectionStart; renderSub();
-    const n=document.getElementById("gq"); n.focus(); n.setSelectionRange(at,at)};
-  const c=document.getElementById("gclear");
-  if(c) c.onclick=()=>{glossQ="";renderSub()};
+  const page=document.getElementById("pg-you");
+  const bind=id=>{const q=document.getElementById(id); if(!q)return;
+    q.oninput=()=>{glossQ=q.value; const at=q.selectionStart; const inBar=id==="gqb";
+      renderSub();
+      const n=document.getElementById(id); if(n){n.focus();n.setSelectionRange(at,at);}
+      if(inBar) document.body.classList.add("gsearching");
+    };
+    q.onfocus=()=>{ if(id==="gqb") document.body.classList.add("gsearching") };
+  };
+  bind("gq"); bind("gqb");
+
+  const cancel=document.getElementById("gcancel");
+  if(cancel) cancel.onclick=()=>{glossQ=""; document.body.classList.remove("gsearching");
+    renderSub(); page.scrollTop=0;};
+
+  /* the page search hands over to the bar once it scrolls out of reach */
+  const gs=document.getElementById("gsearch");
+  page.onscroll=()=>{
+    if(!gs) return;
+    document.body.classList.toggle("gstuck", page.scrollTop > gs.offsetTop + 8);
+  };
+  page.onscroll();
+
   const rail=document.getElementById("azrail");
   if(rail) rail.onclick=e=>{
     const b=e.target.closest("button[data-l]"); if(!b||b.classList.contains("off"))return;
     const el=document.getElementById("L-"+b.dataset.l);
-    if(el){el.scrollIntoView({behavior:"smooth",block:"start"});buzz(5)}
+    if(!el) return;
+    /* scrollIntoView fights the sticky header, so position it by hand */
+    const barH=54+(parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue("--safe-top"))||0);
+    page.scrollTo({top: page.scrollTop + el.getBoundingClientRect().top - barH - 8,
+                   behavior:"smooth"});
+    buzz(5);
   };
 }
 
@@ -1746,7 +1783,7 @@ function subSaved(){
     is not wired up yet.</p>`;
 }
 
-let subView=null, subArg=null;
+let subView=null, subArg=null, cameFrom=null;
 
 function renderYou(){
   if(subView) return renderSub();
@@ -1757,9 +1794,8 @@ function renderYou(){
     <div class="me-head">
       <div class="avatar">S</div>
       <div class="me-id"><h1>Sangram</h1>
-        <p>26 March 1992 &#183; Kopargaon</p></div>
-      <button class="switcher" id="switchuser" aria-label="Switch person">
-        <svg viewBox="0 0 24 24"><path d="M8 7h11l-3-3M16 17H5l3 3"/></svg></button>
+        <p>${SIGNS_SK[CHART.lagna-1]} lagna &#183; Moon in ${CHART.get("Moon").nak}</p></div>
+      <button class="switchbtn" id="switchuser">Switch</button>
     </div>
     <div class="section">
       <div class="list">
@@ -1788,18 +1824,20 @@ function renderSub(){
     events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
-    glossary:`<div class="barsearch">
+    glossary:`<div class="barsearch" id="barsearch">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-      <input id="gq" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
+      <input id="gqb" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
+      <button class="gcancel" id="gcancel">Cancel</button>
     </div>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
-    glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",addpartner:subArg!=null?"Edit person":"Add a person",
+    glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",
+    learn:"Learn astrology",learntopic:(LEARN.find(x=>x.id===learnTopic)||{}).title||"Learn",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
   setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
-              glossary:subGlossary,report:subReport,people:subPeople,
+              glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -1811,7 +1849,10 @@ function renderSub(){
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
   document.body.classList.toggle("glossary",subView==="glossary");
+  if(subView!=="glossary") document.body.classList.remove("gstuck","gsearching");
   if(subView==="glossary") wireGlossary();
+  if(subView==="learn") wireLearn();
+  if(subView==="people") wirePeople();
   if(subView==="settings") wireSettings();
   if(subView==="report") wireReport();
   if(subView==="addpartner") wireAddPartner();
@@ -1828,27 +1869,163 @@ const PREFS=()=>{try{return JSON.parse(localStorage.getItem("astro.prefs")||"{}"
 const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",JSON.stringify(p));};
 
 
+
+/* ---- LEARN ------------------------------------------------------
+   The app should leave someone more knowledgeable than it found them
+   (CLAUDE.md 39, 146). Beginner first, then depth. */
+const nakLord2=i=>ORDER[i%9];
+const LEARN=[
+ {id:"houses", title:"The twelve houses", blurb:"What each division of the chart covers",
+  body:`<p>A chart is a map of the sky at one moment, cut into twelve slices called <b>bhavas</b>, or houses. Each covers an area of life.</p>
+<p>The crucial thing, and the thing most people get wrong at first: <b>houses do not move</b>. House 1 is always the same position on the chart. What changes from person to person is which <b>sign</b> sits in each house, and that is decided entirely by the moment and place of birth.</p>
+<p>The twelve, in order:</p>
+<ol class="lrn">
+${BHAVA.map((b,i)=>`<li><b>${ordinal(i+1)} &#183; ${b[0]} Bhava</b> &#8212; ${b[1]}. ${b[2]}</li>`).join("")}
+</ol>
+<p>Houses are also grouped. The <b>kendras</b> (1, 4, 7, 10) are the angles and are read as the strongest positions. The <b>trikonas</b> (1, 5, 9) are the most fortunate. The <b>dusthanas</b> (6, 8, 12) are the difficult ones &#8212; debt, upheaval, loss &#8212; though difficulty is not the same as disaster.</p>`},
+
+ {id:"grahas", title:"The nine grahas", blurb:"Not planets, exactly",
+  body:`<p><b>Graha</b> means "grasper" &#8212; something that takes hold. It is not the same word as planet, and the difference matters.</p>
+<p>Two of the nine are not planets at all: the <b>Sun</b> and <b>Moon</b> are luminaries. Two more have no physical body whatsoever: <b>Rahu</b> and <b>Ketu</b> are the two points where the Moon's path crosses the Sun's, which is why eclipses happen there. They are called <b>chhaya grahas</b> &#8212; shadow grahas.</p>
+<p>Each graha carries natural significations, called <b>karakatva</b>, which it brings wherever it sits:</p>
+<ul class="lrn">
+${Object.keys(KARAKA).map(g=>`<li>${gIcon(g,18)}<b>${g}</b> &#8212; ${KARAKA[g]}</li>`).join("")}
+</ul>
+<p>Vedic astrology uses these nine and no others. Uranus, Neptune and Pluto belong to Western practice; you will occasionally see them in a KP chart, but they play no part in classical readings.</p>`},
+
+ {id:"signs", title:"The twelve signs", blurb:"And why they differ from your Western sign",
+  body:`<p>The zodiac is a 360&#176; band divided into twelve <b>rashis</b> of 30&#176; each. So far, identical to Western astrology.</p>
+<p>The difference is where you start measuring. Western astrology uses the <b>tropical</b> zodiac, anchored to the seasons &#8212; 0&#176; Aries is the spring equinox. Vedic astrology uses the <b>sidereal</b> zodiac, anchored to the fixed stars.</p>
+<p>Because the Earth wobbles slowly on its axis, those two starting points have drifted apart by roughly <b>24&#176;</b> over the last two thousand years. That gap is the <b>ayanamsa</b>.</p>
+<p>Practically: your Vedic sign is usually the one before your Western sign. Someone who has always been told they are a Leo is very often a Vedic Cancer. Neither is wrong; they are measuring from different origins.</p>
+<p>Each sign has an owner, called its <b>lord</b>, and that lordship is the backbone of chart reading:</p>
+<ul class="lrn">
+${SIGNS.map((sg,i)=>`<li><b>${sg}</b> (${SIGNS_SK[i]}) &#8212; ruled by ${SIGN_LORD[i+1]}</li>`).join("")}
+</ul>`},
+
+ {id:"nakshatras", title:"The 27 nakshatras", blurb:"A finer grid than the signs",
+  body:`<p>Long before the twelve signs, Indian astronomy divided the sky into <b>27 nakshatras</b> &#8212; lunar mansions, each 13&#176;20' wide. They track the Moon: it passes through roughly one per day, and 27 of them make a lunar month.</p>
+<p>Nakshatras are finer than signs and often more telling. Two people can share a Moon sign and have completely different nakshatras.</p>
+<p>Each divides again into four <b>padas</b> of 3&#176;20', giving 108 padas across the zodiac &#8212; the same 108 that recurs throughout Indian tradition.</p>
+<p>Most importantly, <b>the nakshatra your Moon occupies at birth decides your entire dasha sequence</b>. Every nakshatra has a ruling graha, and that ruler names the first period of your life. Nothing else in the chart does this.</p>
+<ul class="lrn">
+${NAK.map((n,i)=>`<li><b>${n}</b> &#8212; ruled by ${nakLord2(i)}</li>`).join("")}
+</ul>`},
+
+ {id:"dashas", title:"Dashas and timing", blurb:"How astrology answers 'when'",
+  body:`<p>A chart shows what is there. A <b>dasha</b> system says when it becomes active.</p>
+<p>The main one is <b>Vimshottari</b>, a 120-year cycle divided among the nine grahas. Ketu gets 7 years, Venus 20, the Sun 6, the Moon 10, Mars 7, Rahu 18, Jupiter 16, Saturn 19, Mercury 17. They always run in that order.</p>
+<p>Where you enter the cycle is not arbitrary. It comes from the Moon's nakshatra at birth: that nakshatra's ruler runs first, and how far the Moon had already travelled through it decides how much of that first period had elapsed before you were born.</p>
+<p>Each <b>mahadasha</b> subdivides into nine <b>antardashas</b> in the same order and proportion, and those subdivide again. So the texture of a period changes every year or two even when the governing graha does not.</p>
+<p>Reading a period means asking what its lord rules in your chart and where it sits. The same Saturn dasha is a very different decade for two different people.</p>`},
+
+ {id:"divisional", title:"Divisional charts", blurb:"D1, D9, D10 and the rest",
+  body:`<p>The chart everyone knows &#8212; the one with your grahas in twelve houses &#8212; is the <b>D1</b>, or <b>Rashi</b> chart. It describes life broadly.</p>
+<p>For any specific area, Vedic astrology divides each sign further and builds a new chart from the result. These are <b>vargas</b>, or divisional charts. The maths is pure arithmetic on the same longitudes; no new information is needed.</p>
+<ul class="lrn">
+<li><b>D1 &#183; Rashi</b> &#8212; the life as a whole</li>
+<li><b>D2 &#183; Hora</b> &#8212; wealth</li>
+<li><b>D3 &#183; Drekkana</b> &#8212; siblings, courage</li>
+<li><b>D4 &#183; Chaturthamsa</b> &#8212; property and home</li>
+<li><b>D7 &#183; Saptamsa</b> &#8212; children</li>
+<li><b>D9 &#183; Navamsa</b> &#8212; marriage, and the chart's underlying strength</li>
+<li><b>D10 &#183; Dasamsa</b> &#8212; career</li>
+<li><b>D12 &#183; Dwadasamsa</b> &#8212; parents</li>
+<li><b>D16, D20, D24, D27, D30, D40, D45, D60</b> &#8212; vehicles, spirituality, education, strengths, misfortune, and finer readings still</li>
+</ul>
+<p>The <b>D9</b> deserves special mention. It is read alongside the D1 almost always, not only for marriage: a graha that looks weak in the D1 but strong in the D9 is traditionally read as coming good over time.</p>
+<p class="lrn-note">Not yet built in this app. It is the largest single thing we are missing.</p>`},
+
+ {id:"drishti", title:"Aspects", blurb:"How grahas reach across a chart",
+  body:`<p><b>Drishti</b> means gaze. A graha influences not only the house it sits in but the houses it looks at.</p>
+<p>Every graha aspects the <b>7th house from itself</b> &#8212; directly opposite. Three have additional special aspects:</p>
+<ul class="lrn">
+<li>${gIcon("Mars",18)}<b>Mars</b> also aspects the 4th and 8th</li>
+<li>${gIcon("Jupiter",18)}<b>Jupiter</b> also aspects the 5th and 9th</li>
+<li>${gIcon("Saturn",18)}<b>Saturn</b> also aspects the 3rd and 10th</li>
+</ul>
+<p>Note this is not symmetrical. Saturn may aspect a graha that does not aspect it back &#8212; an asymmetry Western astrology does not have, since its aspects are angular and mutual.</p>
+<p>Whether Rahu and Ketu aspect at all is disputed. Some schools give them the 5th, 7th and 9th; others none. This app leaves it off by default and lets you turn it on in Settings.</p>`},
+
+ {id:"strength", title:"Strength and dignity", blurb:"Why the same graha is not equal everywhere",
+  body:`<p>A graha's power depends heavily on which sign it occupies.</p>
+<ul class="lrn">
+<li><b>Exalted</b> (uccha) &#8212; its strongest sign. Saturn in Libra, Jupiter in Cancer, Mars in Capricorn.</li>
+<li><b>Own sign</b> &#8212; a sign it rules. Comfortable and reliably itself.</li>
+<li><b>Moolatrikona</b> &#8212; a specific degree range within its own sign where it is at root strength.</li>
+<li><b>Debilitated</b> (neecha) &#8212; the sign opposite its exaltation. Weakest, though not doomed: a debilitated graha in a strong house can still deliver.</li>
+</ul>
+<p>Beyond dignity there are numeric systems. <b>Shadbala</b> scores each graha across six components &#8212; position, time, direction, motion, nature and aspect. <b>Ashtakavarga</b> gives each house a score in points called bindus.</p>
+<p>A graha can also be <b>combust</b> &#8212; so close to the Sun that it cannot be seen, and traditionally weakened by the proximity.</p>
+<p class="lrn-note">Shadbala and Ashtakavarga are not yet built here.</p>`},
+
+ {id:"reading", title:"How a chart is actually read", blurb:"Putting the pieces together",
+  body:`<p>Beginners tend to look up single placements &#8212; "Saturn in the 7th" &#8212; and read a verdict. That is not how it works. A chart is read in layers, and later layers routinely overturn earlier ones.</p>
+<ol class="lrn">
+<li><b>Find the lagna.</b> Everything is measured from the rising sign. Change the birth time by two hours and the whole chart re-numbers.</li>
+<li><b>Follow the lords.</b> A house is read through the graha that rules it and, crucially, through <i>where that graha sits</i>. Your 10th house of career is read through its lord's position, not just through the 10th.</li>
+<li><b>Weigh the grahas.</b> Dignity, then house, then aspects received.</li>
+<li><b>Check the D9.</b> Strength there modifies everything in the D1.</li>
+<li><b>Then time it.</b> A placement is potential; the dasha says when it activates.</li>
+</ol>
+<p>This is why two people with the same Sun sign share almost nothing astrologically, and why a one-line horoscope for a twelfth of humanity is a different activity from reading a chart.</p>`}
+];
+
+function subLearn(){
+  return `
+    <p class="muted" style="font-size:13.5px;margin:0 0 18px">
+      From first principles to the parts practitioners argue about. Read in any order.</p>
+    <div class="list">
+      ${LEARN.map(l=>`<button class="item lrnitem" data-l="${l.id}">
+        <span style="flex:1"><b style="font-weight:600">${l.title}</b>
+          <span class="gdef">${l.blurb}</span></span>
+        <span class="chev">&#8250;</span></button>`).join("")}
+    </div>`;
+}
+function subLearnTopic(){
+  const l=LEARN.find(x=>x.id===learnTopic); if(!l) return subLearn();
+  return `<article class="lrnbody">${l.body}</article>`;
+}
+let learnTopic=null;
+function wireLearn(){
+  document.querySelectorAll(".lrnitem").forEach(b=>b.onclick=()=>{
+    learnTopic=b.dataset.l; subView="learntopic"; buzz(7); renderSub();
+  });
+}
+
 function subPeople(){
   const list=partners();
   return `
     <p class="muted" style="font-size:13px;margin:0 0 16px">
-      Switch whose chart the app is showing.</p>
+      Everyone you have added. Charts you add here appear in Relationships too.</p>
     <div class="list">
       <button class="item" data-p="me">
         <span class="pav" style="background:var(--venus)">S</span>
-        <span><b style="font-weight:600">Sangram</b>
-          <span style="display:block;font-size:11.5px;color:var(--ink-3)">26 Mar 1992 &#183; Vrishabha lagna</span></span>
-        <span class="sub" style="color:var(--brass)">Active</span></button>
+        <span style="flex:1"><b style="font-weight:600">Sangram</b>
+          <span style="display:block;font-size:11.5px;color:var(--ink-3)">26 Mar 1992 &#183; ${SIGNS_SK[CHART.lagna-1]} lagna</span></span>
+        <svg viewBox="0 0 24 24" class="tick"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
       ${list.map((p,i)=>`<button class="item" data-p="${i}">
         <span class="pav" style="background:${COLOUR(["Venus","Jupiter","Moon","Mars"][i%4])}">${p.name[0].toUpperCase()}</span>
-        <span><b style="font-weight:600">${p.name}</b>
+        <span style="flex:1"><b style="font-weight:600">${p.name}</b>
           <span style="display:block;font-size:11.5px;color:var(--ink-3)">
-            ${NAK[nakOf(p.moonL)]} &#183; ${SIGNS[signOf(p.moonL)-1]}</span></span>
+            ${new Date(p.born).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+            &#183; ${NAK[nakOf(p.moonL)]}</span></span>
         <span class="chev">&#8250;</span></button>`).join("")}
+      <button class="item additem" id="addperson">
+        <span class="pav addpav">+</span>
+        <span style="flex:1"><b style="font-weight:600">Add a person</b></span></button>
     </div>
-    <p class="note">Only your own chart is computed in full &#8212; the others carry a birth
-    moment for compatibility, not a full chart. Their houses and dignities arrive with the
-    licensed ephemeris.</p>`;
+    <p class="note">Only your own chart is computed in full. The others carry a birth moment,
+    which is enough for compatibility &#8212; their houses and dignities need the licensed
+    ephemeris.</p>`;
+}
+function wirePeople(){
+  document.querySelectorAll("#pg-you .item[data-p]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.p==="me"){buzz(6);return}
+    subArg=+b.dataset.p; cameFrom="people"; subView="partner"; buzz(7); renderSub();
+  });
+  const add=document.getElementById("addperson");
+  if(add) add.onclick=()=>{subArg=null;cameFrom="people";subView="addpartner";buzz(7);renderSub()};
 }
 
 function subReport(){
@@ -2431,7 +2608,7 @@ function subRel(){
 function wireRel(){
 
   document.querySelectorAll("#pg-you .item[data-i]").forEach(b=>b.onclick=()=>{
-    subArg=+b.dataset.i; subView="partner"; buzz(7); renderSub();
+    subArg=+b.dataset.i; cameFrom="rel"; subView="partner"; buzz(7); renderSub();
   });
 }
 
@@ -2500,8 +2677,9 @@ function setTopBar(title,{back=false,actions="",sub=""}={}){
 }
 document.getElementById("tbback").onclick=()=>{
   buzz(5);
-  if(subView==="partner"||subView==="addpartner"){subView="rel";subArg=null;renderSub()}
+  if(subView==="partner"||subView==="addpartner"){subView=cameFrom||"rel";subArg=null;renderSub()}
   else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
+  else if(subView==="learntopic"){subView="learn";renderSub()}
   else{subView=null;subArg=null;renderYou()}
 };
 const nav=document.getElementById("tabs");
@@ -2521,7 +2699,7 @@ function go(i){
      the render functions only run once at startup */
   if(i===0) renderToday();
   else if(i===TIMELINE_INDEX) renderTimelineTab();
-  else if(i===CHART_INDEX) setTopBar("Vrishabha lagna",{sub:fmtDeg(CHART.ascendant)+" \u00b7 Rohini"});
+  else if(i===CHART_INDEX) setTopBar("Sangram\u2019s birth chart",{sub:`${SIGNS_SK[CHART.lagna-1]} lagna \u00b7 ${fmtDeg(CHART.ascendant)} \u00b7 ${CHART.get("Moon").nak} Moon`});
   else if(i===3) setTopBar("Ask your chart");
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);

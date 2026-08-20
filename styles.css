@@ -1,4 +1,4 @@
-:root{
+:root{--barh:calc(54px + env(safe-area-inset-top));
   --void:#171A33; --void-2:#1E2240; --raise:#272B4B;
   --line:#2C3155; --line-2:#3B4170; --hot:#8E97C8;
   --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
@@ -70,8 +70,12 @@ body{
 /* -- shared type ------------------------------------------------- */
 h1{font-size:30px;font-weight:680;letter-spacing:-.03em;margin:0 0 2px;text-wrap:balance}
 h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
-.eyebrow{font-family:var(--fm);font-size:10px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+/* the house glyph and its label are one line that wraps as a block, so a
+   long rashi name no longer folds back under the icon */
+.eyebrow{font-family:var(--fm);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;
+  display:flex;align-items:center;gap:9px;line-height:1.5}
+.eyebrow .loc{margin-right:0;vertical-align:baseline;flex:0 0 auto}
 .muted{color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0}
 .section{margin:30px 0 0}
 
@@ -310,7 +314,7 @@ body.insub .page{padding-bottom:30px}
 .stage{position:relative;width:min(92vw,430px);aspect-ratio:1}
 .orbit{position:absolute;inset:0;transform-origin:50% 50%;
   transition:transform .72s var(--ease),filter .5s var(--ease),opacity .5s var(--ease)}
-.stage.pmode .orbit{transform:scale(.94);filter:blur(2.4px) saturate(.55);opacity:.42}
+.stage.pmode .orbit{transform:scale(.94);filter:blur(1.1px) saturate(.6);opacity:.6}
 svg.chart,svg.asp{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 svg.asp{pointer-events:none}
 .hs{fill:rgba(255,255,255,.014);cursor:pointer;outline:none;
@@ -319,7 +323,7 @@ svg.asp{pointer-events:none}
 .hs:focus-visible{fill:rgba(160,190,255,.12);stroke:var(--hot);stroke-width:1.4}
 .hs.sel{fill:rgba(150,180,240,.09)}
 .hs.lit{fill:rgba(194,155,78,.11)}
-.hs.dim{opacity:.13}
+.hs.dim{opacity:.32}
 .fr{fill:none;stroke:var(--line-2);stroke-width:1.1;vector-effect:non-scaling-stroke}
 .fr.in{stroke:var(--line);stroke-width:.9}
 .sn{font-family:var(--fm);font-size:3.6px;fill:var(--ink-3);text-anchor:middle;
@@ -368,7 +372,10 @@ svg.asp{pointer-events:none}
   text-transform:uppercase;color:var(--ink-3);margin-top:2px}
 .p.focus .name{opacity:1;transform:translate(-50%,0)}
 .p.focus .tag{opacity:0}
-.p.dim{opacity:.16;filter:saturate(.4)} .p.hidden{opacity:0;pointer-events:none}
+.p.dim{opacity:.3;filter:saturate(.5)} .p.hidden{opacity:0;pointer-events:none}
+/* receded, not removed: still visible and still tappable, so one graha
+   leads directly to the next */
+.p.recede{opacity:.22;filter:saturate(.45)}
 .p.focus{z-index:40}
 .p.focus[data-g="Jupiter"] .surf,.p.focus[data-g="Saturn"] .surf{animation:drift 30s linear infinite}
 .p.focus[data-g="Mars"] .surf,.p.focus[data-g="Moon"] .surf{animation:turn 46s linear infinite}
@@ -386,9 +393,14 @@ svg.asp{pointer-events:none}
   background:none;opacity:0;pointer-events:none;
   transition:opacity .38s var(--ease);-webkit-overflow-scrolling:touch}
 .sheet::-webkit-scrollbar{display:none}
-.sheetgap{height:47dvh;pointer-events:none}
+/* the gap must RECEIVE the tap in order to forward it to the chart
+   underneath; pointer-events:none here meant the listener never fired */
+.sheetgap{height:47dvh;pointer-events:auto}
+.sheet::after{content:"";display:block;height:1px}
+/* the card can rise until its top meets the bar and no further, so its
+   border never passes behind the one surface that must stay on top */
 .sheetcard{
-  min-height:calc(100dvh - 44px);
+  min-height:calc(100dvh - var(--barh));
   padding:22px 20px calc(var(--tabh) + 30px);
   background:var(--void);
   border-top:1px solid var(--edge);
@@ -407,10 +419,14 @@ svg.asp{pointer-events:none}
 .k{font-size:12.5px;color:var(--ink-3)}
 .v{font-family:var(--fm);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
 .sw{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
-.closebtn{position:fixed;top:calc(env(safe-area-inset-top) + 11px);right:18px;z-index:60;
-  width:32px;height:32px;border:0;background:none;color:var(--ink);font-size:20px;cursor:pointer;
-  display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
-.closebtn.on{opacity:1;pointer-events:auto}
+/* the close control sits in the bar's left slot, where it can never collide
+   with the mode pill on the right */
+.closebtn{width:0;overflow:hidden;border:0;background:none;color:var(--ink);
+  font-size:17px;line-height:1;padding:0;cursor:pointer;flex:0 0 auto;
+  display:grid;place-items:center;height:30px;opacity:0;pointer-events:none;
+  transition:width .24s var(--ease),opacity .2s var(--ease)}
+.closebtn.on{width:30px;opacity:1;pointer-events:auto;margin-left:-5px}
+.closebtn:active{opacity:.5}
 
 /* -- guide ------------------------------------------------------- */
 
@@ -695,3 +711,112 @@ body.gtyping .gcancel{display:block}
 .gmine b{color:var(--brass);font-weight:660}
 .gempty{font-size:14px;color:var(--ink-3);margin:26px 0}
 body.glossary .page{padding-right:30px}
+
+/* ---- Universe: mode switch, ghosts, time scrubber ---- */
+/* compact segmented control, sized for the 54px bar */
+.tbseg{margin:0;padding:2px;border-radius:99px;flex:0 0 auto}
+.tbseg button{font-size:12.5px;padding:5px 11px;letter-spacing:-.01em;white-space:nowrap}
+.unihint{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin:0 0 4px;max-width:52ch}
+
+/* planets glide between positions; a mode change or a scrub is the same
+   objects moving, never a redraw */
+.p{transition:transform .72s var(--ease),opacity .5s var(--ease),
+   filter .5s var(--ease),left .55s var(--ease),top .55s var(--ease)}
+.stage.instant .p{transition:none}
+
+.ghosts{position:absolute;inset:0;pointer-events:none}
+.ghost{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;
+  left:calc(var(--x) * 100%);top:calc(var(--y) * 100%);
+  border-radius:50%;border:1.5px dashed var(--fill);opacity:.45}
+
+.scrubwrap{display:none;margin:14px 0 2px}
+.scrubwrap.on{display:block}
+.scrubdatehead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-bottom:8px}
+.scrubdatehead b{font-size:15.5px;font-weight:640;letter-spacing:-.015em}
+.ruler{position:relative;height:56px;overflow:hidden;cursor:grab;touch-action:none;
+  border-radius:14px;border:1px solid var(--edge-soft);background:rgba(255,255,255,.04);
+  outline:none;
+  -webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+          mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.ruler:active{cursor:grabbing}
+.ruler:focus-visible{border-color:var(--hot)}
+.rulertrack{position:absolute;inset:0}
+.tick{position:absolute;top:0;bottom:0;width:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-start;padding-top:9px}
+.tick i{display:block;width:1px;height:11px;background:rgba(255,255,255,.22)}
+.tick b{font-family:var(--fm);font-size:9.5px;color:var(--ink-3);margin-top:5px;
+  white-space:nowrap;font-weight:500}
+.tick.month i{height:17px;background:rgba(150,162,235,.6)}
+.tick.month b{color:var(--ink-2)}
+.tick.today i{height:17px;background:var(--brass)}
+.tick.today b{color:var(--brass)}
+.rulercentre{position:absolute;left:50%;top:4px;bottom:4px;width:2px;margin-left:-1px;
+  border-radius:2px;background:var(--ink);box-shadow:0 0 10px rgba(255,255,255,.55);
+  pointer-events:none}
+.rulercentre::before{content:"";position:absolute;left:-4px;top:-4px;
+  border:5px solid transparent;border-top-color:var(--ink)}
+.scrubnote{font-size:11.5px;color:var(--ink-3);margin:9px 0 0;text-align:center}
+.scrubevent{margin-top:11px;padding:10px 13px;border-radius:13px;font-size:13.5px;
+  color:var(--ink-2);background:rgba(150,162,235,.12);border:1px solid var(--edge);
+  opacity:0;transform:translateY(-4px);transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.scrubevent.on{opacity:1;transform:none}
+.scrubevent b{color:var(--ink);font-weight:620}
+.scrubevent span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+
+@media (prefers-reduced-motion: reduce){
+  .p{transition:none!important}
+  .scrubevent{transition:none!important}
+}
+
+/* ---- Today: the nine, the five areas, the panchang ---- */
+.secttl{font-size:12px;font-weight:640;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:26px 0 11px;display:flex;align-items:baseline;gap:8px}
+.secttl span{font-family:var(--fm);font-size:10.5px;letter-spacing:.05em;
+  text-transform:none;color:var(--ink-3);opacity:.7}
+
+/* nine grahas read as a 3x3 block, never a ragged wrap */
+.skyrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.skycell{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:11px 4px 9px;border-radius:15px;cursor:pointer;
+  background:rgba(255,255,255,.045);border:1px solid var(--edge-soft);
+  color:var(--ink);font-family:var(--ff);transition:background .2s var(--ease),transform .2s var(--ease)}
+.skycell:active{transform:scale(.96);background:rgba(255,255,255,.09)}
+.skycell .gico{width:26px;height:26px;object-fit:contain}
+.skycell b{font-size:13.5px;font-weight:660;letter-spacing:-.02em;margin-top:3px}
+.skycell small{font-family:var(--fm);font-size:9.5px;color:var(--ink-3);letter-spacing:.03em}
+.dotm{display:inline-block;width:5px;height:5px;border-radius:50%;margin-top:4px}
+.dotm.good{background:var(--brass);box-shadow:0 0 6px -1px var(--brass)}
+.dotm.testing{background:rgba(170,180,235,.4)}
+.skycell .rtag{position:absolute;top:5px;right:6px;font-family:var(--fm);font-size:8px;
+  color:var(--ink-2);border:1px solid var(--line-2);border-radius:99px;padding:0 3px;line-height:11px}
+.skykey{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin:9px 0 0}
+.skykey .dotm{margin:0 2px -1px 0;vertical-align:baseline}
+
+.areas{display:flex;flex-direction:column;gap:9px}
+.areacard{padding:14px 15px 13px;border-radius:17px;
+  background:rgba(255,255,255,.045);border:1px solid var(--edge-soft)}
+.areacard.favourable{border-left:2.5px solid var(--brass)}
+.areacard.slow{border-left:2.5px solid rgba(170,180,235,.55)}
+.areacard.balanced{border-left:2.5px solid var(--edge)}
+.areahead{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.aname{font-size:16px;font-weight:640;letter-spacing:-.02em}
+.atone{font-family:var(--fm);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 8px;border-radius:99px;white-space:nowrap}
+.atone.favourable{color:var(--brass);background:rgba(194,155,78,.13)}
+.atone.balanced{color:var(--ink-3);background:rgba(255,255,255,.06)}
+.atone.slow{color:var(--ink-2);background:rgba(150,162,235,.15)}
+.asub{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:9px 0 0}
+.asub b{color:var(--ink);font-weight:620}
+.ameta{font-family:var(--fm);font-size:10.5px;letter-spacing:.02em;color:var(--ink-3);margin:3px 0 0}
+.whybtn{margin-top:9px;padding:5px 12px;border-radius:99px;cursor:pointer;
+  font-family:var(--ff);font-size:12.5px;font-weight:560;color:var(--hot);
+  background:rgba(150,162,235,.12);border:1px solid var(--edge)}
+.whybtn:active{opacity:.6}
+.whybox{margin-top:11px;padding-top:11px;border-top:.5px solid var(--line)}
+.whybox p{font-size:12.5px;line-height:1.55;color:var(--ink-2);margin:0 0 7px}
+.whybox p:last-child{margin-bottom:0}
+.whybox .whyfoot{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);margin-top:9px}
+.panch .v{letter-spacing:.01em}
+.dashaline{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0}
+.dashaline b{color:var(--ink);font-weight:620}

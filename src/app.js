@@ -1,3 +1,5 @@
+import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
+         chandrashtama, GOCHARA_GOOD } from "./panchang.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
 const julian = jd;
@@ -239,6 +241,53 @@ for(const h in HOUSES){
   AXIS[h]= v.length===4 ? [1,0] : ax;
 }
 
+
+/* ---------------------------------------------------------------
+   Degree-accurate placement. A house spans 30 degrees of one sign;
+   a graha at 2 degrees and one at 28 belong at opposite ends of it.
+   Previously every graha sat at its house's centroid, so a day of
+   scrubbing moved nothing on screen even with correct positions.
+   --------------------------------------------------------------- */
+function polySpan(poly){
+  const [ux,uy]=AXIS[poly.h], c=cent(HOUSES[poly.h]);
+  let lo=0, hi=0;
+  HOUSES[poly.h].forEach(v=>{
+    const t=(v[0]-c[0])*ux+(v[1]-c[1])*uy;
+    lo=Math.min(lo,t); hi=Math.max(hi,t);
+  });
+  return {lo,hi,ux,uy,c};
+}
+const SPAN_CACHE={};
+for(const h in HOUSES) SPAN_CACHE[h]=polySpan({h});
+
+/* longitude -> a point inside its house, ordered by degree along the
+   house's long axis, then nudged apart if two land on top of each other */
+function placeByDegree(list){
+  const byHouse={};
+  list.forEach(p=>{ (byHouse[p.house]=byHouse[p.house]||[]).push(p) });
+  const out={};
+  for(const h in byHouse){
+    const S=SPAN_CACHE[h], poly=HOUSES[h], tri=poly.length===3;
+    const usable=(S.hi-S.lo)*(tri?0.40:0.52);
+    const group=byHouse[h].slice().sort((a,b)=>degIn(a.L)-degIn(b.L));
+    group.forEach((p,i)=>{
+      const frac=degIn(p.L)/30 - 0.5;              // -0.5 .. +0.5
+      let t=frac*usable;
+      /* separate anything closer than a disc width */
+      let perp=0;
+      for(let j=0;j<i;j++){
+        const other=group[j];
+        if(Math.abs(degIn(p.L)-degIn(other.L))/30*usable < 7) perp += (i%2?1:-1)*4.6;
+      }
+      const px=S.c[0]+S.ux*t-S.uy*perp, py=S.c[1]+S.uy*t+S.ux*perp;
+      const dpx=(group.length>=3?22:group.length===2?25:29);
+      const margin=Math.min(dpx/2/CHART_PX*100/inradius(poly),0.42);
+      out[p.graha]=fitInside([px,py],poly,S.c,margin);
+    });
+  }
+  return out;
+}
+
 function locator(h){
   const shapes=Object.keys(HOUSES).map(k=>
     `<polygon points="${HOUSES[k].map(q=>q.join(",")).join(" ")}" fill="${+k===h?"var(--brass)":"transparent"}" fill-opacity="${+k===h?.9:0}" stroke="var(--line-2)" stroke-width="2.5"/>`).join("");
@@ -328,13 +377,155 @@ function horoscope(period,date){
 }
 
 
-function renderToday(){
-  const tr=transits(viewDate), mp=tr.phase;
-  const now=CHART.dasha.at(viewDate);
-  const natalMoon=CHART.get("Moon");
+/* ===================================================================
+   THE DAY, DERIVED
+   -------------------------------------------------------------------
+   A sun-sign horoscope gives one of twelve readings to eight hundred
+   million people. This does not. Every line below comes from where the
+   nine grahas actually are today, measured against THIS chart: the
+   houses they occupy counted from the lagna and from the natal Moon,
+   the natal grahas they contact, the nakshatra the Moon is crossing
+   relative to the birth nakshatra, and the dasha running underneath.
 
-  /* a fixed window around today, so selecting a day highlights it in place
-     instead of re-centring the strip under your finger */
+   Nothing here is written in advance and nothing is generated. Each
+   sentence carries the facts that produced it, which is what makes the
+   "Why?" control possible (CLAUDE.md 61, 62).
+   =================================================================== */
+
+const BENEFIC={Jupiter:1,Venus:1,Mercury:.6,Moon:.6};
+const MALEFIC={Saturn:1,Mars:1,Sun:.6,Rahu:.8,Ketu:.8};
+
+/* Parashari drishti, as house offsets from the graha's own house */
+const DRISHTI={Sun:[7],Moon:[7],Mercury:[7],Venus:[7],
+  Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10],Rahu:[5,7,9],Ketu:[5,7,9]};
+
+/* Which houses each life area is read from. Standard significations. */
+const AREA_HOUSES={
+  Career:      [10,6,3,1],
+  Wealth:      [2,11,5],
+  Relationships:[7,5,11],
+  Wellbeing:   [1,6,8],
+  "Inner life":[4,9,12,5]};
+const AREA_LINE={
+  Career:"work, standing and what people see you do",
+  Wealth:"money, income and what you spend it on",
+  Relationships:"partners, family and the people around you",
+  Wellbeing:"energy, rest and the body",
+  "Inner life":"reflection, learning and what settles you"};
+
+function dayFacts(date){
+  const tr=transits(date);
+  const natalMoonSign=CHART.get("Moon").sign;
+  const natalMoonNak=nakOf(CHART.get("Moon").L);
+  const todayMoonNak=nakOf(tr.Moon.L);
+  const lb=limbs(sunSidereal(date), moonSidereal(date));
+  const vr=vara(date);
+  const tara=taraBala(natalMoonNak, todayMoonNak);
+
+  /* every graha, twice over: from the lagna and from the natal Moon */
+  const sky=GRAHA_ORDER.map(g=>{
+    const t=tr[g];
+    const hMoon=houseFrom(natalMoonSign, t.sign);
+    const natal=CHART.get(g);
+    /* a transit "returns" when it re-enters the sign it was born in */
+    const onNatal=CHART.placements.filter(n=>n.sign===t.sign);
+    return {graha:g, sign:t.sign, house:t.house, houseFromMoon:hMoon,
+      nak:t.nak, pada:t.pada, deg:t.deg, retro:t.retro,
+      favourable:gocharaFavourable(g,hMoon),
+      aspects:(DRISHTI[g]||[7]).map(o=>adv(t.house,o)),
+      conjunctNatal:onNatal.map(n=>n.graha),
+      returned:natal && natal.sign===t.sign};
+  });
+
+  return {date, tr, sky, limbs:lb, vara:vr, tara,
+    natalMoonSign, natalMoonNak, todayMoonNak,
+    chandrashtama:chandrashtama(houseFrom(natalMoonSign,tr.Moon.sign)),
+    dasha:CHART.dasha.at(date)};
+}
+
+/* Score one life area from the grahas actually touching its houses.
+   Occupation counts full; an aspect counts half; the classical gochara
+   verdict from the Moon shifts the sign of the contribution. */
+function areaScore(area, F){
+  const hs=AREA_HOUSES[area], ev=[];
+  let score=0, n=0;
+  F.sky.forEach(p=>{
+    const occupies=hs.includes(p.house);
+    const aspects=p.aspects.filter(h=>hs.includes(h));
+    if(!occupies && !aspects.length) return;
+    /* the graha's own nature leads; the classical gochara verdict from the
+       natal Moon shifts it; an aspect counts half of an occupation */
+    const nature=(BENEFIC[p.graha]||0) - (MALEFIC[p.graha]||0);
+    const reach=occupies?1:0.5;
+    const c=(nature*0.6 + (p.favourable?0.55:-0.4)) * reach;
+    score+=c; n+=reach;
+    ev.push({graha:p.graha, house:p.house, houseFromMoon:p.houseFromMoon,
+      occupies, aspects, favourable:p.favourable, retro:p.retro, weight:Math.abs(c),
+      text:`<b>${p.graha}</b> ${occupies?`is transiting your ${ordinal(p.house)} house`
+        :`aspects your ${aspects.map(ordinal).join(" and ")} house`}`
+        +`, ${ordinal(p.houseFromMoon)} from your Moon`
+        +` &#8212; ${p.favourable?"one of the placements this tradition reads as supportive"
+                                :"not one of the placements this tradition favours"}`
+        +`${p.retro?", and retrograde":""}.`});
+  });
+  /* the Moon's tara colours every area of the day equally */
+  score += F.tara.tone==="good"?.45 : F.tara.tone==="testing"?-.45 : 0; n+=1;
+  ev.push({graha:"Moon", tara:true, weight:.45,
+    text:`Today's Moon is in <b>${NAK[F.todayMoonNak]}</b>, the ${ordinal(F.tara.count)} nakshatra `+
+         `from your birth star ${NAK[F.natalMoonNak]} &#8212; <b>${F.tara.name}</b>. ${F.tara.note}`});
+
+  /* a mean, not a sum: an area touched by six grahas should not read
+     darker than one touched by two simply for being busier */
+  const mean = n ? score/n : 0;
+  const lead = [...ev].sort((a,b)=>b.weight-a.weight)[0];
+  return {area, score:mean, evidence:ev, lead};
+}
+
+const TONE_WORD={favourable:"Most supported",balanced:"Level",slow:"Slower"};
+
+/* Tone is read ACROSS the five areas of one day, not against an absolute
+   scale. Two reasons. Gochara verdicts are lopsided by construction - most
+   grahas are unfavourable in most houses - so an absolute scale would call
+   almost every day difficult, which is neither true nor a thing this app
+   should be saying (CLAUDE.md 106, 143). And a day where all five read the
+   same tells the user nothing. Relative tone answers the question they
+   actually have: of my life today, where is the support and where is the drag? */
+function assignTones(areas){
+  const avg=areas.reduce((a,x)=>a+x.score,0)/areas.length;
+  areas.forEach(a=>{
+    a.tone = a.score>avg+0.12 ? "favourable" : a.score<avg-0.12 ? "slow" : "balanced";
+  });
+  if(new Set(areas.map(a=>a.tone)).size===1){
+    const sorted=[...areas].sort((x,y)=>y.score-x.score);
+    sorted.forEach((a,i)=>a.tone = i===0?"favourable"
+      : i===sorted.length-1?"slow" : "balanced");
+  }
+  return areas;
+}
+
+function dayReading(date){
+  const F=dayFacts(date);
+  const areas=assignTones(Object.keys(AREA_HOUSES).map(a=>areaScore(a,F)));
+
+  /* the headline names the loudest thing in the sky today, not a mood */
+  const moon=F.sky.find(p=>p.graha==="Moon");
+  const rank=[...areas].sort((a,b)=>b.score-a.score);
+  const best=rank[0], worst=rank[rank.length-1];
+  const head = F.chandrashtama
+    ? `The Moon is in your eighth from birth`
+    : `A day about ${HOUSE_ADVICE[moon.house][0]}`;
+  const body = F.chandrashtama
+    ? `The Moon is crossing the eighth sign from where it stood at your birth &#8212; <b>Chandrashtama</b> in the tradition. It is read as a low day rather than a dangerous one: rest is favoured over launching, and other people's judgement over your own.`
+    : `The Moon crosses your ${ordinal(moon.house)} house today, so ${HOUSE_ADVICE[moon.house][1]} is where attention naturally sits. `+
+      `Across your five areas, <b>${best.area.toLowerCase()}</b> carries the most support today`+
+      `${worst.tone==="slow" ? `, and <b>${worst.area.toLowerCase()}</b> the least` : ""}.`;
+  return {F, areas, head, body};
+}
+
+function renderToday(){
+  const R=dayReading(viewDate), F=R.F, tr=F.tr;
+  const now=F.dasha;
+
   const days=[];
   for(let i=-14;i<=14;i++){
     const d=new Date(); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
@@ -344,8 +535,6 @@ function renderToday(){
       <b>${d.getDate()}</b>${moonImg(d,22)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
-  const mHouse=tr.moon.house, sHouse=tr.sun.house;
-  const h=horoscope(horoPeriod,viewDate);
   setTopBar("Hi Sangram",{sub:viewDate.toLocaleDateString("en-GB",
       {weekday:"short",day:"numeric",month:"short"}).replace(",",""),
     actions:`${isToday(viewDate)?"":`<button class="tb-btn txt" id="totoday">Today</button>`}
@@ -353,25 +542,58 @@ function renderToday(){
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
          <path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/></svg></button>`});
 
+  /* every graha, in the user's own houses. This is the thing a twelve-sign
+     horoscope cannot do, so it is shown before any interpretation. */
+  const skyRow=F.sky.map(p=>`
+    <button class="skycell" data-g="${p.graha}">
+      ${gIcon(p.graha,26)}
+      <b>${ordinal(p.house)}</b>
+      <small>${SIGNS[p.sign-1].slice(0,3)}</small>
+      <i class="dotm ${p.favourable?"good":"testing"}" aria-hidden="true"></i>
+      ${p.retro?`<span class="rtag">R</span>`:""}
+    </button>`).join("");
+
+  const areaCards=R.areas.map((a,i)=>`
+    <div class="areacard ${a.tone}">
+      <div class="areahead">
+        <span class="aname">${a.area}</span>
+        <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
+      </div>
+      <p class="ameta">${AREA_LINE[a.area]}</p>
+      <p class="asub">${a.lead.text}</p>
+      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
+      <div class="whybox" id="why${i}" hidden>
+        ${a.evidence.map(e=>`<p>${e.text}</p>`).join("")}
+        <p class="whyfoot">Houses read for this area:
+          ${AREA_HOUSES[a.area].map(ordinal).join(", ")}.</p>
+      </div>
+    </div>`).join("");
+
   document.getElementById("pg-today").innerHTML=`
     <div class="datestrip" id="dates">${days.join("")}</div>
 
-    <div class="segmented" id="hperiod">
-      ${["day","week","month"].map(k=>`<button class="${horoPeriod===k?"on":""}" data-k="${k}">
-        ${k[0].toUpperCase()+k.slice(1)}</button>`).join("")}
+    <div class="reading">
+      <h2>${R.head}</h2>
+      <p>${R.body}</p>
     </div>
 
-    <p class="forline">${
-      horoPeriod==="day"
-        ? `Horoscope for ${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}`
-        : horoPeriod==="week"
-        ? (()=>{const e=new Date(viewDate);e.setDate(e.getDate()+6);
-            return `Horoscope for ${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} to ${e.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`})()
-        : `Horoscope for ${viewDate.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}`}</p>
-    <div class="reading">
-      <h2>${h.head}</h2>
-      <p>${h.body}</p>
-      <p class="under">${h.under}</p>
+    <h3 class="secttl">Where the nine are today <span>in your houses</span></h3>
+    <div class="skyrow">${skyRow}</div>
+    <p class="skykey"><i class="dotm good"></i> in a position this tradition
+      reads as supportive &#183; <i class="dotm testing"></i> not one it favours.
+      Counted from your Moon in ${SIGNS[F.natalMoonSign-1]}.</p>
+
+    <h3 class="secttl">Your five areas</h3>
+    <div class="areas">${areaCards}</div>
+
+    <h3 class="secttl">The day itself <span>panchang</span></h3>
+    <div class="rows panch">
+      <div class="row"><span class="k">Vara</span><span class="v">${F.vara.name} &#183; ${F.vara.lord}</span></div>
+      <div class="row"><span class="k">Tithi</span><span class="v">${F.limbs.tithi.paksha} ${F.limbs.tithi.name}</span></div>
+      <div class="row"><span class="k">Nakshatra</span><span class="v">${NAK[F.todayMoonNak]} ${tr.Moon.pada}</span></div>
+      <div class="row"><span class="k">Yoga</span><span class="v">${F.limbs.yoga.name}</span></div>
+      <div class="row"><span class="k">Karana</span><span class="v">${F.limbs.karana.name}</span></div>
+      <div class="row"><span class="k">Tara bala</span><span class="v">${F.tara.name}</span></div>
     </div>
 
     <div class="moonline">
@@ -380,16 +602,21 @@ function renderToday(){
         ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
     </div>
 
-    <div class="movingline">
-      ${moonImg(viewDate,22)}<span>Moon in ${SIGNS[tr.moon.sign-1]}, your ${ordinal(mHouse)}</span>
-      <i></i>
-      <img class="mvico" src="assets/graha/sun.png" alt=""><span>Sun in ${SIGNS[tr.sun.sign-1]}, your ${ordinal(sHouse)}</span>
-    </div>
+    <h3 class="secttl">Underneath <span>your dasha</span></h3>
+    <p class="dashaline">A <b>${now.maha.lord}</b> mahadasha to ${fmtDate(now.maha.end)},
+      with a <b>${now.antar.lord}</b> sub-period to ${fmtDate(now.antar.end)}.
+      ${CHART.housesRuled(now.maha.lord).length
+        ? `${now.maha.lord} rules your ${CHART.housesRuled(now.maha.lord).map(ordinal).join(" and ")} house,
+           so those themes sit behind every day of it.`
+        : `${now.maha.lord} rules no sign, so it is read through the house it occupies.`}</p>
 
     <div class="section">${practiceFor(now.maha.lord)}</div>
 
-    <p class="note">Sun and Moon computed for this date; the rest is your natal chart.
-    Traditional interpretation, not a prediction.</p>`;
+    <p class="note">All nine positions are computed for this date from the
+      ephemeris; the houses are your own, counted from your lagna and your
+      natal Moon. Gochara and tara bala are classical techniques, and schools
+      differ, most visibly over Rahu and Ketu. Traditional interpretation, not
+      a prediction.</p>`;
 
   const strip=document.getElementById("dates");
   strip.onclick=e=>{
@@ -397,8 +624,6 @@ function renderToday(){
     const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off); d.setHours(12,0,0,0);
     viewDate=d; buzz(6); renderToday();
   };
-  /* centre only on first paint - re-centring on every tap makes the row
-     jump under your finger */
   const sel=strip.querySelector(".dchip.on");
   if(sel && stripScroll===null) stripScroll=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
   strip.style.scrollBehavior="auto";
@@ -407,44 +632,196 @@ function renderToday(){
   document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
   if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
-  document.getElementById("hperiod").onclick=e=>{
-    const b=e.target.closest("button[data-k]"); if(!b)return;
-    horoPeriod=b.dataset.k; buzz(6); renderToday();
-  };
 
+  /* Why? is the trust control: it opens the evidence, it does not navigate */
+  document.getElementById("pg-today").addEventListener("click",e=>{
+    const w=e.target.closest(".whybtn");
+    if(w){ const box=document.getElementById("why"+w.dataset.why);
+      const open=box.hidden;
+      box.hidden=!open; w.setAttribute("aria-expanded",String(open));
+      w.textContent=open?"Hide":"Why?"; buzz(5); return; }
+    const c=e.target.closest(".skycell");
+    if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
+  });
 }
 
 const PEL={};
+let uniMode="birth";                 /* "birth" | "today" */
+let uniDate=new Date();
+const uniPlacements=()=>{
+  if(uniMode==="birth") return CHART.placements;
+  const pos=positions(uniDate), retro=retrograde(uniDate);
+  return GRAHA_ORDER.map(g=>{
+    const L=pos[g], sg=signOf(L);
+    return {graha:g, L, retro:retro[g], sign:sg, house:CHART.houseOfSign(sg),
+            degf:fmtDeg(L), nak:NAK[nakOf(L)], pada:padaOf(L), dig:dignity(g,L)};
+  });
+};
+
+/* ---------------------------------------------------------------
+   TIME SCRUBBER. The centre line never moves; the scale slides
+   underneath it. Sixty tick elements are recycled rather than
+   rebuilt, so dragging stays cheap.
+   --------------------------------------------------------------- */
+const PX_PER_DAY=46, TICKS=61;
+let dayOffset=0, rulerReady=false;
+
+const dateAtOffset=off=>{
+  const d=new Date(); d.setHours(12,0,0,0);
+  return new Date(d.getTime()+off*864e5);
+};
+
+function buildTicks(){
+  const track=document.getElementById("rulertrack"); if(!track) return;
+  track.innerHTML=Array.from({length:TICKS},(_,i)=>
+    `<span class="tick" data-i="${i}"><i></i><b></b></span>`).join("");
+  rulerReady=true;
+}
+
+function paintRuler(){
+  const track=document.getElementById("rulertrack");
+  const wrap=document.getElementById("ruler");
+  if(!track||!wrap) return;
+  if(!rulerReady) buildTicks();
+  const half=wrap.clientWidth/2;
+  /* laid out at zero width because the scrubber is still hidden; try again
+     on the next frame, once the mode switch has made it visible */
+  if(!half){ requestAnimationFrame(paintRuler); return; }
+  const base=Math.round(dayOffset);
+  track.querySelectorAll(".tick").forEach(t=>{
+    const k=base + (+t.dataset.i - (TICKS-1)/2);
+    const d=dateAtOffset(k);
+    const x=half + (k-dayOffset)*PX_PER_DAY;
+    t.style.transform=`translateX(${x}px)`;
+    const first=d.getDate()===1;
+    t.className="tick"+(first?" month":"")+(k===0?" today":"");
+    t.querySelector("b").textContent = (first||d.getDate()%5===0)
+      ? d.toLocaleDateString("en-GB",first?{month:"short"}:{day:"numeric"}) : "";
+  });
+}
+
+function updateScrubLabel(){
+  const el2=document.getElementById("scrubdate");
+  if(el2) el2.textContent = uniDate.toLocaleDateString("en-GB",
+    {weekday:"short",day:"numeric",month:"long",year:"numeric"});
+  const r=document.getElementById("ruler");
+  if(r) r.setAttribute("aria-valuetext",
+    uniDate.toDateString()+". "+GRAHA_ORDER.map(g=>{
+      const p=uniPlacements().find(x=>x.graha===g);
+      return `${g} in ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house`;
+    }).join(". "));
+  const now=document.getElementById("scrubnow");
+  if(now) now.style.visibility = Math.abs(dayOffset)<0.5 ? "hidden" : "visible";
+}
+
+let lastSigns=null, lastDay=null;
+function applyScrub(){
+  uniDate=dateAtOffset(dayOffset);
+  paintRuler(); paintUniverse(false); updateScrubLabel();
+  const day=Math.round(dayOffset);
+  if(day!==lastDay){ lastDay=day; buzz(3) }
+  /* a stronger, semantic haptic only when a graha actually changes sign */
+  const sig=uniPlacements().map(p=>p.sign).join(",");
+  if(lastSigns!==null && sig!==lastSigns){
+    buzz(14);
+    const changed=uniPlacements().filter((p,i)=>lastSigns.split(",")[i]!==String(p.sign));
+    if(changed.length) flashEvent(changed[0]);
+  }
+  lastSigns=sig;
+}
+
+function flashEvent(p){
+  const host=document.getElementById("scrubwrap"); if(!host) return;
+  let n=host.querySelector(".scrubevent");
+  if(!n){ n=document.createElement("div"); n.className="scrubevent"; host.appendChild(n) }
+  n.innerHTML=`${gIcon(p.graha,18)}<b>${p.graha}</b> enters ${SIGNS[p.sign-1]}
+    <span>your ${ordinal(p.house)} &#183; ${BHAVA[p.house-1][1].toLowerCase()}</span>`;
+  n.classList.add("on");
+  clearTimeout(n._t); n._t=setTimeout(()=>n.classList.remove("on"),2600);
+}
+
+function wireRuler(){
+  const r=document.getElementById("ruler"); if(!r) return;
+  rulerReady=false;
+  let dragging=false, x0=0, o0=0;
+  r.addEventListener("pointerdown",e=>{
+    dragging=true; x0=e.clientX; o0=dayOffset;
+    try{r.setPointerCapture(e.pointerId)}catch(_){}
+    e.preventDefault();
+  });
+  r.addEventListener("pointermove",e=>{
+    if(!dragging) return;
+    dayOffset = o0 - (e.clientX-x0)/PX_PER_DAY;
+    applyScrub();
+  });
+  const end=()=>{ dragging=false };
+  r.addEventListener("pointerup",end);
+  r.addEventListener("pointercancel",end);
+  r.addEventListener("keydown",e=>{
+    const step=e.shiftKey?7:1;
+    if(e.key==="ArrowRight"){dayOffset+=step;applyScrub();e.preventDefault()}
+    if(e.key==="ArrowLeft"){dayOffset-=step;applyScrub();e.preventDefault()}
+    if(e.key==="Home"){dayOffset=0;applyScrub();e.preventDefault()}
+  });
+  document.getElementById("scrubnow").onclick=()=>{dayOffset=0;buzz(10);applyScrub()};
+  requestAnimationFrame(()=>{ paintRuler(); updateScrubLabel(); });
+}
+
+
+/* The mode pill lives in the bar, not the page: it is the identity of this
+   tab, it must stay reachable while a house sheet is open, and the bar is the
+   one surface nothing is ever allowed to scroll over. */
+function setUniverseBar(){
+  setTopBar("",{actions:`
+    <div class="segmented tbseg" id="unimode" role="tablist" aria-label="Chart mode">
+      <button class="${uniMode==="birth"?"on":""}" data-m="birth" role="tab"
+        aria-selected="${uniMode==="birth"}">Birth</button>
+      <button class="${uniMode==="today"?"on":""}" data-m="today" role="tab"
+        aria-selected="${uniMode==="today"}">Today&#8217;s sky</button>
+    </div>`});
+}
+
 function renderUniverse(){
-  setTopBar("Sangram\u2019s birth chart",{sub:`${SIGNS_SK[CHART.lagna-1]} lagna \u00b7 ${fmtDeg(CHART.ascendant)} \u00b7 ${CHART.get("Moon").nak} Moon`});
+  setUniverseBar();
   const pg=document.getElementById("pg-universe");
   pg.innerHTML=`
-    <p class="muted" style="margin:0;font-size:13px;color:var(--ink-3)">Touch a house, or a graha.</p>
+    <p class="unihint" id="unihint"></p>
     <div class="stagewrap" id="sw">
       <div class="stage" id="stage">
         <div class="orbit" id="orbit">
           <svg class="chart" viewBox="0 0 100 100" id="chart"
-               aria-label="North Indian birth chart, twelve houses"></svg>
+               aria-label="North Indian chart, twelve houses"></svg>
           <svg class="asp" viewBox="0 0 100 100" id="asp"></svg>
+          <div class="ghosts" id="ghosts"></div>
           <div class="plane" id="plane"></div>
         </div>
       </div>
     </div>
+    <div class="scrubwrap" id="scrubwrap">
+      <div class="scrubdatehead"><b id="scrubdate"></b>
+        <button class="tb-btn txt" id="scrubnow">Now</button></div>
+      <div class="ruler" id="ruler" role="slider" tabindex="0"
+           aria-label="Move through time" aria-valuetext="">
+        <div class="rulertrack" id="rulertrack"></div>
+        <div class="rulercentre"></div>
+      </div>
+      <p class="scrubnote">Drag the scale. The houses hold still; the sky moves.</p>
+    </div>
     <div class="chartactions" id="chartactions">
       <button class="ghostbtn" id="dlchart">
         <svg viewBox="0 0 24 24"><path d="M12 4v11M8 11.5l4 4 4-4M5 19.5h14"/></svg>
-        Download my birth chart</button>
+        Download my chart</button>
     </div>`;
 
   const chart=document.getElementById("chart"), plane=document.getElementById("plane");
   for(let h=1;h<=12;h++){
     const sg=CHART.signOfHouse(h), occ=CHART.occupants(h);
-    const s=el("polygon",{points:HOUSES[h].map(p=>p.join(",")).join(" "),
+    const sf=el("polygon",{points:HOUSES[h].map(p=>p.join(",")).join(" "),
       class:"hs","data-h":h,tabindex:"0",role:"button"});
-    s.setAttribute("aria-label",
+    sf.setAttribute("aria-label",
       `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
-      (occ.length?`${occ.map(o=>o.graha).join(", ")} ${occ.length>1?"occupy":"occupies"} this house.`:"No graha here."));
-    chart.appendChild(s);
+      (occ.length?`${occ.map(o=>o.graha).join(", ")} at birth.`:"No graha here at birth."));
+    chart.appendChild(sf);
     const L=LABEL[h], t=el("text",{class:"sn",x:L[0],y:L[1],"data-h":h});
     t.textContent=String(sg); chart.appendChild(t);
   }
@@ -455,58 +832,85 @@ function renderUniverse(){
   chart.appendChild(el("polygon",{points:HOUSES[1].map(p=>p.join(",")).join(" "),class:"lg"}));
   const asc=el("text",{class:"asclbl",x:50,y:9}); asc.textContent="ASC"; chart.appendChild(asc);
 
-  for(const p of CHART.placements){
-    const sibs=CHART.occupants(p.house), i=sibs.indexOf(p), n=sibs.length;
-    const a=ANCHOR[p.house], poly=HOUSES[p.house], tri=poly.length===3;
-    /* the illustrations fill their frame, and the Sun's corona and Saturn's
-       ring extend past the disc - so these weights are about apparent size,
-       not radius */
-    const sz={Sun:1.14,Moon:1.0,Mars:.98,Mercury:.9,Jupiter:1.06,Venus:.98,
-              Saturn:1.16,Rahu:.94,Ketu:.9}[p.graha];
-    const dpx=(n>=3?22:n===2?25:29)*sz;
-
-    /* lay the group out on a short arc centred on the anchor, then clamp
-       every member inside the house */
-    const [ux,uy]=AXIS[p.house];
-    const step=n===1?0:(tri?12:13.5);
-    const t=(i-(n-1)/2)*step;
-    /* nudge perpendicular to the axis so three-graha groups do not sit in a line */
-    const perp=n<=2?0:Math.abs(i-(n-1)/2)*(tri?3.0:4.0);
-    /* shrink the polygon by the disc's own radius, expressed as a fraction of
-       the house's inradius - a fixed guess either clips or over-pulls */
-    const radiusUnits=dpx/2/CHART_PX*100;
-    const margin=Math.min(radiusUnits/inradius(poly), 0.42);
-    const fit=fitInside([a[0]+ux*t - uy*perp, a[1]+uy*t + ux*perp - (uy?0:2.2)],
-                        poly, a, margin);
-    const x=fit[0]/100, y=fit[1]/100;
-
+  const SZ={Sun:1.14,Moon:1.0,Mars:.98,Mercury:.9,Jupiter:1.06,Venus:.98,Saturn:1.16,Rahu:.94,Ketu:.9};
+  for(const g of GRAHA_ORDER){
     const b=document.createElement("button");
-    b.className="p"+(shadow(p.graha)?" shadow":"")+(p.retro?" retro":"");
-    b.dataset.g=p.graha;
-    b.style.setProperty("--x",x); b.style.setProperty("--y",y);
-    b.style.setProperty("--d",dpx+"px");
-    b.style.setProperty("--fill",COLOUR(p.graha));
-    b.style.setProperty("--glow",shadow(p.graha)?`0 0 12px -1px ${COLOUR(p.graha)}`
-      :`0 0 16px -2px ${COLOUR(p.graha)}, 0 0 34px -8px ${COLOUR(p.graha)}`);
-    b.setAttribute("aria-label",`${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
-      (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
-    b.innerHTML=`<img class="art" src="assets/graha/${p.graha.toLowerCase()}.png" alt="" draggable="false">`+
-      `<span class="name">${p.graha}<small>${SK[p.graha]}</small></span>`+
-      
+    b.className="p"; b.dataset.g=g;
+    b.style.setProperty("--fill",COLOUR(g));
+    b.style.setProperty("--glow",shadow(g)?`0 0 12px -1px ${COLOUR(g)}`
+      :`0 0 16px -2px ${COLOUR(g)}, 0 0 34px -8px ${COLOUR(g)}`);
+    b.innerHTML=`<img class="art" src="assets/graha/${g.toLowerCase()}.png" alt="" draggable="false">`+
+      `<span class="name">${g}<small>${SK[g]}</small></span>`+
       `<span class="tag">${{Sun:"SU",Moon:"MO",Mars:"MA",Mercury:"ME",Jupiter:"JU",
-        Venus:"VE",Saturn:"SA",Rahu:"RA",Ketu:"KE"}[p.graha]}</span>`+
-      (p.retro?`<span class="retro">R</span>`:``);
-    b._pos=[x,y]; plane.appendChild(b); PEL[p.graha]=b;
+        Venus:"VE",Saturn:"SA",Rahu:"RA",Ketu:"KE"}[g]}</span>`+
+      `<span class="retro">R</span>`;
+    b.style.setProperty("--d",(29*SZ[g])+"px");
+    plane.appendChild(b); PEL[g]=b;
   }
 
-  document.getElementById("dlchart").onclick=()=>{
-    buzz(8);
-    alert("Not built yet. The export will render your chart as an image with the app's name on it.");
-  };
   chart.onclick=e=>{const t=e.target.closest(".hs"); if(t)openHouse(+t.dataset.h)};
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
   plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation();openPlanet(b.dataset.g)}};
+  document.getElementById("dlchart").onclick=()=>{buzz(8);
+    alert("Not built yet. The export will render your chart as an image with the app name on it.")};
+  document.getElementById("tbact").onclick=e=>{
+    const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===uniMode)return;
+    setMode(b.dataset.m);
+  };
+  wireRuler();
+  paintUniverse(true);
+}
+
+/* Move the nine buttons rather than rebuilding them, so a mode change or a
+   scrub is one continuous motion of the same objects (CLAUDE.md 74, 78). */
+function paintUniverse(instant){
+  const list=uniPlacements();
+  const pos=placeByDegree(list);
+  const stage=document.getElementById("stage");
+  if(!stage) return;
+  stage.classList.toggle("instant", !!instant);
+  list.forEach(p=>{
+    const b=PEL[p.graha]; if(!b) return;
+    const xy=pos[p.graha]; if(!xy) return;
+    b.style.setProperty("--x", xy[0]/100);
+    b.style.setProperty("--y", xy[1]/100);
+    b._pos=[xy[0]/100, xy[1]/100];
+    b.classList.toggle("retro", !!p.retro);
+    b.setAttribute("aria-label",
+      `${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
+      (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
+  });
+  paintGhosts();
+  document.getElementById("unihint").innerHTML = uniMode==="birth"
+    ? `The sky at your birth &#8212; 26 March 1992, 10:00.`
+    : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
+  document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
+  if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
+}
+
+/* natal ghosts, shown only in Today mode so "then vs now" is legible */
+function paintGhosts(){
+  const host=document.getElementById("ghosts"); if(!host) return;
+  if(uniMode!=="today"){ host.innerHTML=""; return; }
+  const pos=placeByDegree(CHART.placements);
+  host.innerHTML=CHART.placements.map(p=>{
+    const xy=pos[p.graha]; if(!xy) return "";
+    return `<span class="ghost" style="--x:${xy[0]/100};--y:${xy[1]/100};--fill:${COLOUR(p.graha)}"
+      title="${p.graha} at birth"></span>`;
+  }).join("");
+}
+
+function setMode(m){
+  uniMode=m; buzz(9);
+  document.querySelectorAll("#unimode button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.m===m);
+    b.setAttribute("aria-selected", String(b.dataset.m===m));
+  });
+  if(m==="today"){ uniDate=dateAtOffset(dayOffset); }
+  paintUniverse(false);
+  if(m==="today") requestAnimationFrame(paintRuler);
+  updateScrubLabel();
 }
 
 let mode=null,current=null;
@@ -516,7 +920,10 @@ const qa=s=>Array.from(document.querySelectorAll(s));
 function clearMarks(){
   qa(".hs").forEach(e=>e.classList.remove("sel","lit","dim"));
   qa(".sn").forEach(e=>e.classList.remove("sel","dim"));
-  qa(".p").forEach(e=>e.classList.remove("dim","hidden","focus"));
+  qa(".p").forEach(e=>{
+    e.classList.remove("dim","hidden","recede","focus");
+    e.style.transform=""; e.style.zIndex="";
+  });
   document.getElementById("asp").innerHTML="";
 }
 function resetChart(){
@@ -536,10 +943,13 @@ function showSheet(){
 function openHouse(h){
   if(mode==="house"&&current===h)return;
   mode="house";current=h;clearMarks();buzz(9);
-  const a=ANCHOR[h],k=HOUSES[h].length===3?2.5:2.15;
+  /* The chart leans toward the touched house but never leaves the frame:
+     every other house stays visible and tappable, so the user can move
+     from one house straight to the next (CLAUDE.md 34, 79, 130). */
+  const a=ANCHOR[h],k=1.16;
   const ob=document.getElementById("orbit");
-  ob.style.transformOrigin=`${a[0]}% ${a[1]}%`;
-  ob.style.transform=`translate(${50-a[0]}%, ${30-a[1]}%) scale(${k})`;
+  ob.style.transformOrigin="50% 50%";
+  ob.style.transform=`translate(${(50-a[0])*.22}%, ${(42-a[1])*.22}%) scale(${k})`;
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   CHART.placements.forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
@@ -550,10 +960,12 @@ function openPlanet(g){
   if(mode==="planet"&&current===g)return;
   const p=CHART.get(g); mode="planet";current=g;clearMarks();buzz(12);
   document.getElementById("stage").classList.add("pmode");
-  const b=PEL[g],[px,py]=b._pos,K=.94,T=[.5,.28];
+  const b=PEL[g],[px,py]=b._pos,K=.94,T=[.5,.26];
   b.classList.add("focus"); b.style.zIndex=40;
-  b.style.transform=`translate(${((T[0]-.5)/K+.5-px)*100}%, ${((T[1]-.5)/K+.5-py)*100}%) scale(${(2.5/K).toFixed(3)})`;
-  CHART.placements.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("hidden")});
+  b.style.transform=`translate(${((T[0]-.5)/K+.5-px)*100}%, ${((T[1]-.5)/K+.5-py)*100}%) scale(${(2.2/K).toFixed(3)})`;
+  /* the others recede rather than vanish, so one graha leads straight to
+     the next without a trip back through the chart */
+  CHART.placements.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("recede")});
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===p.house?"lit":"dim"));
   qa(".sn").forEach(e=>{if(+e.dataset.h!==p.house)e.classList.add("dim")});
   drawAspects(p); sheetPlanet(p); showSheet();
@@ -646,12 +1058,17 @@ function sheetPlanet(p){
 /* the transparent gap shows the chart; a tap there should reach it, but the
    panel still has to own scrolling - so forward the hit by hand */
 document.querySelector(".sheetgap").addEventListener("click",e=>{
-  const el=document.elementFromPoint(e.clientX,e.clientY);
-  const under=document.elementsFromPoint(e.clientX,e.clientY)
-    .find(n=>n.classList&&(n.classList.contains("hs")||n.classList.contains("p")));
-  if(under&&under.classList.contains("hs")) openHouse(+under.dataset.h);
-  else if(under&&under.dataset.g) openPlanet(under.dataset.g);
-  else resetChart();
+  /* The panel sits over the chart so it can scroll. Taps landing on the
+     transparent gap are handed to whatever house or graha is beneath. */
+  const stack=document.elementsFromPoint(e.clientX,e.clientY);
+  const hit=stack.find(n=>n.classList &&
+    (n.classList.contains("hs") || n.classList.contains("p") || n.dataset?.g));
+  if(!hit){ resetChart(); return; }
+  if(hit.classList.contains("hs")) openHouse(+hit.dataset.h);
+  else {
+    const btn=hit.closest(".p");
+    if(btn) openPlanet(btn.dataset.g); else resetChart();
+  }
 });
 closeBtn.onclick=resetChart;
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
@@ -1917,7 +2334,7 @@ const TABS=[
 const YOU_INDEX=4, CHART_INDEX=2, TIMELINE_INDEX=1;
 function setTopBar(title,{back=false,actions="",sub=""}={}){
   document.getElementById("tbtitle").innerHTML=
-    sub?`<b>${title}</b><span>${sub}</span>`:`<b>${title}</b>`;
+    !title ? "" : sub?`<b>${title}</b><span>${sub}</span>`:`<b>${title}</b>`;
   document.getElementById("tbback").classList.toggle("on",back);
   document.getElementById("tbact").innerHTML=actions;
 }
@@ -1946,7 +2363,7 @@ function go(i){
      the render functions only run once at startup */
   if(i===0) renderToday();
   else if(i===TIMELINE_INDEX) renderTimelineTab();
-  else if(i===CHART_INDEX) setTopBar("Sangram\u2019s birth chart",{sub:`${SIGNS_SK[CHART.lagna-1]} lagna \u00b7 ${fmtDeg(CHART.ascendant)} \u00b7 ${CHART.get("Moon").nak} Moon`});
+  else if(i===CHART_INDEX) setUniverseBar();
   else if(i===3) setTopBar("Guide");
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);

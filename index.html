@@ -390,7 +390,7 @@ svg.asp{pointer-events:none}
 @keyframes corona{50%{opacity:.55;inset:-20%}}
 
 .sheet{
-  position:fixed;inset:0;z-index:55;overflow-y:auto;overscroll-behavior:contain;
+  position:fixed;inset:0;z-index:40;overflow-y:auto;overscroll-behavior:contain;
   background:none;opacity:0;pointer-events:none;
   transition:opacity .38s var(--ease);-webkit-overflow-scrolling:touch}
 .sheet::-webkit-scrollbar{display:none}
@@ -415,7 +415,7 @@ svg.asp{pointer-events:none}
 .k{font-size:12.5px;color:var(--ink-3)}
 .v{font-family:var(--fm);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
 .sw{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
-.closebtn{position:fixed;top:calc(env(safe-area-inset-top) + 11px);right:18px;z-index:56;
+.closebtn{position:fixed;top:calc(env(safe-area-inset-top) + 11px);right:18px;z-index:60;
   width:32px;height:32px;border:0;background:none;color:var(--ink);font-size:20px;cursor:pointer;
   display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
 .closebtn.on{opacity:1;pointer-events:auto}
@@ -661,17 +661,34 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 
 /* glossary, on the Contacts pattern: persistent search, sticky letter
    headers, generous rows, and an index rail pinned to the right edge */
-.gsearch{position:relative;margin:0 0 6px}
-.gsearch input{width:100%;font-family:var(--ff);font-size:16px;color:var(--ink);
-  background:rgba(255,255,255,.075);border:0;border-radius:10px;
-  padding:10px 34px;-webkit-appearance:none;appearance:none}
+
+.gsearch{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;
+  margin:0 0 4px;padding:6px 0 10px;background:var(--void)}
+.gsico{position:absolute;left:11px;top:6px;bottom:10px;display:flex;align-items:center;
+  color:var(--ink-3);pointer-events:none}
+.gsico svg{width:16px;height:16px}
+.gsearch input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
+  background:rgba(255,255,255,.08);border:0;border-radius:11px;
+  padding:11px 14px 11px 36px;-webkit-appearance:none}
 .gsearch input::-webkit-search-cancel-button{display:none}
 .gsearch input::placeholder{color:var(--ink-3)}
-.gsearch input:focus{outline:none;background:rgba(255,255,255,.1)}
-.gsico{position:absolute;left:10px;top:11px;width:16px;height:16px;fill:none;
-  stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
-.gclear{position:absolute;right:6px;top:6px;width:26px;height:26px;border:0;border-radius:50%;
-  background:rgba(255,255,255,.12);color:var(--ink-2);font-size:15px;cursor:pointer;line-height:1}
+.gsearch input:focus{outline:none;background:rgba(255,255,255,.12)}
+.gcancel{display:none;border:0;background:none;color:var(--brass);font-family:var(--ff);
+  font-size:15px;cursor:pointer;padding:0 2px;white-space:nowrap}
+body.gtyping .gcancel{display:block}
+.azrail{position:fixed;right:1px;top:50%;transform:translateY(-50%);z-index:20;
+  display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:none;
+  touch-action:none;cursor:grab}
+.azrail button{border:0;background:none;color:var(--hot);font-family:var(--ff);
+  font-size:10.5px;font-weight:640;line-height:1.34;padding:0;width:16px;pointer-events:none}
+.azrail button.off{opacity:.22}
+.azbubble{position:fixed;right:46px;top:50%;transform:translateY(-50%) scale(.8);z-index:21;
+  width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+  font-size:28px;font-weight:680;color:var(--ink);background:rgba(60,68,120,.94);
+  border:1px solid var(--edge);opacity:0;pointer-events:none;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  transition:opacity .16s var(--ease),transform .16s var(--ease)}
+.azbubble.on{opacity:1;transform:translateY(-50%) scale(1)}
 .gsec{margin:0}
 .gletter{position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:5;
   margin:0;padding:6px 0 6px 2px;
@@ -685,12 +702,6 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
   font-size:13.5px;line-height:1.45;color:var(--brass);max-width:52ch}
 .gmine b{color:var(--brass);font-weight:660}
 .gempty{font-size:14px;color:var(--ink-3);margin:26px 0}
-.azrail{position:fixed;right:3px;top:50%;transform:translateY(-50%);z-index:20;
-  display:flex;flex-direction:column;align-items:center;padding:6px 4px;background:none}
-.azrail button{border:0;background:none;color:var(--hot);font-family:var(--ff);
-  font-size:10.5px;font-weight:600;line-height:1.32;cursor:pointer;padding:0;width:16px}
-.azrail button.off{opacity:.25}
-.azrail button:active{color:var(--ink)}
 body.glossary .page{padding-right:30px}
 </style>
 
@@ -1580,6 +1591,9 @@ const ICONS={
   people:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3.2 3.2 0 010 5.6"/>',
   book:'<path d="M4 5.5A2.5 2.5 0 016.5 3H19v15H6.5A2.5 2.5 0 004 20.5z"/><path d="M4 20.5V5.5"/>',
   star:'<path d="M12 3.5l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.9l6-.8z"/>',
+  learn:'<path d="M4 6.2A2.2 2.2 0 016.2 4H11v16H6.2A2.2 2.2 0 014 17.8z"/><path d="M20 6.2A2.2 2.2 0 0017.8 4H13v16h4.8A2.2 2.2 0 0020 17.8z"/>',
+  doc:'<path d="M14 3.5H7.4A2.4 2.4 0 005 5.9v12.2a2.4 2.4 0 002.4 2.4h9.2a2.4 2.4 0 002.4-2.4V8.5z"/><path d="M14 3.5V8.5h5"/><path d="M9 13h6M9 16.5h4"/>',
+  az:'<path d="M4.5 15.5L8 6.5l3.5 9M5.6 12.8h4.8"/><path d="M14 6.5h5.5L14 15.5h5.5"/>',
   gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>'
 };
 
@@ -1587,9 +1601,9 @@ const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
-  {id:"learn", label:"Learn astrology", icon:ICONS.book, sub:()=>LEARN.length+" topics"},
-  {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
-  {id:"report", label:"Detailed report", icon:ICONS.book, sub:()=>"PDF"},
+  {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>LEARN.length+" topics"},
+  {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
+  {id:"report", label:"Detailed report", icon:ICONS.doc, sub:()=>"PDF"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
 ];
 
@@ -1704,9 +1718,12 @@ function subGlossary(){
 
   return `
     <div class="gsearch" id="gsearch">
-      <svg viewBox="0 0 24 24" class="gsico"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <span class="gsico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></span>
       <input id="gq" type="search" value="${glossQ}" placeholder="Search ${all.length} terms"
              aria-label="Search the glossary">
+      <button class="gcancel" id="gcancel">Cancel</button>
     </div>
     ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
       <section class="gsec">
@@ -1719,6 +1736,7 @@ function subGlossary(){
           </article>`).join("")}
       </section>`).join("")
       :`<p class="gempty">No results for &#8220;${glossQ}&#8221;</p>`}
+    <div class="azbubble" id="azbubble" aria-hidden="true"></div>
     <nav class="azrail" id="azrail" aria-label="Jump to letter">
       ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
     </nav>`;
@@ -1726,40 +1744,48 @@ function subGlossary(){
 
 function wireGlossary(){
   const page=document.getElementById("pg-you");
-  const bind=id=>{const q=document.getElementById(id); if(!q)return;
-    q.oninput=()=>{glossQ=q.value; const at=q.selectionStart; const inBar=id==="gqb";
-      renderSub();
-      const n=document.getElementById(id); if(n){n.focus();n.setSelectionRange(at,at);}
-      if(inBar) document.body.classList.add("gsearching");
-    };
-    q.onfocus=()=>{ if(id==="gqb") document.body.classList.add("gsearching") };
+  const q=document.getElementById("gq"), gs=document.getElementById("gsearch");
+  if(q) q.oninput=()=>{
+    glossQ=q.value; const at=q.selectionStart;
+    renderSub();
+    const n=document.getElementById("gq");
+    if(n){n.focus();n.setSelectionRange(at,at)}
   };
-  bind("gq"); bind("gqb");
-
   const cancel=document.getElementById("gcancel");
-  if(cancel) cancel.onclick=()=>{glossQ=""; document.body.classList.remove("gsearching");
-    renderSub(); page.scrollTop=0;};
-
-  /* the page search hands over to the bar once it scrolls out of reach */
-  const gs=document.getElementById("gsearch");
-  page.onscroll=()=>{
-    if(!gs) return;
-    document.body.classList.toggle("gstuck", page.scrollTop > gs.offsetTop + 8);
-  };
+  if(cancel) cancel.onclick=()=>{glossQ=""; renderSub(); page.scrollTop=0;};
+  document.body.classList.toggle("gtyping", !!glossQ);
+  page.onscroll=()=>{ if(gs) document.body.classList.toggle("gstuck", page.scrollTop>4) };
   page.onscroll();
 
-  const rail=document.getElementById("azrail");
-  if(rail) rail.onclick=e=>{
-    const b=e.target.closest("button[data-l]"); if(!b||b.classList.contains("off"))return;
-    const el=document.getElementById("L-"+b.dataset.l);
-    if(!el) return;
-    /* scrollIntoView fights the sticky header, so position it by hand */
-    const barH=54+(parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue("--safe-top"))||0);
-    page.scrollTo({top: page.scrollTop + el.getBoundingClientRect().top - barH - 8,
-                   behavior:"smooth"});
-    buzz(5);
+  /* index rail: drag it like Contacts, showing the letter as you move */
+  const rail=document.getElementById("azrail"), bubble=document.getElementById("azbubble");
+  if(!rail) return;
+  const jump=L=>{
+    const el=document.getElementById("L-"+L); if(!el) return;
+    page.scrollTop = page.scrollTop + el.getBoundingClientRect().top - 62;
+    if(bubble){bubble.textContent=L;bubble.classList.add("on")}
+    buzz(4);
   };
+  const letterAt=cy=>{
+    let best=null,bd=1e9;
+    rail.querySelectorAll("button").forEach(b=>{
+      const r=b.getBoundingClientRect(), d=Math.abs(cy-(r.top+r.height/2));
+      if(d<bd){bd=d;best=b}
+    });
+    return best && !best.classList.contains("off") ? best.dataset.l : null;
+  };
+  let dragging=false,last=null;
+  const move=cy=>{const L=letterAt(cy); if(L&&L!==last){last=L;jump(L)}};
+  rail.addEventListener("pointerdown",e=>{
+    dragging=true;last=null;
+    try{rail.setPointerCapture(e.pointerId)}catch(_){}
+    move(e.clientY); e.preventDefault();
+  });
+  rail.addEventListener("pointermove",e=>{if(dragging)move(e.clientY)});
+  const end=()=>{dragging=false;last=null;
+    if(bubble) setTimeout(()=>bubble.classList.remove("on"),240)};
+  rail.addEventListener("pointerup",end);
+  rail.addEventListener("pointercancel",end);
 }
 
 const SAVED=()=>[
@@ -1824,20 +1850,17 @@ function renderSub(){
     events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
-    glossary:`<div class="barsearch" id="barsearch">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-      <input id="gqb" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
-      <button class="gcancel" id="gcancel">Cancel</button>
-    </div>`,
+
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",
-    learn:"Learn astrology",learntopic:(LEARN.find(x=>x.id===learnTopic)||{}).title||"Learn",addpartner:subArg!=null?"Edit person":"Add a person",
+    learn:"Learn astrology",learntopic:(LEARN.find(x=>x.id===learnTopic)||{}).title||"Learn",
+    personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
   setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
-              glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,
+              glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -1849,10 +1872,11 @@ function renderSub(){
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
   document.body.classList.toggle("glossary",subView==="glossary");
-  if(subView!=="glossary") document.body.classList.remove("gstuck","gsearching");
+  if(subView!=="glossary") document.body.classList.remove("gstuck","gtyping");
   if(subView==="glossary") wireGlossary();
   if(subView==="learn") wireLearn();
   if(subView==="people") wirePeople();
+  if(subView==="personchart") wirePersonChart();
   if(subView==="settings") wireSettings();
   if(subView==="report") wireReport();
   if(subView==="addpartner") wireAddPartner();
@@ -2022,10 +2046,54 @@ function subPeople(){
 function wirePeople(){
   document.querySelectorAll("#pg-you .item[data-p]").forEach(b=>b.onclick=()=>{
     if(b.dataset.p==="me"){buzz(6);return}
-    subArg=+b.dataset.p; cameFrom="people"; subView="partner"; buzz(7); renderSub();
+    subArg=+b.dataset.p; cameFrom="people"; subView="personchart"; buzz(7); renderSub();
   });
   const add=document.getElementById("addperson");
   if(add) add.onclick=()=>{subArg=null;cameFrom="people";subView="addpartner";buzz(7);renderSub()};
+}
+
+
+function subPersonChart(){
+  const p=partners()[subArg]; if(!p){subView="people";return subPeople()}
+  const d=new Date(p.born);
+  const nk=NAK[nakOf(p.moonL)], lord=SIGN_LORD[signOf(p.moonL)];
+  const v=vimshottari(d,p.moonL), now=v.at(new Date());
+  return `
+    <div class="me-head" style="margin-bottom:14px">
+      <div class="avatar" style="background:${COLOUR("Venus")}">${p.name[0].toUpperCase()}</div>
+      <div class="me-id"><h1>${p.name}</h1>
+        <p>${d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}
+           ${p.place?" &#183; "+p.place:""}</p></div>
+    </div>
+    <div class="eyebrow" style="margin:18px 0 8px">What can be computed</div>
+    ${rows([
+      ["Moon",`${gIcon("Moon",16)}${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
+      ["Nakshatra",`${nk} &#183; pada ${padaOf(p.moonL)}`],
+      ["Nakshatra lord",`${gIcon(nakLord2(nakOf(p.moonL)),16)}${nakLord2(nakOf(p.moonL))}`],
+      ["Moon sign lord",`${gIcon(lord,16)}${lord}`],
+      ["Dasha now",now?`${now.maha.lord}/${now.antar.lord}`:"&#8212;"],
+      ["Dasha began with",v.birthLord]
+    ])}
+    <div class="setgroup" style="margin-top:20px">
+      <button class="setrow tap" id="gotocompat">
+        <div class="setlabel"><b>Compatibility with your chart</b>
+          <span>Full 36-point Gun Milan</span></div>
+        <span class="setval"><i class="chev">&#8250;</i></span>
+      </button>
+      <button class="setrow tap" id="editperson">
+        <div class="setlabel"><b>Edit birth details</b></div>
+        <span class="setval"><i class="chev">&#8250;</i></span>
+      </button>
+    </div>
+    <p class="note">A full chart needs houses and an ascendant, which need the birth place and
+    a licensed ephemeris. Everything above comes from the Moon alone, which is enough for
+    nakshatra, dasha and matching &#8212; and is computed, not estimated.</p>`;
+}
+function wirePersonChart(){
+  const c=document.getElementById("gotocompat");
+  if(c) c.onclick=()=>{cameFrom="people";subView="partner";buzz(7);renderSub()};
+  const e=document.getElementById("editperson");
+  if(e) e.onclick=()=>{cameFrom="people";subView="addpartner";buzz(7);renderSub()};
 }
 
 function subReport(){
@@ -2680,6 +2748,7 @@ document.getElementById("tbback").onclick=()=>{
   if(subView==="partner"||subView==="addpartner"){subView=cameFrom||"rel";subArg=null;renderSub()}
   else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
   else if(subView==="learntopic"){subView="learn";renderSub()}
+  else if(subView==="personchart"){subView="people";subArg=null;renderSub()}
   else{subView=null;subArg=null;renderYou()}
 };
 const nav=document.getElementById("tabs");

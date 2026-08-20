@@ -45,6 +45,46 @@ body{
 .page::-webkit-scrollbar{display:none}
 
 /* -- tab bar ----------------------------------------------------- */
+
+/* top bar - one line, content passes behind it */
+.topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
+  display:flex;align-items:center;gap:4px;padding:0 16px;
+  padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(7,12,30,.92),rgba(7,12,30,.72) 70%,rgba(7,12,30,0));
+  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+  pointer-events:none}
+.topbar>*{pointer-events:auto}
+.tb-title{font-size:17px;font-weight:640;letter-spacing:-.02em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
+  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
+.tb-back.on{width:24px;opacity:1;margin-left:-6px}
+.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.tb-btn{width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.2);color:var(--ink-2)}
+.tb-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.tb-btn.txt{width:auto;padding:0 13px;font-family:var(--ff);font-size:13.5px;font-weight:560;
+  color:var(--ink);background:rgba(255,255,255,.12)}
+.tb-btn:active{background:rgba(255,255,255,.18)}
+.page{padding-top:calc(64px + env(safe-area-inset-top))}
+.subhead{display:none}
+
+/* five tabs, the chart raised in the centre */
+.tabs{grid-template-columns:repeat(5,1fr)}
+.tab .tabico{display:grid;place-items:center;width:26px;height:26px}
+.tab svg{width:23px;height:23px}
+.tab.hero{position:relative}
+.tab.hero .tabico{width:50px;height:50px;border-radius:50%;margin-top:-22px;
+  background:linear-gradient(165deg,#243companion,#16204a);
+  background:linear-gradient(165deg,#2b3a72,#141d40);
+  border:.5px solid rgba(150,180,255,.34);
+  box-shadow:0 6px 20px -6px rgba(0,0,0,.75),0 0 22px -8px rgba(130,165,255,.7);
+  transition:transform .34s var(--ease),box-shadow .34s var(--ease)}
+.tab.hero svg{width:26px;height:26px}
+.tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
+  box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
+.tab.hero .tablbl{margin-top:-18px}
 .tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:60;
   height:calc(var(--tabh) + env(safe-area-inset-bottom));
@@ -109,14 +149,94 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 
 /* month calendar, Apple Fitness layout with lunar phases in the cells */
 body.noscroll{overflow:hidden}
-body.insub .tabs{transform:translateY(110%);pointer-events:none}
+body.insub 
+/* top bar - one line, content passes behind it */
+.topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
+  display:flex;align-items:center;gap:4px;padding:0 16px;
+  padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(7,12,30,.92),rgba(7,12,30,.72) 70%,rgba(7,12,30,0));
+  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+  pointer-events:none}
+.topbar>*{pointer-events:auto}
+.tb-title{font-size:17px;font-weight:640;letter-spacing:-.02em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
+  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
+.tb-back.on{width:24px;opacity:1;margin-left:-6px}
+.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.tb-btn{width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.2);color:var(--ink-2)}
+.tb-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.tb-btn.txt{width:auto;padding:0 13px;font-family:var(--ff);font-size:13.5px;font-weight:560;
+  color:var(--ink);background:rgba(255,255,255,.12)}
+.tb-btn:active{background:rgba(255,255,255,.18)}
+.page{padding-top:calc(64px + env(safe-area-inset-top))}
+.subhead{display:none}
+
+/* five tabs, the chart raised in the centre */
+.tabs{grid-template-columns:repeat(5,1fr)}
+.tab .tabico{display:grid;place-items:center;width:26px;height:26px}
+.tab svg{width:23px;height:23px}
+.tab.hero{position:relative}
+.tab.hero .tabico{width:50px;height:50px;border-radius:50%;margin-top:-22px;
+  background:linear-gradient(165deg,#243companion,#16204a);
+  background:linear-gradient(165deg,#2b3a72,#141d40);
+  border:.5px solid rgba(150,180,255,.34);
+  box-shadow:0 6px 20px -6px rgba(0,0,0,.75),0 0 22px -8px rgba(130,165,255,.7);
+  transition:transform .34s var(--ease),box-shadow .34s var(--ease)}
+.tab.hero svg{width:26px;height:26px}
+.tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
+  box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
+.tab.hero .tablbl{margin-top:-18px}
+.tabs{transform:translateY(110%);pointer-events:none}
+
+/* top bar - one line, content passes behind it */
+.topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
+  display:flex;align-items:center;gap:4px;padding:0 16px;
+  padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(7,12,30,.92),rgba(7,12,30,.72) 70%,rgba(7,12,30,0));
+  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+  pointer-events:none}
+.topbar>*{pointer-events:auto}
+.tb-title{font-size:17px;font-weight:640;letter-spacing:-.02em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
+  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
+.tb-back.on{width:24px;opacity:1;margin-left:-6px}
+.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.tb-btn{width:34px;height:34px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.2);color:var(--ink-2)}
+.tb-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.tb-btn.txt{width:auto;padding:0 13px;font-family:var(--ff);font-size:13.5px;font-weight:560;
+  color:var(--ink);background:rgba(255,255,255,.12)}
+.tb-btn:active{background:rgba(255,255,255,.18)}
+.page{padding-top:calc(64px + env(safe-area-inset-top))}
+.subhead{display:none}
+
+/* five tabs, the chart raised in the centre */
+.tabs{grid-template-columns:repeat(5,1fr)}
+.tab .tabico{display:grid;place-items:center;width:26px;height:26px}
+.tab svg{width:23px;height:23px}
+.tab.hero{position:relative}
+.tab.hero .tabico{width:50px;height:50px;border-radius:50%;margin-top:-22px;
+  background:linear-gradient(165deg,#243companion,#16204a);
+  background:linear-gradient(165deg,#2b3a72,#141d40);
+  border:.5px solid rgba(150,180,255,.34);
+  box-shadow:0 6px 20px -6px rgba(0,0,0,.75),0 0 22px -8px rgba(130,165,255,.7);
+  transition:transform .34s var(--ease),box-shadow .34s var(--ease)}
+.tab.hero svg{width:26px;height:26px}
+.tab.hero.on .tabico{transform:translateY(-2px) scale(1.04);
+  box-shadow:0 8px 26px -6px rgba(0,0,0,.8),0 0 30px -6px rgba(150,180,255,.85)}
+.tab.hero .tablbl{margin-top:-18px}
 .tabs{transition:transform .38s var(--ease)}
 body.insub .page{padding-bottom:30px}
 .subhead{display:flex;align-items:center;gap:9px;margin:2px 0 16px}
-.subhead .backarrow{flex:0 0 auto;width:32px;height:32px;border-radius:50%;cursor:pointer;
-  border:0;background:rgba(255,255,255,.07);color:var(--ink);display:grid;place-items:center;
-  font-size:17px;line-height:1;padding:0 2px 0 0}
-.subhead .backarrow:active{background:rgba(255,255,255,.16)}
+.subhead .backarrow{flex:0 0 auto;width:26px;height:32px;cursor:pointer;border:0;
+  background:none;color:var(--ink);display:grid;place-items:center;
+  font-size:26px;line-height:1;padding:0;margin-left:-4px}
+.subhead .backarrow:active{opacity:.5}
 .subhead h1{font-size:25px;margin:0;letter-spacing:-.028em}
 .calsheet{
   position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
@@ -127,7 +247,13 @@ body.insub .page{padding-bottom:30px}
 .calsheet.open{transform:translateY(0);pointer-events:auto}
 .calhead{display:flex;align-items:center;justify-content:center;position:relative;
   padding:max(16px,env(safe-area-inset-top)) 20px 12px;flex:0 0 auto}
-.calhead span{font-size:19px;font-weight:640;letter-spacing:-.02em}
+.calhead span{font-size:18px;font-weight:640;letter-spacing:-.02em;
+  min-width:11ch;text-align:center}
+.calnav{display:flex;gap:2px}
+.calnav button{width:32px;height:32px;border:0;border-radius:9px;cursor:pointer;
+  background:rgba(255,255,255,.07);color:var(--ink-2);font-size:15px;line-height:1}
+.calnav button:active{background:rgba(255,255,255,.16)}
+.calhead{gap:8px}
 .calclose{position:absolute;right:18px;top:max(12px,env(safe-area-inset-top));
   width:34px;height:34px;border-radius:50%;cursor:pointer;display:grid;place-items:center;
   background:rgba(255,255,255,.09);border:0;color:var(--ink);font-size:19px;line-height:1}
@@ -153,7 +279,8 @@ body.insub .page{padding-bottom:30px}
 .cday.today .cnum{background:var(--brass);color:#0A0F22;font-weight:680}
 .cday.sel{background:rgba(150,180,245,.13)}
 .cday.sel .cnum{color:var(--ink);font-weight:640}
-.cday .mn{opacity:.95}
+.cday .mn{opacity:.98;display:block}
+.mn{display:block;object-fit:contain}
 .cday.empty .mn{display:none}
 .datestrip{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .datestrip::-webkit-scrollbar{display:none}
@@ -169,7 +296,7 @@ body.insub .page{padding-bottom:30px}
 .dchip.on b{color:var(--ink)}
 
 .moonrow{display:flex;align-items:center;gap:16px}
-.moonbig{flex:0 0 auto;display:grid;place-items:center;width:66px;height:66px;
+.moonbig{flex:0 0 auto;display:grid;place-items:center;width:72px;height:72px;
   filter:drop-shadow(0 0 18px rgba(190,210,245,.35))}
 .datesub{font-size:13.5px;color:var(--ink-2);margin:3px 0 0}
 .datestrip{scroll-behavior:smooth}
@@ -201,6 +328,8 @@ body.insub .page{padding-bottom:30px}
 .cat:active{transform:scale(.988)}
 .cat .dot{width:26px;height:26px;border-radius:50%;margin-top:1px;
   box-shadow:0 0 14px -3px currentColor}
+.cat .catico{width:30px;height:30px;object-fit:contain;margin-top:1px;flex:0 0 auto;
+  filter:drop-shadow(0 0 8px rgba(150,180,255,.25))}
 .cat h3{margin:0 0 3px;font-size:15px;font-weight:620;letter-spacing:-.01em}
 .cat p{margin:0;font-size:13px;line-height:1.48;color:var(--ink-2)}
 .cat .why{
@@ -322,6 +451,32 @@ svg.asp{pointer-events:none}
 .closebtn.on{opacity:1;pointer-events:auto}
 
 /* -- guide ------------------------------------------------------- */
+
+.sheethead{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.sheetart{width:54px;height:54px;flex:0 0 auto;object-fit:contain;
+  filter:drop-shadow(0 3px 12px rgba(0,0,0,.6)) drop-shadow(0 0 16px rgba(150,180,255,.3));
+  animation:artin .55s var(--ease)}
+@keyframes artin{from{opacity:0;transform:scale(.6) translateY(10px)}to{opacity:1;transform:none}}
+
+/* chat */
+.chatwrap{padding-bottom:74px}
+.composer{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom));
+  z-index:45;display:flex;align-items:center;gap:9px;padding:10px 14px 12px;
+  background:linear-gradient(180deg,rgba(7,12,30,0),rgba(7,12,30,.92) 30%,#070C1E);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.composer input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
+  background:rgba(255,255,255,.07);border:.5px solid rgba(110,135,195,.24);
+  border-radius:99px;padding:12px 16px;-webkit-appearance:none}
+.composer input:focus{outline:none;border-color:var(--hot);background:rgba(255,255,255,.11)}
+.cmp-btn{width:40px;height:40px;flex:0 0 auto;border-radius:50%;cursor:pointer;display:grid;
+  place-items:center;background:rgba(255,255,255,.08);border:.5px solid rgba(110,135,195,.22);
+  color:var(--ink-2)}
+.cmp-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.cmp-btn.mic{background:var(--ink);color:#0A0F22;border:0}
+.cmp-btn.mic.live{background:var(--mars);color:#fff;animation:pulse 1.6s ease-in-out infinite}
+.chat{padding-bottom:6px}
+.bubble.it .cmd{opacity:.85}
 .chat{display:flex;flex-direction:column;gap:12px;margin-top:14px}
 .bubble{max-width:84%;padding:12px 15px;border-radius:19px;font-size:14.5px;line-height:1.5}
 .bubble.me{align-self:flex-end;background:rgba(120,150,225,.24);border-bottom-right-radius:6px}
@@ -366,7 +521,7 @@ svg.asp{pointer-events:none}
 .band{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   min-height:0;border-bottom:.5px solid rgba(10,16,36,.75);transition:opacity .3s var(--ease)}
 .band:not(.on){opacity:.42}
-.byr{font-family:var(--fm);font-size:9px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
 .bld{font-size:12px;font-weight:700;letter-spacing:.02em}
 .spinemark{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;
   background:var(--ink);box-shadow:0 0 10px rgba(255,255,255,.5);pointer-events:none}
@@ -376,6 +531,18 @@ svg.asp{pointer-events:none}
   box-shadow:0 0 6px -1px currentColor;pointer-events:none;z-index:2}
 .tlbody{min-width:0}
 .tlbar{margin:16px 0 4px}
+.scrubdate{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:0 0 12px;
+  padding-bottom:10px;border-bottom:.5px solid var(--line)}
+.scrubdate b{font-size:20px;font-weight:680;letter-spacing:-.026em}
+.scrubdate>div span{font-family:var(--fm);font-size:11px;color:var(--ink-3);display:block;margin-top:2px}
+.nowbadge{font-family:var(--fm);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--brass);border:.5px solid rgba(194,155,78,.4);border-radius:99px;padding:4px 9px}
+.poslabel{font-family:var(--fm);font-size:11px;color:var(--ink-3);margin:7px 0 0;
+  letter-spacing:.04em}
+.antar{margin-top:16px;padding:11px 13px;border-radius:12px;display:flex;
+  align-items:center;gap:2px;flex-wrap:wrap;
+  background:rgba(255,255,255,.035);border:.5px solid rgba(110,135,195,.16)}
+.antar .evmeta{margin:0 0 0 6px}
 .spanrow{display:flex;align-items:center;gap:10px;margin:10px 0 12px}
 .spanrow>div{flex:1}
 .spanrow .sk{display:block;font-family:var(--fm);font-size:9px;letter-spacing:.12em;
@@ -414,7 +581,7 @@ svg.asp{pointer-events:none}
 .fld{display:block;margin-bottom:15px}
 .flabel{display:block;font-family:var(--fm);font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
-.fld input,.fld textarea,.fld select{width:100%;font-family:var(--ff);font-size:15.5px;
+.fld input,.fld textarea,.fld select{width:100%;font-family:var(--ff);font-size:16px;
   color:var(--ink);background:rgba(255,255,255,.055);border-radius:12px;padding:12px 13px;
   border:.5px solid rgba(110,135,195,.22);-webkit-appearance:none;appearance:none}
 .fld select{background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
@@ -431,6 +598,18 @@ svg.asp{pointer-events:none}
 .evdel{border:.5px solid var(--line-2);background:none;color:var(--ink-3);font-size:11.5px;
   cursor:pointer;line-height:1;padding:5px 10px;border-radius:99px;font-family:var(--ff)}
 .evdel:active{background:rgba(255,255,255,.1)}
+
+.gico{display:inline-block;vertical-align:-4px;margin-right:7px;object-fit:contain}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pillrow{display:flex;flex-direction:column;gap:9px}
+.mpill{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:14px;
+  background:linear-gradient(168deg,rgba(30,44,88,.42),rgba(14,22,50,.32));
+  border:.5px solid rgba(110,135,195,.18)}
+.mpico{width:34px;height:34px;flex:0 0 auto;object-fit:contain;
+  filter:drop-shadow(0 0 10px rgba(150,180,255,.3))}
+.mpill b{font-size:14.5px;font-weight:620}
+.mpsub{display:block;font-size:12.5px;color:var(--ink-2);margin-top:1px}
+.mpsub2{display:block;font-family:var(--fm);font-size:10px;color:var(--ink-3);margin-top:3px}
 .addrow{display:flex;align-items:center;gap:14px}
 .plus{flex:0 0 auto;width:42px;height:42px;border-radius:50%;cursor:pointer;
   border:.5px solid rgba(140,175,255,.35);background:rgba(120,150,225,.2);
@@ -508,8 +687,14 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 <div class="wash"></div>
 
 <div class="app">
-  <div class="pages">
+  <header class="topbar" id="topbar">
+      <button class="tb-back" id="tbback" aria-label="Back">&#8249;</button>
+      <span class="tb-title" id="tbtitle">Today</span>
+      <div class="tb-actions" id="tbact"></div>
+    </header>
+    <div class="pages">
     <section class="page on" id="pg-today"></section>
+    <section class="page" id="pg-timeline"></section>
     <section class="page" id="pg-universe"></section>
     <section class="page" id="pg-guide"></section>
     <section class="page" id="pg-you"></section>
@@ -595,7 +780,7 @@ function dignity(g,L){
   return null;
 }
 const DR={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
-const offsets=g=>DR[g]||[7];
+const offsets=g=>DR[g]||((g==="Rahu"||g==="Ketu")&&PREFS().nodal?[5,7,9]:[7]);
 
 function vimshottari(birth,moonL){
   const li=nakOf(moonL)%9, birthLord=ORDER[li];
@@ -806,9 +991,10 @@ function ashtakoota(boy,girl){
 /* Mangal dosha: Mars in the 1st, 2nd, 4th, 7th, 8th or 12th from lagna. */
 const manglik=ch=>[1,2,4,7,8,12].includes(ch.get("Mars").house);
 
+const gIcon=(g,sz=18)=>`<img class="gico" src="assets/graha/${g.toLowerCase()}.png" width="${sz}" height="${sz}" alt="" draggable="false">`;
 const COLOUR=g=>`var(--${g.toLowerCase()})`;
 const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
-const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(_){}}
+const buzz=ms=>{try{if(PREFS().haptics!==false&&navigator.vibrate)navigator.vibrate(ms)}catch(_){}}
 const el=(t,a={})=>{const e=document.createElementNS("http://www.w3.org/2000/svg",t);
   for(const k in a)e.setAttribute(k,a[k]);return e};
 const fmtDate=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
@@ -884,7 +1070,7 @@ function locator(h){
 }
 
 /* &#9552;&#9552;&#9552; TODAY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
-let viewDate=new Date();
+let viewDate=new Date(); let stripScroll=null;
 const isToday=d=>d.toDateString()===new Date().toDateString();
 const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
@@ -931,27 +1117,22 @@ function renderToday(){
     const on=d.toDateString()===viewDate.toDateString();
     days.push(`<button class="dchip ${on?"on":""}" data-off="${i}">
       <small>${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</small>
-      <b>${d.getDate()}</b>${moonSVG(d,20)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
+      <b>${d.getDate()}</b>${moonImg(d,22)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
   const mHouse=tr.moon.house, sHouse=tr.sun.house;
+  setTopBar("Today",{actions:
+    `${isToday(viewDate)?"":`<button class="tb-btn txt" id="totoday">Today</button>`}
+     <button class="tb-btn" id="calbtn" aria-label="Choose a date">
+       <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
+         <path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></button>`});
   document.getElementById("pg-today").innerHTML=`
-    <div class="tophead">
-      <div>
-        <h1 style="font-size:27px">Hi Sangram</h1>
-        <p class="datesub">${viewDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
-      </div>
-      <div class="tophead-actions">
-        ${isToday(viewDate)?"":`<button class="todaychip" id="totoday">Go to today</button>`}
-        <button class="calbtn" id="calbtn" aria-label="Choose a date">
-          <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
-            <path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></button>
-      </div>
-    </div>
+    <h1 style="font-size:27px">Hi Sangram</h1>
+    <p class="datesub">${viewDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
     <div class="datestrip" id="dates">${days.join("")}</div>
 
     <div class="card moonrow">
-      <div class="moonbig">${moonArt(viewDate,66)}</div>
+      <div class="moonbig">${moonImg(viewDate,72)}</div>
       <div>
         <div class="eyebrow" style="margin-bottom:4px">Moon today</div>
         <div style="font-size:17px;font-weight:640;letter-spacing:-.015em">${mp.name}</div>
@@ -973,18 +1154,18 @@ function renderToday(){
     </div>
 
     <div class="section">
-      <h2>Moving today</h2>
-      ${[["Moon",tr.moon,"every 2-3 days"],["Sun",tr.sun,"about a month"]].map(([g,t,rate])=>`
-        <div class="tline">
-          <div class="when">${t.deg}</div>
-          <div class="what">
-            <b style="color:${COLOUR(g)}">${g}</b>
-            <span class="pill">${ordinal(t.house)} house</span>
-            <p>${SIGNS[t.sign-1]} &#183; ${t.nak} pada ${t.pada}. Stays about ${rate}.</p>
-          </div></div>`).join("")}
+      <h2 class="sr">Moving today</h2>
+      <div class="pillrow">
+      ${[["Moon",tr.moon,"2-3 days"],["Sun",tr.sun,"a month"]].map(([g,t,rate])=>`
+        <div class="mpill">
+          <img class="mpico" src="assets/graha/${g.toLowerCase()}.png" alt="">
+          <div><b style="color:${COLOUR(g)}">${g}</b>
+            <span class="mpsub">${SIGNS[t.sign-1]} &#183; ${ordinal(t.house)} house</span>
+            <span class="mpsub2">${t.nak} pada ${t.pada} &#183; moves every ${rate}</span></div>
+        </div>`).join("")}
+      </div>
       <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:10px 0 0">
-        Transit positions computed for this date. The slower grahas are not yet
-        included &#8212; they need the licensed ephemeris.</p>
+        Transit positions computed for this date. The slower grahas need the licensed ephemeris.</p>
     </div>
 
     <div class="section">
@@ -992,7 +1173,7 @@ function renderToday(){
       <div class="cats">${CATS.map(c=>{
         const r=reading(c,tr);
         return `<button class="cat" data-house="${c.house}">
-          <span class="dot" style="background:${c.colour};color:${c.colour}"></span>
+          <img class="catico" src="assets/graha/${SIGN_LORD[CHART.signOfHouse(c.house)].toLowerCase()}.png" alt="">
           <span><h3>${c.key}</h3><p>${r.text}</p><span class="why">${r.why}</span></span>
           <span class="chev" style="color:var(--ink-3)">&#8250;</span></button>`}).join("")}</div>
     </div>
@@ -1012,8 +1193,13 @@ function renderToday(){
     const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off); d.setHours(12,0,0,0);
     viewDate=d; buzz(6); renderToday();
   };
+  /* centre only on first paint - re-centring on every tap makes the row
+     jump under your finger */
   const sel=strip.querySelector(".dchip.on");
-  if(sel) strip.scrollLeft=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
+  if(sel && stripScroll===null) stripScroll=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
+  strip.style.scrollBehavior="auto";
+  strip.scrollLeft=stripScroll??0;
+  strip.addEventListener("scroll",()=>{stripScroll=strip.scrollLeft},{passive:true});
   document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
   if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
@@ -1024,11 +1210,11 @@ function renderToday(){
 
 const PEL={};
 function renderUniverse(){
+  setTopBar("Birth chart");
   const pg=document.getElementById("pg-universe");
   pg.innerHTML=`
     <div class="eyebrow">Vrishabha lagna &#183; ${fmtDeg(CHART.ascendant)} &#183; Rohini</div>
-    <h1>Your universe</h1>
-    <p class="muted" style="margin-bottom:2px">Touch a house, or a graha.</p>
+    <p class="muted" style="margin:2px 0 0">Touch a house, or a graha.</p>
     <div class="stagewrap" id="sw">
       <div class="stage" id="stage">
         <div class="orbit" id="orbit">
@@ -1096,7 +1282,7 @@ function renderUniverse(){
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
     b.innerHTML=`<img class="art" src="assets/graha/${p.graha.toLowerCase()}.png" alt="" draggable="false">`+
       `<span class="name">${p.graha}<small>${SK[p.graha]}</small></span>`+
-      `<span class="tag">${p.graha.slice(0,2).toUpperCase()}</span>`+
+      
       (p.retro?`<span class="retro">R</span>`:``);
     b._pos=[x,y]; plane.appendChild(b); PEL[p.graha]=b;
   }
@@ -1186,10 +1372,10 @@ function sheetHouse(h){
     <div class="eyebrow">${locator(h)}${ordinal(h)} house &#183; ${sk} Bhava &#183; ${SIGNS_SK[sg-1]} rashi</div>
     <h1 style="font-size:26px">${head}</h1>
     <p class="muted" style="margin:0 0 14px">${body}</p>
-    <p class="lordline">Sign <b>${sg}</b> (${SIGNS[sg-1]}) &#183; ruled by <b>${lord}</b>, which sits in the <b>${ordinal(lp.house)}</b></p>
+    <p class="lordline">Sign <b>${sg}</b> (${SIGNS[sg-1]}) &#183; ruled by ${gIcon(lord,17)}<b>${lord}</b>, which sits in the <b>${ordinal(lp.house)}</b></p>
     ${rows([
       ["Sign",`${SIGNS[sg-1]} (${sg})`],
-      ["Grahas here",occ.length?occ.map(o=>`<span class="sw" style="background:${COLOUR(o.graha)}"></span>${o.graha}`).join("&nbsp; "):"&#8212;"],
+      ["Grahas here",occ.length?occ.map(o=>`${gIcon(o.graha,16)}${o.graha}`).join("&nbsp; "):"&#8212;"],
       ["Aspected by",inc.length?inc.join(", "):"&#8212;"],
       ["Classification",[h===1||h===4||h===7||h===10?"Kendra":null,
         [1,5,9].includes(h)?"Trikona":null,[6,8,12].includes(h)?"Dusthana":null,
@@ -1204,14 +1390,17 @@ function sheetPlanet(p){
   const g=p.graha, ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
   const now=CHART.dasha.at(new Date());
   sheet.innerHTML=`
-    <div class="eyebrow">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
-    <h1 style="font-size:26px">${g}</h1>
+    <div class="sheethead">
+      <img class="sheetart" src="assets/graha/${g.toLowerCase()}.png" alt="" draggable="false">
+      <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
+        <h1 style="font-size:26px;margin:0">${g}</h1></div>
+    </div>
     <p class="muted" style="margin:0 0 14px">${CORE[g]}</p>
     <p class="lordline">${ruled.length
       ? `Lord of the <b>${ruled.map(ordinal).join(" & ")}</b>, sitting in the <b>${ordinal(p.house)}</b>`
       : `Owns no sign, so rules no house. Sitting in the <b>${ordinal(p.house)}</b>`}</p>
     ${rows([
-      ["Sign",`<span class="sw" style="background:${COLOUR(g)}"></span>${SIGNS[p.sign-1]} (${p.sign})`],
+      ["Sign",`${SIGNS[p.sign-1]} (${p.sign})`],
       ["Degree",p.degf],
       ["Nakshatra",`${p.nak} &#183; pada ${p.pada}`],
       ["Motion",p.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
@@ -1258,20 +1447,46 @@ const ASKS=[
    act:()=>{go(1);setTimeout(()=>openPlanet("Jupiter"),340)}}
 ];
 
+const SAMPLE_CHAT=[
+  {me:true, t:"Where does Saturn sit in my kundali?"},
+  {me:false, cmd:"focusPlanet(Saturn)",
+   t:()=>{const x=CHART.get("Saturn");
+     return `Your Saturn is in <b>Libra, the ${ordinal(x.house)} house</b>, at ${x.degf} &#8212; and it is <b>exalted</b> there, which is the strongest placement Saturn can hold. It is also retrograde.<br><br>It rules your ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")} houses, so career and gains both answer to it.`}},
+  {me:true, t:"At what age will I likely find my partner?"},
+  {me:false, cmd:"focusHouse(7)",
+   t:()=>{const sg=CHART.signOfHouse(7), l=SIGN_LORD[sg], lp=CHART.get(l);
+     return `I can show you what the chart traditionally associates with partnership, though I would not put a number on it &#8212; nothing here predicts events.<br><br>Your 7th carries <b>${SIGNS[sg-1]}</b>, ruled by ${l}, which sits in your ${ordinal(lp.house)}. In Vedic practice, periods governed by ${l} are the ones read as bringing partnership themes forward. Your ${l} dasha runs from ${fmtDate(CHART.dasha.mahas.find(m=>m.lord===l)?.start||new Date())}.<br><br>Would you like me to open that period on your timeline?`}},
+  {me:true, t:"Why is Mercury weak in my chart?"},
+  {me:false, cmd:"focusPlanet(Mercury)",
+   t:()=>`Mercury sits in <b>Pisces</b>, which is its sign of <b>debilitation</b> &#8212; the opposite of exaltation. It is also retrograde, and less than a degree from your Sun, close enough to be read as <b>combust</b>.<br><br>Three difficult conditions at once. Traditionally that is read as intellect and speech working indirectly rather than plainly &#8212; not as an absence of them.`}
+];
+
 function renderGuide(){
+  setTopBar("Guide");
   document.getElementById("pg-guide").innerHTML=`
-    <div class="eyebrow">Guide</div>
-    <h1>Talk to your chart</h1>
-    <div class="voice"><div class="orb"></div></div>
-    <p class="muted" style="text-align:center;max-width:34ch;margin:0 auto">
-      Ask, and the chart moves to what you asked about.</p>
-    <div class="chat" id="chat"></div>
-    <div class="asks" id="asks">${ASKS.map((a,i)=>`<button class="ask" data-i="${i}">${a.q}</button>`).join("")}</div>
-    <p class="note"><b>Placeholder.</b> These answers are assembled from the chart engine
-    by template, not generated by a language model. The point being shown is the mechanism:
-    a reply carries a <i>UI command</i>, so the answer moves the chart instead of merely
-    describing it. Live conversation comes later &#8212; and the model will explain the
-    engine's facts, never calculate them.</p>`;
+    <div class="chatwrap">
+      <div class="voice"><div class="orb"></div>
+        <p class="muted" style="text-align:center;font-size:13px;max-width:30ch;margin:14px auto 0">
+          Ask about your chart. The answer moves it.</p></div>
+      <div class="chat" id="chat">
+        ${SAMPLE_CHAT.map(m=>m.me
+          ? `<div class="bubble me">${m.t}</div>`
+          : `<div class="bubble it">${typeof m.t==="function"?m.t():m.t}
+               <div class="cmd">&#9656; ${m.cmd}</div></div>`).join("")}
+      </div>
+      <div class="asks" id="asks">${ASKS.map((a,i)=>`<button class="ask" data-i="${i}">${a.q}</button>`).join("")}</div>
+      <p class="note"><b>Placeholder.</b> This conversation is scripted and the composer below
+      is not connected. The mechanism being shown is real though: each reply carries a UI
+      command, so answering moves the chart rather than only describing it. A live model needs
+      a small server to hold the API key &#8212; a key in this page would be readable by anyone.</p>
+    </div>
+    <div class="composer">
+      <button class="cmp-btn" aria-label="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <input id="cmpin" placeholder="Ask your chart" aria-label="Message">
+      <button class="cmp-btn mic" id="cmpmic" aria-label="Voice">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
+          <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg></button>
+    </div>`;
 
   document.getElementById("asks").onclick=e=>{
     const b=e.target.closest(".ask"); if(!b)return;
@@ -1285,9 +1500,10 @@ function renderGuide(){
       setTimeout(item.act,900);
     },420);
   };
+  const mic=document.getElementById("cmpmic");
+  mic.onclick=()=>{mic.classList.toggle("live");buzz(8)};
 }
 
-/* &#9552;&#9552;&#9552; YOU &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 const ICONS={
   chart:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -1299,7 +1515,6 @@ const ICONS={
 
 const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
-  {id:"timeline", label:"Timeline", icon:ICONS.clock, sub:()=>{const n=CHART.dasha.at(new Date());return n.maha.lord+"/"+n.antar.lord}},
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"glossary", label:"Glossary", icon:ICONS.book, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
@@ -1354,18 +1569,49 @@ const GLOSSARY=[
   ["Divisional chart","A subdivision of the chart used for one area of life - D9 for marriage, D10 for career, D7 for children."]]]
 ];
 
+let glossQ="";
+const GLOSS_FLAT=()=>GLOSSARY.flatMap(([grp,items])=>items.map(([t,d])=>({t,d,grp})))
+  .sort((x,y)=>x.t.localeCompare(y.t));
+
 function subGlossary(){
-  const n=GLOSSARY.reduce((a,g)=>a+g[1].length,0);
-  return backBar("Glossary")+`
-    <p class="muted" style="font-size:13px;margin:-6px 0 18px">${n} terms. Tap any one to open it.</p>
-    ${GLOSSARY.map(([group,items])=>`
-      <div class="eyebrow" style="margin:22px 0 8px">${group}</div>
-      <div class="list">${items.map(([t,d])=>`
-        <button class="item gitem" data-t="${t}"><span style="flex:1">
-          <b style="font-weight:600">${t}</b>
-          <span class="gdef">${d}</span></span></button>`).join("")}</div>`).join("")}
-    <p class="note">Definitions are written for a beginner first. In the finished app these
-    open in place wherever the term appears, rather than living only on this screen.</p>`;
+  const all=GLOSS_FLAT();
+  const q=glossQ.trim().toLowerCase();
+  const hits=q?all.filter(x=>x.t.toLowerCase().includes(q)||x.d.toLowerCase().includes(q)):all;
+  const letters=[...new Set(all.map(x=>x.t[0].toUpperCase()))];
+  const groups={};
+  hits.forEach(x=>{const L=x.t[0].toUpperCase();(groups[L]=groups[L]||[]).push(x)});
+  return `
+    <div class="gsearch">
+      <svg viewBox="0 0 24 24" class="gsico"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="gq" value="${glossQ}" placeholder="Search ${all.length} terms" aria-label="Search the glossary">
+      ${glossQ?`<button class="gclear" id="gclear" aria-label="Clear">&#215;</button>`:""}
+    </div>
+    <div class="glosswrap">
+      <div class="glosslist" id="glosslist">
+        ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
+          <div class="gletter" id="L-${L}">${L}</div>
+          <div class="list">${groups[L].map(x=>`
+            <div class="item gitem"><span style="flex:1">
+              <b style="font-weight:600">${x.t}</b>
+              <span class="gdef">${x.d}</span></span></div>`).join("")}</div>`).join("")
+          :`<p class="muted" style="font-size:13.5px;margin-top:20px">Nothing matches &#8220;${glossQ}&#8221;.</p>`}
+      </div>
+      <div class="azrail" id="azrail">
+        ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
+      </div>
+    </div>`;
+}
+function wireGlossary(){
+  const q=document.getElementById("gq");
+  q.oninput=()=>{glossQ=q.value; const at=q.selectionStart; renderSub();
+    const n=document.getElementById("gq"); n.focus(); n.setSelectionRange(at,at)};
+  const c=document.getElementById("gclear");
+  if(c) c.onclick=()=>{glossQ="";renderSub()};
+  document.getElementById("azrail").onclick=e=>{
+    const b=e.target.closest("button[data-l]"); if(!b||b.classList.contains("off"))return;
+    const el=document.getElementById("L-"+b.dataset.l);
+    if(el){el.scrollIntoView({behavior:"smooth",block:"start"});buzz(5)}
+  };
 }
 
 const SAVED=()=>[
@@ -1394,6 +1640,7 @@ let subView=null, subArg=null;
 function renderYou(){
   if(subView) return renderSub();
   document.body.classList.remove("insub");
+  setTopBar("You");
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
       <div class="avatar">S</div>
@@ -1419,7 +1666,19 @@ const backBar=title=>`<div class="subhead">
 function renderSub(){
   document.body.classList.add("insub");
   const pg=document.getElementById("pg-you");
-  const body={birth:subBirth,timeline:subTimeline,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
+  const ACTIONS={
+    rel:`<button class="tb-btn" id="tbadd" aria-label="Add a person">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
+    events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
+    partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`
+  };
+  const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
+    glossary:"Glossary",settings:"Settings",addpartner:subArg!=null?"Edit person":"Add a person",
+    addevent:subArg!=null?"Edit event":"Add a life event",
+    partner:(partners()[subArg]||{}).name||"Person"};
+  setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
+  const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,
               settings:subSettings}[subView];
   pg.innerHTML=body();
@@ -1431,9 +1690,15 @@ function renderSub(){
     else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
     else{subView=null;renderYou()}
   };
-  if(subView==="timeline") wireTimeline();
+  const ta=document.getElementById("tbadd"), te=document.getElementById("tbaddev"),
+        ted=document.getElementById("tbedit");
+  if(ta) ta.onclick=()=>{subArg=null;subView="addpartner";buzz(7);renderSub()};
+  if(te) te.onclick=()=>{subArg=null;subView="addevent";buzz(7);renderSub()};
+  if(ted) ted.onclick=()=>{subView="addpartner";buzz(7);renderSub()};
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
+  if(subView==="glossary") wireGlossary();
+  if(subView==="settings") wireSettings();
   if(subView==="addpartner") wireAddPartner();
   if(subView==="addevent") wireAddEvent();
   if(subView==="partner") wirePartner();
@@ -1444,17 +1709,43 @@ function subStub(name){
     Not built yet. Listed so the architecture is visible, not to suggest it works.</p></div>`;
 }
 
+const PREFS=()=>{try{return JSON.parse(localStorage.getItem("astro.prefs")||"{}")}catch(_){return{}}};
+const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",JSON.stringify(p));};
 function subSettings(){
-  return backBar("Settings")+`
-    ${rows([["Ayanamsa","Lahiri"],["Chart style","North Indian"],
-            ["Nodal aspects","Off"],["Haptics","On"]])}
-    <p class="note">Ayanamsa is the sidereal offset. Lahiri is the Government of
-    India standard; changing it moves every graha slightly, and can move one across
-    a sign boundary.</p>`;
+  const pr=PREFS();
+  const sel=(id,label,opts,val,note="")=>`
+    <label class="fld"><span class="flabel">${label}</span>
+      <select id="${id}">${opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>
+      ${note?`<span class="fnote" style="margin:6px 0 0;display:block">${note}</span>`:""}</label>`;
+  const tog=(id,label,on,note="")=>`
+    <div class="togrow"><div><b>${label}</b>${note?`<span class="tognote">${note}</span>`:""}</div>
+      <button class="switch${on?" on":""}" id="${id}" role="switch" aria-checked="${on}"><i></i></button></div>`;
+  return `
+    ${sel("s_ayan","Ayanamsa",["Lahiri","Raman","Krishnamurti (KP)","Yukteshwar"],
+      pr.ayanamsa||"Lahiri",
+      "The sidereal offset. Lahiri is the Government of India standard. Changing it shifts every graha slightly, and can move one across a sign boundary.")}
+    ${sel("s_style","Chart style",["North Indian","South Indian"],pr.style||"North Indian",
+      "South Indian charts keep the signs fixed and rotate the houses. Not yet drawn.")}
+    ${tog("s_nodal","Nodal drishti",!!pr.nodal,
+      "Whether Rahu and Ketu cast aspects on the 5th and 9th. Schools disagree; off by default.")}
+    ${tog("s_haptics","Haptics",pr.haptics!==false,"Vibration on selection and period changes.")}
+    <p class="note">Ayanamsa and chart style are recorded but not yet applied &#8212; both need
+    the licensed ephemeris and the South Indian geometry. Nodal drishti and haptics work now.</p>`;
+}
+function wireSettings(){
+  document.getElementById("s_ayan").onchange=e=>{setPref("ayanamsa",e.target.value);buzz(6)};
+  document.getElementById("s_style").onchange=e=>{setPref("style",e.target.value);buzz(6)};
+  const n=document.getElementById("s_nodal");
+  n.onclick=()=>{const v=!n.classList.contains("on");n.classList.toggle("on",v);
+    n.setAttribute("aria-checked",v);setPref("nodal",v);
+    CHART.drishtiNodal=v; buzz(8);};
+  const h=document.getElementById("s_haptics");
+  h.onclick=()=>{const v=!h.classList.contains("on");h.classList.toggle("on",v);
+    h.setAttribute("aria-checked",v);setPref("haptics",v);if(v)buzz(10)};
 }
 
 function subBirth(){
-  return backBar("Birth details")+`
+  return `
     ${rows([["Date","26 Mar 1992"],["Time","10:00 IST"],
       ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
       ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
@@ -1465,7 +1756,7 @@ function subBirth(){
     ${rows(Object.entries(AVAKHADA))}
     <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
     ${rows(CHART.placements.map(p=>[
-      `<span class="sw" style="background:${COLOUR(p.graha)}"></span>${p.graha}`,
+      `${gIcon(p.graha)}${p.graha}`,
       `${SIGNS[p.sign-1]} ${p.degf}${p.retro?" R":""}`]))}
     <p class="note">Panchang and Avakhada are carried from your Astrotalk report rather
     than computed. Everything else on this screen is derived from the longitudes.</p>`;
@@ -1487,6 +1778,21 @@ function moonPath(r,k,waxing){
   const term=waxing?(k<0.5?0:1):(k<0.5?1:0);
   return `M 0,${-r} A ${r},${r} 0 0 ${limb} 0,${r} A ${rx},${r} 0 0 ${term} 0,${-r} Z`;
 }
+const PHASE_COUNT=30;
+const phaseFile=date=>{
+  const f=moonPhase(date).f;
+  const i=((Math.round(f*PHASE_COUNT)%PHASE_COUNT)+PHASE_COUNT)%PHASE_COUNT;
+  const names=["new_moon","waxing_crescent","waxing_crescent","waxing_crescent",
+    "waxing_crescent","waxing_crescent","waxing_crescent","first_quarter","first_quarter",
+    "waxing_gibbous","waxing_gibbous","waxing_gibbous","waxing_gibbous","waxing_gibbous",
+    "waxing_gibbous","full_moon","waning_gibbous","waning_gibbous","waning_gibbous",
+    "waning_gibbous","waning_gibbous","waning_gibbous","last_quarter","last_quarter",
+    "waning_crescent","waning_crescent","waning_crescent","waning_crescent",
+    "waning_crescent","waning_crescent"];
+  return `assets/moon/phase_${String(i).padStart(2,"0")}_${names[i]}.png`;
+};
+const moonImg=(date,size)=>`<img class="mn" src="${phaseFile(date)}" width="${size}" height="${size}" alt="" draggable="false">`;
+
 let mcid=0;
 function moonArt(date,size){
   const ph=moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
@@ -1513,7 +1819,7 @@ const MOON_DEFS=`<svg width="0" height="0" style="position:absolute" aria-hidden
    Apple Fitness lays a year out as one continuous scroll of month grids,
    each day carrying a glanceable daily metric. Ours carries the lunar
    phase, which is the closest thing this app has to a daily reading. */
-const CAL_BACK=18, CAL_FWD=18;      // months either side of today
+const CAL_BACK=120, CAL_FWD=60;     // ten years back, five forward
 function monthGrid(y,m){
   const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
   const lead=(first.getDay()+6)%7;              // Monday-first
@@ -1524,7 +1830,7 @@ function monthGrid(y,m){
     const today=isToday(dt), sel=dt.toDateString()===viewDate.toDateString();
     cells.push(`<button class="cday${today?" today":""}${sel?" sel":""}"
       data-iso="${isoOf(dt)}" aria-label="${dt.toDateString()}">
-      <span class="cnum">${d}</span>${moonSVG(dt,26)}</button>`);
+      <span class="cnum">${d}</span>${moonImg(dt,27)}</button>`);
   }
   return `<section class="cmonth" data-label="${first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}">
     <h3 class="cmname">${first.toLocaleDateString("en-GB",{month:"short"})}${m===0?` ${y}`:""}</h3>
@@ -1541,7 +1847,15 @@ function openCalendar(){
   }
   host.innerHTML=`
     <div class="calhead">
+      <div class="calnav">
+        <button data-j="-12" aria-label="Back one year">&#171;</button>
+        <button data-j="-1" aria-label="Back one month">&#8249;</button>
+      </div>
       <span id="calttl">${viewDate.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</span>
+      <div class="calnav">
+        <button data-j="1" aria-label="Forward one month">&#8250;</button>
+        <button data-j="12" aria-label="Forward one year">&#187;</button>
+      </div>
       <button class="calclose" id="calclose" aria-label="Close">&#215;</button>
     </div>
     <div class="calweek">${["M","T","W","T","F","S","S"].map(d=>`<span>${d}</span>`).join("")}</div>
@@ -1568,6 +1882,21 @@ function openCalendar(){
     const [y,m,d]=b.dataset.iso.split("-").map(Number);
     viewDate=new Date(y,m-1,d); buzz(10); closeCalendar(); renderToday();
   };
+  /* jump by month or by year - scrolling ten years by finger is not navigation */
+  let cursor=CAL_BACK + (viewDate.getFullYear()-now.getFullYear())*12
+             + (viewDate.getMonth()-now.getMonth());
+  host.querySelectorAll(".calnav button").forEach(b=>b.onclick=()=>{
+    cursor=Math.min(Math.max(cursor + +b.dataset.j, 0), scroll.children.length-1);
+    const sec=scroll.children[cursor];
+    scroll.scrollTo({top:sec.offsetTop-8,behavior:"smooth"});
+    buzz(6);
+  });
+  scroll.addEventListener("scroll",()=>{
+    for(let i=0;i<scroll.children.length;i++){
+      const sec=scroll.children[i];
+      if(sec.offsetTop+sec.offsetHeight > scroll.scrollTop+16){cursor=i;break}
+    }
+  },{passive:true});
   document.getElementById("calclose").onclick=closeCalendar;
   buzz(6);
 }
@@ -1628,20 +1957,24 @@ function practiceFor(lord){
     invented, and no practice is offered as a guarantee of outcome.</p></div>`;
 }
 
-function subTimeline(){
+function renderTimelineTab(){
+  setTopBar("Timeline");
+  document.getElementById("pg-timeline").innerHTML=timelineBody();
+  wireTimeline();
+}
+function timelineBody(){
   const {m}=tlBounds();
   if(tlT===null) tlT=tlNowT();
-  return backBar("Timeline")+`
-    <p class="muted" style="font-size:13px;margin:-8px 0 14px">
-      120 years of Vimshottari, in the order your Moon in Mula set. Drag the spine.</p>
+  return `
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px;color:var(--ink-3)">
+      Drag the spine. 120 years, set by your Moon in Mula.</p>
     <div class="tl2">
       <div class="spine" id="spine" role="slider" tabindex="0"
            aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
         <div class="spinecol" id="spinecol" style="height:${TL_H}px">
           ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
             background:linear-gradient(180deg, ${COLOUR(d.lord)}30, ${COLOUR(d.lord)}0c)">
-            <span class="byr">${d.start.getFullYear()}</span>
-            <span class="bld" style="color:${COLOUR(d.lord)}">${d.lord.slice(0,2)}</span>
+            <img class="bico" src="assets/graha/${d.lord.toLowerCase()}.png" alt="${d.lord}">
           </div>`).join("")}
         </div>
         <span class="nowtick" id="nowtick" title="today"></span>
@@ -1650,7 +1983,7 @@ function subTimeline(){
       </div>
       <div class="tlbody" id="ro"></div>
     </div>
-    <div class="tlbar"><button class="todaychip" id="tlnow">Go to today</button></div>`;
+    `;
 }
 
 const ageAt=d=>Math.floor((d-CHART.birthDate)/(365.2425*864e5));
@@ -1677,7 +2010,13 @@ function wireTimeline(){
       return d>=now.maha.start && d<now.maha.end});
 
     document.getElementById("ro").innerHTML=`
-      <p class="big" style="color:${COLOUR(now.maha.lord)}">${now.maha.lord} mahadasha</p>
+      <div class="scrubdate">
+        <div><b>${when.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</b>
+          <span>${when.getDate()} &#183; age ${ageAt(when)}</span></div>
+        ${isToday(when)?`<span class="nowbadge">today</span>`
+          :`<button class="tb-btn txt" id="tlnow">Go to today</button>`}
+      </div>
+      <p class="big" style="color:${COLOUR(now.maha.lord)}">${gIcon(now.maha.lord,30)}${now.maha.lord} mahadasha</p>
       <div class="spanrow">
         <div><span class="sk">from</span><b>${fmtDate(now.maha.start)}</b>
           <span class="sa">age ${ageAt(now.maha.start)}</span></div>
@@ -1687,26 +2026,23 @@ function wireTimeline(){
       </div>
       <div class="bar"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i>
         <span class="barnow" style="left:${(pos*100).toFixed(1)}%"></span></div>
-      <p class="poslabel">You are looking at <b>${fmtDate(when)}</b>, age ${ageAt(when)}
-        ${isToday(when)?`<span class="pill">today</span>`:``} &#8212;
-        ${Math.round(pos*100)}% of the way through this ${now.maha.years.toFixed(1)}-year period.</p>
+      <p class="poslabel">${Math.round(pos*100)}% through</p>
       <div class="antar">
-        <div class="eyebrow" style="margin-bottom:5px">Sub-period running then</div>
-        <b style="color:${COLOUR(now.antar.lord)};font-size:15px">${now.antar.lord} antardasha</b>
-        <span class="evmeta">${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</span>
+        ${gIcon(now.antar.lord,20)}<b style="color:${COLOUR(now.antar.lord)};font-size:15px">${now.antar.lord}</b>
+        <span class="evmeta">antardasha &#183; ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</span>
       </div>
       ${inPeriod.length?`
         <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
         ${inPeriod.map(e=>{const ed=eventDasha(e.d);
           return `<div class="evrow"><span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
             <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
-            &#183; ${ed?`${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
-        <p class="muted" style="font-size:11.5px;color:var(--ink-3);margin:2px 0 0">
-          Shown alongside the period that was running, not as its result.</p>`:``}
+            &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
+        <p class="muted" style="font-size:11px;color:var(--ink-3);margin:2px 0 0">
+          Shown alongside the period, not caused by it.</p>`:``}
       <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
       ${dashaImpact(now.maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
       ${practiceFor(now.maha.lord)}
-      <p class="note">Traditional associations for the houses involved &#8212; not a forecast.</p>`;
+      <p class="note">Traditional associations &#8212; not a forecast.</p>`;
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
 
@@ -1720,7 +2056,10 @@ function wireTimeline(){
   spine.addEventListener("keydown",e=>{const step=e.shiftKey?0.05:0.01;
     if(e.key==="ArrowDown"){tlT=Math.min(tlT+step,1);paint();e.preventDefault()}
     if(e.key==="ArrowUp"){tlT=Math.max(tlT-step,0);paint();e.preventDefault()}});
-  document.getElementById("tlnow").onclick=()=>{tlT=tlNowT();buzz(10);paint()};
+  const jump=()=>{tlT=tlNowT();buzz(10);paint()};
+  document.getElementById("ro").addEventListener("click",e=>{
+    if(e.target.closest("#tlnow")) jump();
+  });
   paint();
 }
 
@@ -1739,7 +2078,7 @@ function subAddPartner(){
   const ed=subArg!=null?partners()[subArg]:null;
   const b=ed?new Date(ed.born):null;
   const pad=n=>String(n).padStart(2,"0");
-  return backBar(ed?`Edit ${ed.name}`:"Add a person")+`
+  return `
     <p class="muted" style="font-size:13px;margin:-8px 0 18px">
       Compatibility is read from the Moon, so the date and time of birth are what matter.
       Time especially &#8212; the Moon moves about 13&#176; a day.</p>
@@ -1778,7 +2117,7 @@ function wireAddPartner(){
 
 function subAddEvent(){
   const ed=subArg!=null?events()[subArg]:null;
-  return backBar(ed?"Edit event":"Add a life event")+`
+  return `
     <p class="muted" style="font-size:13px;margin:-8px 0 18px">
       Record what happened and when. The app lays it against the planetary period that was
       running, so you can look for patterns yourself &#8212; astrology as a frame for
@@ -1813,13 +2152,12 @@ function wireAddEvent(){
 /* ---- LIFE EVENTS SCREEN ---- */
 function subEvents(){
   const list=events();
-  return backBar("Life events")+`
+  return `
     <div class="addrow">
       <p class="muted" style="font-size:13px;margin:0;flex:1">
         Add the moments that mattered, and the app lays each one against the planetary
         period you were running at the time. Over years it becomes a way to look for
         patterns in your own life &#8212; a frame for reflection, not a claim of cause.</p>
-      <button class="plus" id="addev" aria-label="Add an event">+</button>
     </div>
     ${list.length?`<div style="margin-top:18px">
       ${list.map((e,i)=>{const ed=eventDasha(e.d);
@@ -1831,7 +2169,7 @@ function subEvents(){
             <span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))} &#183;
               ${EVENT_KINDS[e.k]||"Milestone"}${e.demo?" &#183; sample":""}</span>
             ${ed?`<p class="evdash">You were running
-              <b style="color:${COLOUR(ed.maha.lord)}">${ed.maha.lord}</b> mahadasha,
+              ${gIcon(ed.maha.lord,15)}<b style="color:${COLOUR(ed.maha.lord)}">${ed.maha.lord}</b> mahadasha,
               <b style="color:${COLOUR(ed.antar.lord)}">${ed.antar.lord}</b> antardasha.</p>`:""}
           </div></div>`}).join("")}
     </div>`:`<div class="card" style="margin-top:16px"><p class="muted" style="font-size:13.5px">
@@ -1841,7 +2179,7 @@ function subEvents(){
 }
 
 function wireEvents(){
-  document.getElementById("addev").onclick=()=>{subArg=null;subView="addevent";buzz(7);renderSub()};
+
   document.querySelectorAll(".evdel").forEach(b=>b.onclick=()=>{
     subArg=+b.dataset.i; subView="addevent"; buzz(7); renderSub();
   });
@@ -1889,11 +2227,10 @@ const savePartners=list=>localStorage.setItem(PKEY,JSON.stringify(list));
 
 function subRel(){
   const list=partners();
-  return backBar("Relationships")+`
+  return `
     <div class="addrow">
       <p class="muted" style="font-size:13px;margin:0;flex:1">
         Add someone to compare charts. Only a birth date and time are needed.</p>
-      <button class="plus" id="add" aria-label="Add a person">+</button>
     </div>
     ${list.length?`<div class="list" style="margin-top:16px">
       ${list.map((p,i)=>{
@@ -1912,7 +2249,7 @@ function subRel(){
 }
 
 function wireRel(){
-  document.getElementById("add").onclick=()=>{subArg=null;subView="addpartner";buzz(7);renderSub()};
+
   document.querySelectorAll("#pg-you .item[data-i]").forEach(b=>b.onclick=()=>{
     subArg=+b.dataset.i; subView="partner"; buzz(7); renderSub();
   });
@@ -1926,7 +2263,7 @@ function subPartner(){
   const verdict=k.total>=28?"Traditionally considered a strong match"
     :k.total>=18?"Above the threshold traditionally considered acceptable"
     :"Below the 18-point threshold traditionally considered acceptable";
-  return backBar(p.name+(p.demo?` <span class="pill" style="vertical-align:6px">sample data</span>`:""))+`
+  return `
     <div class="scorecard">
       <div class="scorenum" style="color:${pct>=.5?"var(--mercury)":"var(--mars)"}">
         ${k.total}<small>/36</small></div>
@@ -1952,10 +2289,9 @@ function subPartner(){
         <div class="kbar"><i style="width:${(x.got/x.max)*100}%;
           background:${x.got===0?"var(--mars)":x.got===x.max?"var(--mercury)":"var(--hot)"}"></i></div>
         <p class="kabout">${x.about}</p>
-        <p class="kvals">You: <b>${x.a}</b> &#183; ${p.name}: <b>${x.b}</b>${
+        <p class="kvals">You: <b>${SK[x.a]?gIcon(x.a,15):""}${x.a}</b> &#183; ${p.name}: <b>${SK[x.b]?gIcon(x.b,15):""}${x.b}</b>${
           x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
       </div>`).join("")}
-    <button class="primary" id="edit">Edit ${p.name}</button>
     <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
@@ -1964,27 +2300,45 @@ function subPartner(){
       classical table and will be completed later.</p>`;
 }
 
-function wirePartner(){
-  const e=document.getElementById("edit");
-  if(e) e.onclick=()=>{subView="addpartner";buzz(7);renderSub()};
-}
+function wirePartner(){}
 
 const TABS=[
-  {id:"today",label:"Today",icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>'},
-  {id:"universe",label:"Universe",icon:'<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M3.5 3.5l17 17M20.5 3.5l-17 17M12 3.5l8.5 8.5L12 20.5 3.5 12z"/>'},
-  {id:"guide",label:"Guide",icon:'<path d="M20 15.5a2.5 2.5 0 01-2.5 2.5H8l-4 3V6a2.5 2.5 0 012.5-2.5h11A2.5 2.5 0 0120 6z"/>'},
-  {id:"you",label:"You",icon:'<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20.5c0-4.1 3.4-7.5 7.5-7.5s7.5 3.4 7.5 7.5"/>'}
+  {id:"today",label:"Today",icon:'<path d="M12 3.6a6 6 0 018.4 8.4 8.4 8.4 0 11-8.4-8.4z"/><circle cx="15.5" cy="14" r="1"/><circle cx="10" cy="16.5" r="1"/>'},
+  {id:"timeline",label:"Timeline",icon:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>'},
+  {id:"universe",label:"Birth chart",hero:true,
+   icon:'<rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/>'},
+  {id:"guide",label:"Guide",icon:'<path d="M20 15.2a2.6 2.6 0 01-2.6 2.6H8.2L4 20.8V6.2A2.6 2.6 0 016.6 3.6h10.8A2.6 2.6 0 0120 6.2z"/>'},
+  {id:"you",label:"You",icon:'<circle cx="12" cy="8.4" r="3.5"/><path d="M4.8 20.4c0-4 3.2-7.2 7.2-7.2s7.2 3.2 7.2 7.2"/>'}
 ];
+
+const YOU_INDEX=4, CHART_INDEX=2, TIMELINE_INDEX=1;
+function setTopBar(title,{back=false,actions=""}={}){
+  document.getElementById("tbtitle").textContent=title;
+  document.getElementById("tbback").classList.toggle("on",back);
+  document.getElementById("tbact").innerHTML=actions;
+}
+document.getElementById("tbback").onclick=()=>{
+  const b=document.getElementById("back"); if(b) b.click();
+};
 const nav=document.getElementById("tabs");
-nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${i===0?"on":""}" role="tab" data-i="${i}">
-  <svg viewBox="0 0 24 24">${t.icon}</svg>${t.label}</button>`).join("");
+nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"on":""}"
+  role="tab" data-i="${i}" aria-label="${t.label}">
+  <span class="tabico"><svg viewBox="0 0 24 24">${t.icon}</svg></span>
+  <span class="tablbl">${t.label}</span></button>`).join("");
 
 let activeTab=0;
 function go(i){
   if(mode) resetChart();
   /* iOS convention: tapping the tab you are already on pops to its root */
-  if(i!==3 || activeTab===3){ subView=null; subArg=null; document.body.classList.remove("insub"); }
+  if(i!==YOU_INDEX || activeTab===YOU_INDEX){
+    subView=null; subArg=null; document.body.classList.remove("insub"); }
   activeTab=i;
+  /* the bar belongs to the tab, so it has to be reset on every switch -
+     the render functions only run once at startup */
+  if(i===0) renderToday();
+  else if(i===TIMELINE_INDEX) renderTimelineTab();
+  else if(i===CHART_INDEX) setTopBar("Birth chart");
+  else if(i===3) setTopBar("Guide");
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
     nav.children[j].classList.toggle("on",j===i);
@@ -1993,9 +2347,8 @@ function go(i){
   buzz(5);
 }
 nav.onclick=e=>{const b=e.target.closest(".tab"); if(!b)return;
-  const i=+b.dataset.i;
-  go(i);
-  if(i===3) renderYou();
+  go(+b.dataset.i);
+  if(+b.dataset.i===YOU_INDEX) renderYou();
 };
 
 /* &#9552;&#9552;&#9552; SKY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */

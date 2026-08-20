@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#171A33">
+<meta name="theme-color" content="#1C2049">
 <title>Astro App</title>
 <style>
 :root{
@@ -26,7 +26,8 @@
 html,body,button{touch-action:manipulation}
 html,body{margin:0;height:100%}
 body{
-  background:var(--void);color:var(--ink);font-family:var(--ff);
+  background:linear-gradient(180deg,#1C2049 0%,#171A33 42%,#111427 100%);
+  background-attachment:fixed;color:var(--ink);font-family:var(--ff);
   -webkit-font-smoothing:antialiased;overflow:hidden;
   height:100dvh;position:relative;
 }
@@ -70,6 +71,7 @@ body{
 .tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round;transition:transform .4s var(--ease)}
 .tab.on{color:var(--ink)}
+.tab.on .tabico{filter:drop-shadow(0 0 8px rgba(150,162,235,.7))}
 .tab.on svg{transform:translateY(-1px) scale(1.06)}
 .tab:focus-visible{outline:2px solid var(--hot);outline-offset:-4px;border-radius:10px}
 
@@ -231,11 +233,23 @@ body.insub .page{padding-bottom:30px}
   transition:background .22s var(--ease),color .22s var(--ease),border-color .22s var(--ease)}
 .segmented button.on{background:rgba(150,162,235,.2);color:var(--ink);
   border-color:rgba(150,162,235,.62)}
+
+.chartactions{display:flex;justify-content:center;margin-top:18px;
+  transition:opacity .4s var(--ease)}
+.ghostbtn{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  font-family:var(--ff);font-size:14.5px;font-weight:540;color:var(--ink);
+  background:rgba(255,255,255,.06);border:1px solid var(--edge);
+  border-radius:99px;padding:11px 20px}
+.ghostbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.ghostbtn:active{background:rgba(255,255,255,.13)}
+.forline{font-family:var(--fm);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 9px}
 .reading h2{font-size:22px;font-weight:680;letter-spacing:-.028em;margin:0 0 9px;text-wrap:balance}
 .reading p{font-size:15.5px;line-height:1.55;color:var(--ink);margin:0 0 10px;max-width:60ch}
 .reading .under{font-size:13.5px;color:var(--ink-3);line-height:1.5}
 .movingline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 0;
-  margin:4px 0 0;border-top:1px solid var(--edge-soft);font-size:13px;color:var(--ink-2)}
+  margin:4px 0 0;border-top:1px solid rgba(150,162,235,.26);font-size:13px;color:var(--ink-2)}
 .movingline i{width:3px;height:3px;border-radius:50%;background:var(--ink-3);margin:0 2px}
 .mvico{width:22px;height:22px;object-fit:contain}
 .moonline{display:flex;align-items:center;gap:11px;padding:11px 0;margin:6px 0 4px;
@@ -300,6 +314,7 @@ body.insub .page{padding-bottom:30px}
 .stagewrap{display:grid;place-items:center;padding:6px 0 4px;
   transition:transform .68s var(--ease)}
 .zoomed .stagewrap{transform:translateY(-8dvh)}
+.zoomed .chartactions{opacity:0;pointer-events:none}
 .stage{position:relative;width:min(92vw,430px);aspect-ratio:1}
 .orbit{position:absolute;inset:0;transform-origin:50% 50%;
   transition:transform .72s var(--ease),filter .5s var(--ease),opacity .5s var(--ease)}
@@ -346,9 +361,10 @@ svg.asp{pointer-events:none}
 @keyframes breathe{50%{filter:drop-shadow(0 6px 22px rgba(0,0,0,.7)) drop-shadow(0 0 46px var(--fill))}}
 @keyframes bob{50%{transform:translateY(-3%)}}
 
-.p .tag{position:absolute;left:50%;top:calc(100% + 4px);transform:translateX(-50%);
-  font-family:var(--fm);font-size:8.5px;letter-spacing:.07em;color:var(--ink-3);
-  white-space:nowrap;transition:opacity .4s var(--ease)}
+.p .tag{position:absolute;left:50%;top:calc(100% + 2px);transform:translateX(-50%);
+  font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.06em;
+  color:var(--ink-2);white-space:nowrap;
+  text-shadow:0 1px 3px rgba(0,0,0,.9);transition:opacity .4s var(--ease)}
 .p .retro{position:absolute;right:-3px;top:-3px;font-family:var(--fm);font-size:8px;
   color:var(--ink-2);background:var(--void-2);border:1px solid var(--line-2);
   border-radius:99px;padding:0 3px;line-height:11px}
@@ -374,20 +390,20 @@ svg.asp{pointer-events:none}
 @keyframes corona{50%{opacity:.55;inset:-20%}}
 
 .sheet{
-  position:fixed;left:0;right:0;bottom:0;z-index:55;
-  padding:20px 20px calc(var(--tabh) + 22px);
-  background:linear-gradient(180deg,rgba(23,26,51,0) 0%,rgba(23,26,51,.96) 6%,#171A33 13%);
-  transform:translateY(101%);transition:transform .68s var(--ease);
-  height:54dvh;overflow-y:auto;overscroll-behavior:contain;padding-top:8px;
-  transition:transform .58s var(--ease),height .48s var(--ease)}
-.sheet.full{height:calc(100dvh - 46px - env(safe-area-inset-top));
-  padding-top:calc(50px + env(safe-area-inset-top))}
-.grab{position:sticky;top:0;z-index:3;display:block;width:100%;height:22px;border:0;
-  background:none;cursor:grab;padding:0}
-.grab::before{content:"";display:block;width:38px;height:4px;margin:4px auto 0;border-radius:99px;
-  background:rgba(255,255,255,.28)}
-.sheet.full .grab{background:var(--void)}
-.sheet.up{transform:translateY(0)}
+  position:fixed;inset:0;z-index:55;overflow-y:auto;overscroll-behavior:contain;
+  background:none;opacity:0;pointer-events:none;
+  transition:opacity .38s var(--ease);-webkit-overflow-scrolling:touch}
+.sheet::-webkit-scrollbar{display:none}
+.sheetgap{height:47dvh;pointer-events:none}
+.sheetcard{
+  min-height:calc(100dvh - 44px);
+  padding:22px 20px calc(var(--tabh) + 30px);
+  background:var(--void);
+  border-top:1px solid var(--edge);
+  border-radius:26px 26px 0 0;
+  box-shadow:0 -18px 44px -18px rgba(0,0,0,.85)}
+.sheet.up{opacity:1}
+.sheet.up .sheetcard{pointer-events:auto}
 .loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
 .lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
   padding:9px 12px;background:rgba(255,255,255,.07);border-left:2px solid var(--hot);
@@ -658,7 +674,7 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 .gclear{position:absolute;right:6px;top:6px;width:26px;height:26px;border:0;border-radius:50%;
   background:rgba(255,255,255,.12);color:var(--ink-2);font-size:15px;cursor:pointer;line-height:1}
 .gsec{margin:0}
-.gletter{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:5;
+.gletter{position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:5;
   margin:0;padding:6px 0 6px 2px;
   font-size:13px;font-weight:680;letter-spacing:.03em;color:var(--ink-2);
   background:var(--void);border-bottom:.5px solid rgba(170,180,235,.13)}
@@ -700,8 +716,8 @@ body.glossary .page{padding-right:30px}
 
 <button class="closebtn" id="close" aria-label="Close">&#10005;</button>
 <section class="sheet" id="sheet" aria-live="polite">
-  <button class="grab" id="grab" aria-label="Expand"></button>
-  <div id="sheetbody"></div>
+  <div class="sheetgap"></div>
+  <div class="sheetcard"><div id="sheetbody"></div></div>
 </section>
 <div class="calsheet" id="calsheet" role="dialog" aria-label="Choose a date"></div>
 
@@ -1185,6 +1201,13 @@ function renderToday(){
         ${k[0].toUpperCase()+k.slice(1)}</button>`).join("")}
     </div>
 
+    <p class="forline">${
+      horoPeriod==="day"
+        ? `Horoscope for ${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}`
+        : horoPeriod==="week"
+        ? (()=>{const e=new Date(viewDate);e.setDate(e.getDate()+6);
+            return `Horoscope for ${viewDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} to ${e.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`})()
+        : `Horoscope for ${viewDate.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}`}</p>
     <div class="reading">
       <h2>${h.head}</h2>
       <p>${h.body}</p>
@@ -1246,6 +1269,11 @@ function renderUniverse(){
           <div class="plane" id="plane"></div>
         </div>
       </div>
+    </div>
+    <div class="chartactions" id="chartactions">
+      <button class="ghostbtn" id="dlchart">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11M8 11.5l4 4 4-4M5 19.5h14"/></svg>
+        Download my birth chart</button>
     </div>`;
 
   const chart=document.getElementById("chart"), plane=document.getElementById("plane");
@@ -1305,10 +1333,16 @@ function renderUniverse(){
     b.innerHTML=`<img class="art" src="assets/graha/${p.graha.toLowerCase()}.png" alt="" draggable="false">`+
       `<span class="name">${p.graha}<small>${SK[p.graha]}</small></span>`+
       
+      `<span class="tag">${{Sun:"SU",Moon:"MO",Mars:"MA",Mercury:"ME",Jupiter:"JU",
+        Venus:"VE",Saturn:"SA",Rahu:"RA",Ketu:"KE"}[p.graha]}</span>`+
       (p.retro?`<span class="retro">R</span>`:``);
     b._pos=[x,y]; plane.appendChild(b); PEL[p.graha]=b;
   }
 
+  document.getElementById("dlchart").onclick=()=>{
+    buzz(8);
+    alert("Not built yet. The export will render your chart as an image with the app's name on it.");
+  };
   chart.onclick=e=>{const t=e.target.closest(".hs"); if(t)openHouse(+t.dataset.h)};
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
@@ -1335,7 +1369,7 @@ function resetChart(){
   document.getElementById("pg-universe").classList.remove("zoomed");
 }
 function showSheet(){
-  sheet.classList.add("up"); sheet.classList.remove("full"); sheet.scrollTop=0; closeBtn.classList.add("on"); sheet.scrollTop=0;
+  sheet.classList.add("up"); sheet.scrollTop=0; closeBtn.classList.add("on"); sheet.scrollTop=0;
   document.getElementById("pg-universe").classList.add("zoomed");
 }
 
@@ -1403,9 +1437,16 @@ function sheetHouse(h){
         [1,5,9].includes(h)?"Trikona":null,[6,8,12].includes(h)?"Dusthana":null,
         [3,6,10,11].includes(h)?"Upachaya":null].filter(Boolean).join(" &#183; ")||"&#8212;"]
     ])}
-    <p class="muted" style="font-size:13px">${occ.length
+    <div class="eyebrow" style="margin:20px 0 8px">What this means in your chart</div>
+    <p class="interp">${occ.length
       ? `${occ.map(o=>o.graha).join(" and ")} ${occ.length>1?"sit":"sits"} here in ${SIGNS[sg-1]}${occ[0].dig?`, ${occ[0].dig.toLowerCase()}`:""}. ${CORE[occ[0].graha]}`
-      : `No graha occupies this house, which in Vedic practice is not an empty subject &#8212; it is read through its lord, ${lord}, and through whatever drishti reaches it.`}</p>`;
+      : `No graha occupies this house, which in Vedic practice is not an empty subject &#8212; it is read through its lord.`}</p>
+    <p class="interp">Its lord ${lord} sits in your ${ordinal(lp.house)} house${lp.dig?`, ${lp.dig.toLowerCase()}`:""}, which traditionally ties ${head.toLowerCase()} to ${BHAVA[lp.house-1][1].toLowerCase()}.</p>
+    ${inc.length?`<p class="interp">${inc.join(" and ")} cast${inc.length>1?"":"s"} drishti here from elsewhere, adding ${inc.map(g=>KARAKA[g].split(",")[0].toLowerCase()).join(" and ")}.</p>`:""}
+    ${(()=>{const n=CHART.dasha.at(new Date());
+      const active=n.maha.lord===lord||n.antar.lord===lord||occ.some(o=>o.graha===n.maha.lord);
+      return active?`<p class="interp brass">This house is live right now &#8212; ${lord} governs the period you are running.</p>`:""})()}
+    <p class="note">Traditional readings for this configuration. Not a prediction.</p>`;
 }
 
 function sheetPlanet(p){
@@ -1442,19 +1483,6 @@ function sheetPlanet(p){
       settled first time.</p>`:``}`;
 }
 
-(()=>{
-  /* drag the handle up to read full-screen, down to see the chart again */
-  const g=document.getElementById("grab"); let y0=null;
-  g.addEventListener("pointerdown",e=>{y0=e.clientY;g.setPointerCapture(e.pointerId)});
-  g.addEventListener("pointermove",e=>{
-    if(y0===null)return;
-    const dy=e.clientY-y0;
-    if(dy<-26){sheet.classList.add("full");y0=null;buzz(7)}
-    if(dy>26){ if(sheet.classList.contains("full")){sheet.classList.remove("full");y0=null;buzz(7)} }
-  });
-  g.addEventListener("pointerup",()=>{y0=null});
-  g.addEventListener("click",()=>{sheet.classList.toggle("full");buzz(7)});
-})();
 closeBtn.onclick=resetChart;
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
 sheet.addEventListener("click",e=>e.stopPropagation());
@@ -1636,6 +1664,21 @@ const PERSONAL={
  "Trikona":()=>{const t=CHART.placements.filter(p=>[1,5,9].includes(p.house)).map(p=>p.graha);
    return t.length?`In yours, <b>${t.join(", ")}</b> sit in trikonas.`:""},
  "Drishti":()=>`Your Saturn, for instance, aspects the ${CHART.aspectedBy("Saturn").map(ordinal).join(", ")}.`,
+ "Darakaraka":()=>{const p=[...CHART.placements].filter(x=>!shadow(x.graha))
+   .sort((a,b)=>degIn(a.L)-degIn(b.L))[0];
+   return `Yours is <b>${p.graha}</b>, at ${p.degf} in ${SIGNS[p.sign-1]}.`},
+ "Atmakaraka":()=>{const p=[...CHART.placements].filter(x=>!shadow(x.graha))
+   .sort((a,b)=>degIn(b.L)-degIn(a.L))[0];
+   return `Yours is <b>${p.graha}</b>, at ${p.degf} in ${SIGNS[p.sign-1]}.`},
+ "Combust":()=>{const sun=CHART.get("Sun");
+   const c=CHART.placements.filter(x=>x.graha!=="Sun"&&!shadow(x.graha)&&sep(x.L,sun.L)<12).map(x=>x.graha);
+   return c.length?`In yours, <b>${c.join(", ")}</b> ${c.length>1?"are":"is"} close enough to the Sun to be read as combust.`:""},
+ "Dusthana":()=>{const d=CHART.placements.filter(p=>[6,8,12].includes(p.house)).map(p=>p.graha);
+   return d.length?`In yours, <b>${d.join(", ")}</b> sit in dusthanas.`:"No graha sits in a dusthana in your chart."},
+ "Conjunction":()=>{const pairs=[];
+   CHART.placements.forEach(p=>{const c=CHART.conjunct(p.graha);
+     c.forEach(q=>{const k=[p.graha,q].sort().join("+"); if(!pairs.includes(k))pairs.push(k)})});
+   return pairs.length?`Yours: <b>${pairs.map(x=>x.replace("+"," and ")).join("; ")}</b>.`:""},
  "Lord":()=>`Your lagna lord is <b>${SIGN_LORD[CHART.lagna]}</b>, sitting in the ${ordinal(CHART.get(SIGN_LORD[CHART.lagna]).house)}.`
 };
 const GLOSS_FLAT=()=>GLOSSARY.flatMap(([grp,items])=>items.map(([t,d])=>({t,d,grp})))
@@ -1652,11 +1695,6 @@ function subGlossary(){
     let v=""; try{v=f()}catch(_){}; return v?`<p class="gmine">${v}</p>`:""};
 
   return `
-    <div class="gsearch">
-      <svg viewBox="0 0 24 24" class="gsico"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-      <input id="gq" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
-      ${glossQ?`<button class="gclear" id="gclear" aria-label="Clear">&#215;</button>`:""}
-    </div>
     ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
       <section class="gsec">
         <h3 class="gletter" id="L-${L}">${L}</h3>
@@ -1730,6 +1768,8 @@ function renderYou(){
           <span class="sub">${v.sub()}</span><span class="chev">&#8250;</span></button>`).join("")}
       </div>
     </div>`;
+  const sw=document.getElementById("switchuser");
+  if(sw) sw.onclick=()=>{buzz(7); subView="people"; subArg=null; renderSub();};
   document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
     subView=b.dataset.v; subArg=null; buzz(7); renderSub();
   });
@@ -1748,14 +1788,18 @@ function renderSub(){
     events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
+    glossary:`<div class="barsearch">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="gq" type="search" value="${glossQ}" placeholder="Search" aria-label="Search the glossary">
+    </div>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
-    glossary:"Glossary",settings:"Settings",report:"Detailed report",addpartner:subArg!=null?"Edit person":"Add a person",
+    glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
   setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
-              glossary:subGlossary,report:subReport,
+              glossary:subGlossary,report:subReport,people:subPeople,
               settings:subSettings}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -1783,6 +1827,30 @@ function subStub(name){
 const PREFS=()=>{try{return JSON.parse(localStorage.getItem("astro.prefs")||"{}")}catch(_){return{}}};
 const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",JSON.stringify(p));};
 
+
+function subPeople(){
+  const list=partners();
+  return `
+    <p class="muted" style="font-size:13px;margin:0 0 16px">
+      Switch whose chart the app is showing.</p>
+    <div class="list">
+      <button class="item" data-p="me">
+        <span class="pav" style="background:var(--venus)">S</span>
+        <span><b style="font-weight:600">Sangram</b>
+          <span style="display:block;font-size:11.5px;color:var(--ink-3)">26 Mar 1992 &#183; Vrishabha lagna</span></span>
+        <span class="sub" style="color:var(--brass)">Active</span></button>
+      ${list.map((p,i)=>`<button class="item" data-p="${i}">
+        <span class="pav" style="background:${COLOUR(["Venus","Jupiter","Moon","Mars"][i%4])}">${p.name[0].toUpperCase()}</span>
+        <span><b style="font-weight:600">${p.name}</b>
+          <span style="display:block;font-size:11.5px;color:var(--ink-3)">
+            ${NAK[nakOf(p.moonL)]} &#183; ${SIGNS[signOf(p.moonL)-1]}</span></span>
+        <span class="chev">&#8250;</span></button>`).join("")}
+    </div>
+    <p class="note">Only your own chart is computed in full &#8212; the others carry a birth
+    moment for compatibility, not a full chart. Their houses and dignities arrive with the
+    licensed ephemeris.</p>`;
+}
+
 function subReport(){
   const now=CHART.dasha.at(new Date());
   return `
@@ -1805,34 +1873,45 @@ function wireReport(){
   if(b) b.onclick=()=>alert("Not wired up yet - this is a placeholder.");
 }
 
+let setOpen=null;
+const AYANAMSAS=["Lahiri","Raman","Krishnamurti (KP)","Yukteshwar"];
+const STYLES=["North Indian","South Indian"];
 function subSettings(){
   const pr=PREFS();
-  const row=(label,control,note)=>`
+  const picker=(key,label,opts,val,note)=>`
+    <button class="setrow tap" data-open="${key}">
+      <div class="setlabel"><b>${label}</b>${note?`<span>${note}</span>`:""}</div>
+      <span class="setval">${val}<i class="chev">&#8250;</i></span>
+    </button>
+    ${setOpen===key?`<div class="setopts">${opts.map(o=>`
+      <button class="setopt${o===val?" on":""}" data-set="${key}" data-val="${o}">
+        <span>${o}</span>${o===val?`<svg viewBox="0 0 24 24" class="tick"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`:""}
+      </button>`).join("")}</div>`:""}`;
+  const tog=(id,label,on,note)=>`
     <div class="setrow">
       <div class="setlabel"><b>${label}</b>${note?`<span>${note}</span>`:""}</div>
-      ${control}
+      <button class="switch${on?" on":""}" id="${id}" role="switch" aria-checked="${on}"><i></i></button>
     </div>`;
-  const sel=(id,val,opts)=>`<select id="${id}" class="setsel">${
-    opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>`;
-  const tog=(id,on)=>`<button class="switch${on?" on":""}" id="${id}" role="switch"
-    aria-checked="${on}"><i></i></button>`;
   return `
     <div class="setgroup">
-      ${row("Ayanamsa",sel("s_ayan",pr.ayanamsa||"Lahiri",
-        ["Lahiri","Raman","Krishnamurti (KP)","Yukteshwar"]),"Sidereal offset")}
-      ${row("Chart style",sel("s_style",pr.style||"North Indian",
-        ["North Indian","South Indian"]))}
+      ${picker("ayan","Ayanamsa",AYANAMSAS,pr.ayanamsa||"Lahiri","Sidereal offset")}
+      ${picker("style","Chart style",STYLES,pr.style||"North Indian")}
     </div>
     <div class="setgroup">
-      ${row("Nodal drishti",tog("s_nodal",!!pr.nodal),"Rahu and Ketu aspect the 5th and 9th")}
-      ${row("Haptics",tog("s_haptics",pr.haptics!==false))}
+      ${tog("s_nodal","Nodal drishti",!!pr.nodal,"Rahu and Ketu aspect the 5th and 9th")}
+      ${tog("s_haptics","Haptics",pr.haptics!==false)}
     </div>
     <p class="note">Ayanamsa and chart style are saved but not yet applied.</p>`;
 }
 
 function wireSettings(){
-  document.getElementById("s_ayan").onchange=e=>{setPref("ayanamsa",e.target.value);buzz(6)};
-  document.getElementById("s_style").onchange=e=>{setPref("style",e.target.value);buzz(6)};
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{
+    setOpen=setOpen===b.dataset.open?null:b.dataset.open; buzz(5); renderSub();
+  });
+  document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{
+    setPref(b.dataset.set==="ayan"?"ayanamsa":"style", b.dataset.val);
+    setOpen=null; buzz(8); renderSub();
+  });
   const n=document.getElementById("s_nodal");
   n.onclick=()=>{const v=!n.classList.contains("on");n.classList.toggle("on",v);
     n.setAttribute("aria-checked",v);setPref("nodal",v);
@@ -2406,7 +2485,7 @@ function wirePartner(){}
 const TABS=[
   {id:"today",label:"Today",icon:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/><circle cx="12" cy="14.6" r="1.5" fill="currentColor" stroke="none"/>'},
   {id:"timeline",label:"Timeline",icon:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>'},
-  {id:"universe",label:"Birth chart",hero:true,
+  {id:"universe",label:"Birth chart",
    icon:'<rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/>'},
   {id:"guide",label:"Guide",icon:'<path d="M20 15.2a2.6 2.6 0 01-2.6 2.6H8.2L4 20.8V6.2A2.6 2.6 0 016.6 3.6h10.8A2.6 2.6 0 0120 6.2z"/>'},
   {id:"you",label:"You",icon:'<circle cx="12" cy="8.4" r="3.5"/><path d="M4.8 20.4c0-4 3.2-7.2 7.2-7.2s7.2 3.2 7.2 7.2"/>'}

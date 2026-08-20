@@ -3,13 +3,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#08090D">
+<meta name="theme-color" content="#171A33">
 <title>Astro App</title>
 <style>
 :root{
-  --void:#08090D; --void-2:#101218; --raise:#15171D;
-  --line:#23252C; --line-2:#33363F; --hot:#8A93A6;
-  --ink:#EFF1F7; --ink-2:#9C9FA8; --ink-3:#6E717A;
+  --void:#171A33; --void-2:#1E2240; --raise:#272B4B;
+  --line:#2C3155; --line-2:#3B4170; --hot:#8E97C8;
+  --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
   --brass:#C29B4E;
   --sun:#F0A93B; --moon:#CFD8E8; --mars:#D0533F; --mercury:#5FBFA0;
   --jupiter:#E0C067; --venus:#E7C6D0; --saturn:#7E90C4;
@@ -52,10 +52,10 @@ body{
   height:calc(var(--tabh) + env(safe-area-inset-bottom));
   padding-bottom:env(safe-area-inset-bottom);
   display:grid;grid-template-columns:repeat(4,1fr);
-  background:rgba(12,13,17,.78);
+  background:rgba(23,26,51,.82);
   -webkit-backdrop-filter:saturate(180%) blur(26px);
   backdrop-filter:saturate(180%) blur(26px);
-  border-top:.5px solid rgba(255,255,255,.08);
+  border-top:.5px solid rgba(170,180,235,.16);
 }
 .tab{
   border:0;background:none;cursor:pointer;color:var(--ink-3);
@@ -79,8 +79,8 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .section{margin:30px 0 0}
 
 .card{
-  background:rgba(255,255,255,.045);
-  border:.5px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.062);
+  border:.5px solid rgba(170,180,235,.14);
   border-radius:17px;padding:17px 18px;
 }
 .grid{display:flex;flex-direction:column;gap:11px}
@@ -90,13 +90,13 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .tophead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .tophead-actions{display:flex;align-items:center;gap:8px;padding-top:4px}
 .calbtn{width:36px;height:36px;border-radius:11px;cursor:pointer;display:grid;place-items:center;
-  background:rgba(255,255,255,.05);border:.5px solid rgba(255,255,255,.09);color:var(--ink-2)}
+  background:rgba(255,255,255,.07);border:.5px solid rgba(170,180,235,.18);color:var(--ink-2)}
 .calbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;
   stroke-linecap:round;stroke-linejoin:round}
 .calbtn:active{background:rgba(255,255,255,.12)}
 .calinput{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
 .todaychip{border:0;cursor:pointer;font-family:var(--ff);font-size:12.5px;font-weight:590;
-  color:#0A0F22;background:var(--ink);border-radius:99px;padding:8px 13px;
+  color:#141731;background:var(--ink);border-radius:99px;padding:8px 13px;
   animation:popin .34s var(--ease)}
 .todaychip:active{opacity:.8}
 @keyframes popin{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
@@ -117,8 +117,8 @@ body.insub .tabs{transform:translateY(115%);pointer-events:none}
 .topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
   display:flex;align-items:center;gap:4px;padding:0 16px;
   padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
-  background:rgba(8,9,13,.82);
-  border-bottom:.5px solid rgba(255,255,255,.08);
+  background:rgba(23,26,51,.82);
+  border-bottom:.5px solid rgba(170,180,235,.15);
   -webkit-backdrop-filter:saturate(160%) blur(20px);backdrop-filter:saturate(160%) blur(20px);
   pointer-events:none}
 .topbar>*{pointer-events:auto}
@@ -148,11 +148,11 @@ body.insub .tabs{transform:translateY(115%);pointer-events:none}
 .tab svg{width:23px;height:23px}
 .tab.hero{position:relative}
 .tab.hero .tabico{width:44px;height:44px;border-radius:50%;margin-top:-14px;margin-bottom:-8px;
-  background:#1B1D24;border:.5px solid rgba(255,255,255,.14);
+  background:#272B4B;border:.5px solid rgba(170,180,235,.26);
   box-shadow:0 4px 14px -4px rgba(0,0,0,.8);
   transition:background .3s var(--ease),border-color .3s var(--ease)}
 .tab.hero svg{width:24px;height:24px}
-.tab.hero.on .tabico{background:#2A2D36;border-color:rgba(255,255,255,.28)}
+.tab.hero.on .tabico{background:#343A66;border-color:rgba(170,180,235,.45)}
 
 
 .tabs{transition:transform .38s var(--ease)}
@@ -165,7 +165,7 @@ body.insub .page{padding-bottom:30px}
 .subhead h1{font-size:25px;margin:0;letter-spacing:-.028em}
 .calsheet{
   position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
-  background:rgba(8,9,13,.86);
+  background:rgba(23,26,51,.86);
   -webkit-backdrop-filter:saturate(180%) blur(30px);backdrop-filter:saturate(180%) blur(30px);
   transform:translateY(100%);pointer-events:none;
   transition:transform .46s cubic-bezier(.3,1,.4,1)}
@@ -201,7 +201,7 @@ body.insub .page{padding-bottom:30px}
 .cnum{font-size:14px;color:var(--ink-2);line-height:1.5;
   width:24px;height:24px;display:grid;place-items:center;border-radius:50%;
   font-variant-numeric:tabular-nums}
-.cday.today .cnum{background:var(--brass);color:#0A0F22;font-weight:680}
+.cday.today .cnum{background:var(--brass);color:#141731;font-weight:680}
 .cday.sel{background:rgba(255,255,255,.1)}
 .cday.sel .cnum{color:var(--ink);font-weight:640}
 .cday .mn{opacity:.98;display:block}
@@ -211,7 +211,7 @@ body.insub .page{padding-bottom:30px}
 .datestrip::-webkit-scrollbar{display:none}
 .dchip{
   flex:0 0 auto;border:0;cursor:pointer;font-family:var(--ff);
-  background:rgba(255,255,255,.045);color:var(--ink-3);
+  background:rgba(255,255,255,.062);color:var(--ink-3);
   border-radius:13px;padding:8px 6px;width:46px;text-align:center;
   transition:background .3s var(--ease), color .3s var(--ease), transform .3s var(--ease);
 }
@@ -221,12 +221,13 @@ body.insub .page{padding-bottom:30px}
 .dchip.on b{color:var(--ink)}
 
 
-.segmented{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;
-  background:rgba(255,255,255,.06);border-radius:11px;margin:14px 0 18px}
-.segmented button{border:0;background:none;cursor:pointer;font-family:var(--ff);
-  font-size:13.5px;font-weight:560;color:var(--ink-3);padding:8px 0;border-radius:9px;
-  transition:background .22s var(--ease),color .22s var(--ease)}
-.segmented button.on{background:rgba(255,255,255,.13);color:var(--ink)}
+.segmented{display:flex;gap:8px;margin:15px 0 20px}
+.segmented button{flex:1;cursor:pointer;font-family:var(--ff);font-size:13.5px;font-weight:560;
+  color:var(--ink-2);padding:9px 0;border-radius:99px;background:none;
+  border:.5px solid rgba(170,180,235,.22);
+  transition:background .22s var(--ease),color .22s var(--ease),border-color .22s var(--ease)}
+.segmented button.on{background:rgba(170,180,235,.16);color:var(--ink);
+  border-color:rgba(170,180,235,.5)}
 .reading h2{font-size:22px;font-weight:680;letter-spacing:-.028em;margin:0 0 9px;text-wrap:balance}
 .reading p{font-size:15.5px;line-height:1.55;color:var(--ink);margin:0 0 10px;max-width:60ch}
 .reading .under{font-size:13.5px;color:var(--ink-3);line-height:1.5}
@@ -248,7 +249,7 @@ body.insub .page{padding-bottom:30px}
 }
 .moondisc .shadow{
   position:absolute;inset:0;border-radius:50%;
-  background:#08090D;
+  background:#171A33;
   transition:transform .8s var(--ease);
 }
 .moondisc .craters{position:absolute;inset:0;border-radius:50%;opacity:.5;
@@ -259,8 +260,8 @@ body.insub .page{padding-bottom:30px}
 .cats{display:flex;flex-direction:column;gap:10px}
 .cat{
   width:100%;text-align:left;border:0;cursor:pointer;font-family:var(--ff);
-  background:rgba(255,255,255,.045);
-  border:.5px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.062);
+  border:.5px solid rgba(170,180,235,.14);
   border-radius:15px;padding:15px 16px;color:var(--ink);
   display:grid;grid-template-columns:30px 1fr auto;gap:13px;align-items:start;
   transition:background .3s var(--ease), transform .2s var(--ease);
@@ -367,7 +368,7 @@ svg.asp{pointer-events:none}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:55;
   padding:20px 20px calc(var(--tabh) + 22px);
-  background:linear-gradient(180deg,rgba(8,9,13,0) 0%,rgba(8,9,13,.96) 6%,#08090D 13%);
+  background:linear-gradient(180deg,rgba(23,26,51,0) 0%,rgba(23,26,51,.96) 6%,#171A33 13%);
   transform:translateY(101%);transition:transform .68s var(--ease);
   max-height:calc(100dvh - 52px - env(safe-area-inset-top));
   overflow-y:auto;overscroll-behavior:contain;
@@ -375,7 +376,7 @@ svg.asp{pointer-events:none}
 .sheet.up{transform:translateY(0)}
 .loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
 .lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
-  padding:9px 12px;background:rgba(255,255,255,.05);border-left:2px solid var(--hot);
+  padding:9px 12px;background:rgba(255,255,255,.07);border-left:2px solid var(--hot);
   border-radius:0 7px 7px 0}
 .lordline b{color:var(--ink);font-weight:600}
 .rows{display:flex;flex-direction:column;margin-bottom:14px}
@@ -402,17 +403,17 @@ svg.asp{pointer-events:none}
 .chatwrap{padding-bottom:74px}
 .composer{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom));
   z-index:45;display:flex;align-items:center;gap:9px;padding:10px 14px 12px;
-  background:linear-gradient(180deg,rgba(8,9,13,0),rgba(8,9,13,.92) 30%,#08090D);
+  background:linear-gradient(180deg,rgba(23,26,51,0),rgba(23,26,51,.92) 30%,#171A33);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .composer input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
-  background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.07);border:.5px solid rgba(170,180,235,.2);
   border-radius:99px;padding:12px 16px;-webkit-appearance:none}
 .composer input:focus{outline:none;border-color:var(--hot);background:rgba(255,255,255,.11)}
 .cmp-btn{width:38px;height:38px;flex:0 0 auto;border:0;background:none;cursor:pointer;
   display:grid;place-items:center;color:var(--ink-2)}
 .cmp-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round}
-.cmp-btn.mic{background:var(--ink);color:#0A0F22;border:0}
+.cmp-btn.mic{background:var(--ink);color:#141731;border:0}
 .cmp-btn.mic.live{background:var(--mars);color:#fff;animation:pulse 1.6s ease-in-out infinite}
 .chat{padding-bottom:6px}
 .bubble.it .cmd{opacity:.85}
@@ -420,7 +421,7 @@ svg.asp{pointer-events:none}
 .bubble{max-width:84%;padding:12px 15px;border-radius:19px;font-size:14.5px;line-height:1.5}
 .bubble.me{align-self:flex-end;background:rgba(255,255,255,.12);border-bottom-right-radius:6px}
 .bubble.it{align-self:flex-start;background:rgba(255,255,255,.055);
-  border:.5px solid rgba(255,255,255,.06);border-bottom-left-radius:6px;color:var(--ink-2)}
+  border:.5px solid rgba(170,180,235,.12);border-bottom-left-radius:6px;color:var(--ink-2)}
 .bubble.it b{color:var(--ink);font-weight:600}
 .cmd{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;
   border-top:.5px solid var(--line);font-family:var(--fm);font-size:10px;
@@ -450,7 +451,7 @@ svg.asp{pointer-events:none}
 .tl2{display:grid;grid-template-columns:56px 1fr;gap:15px;align-items:start}
 .spine{position:sticky;top:6px;height:62dvh;min-height:330px;border-radius:14px;
   overflow:hidden;cursor:grab;touch-action:none;outline:none;
-  border:.5px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);
+  border:.5px solid rgba(170,180,235,.18);background:rgba(255,255,255,.05);
   -webkit-mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%);
           mask:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%)}
 .spine:active{cursor:grabbing}
@@ -487,7 +488,7 @@ svg.asp{pointer-events:none}
   letter-spacing:.04em}
 .antar{margin-top:16px;padding:11px 13px;border-radius:12px;display:flex;
   align-items:center;gap:2px;flex-wrap:wrap;
-  background:rgba(255,255,255,.035);border:.5px solid rgba(110,135,195,.16)}
+  background:rgba(255,255,255,.05);border:.5px solid rgba(110,135,195,.16)}
 .antar .evmeta{margin:0 0 0 6px}
 .spanrow{display:flex;align-items:center;gap:10px;margin:10px 0 12px}
 .spanrow>div{flex:1}
@@ -502,7 +503,7 @@ svg.asp{pointer-events:none}
 .poslabel{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:9px 0 0}
 .poslabel b{color:var(--ink);font-weight:600}
 .antar{margin-top:18px;padding:11px 13px;border-radius:12px;
-  background:rgba(255,255,255,.035);border:.5px solid rgba(110,135,195,.16)}
+  background:rgba(255,255,255,.05);border:.5px solid rgba(110,135,195,.16)}
 /* life events */
 .evcard{display:flex;gap:12px;padding:13px 0;border-top:.5px solid var(--line)}
 .evcard:last-of-type{border-bottom:.5px solid var(--line)}
@@ -529,7 +530,7 @@ svg.asp{pointer-events:none}
   text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
 .fld input,.fld textarea,.fld select{width:100%;font-family:var(--ff);font-size:16px;
   color:var(--ink);background:rgba(255,255,255,.055);border-radius:12px;padding:12px 13px;
-  border:.5px solid rgba(255,255,255,.09);-webkit-appearance:none;appearance:none}
+  border:.5px solid rgba(170,180,235,.18);-webkit-appearance:none;appearance:none}
 .fld select{background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
   linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
   background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
@@ -539,7 +540,7 @@ svg.asp{pointer-events:none}
 .fld textarea{resize:vertical;line-height:1.5}
 .fnote{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin:-4px 0 18px}
 .primary{width:100%;padding:14px;border-radius:13px;cursor:pointer;border:0;
-  background:var(--ink);color:#0A0F22;font-family:var(--ff);font-size:15px;font-weight:620}
+  background:var(--ink);color:#141731;font-family:var(--ff);font-size:15px;font-weight:620}
 .primary:active{opacity:.82}
 .evdel{border:.5px solid var(--line-2);background:none;color:var(--ink-3);font-size:11.5px;
   cursor:pointer;line-height:1;padding:5px 10px;border-radius:99px;font-family:var(--ff)}
@@ -549,7 +550,7 @@ svg.asp{pointer-events:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pillrow{display:flex;flex-direction:column;gap:9px}
 .mpill{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:14px;
-  background:rgba(255,255,255,.045);
+  background:rgba(255,255,255,.062);
   border:.5px solid rgba(110,135,195,.18)}
 .mpico{width:34px;height:34px;flex:0 0 auto;object-fit:contain;
   filter:drop-shadow(0 0 10px rgba(150,180,255,.3))}
@@ -562,10 +563,10 @@ svg.asp{pointer-events:none}
   display:grid;place-items:center;transition:transform .2s var(--ease)}
 .plus:active{transform:scale(.92)}
 .pav{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;
-  place-items:center;font-size:13px;font-weight:700;color:#0A0F22}
+  place-items:center;font-size:13px;font-weight:700;color:#141731}
 .scorecard{display:flex;align-items:center;gap:16px;padding:16px 17px;
   border-radius:16px;margin-bottom:6px;
-  background:rgba(255,255,255,.05);
+  background:rgba(255,255,255,.07);
   border:.5px solid rgba(110,135,195,.18)}
 .scorenum{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;
   font-variant-numeric:tabular-nums}
@@ -588,13 +589,13 @@ svg.asp{pointer-events:none}
 .me-head{display:flex;align-items:center;gap:15px;margin:6px 0 4px}
 .avatar{width:56px;height:56px;border-radius:50%;flex:0 0 auto;
   background:conic-gradient(from 210deg,var(--venus),var(--jupiter),var(--saturn),var(--venus));
-  display:grid;place-items:center;font-size:19px;font-weight:700;color:#0A0F22}
+  display:grid;place-items:center;font-size:19px;font-weight:700;color:#141731}
 .list{display:flex;flex-direction:column;border-radius:15px;overflow:hidden;
   border:.5px solid rgba(110,135,195,.18)}
 .item{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
   padding:14px 16px;border:0;cursor:pointer;font-family:var(--ff);font-size:14.5px;
-  background:rgba(255,255,255,.04);color:var(--ink);
-  border-bottom:.5px solid rgba(255,255,255,.055);transition:background .22s var(--ease)}
+  background:rgba(255,255,255,.055);color:var(--ink);
+  border-bottom:.5px solid rgba(170,180,235,.11);transition:background .22s var(--ease)}
 .item:last-child{border-bottom:0}
 .item:active{background:rgba(60,85,150,.38)}
 .item .ico{width:22px;height:22px;flex:0 0 auto;stroke:var(--ink-2);fill:none;stroke-width:1.7}
@@ -604,10 +605,10 @@ svg.asp{pointer-events:none}
 /* timeline */
 .scrub{margin-top:18px}
 .track{position:relative;height:66px;border-radius:13px;overflow:hidden;
-  border:.5px solid rgba(255,255,255,.08);background:rgba(10,18,44,.6);display:flex}
+  border:.5px solid rgba(170,180,235,.16);background:rgba(10,18,44,.6);display:flex}
 .seg{position:relative;display:grid;place-items:center;
   border-right:.5px solid rgba(10,16,36,.85);transition:filter .3s var(--ease)}
-.seg span{font-family:var(--fm);font-size:9px;letter-spacing:.05em;color:#0A0F22;
+.seg span{font-family:var(--fm);font-size:9px;letter-spacing:.05em;color:#141731;
   font-weight:700;opacity:.8}
 .needle{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);
   box-shadow:0 0 12px 1px rgba(255,255,255,.6);pointer-events:none;border-radius:2px}
@@ -1820,7 +1821,7 @@ function moonArt(date,size){
   const ph=moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
   return `<svg class="mn" viewBox="${-size/2} ${-size/2} ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
     <defs><clipPath id="${id}"><path d="${moonPath(r,ph.illum,ph.waxing)}"/></clipPath></defs>
-    <circle r="${r}" fill="#0E1526" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>
+    <circle r="${r}" fill="#1B1F3C" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>
     ${ph.illum>0.012?`<image href="assets/graha/moon.png" x="${-r}" y="${-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})"/>`:``}
   </svg>`;
 }
@@ -2382,12 +2383,6 @@ nav.onclick=e=>{const b=e.target.closest(".tab"); if(!b)return;
     cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+"px";cv.style.height=h+"px";
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     let s=20260819;const rnd=()=>(s=(s*1664525+1013904223)%4294967296)/4294967296;
-    const g=ctx.createLinearGradient(0,h*.1,w,h*.85);
-    g.addColorStop(0,"rgba(70,78,96,0)");g.addColorStop(.42,"rgba(70,78,96,.10)");
-    g.addColorStop(.58,"rgba(60,68,86,.08)");g.addColorStop(1,"rgba(50,58,74,0)");
-    ctx.save();ctx.translate(w/2,h/2);ctx.rotate(-.42);ctx.translate(-w/2,-h/2);
-    ctx.filter="blur(38px)";ctx.fillStyle=g;ctx.fillRect(-w*.3,h*.24,w*1.6,h*.30);
-    ctx.restore();ctx.filter="none";
     for(const L of [{n:250,r:[.15,.5],a:[.05,.2]},{n:95,r:[.5,.95],a:[.16,.42]},{n:28,r:[.9,1.5],a:[.34,.66]}]){
       for(let i=0;i<L.n;i++){
         const x=rnd()*w,y=rnd()*h,r=L.r[0]+rnd()*(L.r[1]-L.r[0]),a=L.a[0]+rnd()*(L.a[1]-L.a[0]),wm=rnd();
@@ -2403,5 +2398,5 @@ nav.onclick=e=>{const b=e.target.closest(".tab"); if(!b)return;
 })();
 
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
-renderToday(); renderUniverse(); renderGuide(); renderYou();
+renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();
 </script>

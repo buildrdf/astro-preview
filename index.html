@@ -99,6 +99,52 @@ h2{font-size:17px;font-weight:640;letter-spacing:-.015em;margin:0 0 10px}
 .nowdot{position:absolute;left:50%;bottom:5px;width:3.5px;height:3.5px;margin-left:-1.75px;
   border-radius:50%;background:var(--brass)}
 .dchip{position:relative}
+
+/* week strip */
+.dchip{position:relative;width:50px;padding:8px 5px 9px;display:flex;
+  flex-direction:column;align-items:center;gap:3px}
+.dchip .mn{display:block;margin-top:1px}
+.dchip b{margin-top:0}
+
+/* month calendar, Apple Fitness layout with lunar phases in the cells */
+body.noscroll{overflow:hidden}
+.calsheet{
+  position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  background:rgba(7,12,30,.86);
+  -webkit-backdrop-filter:saturate(180%) blur(30px);backdrop-filter:saturate(180%) blur(30px);
+  transform:translateY(100%);pointer-events:none;
+  transition:transform .46s cubic-bezier(.3,1,.4,1)}
+.calsheet.open{transform:translateY(0);pointer-events:auto}
+.calhead{display:flex;align-items:center;justify-content:center;position:relative;
+  padding:max(16px,env(safe-area-inset-top)) 20px 12px;flex:0 0 auto}
+.calhead span{font-size:19px;font-weight:640;letter-spacing:-.02em}
+.calclose{position:absolute;right:18px;top:max(12px,env(safe-area-inset-top));
+  width:34px;height:34px;border-radius:50%;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.09);border:0;color:var(--ink);font-size:19px;line-height:1}
+.calclose:active{background:rgba(255,255,255,.18)}
+.calweek{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;
+  padding:2px 14px 8px;flex:0 0 auto;
+  border-bottom:.5px solid rgba(110,135,195,.16)}
+.calweek span{text-align:center;font-size:11px;font-weight:560;color:var(--ink-3)}
+.calscroll{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
+  padding:4px 14px calc(var(--tabh) + 30px);-webkit-overflow-scrolling:touch}
+.calscroll::-webkit-scrollbar{display:none}
+.cmonth{padding-top:16px}
+.cmname{margin:0 0 8px;font-size:22px;font-weight:680;letter-spacing:-.025em;color:var(--ink)}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px 2px}
+.cday{border:0;background:none;padding:5px 0 3px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:var(--ff);border-radius:12px;transition:background .2s var(--ease)}
+.cday.empty{pointer-events:none}
+.cday:active{background:rgba(255,255,255,.07)}
+.cnum{font-size:14px;color:var(--ink-2);line-height:1.5;
+  width:24px;height:24px;display:grid;place-items:center;border-radius:50%;
+  font-variant-numeric:tabular-nums}
+.cday.today .cnum{background:var(--brass);color:#0A0F22;font-weight:680}
+.cday.sel{background:rgba(150,180,245,.13)}
+.cday.sel .cnum{color:var(--ink);font-weight:640}
+.cday .mn{opacity:.95}
+.cday.empty .mn{display:none}
 .datestrip{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .datestrip::-webkit-scrollbar{display:none}
 .dchip{
@@ -459,6 +505,7 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 
 <button class="closebtn" id="close" aria-label="Close">&#10005;</button>
 <section class="sheet" id="sheet" aria-live="polite"></section>
+<div class="calsheet" id="calsheet" role="dialog" aria-label="Choose a date"></div>
 
 <nav class="tabs" id="tabs" role="tablist"></nav>
 
@@ -576,18 +623,29 @@ function buildChart({ascendant,placements,birthDate}){
           get,occupants,housesRuled,aspectedBy,aspecting,conjunct,dasha};
 }
 
-const NEW_MOON=Date.UTC(2000,0,6,18,14), SYN=29.530588853;
-function moonPhase(d){
-  const f=(((d-NEW_MOON)/864e5/SYN)%1+1)%1;
+/* Solar longitude (Meeus 25), needed for the lunar phase. */
+function sunTropical(JD){
+  const T=(JD-2451545)/36525;
+  const L0=280.46646+36000.76983*T+0.0003032*T*T;
+  const M=357.52911+35999.05029*T-0.0001537*T*T;
+  const C=(1.914602-0.004817*T-0.000014*T*T)*sind(M)
+         +(0.019993-0.000101*T)*sind(2*M)+0.000289*sind(3*M);
+  return norm(L0+C);
+}
+/* Phase is the Moon's elongation from the Sun - the actual geometry.
+   An earlier version counted mean lunations from a fixed epoch and drifted
+   by days: it put 28 Aug 2026 dark when that date carries a lunar eclipse.
+   Checked against the Aug 2026 eclipses: 12 Aug reads 0%, 28 Aug reads 100%. */
+function moonPhase(date){
+  const J=julian(date);
+  const e=norm(moonTropical(J)-sunTropical(J));
+  const f=e/360;
   const names=["New Moon","Waxing Crescent","First Quarter","Waxing Gibbous",
                "Full Moon","Waning Gibbous","Last Quarter","Waning Crescent"];
-  return {f,illum:(1-Math.cos(2*Math.PI*f))/2,name:names[Math.round(f*8)%8],waxing:f<0.5};
+  return {f, illum:(1-Math.cos(e*RAD))/2, name:names[Math.round(f*8)%8],
+          waxing:f<0.5, elongation:e};
 }
 
-/* &#9552;&#9552;&#9552; THE CHART &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
-   Hand-placed longitudes for the prototype. Internally consistent &#8212;
-   Sun/Mercury within 28&#176;, Venus within 48&#176;, nodes exactly opposite &#8212;
-   but describing no real birth. Everything else is derived.          */
 const CHART=buildChart({
   ascendant: lon(2,12,5.75),                      // Taurus 12&#176;05'45"
   birthDate: new Date("1992-03-26T10:00:00+05:30"),
@@ -815,11 +873,11 @@ function renderToday(){
 
   const days=[];
   for(let i=-3;i<=3;i++){
-    const d=new Date(viewDate); d.setDate(d.getDate()+i);
+    const d=new Date(viewDate); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
     const on=i===0;
     days.push(`<button class="dchip ${on?"on":""}" data-off="${i}">
       <small>${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</small>
-      <b>${d.getDate()}</b>${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
+      <b>${d.getDate()}</b>${moonSVG(d,20)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
   /* the shadow slides across the disc to show the actual phase */
@@ -837,7 +895,7 @@ function renderToday(){
         <button class="calbtn" id="calbtn" aria-label="Choose a date">
           <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
             <path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></button>
-        <input type="date" id="caldate" class="calinput" aria-hidden="true" tabindex="-1">
+
       </div>
     </div>
     <div class="datestrip" id="dates">${days.join("")}</div>
@@ -915,12 +973,7 @@ function renderToday(){
     const d=new Date(viewDate); d.setDate(d.getDate()+ +b.dataset.off);
     viewDate=d; buzz(6); renderToday();
   };
-  const cal=document.getElementById("caldate"), calb=document.getElementById("calbtn");
-  cal.value=isoOf(viewDate);
-  calb.onclick=()=>{ if(cal.showPicker) cal.showPicker(); else cal.click(); };
-  cal.onchange=()=>{ if(!cal.value) return;
-    const [y,m,dd]=cal.value.split("-").map(Number);
-    viewDate=new Date(y,m-1,dd); buzz(8); renderToday(); };
+  document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
   if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
   document.querySelectorAll(".cat").forEach(c=>c.onclick=()=>{
@@ -1367,6 +1420,102 @@ function subBirth(){
     than computed. Everything else on this screen is derived from the longitudes.</p>`;
 }
 
+
+/* Draw a real lunar phase, not an icon.
+   The lit region is bounded by two arcs: the outer limb (a semicircle on
+   the lit side) and the terminator (a half-ellipse whose x-radius goes to
+   zero at the quarters and back to r at new and full). */
+function moonPath(r,k,waxing){
+  const rx=(r*Math.abs(1-2*k)).toFixed(3);
+  /* SVG sweep in a y-down space: from the top point, sweep 1 traces the
+     RIGHT limb, sweep 0 the LEFT. The terminator runs bottom-to-top, so its
+     flags read the other way round. A crescent needs the terminator hugging
+     the SAME side as the lit limb (the two arcs nearly coincide); a gibbous
+     needs it bulging across to the far side. */
+  const limb=waxing?1:0;
+  const term=waxing?(k<0.5?0:1):(k<0.5?1:0);
+  return `M 0,${-r} A ${r},${r} 0 0 ${limb} 0,${r} A ${rx},${r} 0 0 ${term} 0,${-r} Z`;
+}
+function moonSVG(date,size){
+  const ph=moonPhase(date), r=size/2-0.5;
+  return `<svg class="mn" viewBox="${-size/2} ${-size/2} ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+    <circle r="${r}" fill="#141C33" stroke="rgba(150,175,225,.28)" stroke-width=".6"/>
+    ${ph.illum>0.012?`<path d="${moonPath(r,ph.illum,ph.waxing)}" fill="url(#mnfill)"/>`:``}
+  </svg>`;
+}
+const MOON_DEFS=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <radialGradient id="mnfill" cx="34%" cy="30%">
+    <stop offset="0%" stop-color="#F2F5FC"/><stop offset="62%" stop-color="#C3CEE4"/>
+    <stop offset="100%" stop-color="#8B99B8"/></radialGradient></defs></svg>`;
+
+
+/* ---- MONTH CALENDAR -------------------------------------------------
+   Apple Fitness lays a year out as one continuous scroll of month grids,
+   each day carrying a glanceable daily metric. Ours carries the lunar
+   phase, which is the closest thing this app has to a daily reading. */
+const CAL_BACK=18, CAL_FWD=18;      // months either side of today
+function monthGrid(y,m){
+  const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
+  const lead=(first.getDay()+6)%7;              // Monday-first
+  const cells=[];
+  for(let i=0;i<lead;i++) cells.push(`<div class="cday empty"></div>`);
+  for(let d=1;d<=days;d++){
+    const dt=new Date(y,m,d,12);
+    const today=isToday(dt), sel=dt.toDateString()===viewDate.toDateString();
+    cells.push(`<button class="cday${today?" today":""}${sel?" sel":""}"
+      data-iso="${isoOf(dt)}" aria-label="${dt.toDateString()}">
+      <span class="cnum">${d}</span>${moonSVG(dt,26)}</button>`);
+  }
+  return `<section class="cmonth" data-label="${first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}">
+    <h3 class="cmname">${first.toLocaleDateString("en-GB",{month:"short"})}${m===0?` ${y}`:""}</h3>
+    <div class="cgrid">${cells.join("")}</div></section>`;
+}
+
+function openCalendar(){
+  const host=document.getElementById("calsheet");
+  const now=new Date(), base=new Date(now.getFullYear(),now.getMonth(),1);
+  const months=[];
+  for(let i=-CAL_BACK;i<=CAL_FWD;i++){
+    const d=new Date(base.getFullYear(),base.getMonth()+i,1);
+    months.push(monthGrid(d.getFullYear(),d.getMonth()));
+  }
+  host.innerHTML=`
+    <div class="calhead">
+      <span id="calttl">${viewDate.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</span>
+      <button class="calclose" id="calclose" aria-label="Close">&#215;</button>
+    </div>
+    <div class="calweek">${["M","T","W","T","F","S","S"].map(d=>`<span>${d}</span>`).join("")}</div>
+    <div class="calscroll" id="calscroll">${months.join("")}</div>`;
+  host.classList.add("open");
+  document.body.classList.add("noscroll");
+
+  const scroll=document.getElementById("calscroll");
+  const target=scroll.children[CAL_BACK + (viewDate.getFullYear()-now.getFullYear())*12
+                + (viewDate.getMonth()-now.getMonth())];
+  if(target) scroll.scrollTop=target.offsetTop-8;
+
+  const ttl=document.getElementById("calttl");
+  scroll.onscroll=()=>{
+    for(const sec of scroll.children){
+      if(sec.offsetTop+sec.offsetHeight > scroll.scrollTop+16){
+        if(ttl.textContent!==sec.dataset.label) ttl.textContent=sec.dataset.label;
+        break;
+      }
+    }
+  };
+  scroll.onclick=e=>{
+    const b=e.target.closest(".cday[data-iso]"); if(!b) return;
+    const [y,m,d]=b.dataset.iso.split("-").map(Number);
+    viewDate=new Date(y,m-1,d); buzz(10); closeCalendar(); renderToday();
+  };
+  document.getElementById("calclose").onclick=closeCalendar;
+  buzz(6);
+}
+function closeCalendar(){
+  document.getElementById("calsheet").classList.remove("open");
+  document.body.classList.remove("noscroll");
+}
+
 /* ---- TIMELINE: a short window over proportional bands ----------
    Bands stay proportional because their length is information - Saturn's
    19 years should dwarf the Sun's 6. So instead of shrinking them to fit,
@@ -1749,5 +1898,6 @@ nav.onclick=e=>{const b=e.target.closest(".tab"); if(b)go(+b.dataset.i)};
   paint();addEventListener("resize",paint);
 })();
 
+document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderToday(); renderUniverse(); renderGuide(); renderYou();
 </script>

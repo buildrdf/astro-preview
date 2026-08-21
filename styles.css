@@ -244,8 +244,6 @@ body.insub .page{padding-bottom:30px}
 .segmented button.on{background:rgba(150,162,235,.2);color:var(--ink);
   border-color:rgba(150,162,235,.62)}
 
-.chartactions{display:flex;justify-content:center;margin-top:18px;
-  transition:opacity .4s var(--ease)}
 .ghostbtn{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
   font-family:var(--ff);font-size:14.5px;font-weight:540;color:var(--ink);
   background:rgba(255,255,255,.06);border:1px solid var(--edge);
@@ -324,7 +322,6 @@ body.insub .page{padding-bottom:30px}
 .stagewrap{display:grid;place-items:center;padding:6px 0 4px;
   transition:transform .68s var(--ease)}
 .zoomed .stagewrap{transform:translateY(-8dvh)}
-.zoomed .chartactions{opacity:0;pointer-events:none}
 .stage{position:relative;width:min(92vw,430px);aspect-ratio:1}
 .orbit{position:absolute;inset:0;transform-origin:50% 50%;
   transition:transform .72s var(--ease),filter .5s var(--ease),opacity .5s var(--ease)}

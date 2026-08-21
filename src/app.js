@@ -1030,11 +1030,6 @@ function renderUniverse(){
         <div class="rulercentre"></div>
       </div>
       <p class="scrubnote">Drag the scale. The houses hold still; the sky moves.</p>
-    </div>
-    <div class="chartactions" id="chartactions">
-      <button class="ghostbtn" id="dlchart">
-        <svg viewBox="0 0 24 24"><path d="M12 4v11M8 11.5l4 4 4-4M5 19.5h14"/></svg>
-        Download my chart</button>
     </div>`;
 
   const chart=document.getElementById("chart"), plane=document.getElementById("plane");
@@ -1079,8 +1074,6 @@ function renderUniverse(){
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
   plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation();openPlanet(b.dataset.g)}};
-  document.getElementById("dlchart").onclick=()=>{buzz(8);
-    alert("Not built yet. The export will render your chart as an image with the app name on it.")};
   document.getElementById("tbcentre").onclick=e=>{
     const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===uniMode)return;
     setMode(b.dataset.m);
@@ -1113,8 +1106,6 @@ function paintUniverse(instant){
     ? `The sky at your birth &#8212; 26 March 1992, 10:00.`
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
-  const ca=document.getElementById("chartactions");
-  if(ca) ca.style.display = uniMode==="birth" ? "" : "none";
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
 }
 

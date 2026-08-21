@@ -278,6 +278,37 @@ function polySpan(poly){
 const SPAN_CACHE={};
 for(const h in HOUSES) SPAN_CACHE[h]=polySpan({h});
 
+/* Each house gets a travel path that ENTERS at the edge shared with the
+   previous house and LEAVES at the edge shared with the next, so a graha
+   crossing a sign boundary walks across it instead of teleporting - the
+   scrub becomes physical travel (CLAUDE.md 74, 79). */
+const sharedEdgeMid=(a,b)=>{
+  const A=HOUSES[a], B=HOUSES[b], hit=[];
+  for(const v of A) for(const w of B)
+    if(Math.abs(v[0]-w[0])<.01 && Math.abs(v[1]-w[1])<.01) hit.push(v);
+  if(hit.length<2) return ANCHOR[a];
+  return [(hit[0][0]+hit[1][0])/2,(hit[0][1]+hit[1][1])/2];
+};
+const PATH_CACHE={};
+for(let h=1;h<=12;h++){
+  const prev=((h+10)%12)+1, next=(h%12)+1, A=ANCHOR[h];
+  const pull=(m,k)=>[m[0]+(A[0]-m[0])*k, m[1]+(A[1]-m[1])*k];
+  const E=pull(sharedEdgeMid(h,prev), HOUSES[h].length===3?0.40:0.24);
+  const X=pull(sharedEdgeMid(h,next), HOUSES[h].length===3?0.40:0.24);
+  const l1=Math.hypot(A[0]-E[0],A[1]-E[1]), l2=Math.hypot(X[0]-A[0],X[1]-A[1]);
+  PATH_CACHE[h]={E,A,X,l1,l2,L:l1+l2};
+}
+/* position along E -> anchor -> X by fraction of the sign traversed */
+function pathPoint(h,t){
+  const P=PATH_CACHE[h], s=t*P.L;
+  if(s<=P.l1){ const k=P.l1?s/P.l1:0;
+    return {x:P.E[0]+(P.A[0]-P.E[0])*k, y:P.E[1]+(P.A[1]-P.E[1])*k,
+            ux:(P.A[0]-P.E[0])/(P.l1||1), uy:(P.A[1]-P.E[1])/(P.l1||1)}; }
+  const k=P.l2?(s-P.l1)/P.l2:0;
+  return {x:P.A[0]+(P.X[0]-P.A[0])*k, y:P.A[1]+(P.X[1]-P.A[1])*k,
+          ux:(P.X[0]-P.A[0])/(P.l2||1), uy:(P.X[1]-P.A[1])/(P.l2||1)};
+}
+
 /* longitude -> a point inside its house, ordered by degree along the
    house's long axis, then nudged apart if two land on top of each other */
 function placeByDegree(list){
@@ -285,22 +316,19 @@ function placeByDegree(list){
   list.forEach(p=>{ (byHouse[p.house]=byHouse[p.house]||[]).push(p) });
   const out={};
   for(const h in byHouse){
-    const S=SPAN_CACHE[h], poly=HOUSES[h], tri=poly.length===3;
-    const usable=(S.hi-S.lo)*(tri?0.40:0.52);
+    const poly=HOUSES[h];
     const group=byHouse[h].slice().sort((a,b)=>degIn(a.L)-degIn(b.L));
     group.forEach((p,i)=>{
-      const frac=degIn(p.L)/30 - 0.5;              // -0.5 .. +0.5
-      let t=frac*usable;
-      /* separate anything closer than a disc width */
+      /* keep clear of the very ends so discs never sit on the boundary line */
+      const t=0.09+ (degIn(p.L)/30)*0.82;
+      const pt=pathPoint(+h,t);
       let perp=0;
-      for(let j=0;j<i;j++){
-        const other=group[j];
-        if(Math.abs(degIn(p.L)-degIn(other.L))/30*usable < 7) perp += (i%2?1:-1)*4.6;
-      }
-      const px=S.c[0]+S.ux*t-S.uy*perp, py=S.c[1]+S.uy*t+S.ux*perp;
+      for(let j=0;j<i;j++)
+        if(Math.abs(degIn(p.L)-degIn(group[j].L)) < 6.5) perp += (i%2?1:-1)*4.8;
+      const px=pt.x - pt.uy*perp, py=pt.y + pt.ux*perp;
       const dpx=(group.length>=3?22:group.length===2?25:29);
       const margin=Math.min(dpx/2/CHART_PX*100/inradius(poly),0.42);
-      out[p.graha]=fitInside([px,py],poly,S.c,margin);
+      out[p.graha]=fitInside([px,py],poly,ANCHOR[h],margin);
     });
   }
   return out;
@@ -562,23 +590,6 @@ function leadLine(e,F){
     +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
     +`${e.retro?", and retrograde":""}.`;
 }
-function whyLines(a,F){
-  const out=a.evidence.map(e=>{
-    if(e.tara) return `<p><b>Tara bala.</b> The Moon today is in ${NAK[F.todayMoonNak]}, the `+
-      `${ordinal(F.tara.count)} nakshatra counted from ${NAK[F.natalMoonNak]}, your birth star. `+
-      `That count is called <b>${F.tara.name}</b>. ${F.tara.note}</p>`;
-    const gm=GRAHA_MEANING[e.graha], hs=HOUSE_TRANSIT_SENSE[e.house];
-    const feel=GOCHARA_FEEL[e.graha][e.favourable?"fav":"unfav"];
-    return `<p><b>${e.graha}</b> &#8212; ${gm.is}. `+
-      (e.occupies
-        ? `It is moving through your ${ordinal(e.house)} house: ${hs}. `
-        : `From your ${ordinal(e.house)} house it aspects your ${e.aspects.map(ordinal).join(" and ")}, the house${e.aspects.length>1?"s":""} this area is read from. `)+
-      `Counted from your natal Moon it stands in the ${ordinal(e.houseFromMoon)} &#8212; `+
-      `${e.favourable?"one of its supportive positions":"not one of its favoured positions"} in the gochara tables. ${feel}`+
-      `${e.retro?" It is also retrograde, which the tradition reads as this graha's themes turning inward or returning for a second pass.":""}</p>`;
-  });
-  return out.join("")+`<p class="whyfoot">Houses read for ${a.area.toLowerCase()}: ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts are the classical gochara tables, counted from your Moon; schools differ, most visibly over Rahu and Ketu.</p>`;
-}
 const pickBy=(arr,seed,n)=>Array.from({length:Math.min(n,arr.length)},(_,i)=>arr[(seed+i*2)%arr.length]);
 const dayOfYear=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
 
@@ -648,8 +659,8 @@ function renderToday(){
       </div>
       <p class="asub">${PLAIN_DAY[a.area][a.tone]}</p>
       <p class="ameta">${leadLine(a.lead,F)}</p>
-      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
-      <div class="whybox" id="why${i}" hidden>${whyLines(a,F)}</div>
+      <button class="showme" data-g="${a.lead.graha}" data-area="${a.area}">
+        Show me <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
     </div>`).join("");
 
   const tone=R.areas.some(a=>a.tone==="slow")&&!R.areas.some(a=>a.tone==="favourable")?"slow"
@@ -794,11 +805,9 @@ function renderToday(){
       setThumb(seg2,false);                       /* the slide */
       document.getElementById("todaybody").innerHTML=todayBodies[todayTab];
       return; }
-    const w=e.target.closest(".whybtn");
-    if(w){ const box=document.getElementById("why"+w.dataset.why);
-      const open=box.hidden;
-      box.hidden=!open; w.setAttribute("aria-expanded",String(open));
-      w.textContent=open?"Hide":"Why?"; buzz(5); return; }
+    const sm=e.target.closest(".showme");
+    if(sm){ buzz(9); go(CHART_INDEX); setMode("today");
+      openPlanet(sm.dataset.g,{sub:AREA_LINE[sm.dataset.area]}); return; }
     const c=e.target.closest(".skycell,.ingrow");
     if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
   };
@@ -874,28 +883,45 @@ function updateScrubLabel(){
   if(now) now.style.visibility = Math.abs(dayOffset)<0.5 ? "hidden" : "visible";
 }
 
-let lastSigns=null, lastDay=null;
+let lastSigns=null, lastDay=null, lastScrubDate=null;
+/* the exact moment a graha crossed - bisect between the previous scrub
+   position and this one, so the toast can carry a time */
+function crossingTime(g,d0,d1,fromSign){
+  let a=d0.getTime(), b=d1.getTime();
+  if(a>b){[a,b]=[b,a]}
+  for(let i=0;i<22;i++){
+    const m=(a+b)/2;
+    if(signOf(positions(new Date(m))[g])===fromSign) a=m; else b=m;
+  }
+  return new Date(b);
+}
 function applyScrub(){
+  const prevDate=lastScrubDate||uniDate;
   uniDate=dateAtOffset(dayOffset);
   paintRuler(); paintUniverse(false); updateScrubLabel();
   const day=Math.round(dayOffset);
   if(day!==lastDay){ lastDay=day; buzz(3) }
-  /* a stronger, semantic haptic only when a graha actually changes sign */
-  const sig=uniPlacements().map(p=>p.sign).join(",");
+  const list=uniPlacements();
+  const sig=list.map(p=>p.sign).join(",");
   if(lastSigns!==null && sig!==lastSigns){
     buzz(14);
-    const changed=uniPlacements().filter((p,i)=>lastSigns.split(",")[i]!==String(p.sign));
-    if(changed.length) flashEvent(changed[0]);
+    const prev=lastSigns.split(",");
+    const changed=list.filter((p,i)=>prev[i]!==String(p.sign));
+    if(changed.length){
+      const p=changed[0];
+      const when=crossingTime(p.graha, prevDate, uniDate, +prev[GRAHA_ORDER.indexOf(p.graha)]);
+      flashEvent(p, when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}));
+    }
   }
-  lastSigns=sig;
+  lastSigns=sig; lastScrubDate=uniDate;
 }
 
-function flashEvent(p){
+function flashEvent(p,time){
   const host=document.getElementById("scrubwrap"); if(!host) return;
   let n=host.querySelector(".scrubevent");
   if(!n){ n=document.createElement("div"); n.className="scrubevent"; host.appendChild(n) }
-  n.innerHTML=`${gIcon(p.graha,18)}<b>${p.graha}</b> enters ${SIGNS[p.sign-1]}
-    <span>your ${ordinal(p.house)} &#183; ${BHAVA[p.house-1][1].toLowerCase()}</span>`;
+  n.innerHTML=`${gIcon(p.graha,18)}<b>${p.graha}</b> entered your ${ordinal(p.house)}${time?` &#183; ${time}`:""}
+    <span>${SIGNS[p.sign-1]} &#183; ${BHAVA[p.house-1][1].toLowerCase()}</span>`;
   n.classList.add("on");
   clearTimeout(n._t); n._t=setTimeout(()=>n.classList.remove("on"),2600);
 }
@@ -1120,6 +1146,30 @@ function setMode(m){
 
 let mode=null,current=null;
 const sheet=document.getElementById("sheet"), closeBtn=document.getElementById("close");
+const pill=document.getElementById("pill");
+
+/* The pill is Layer 1: a compact glass line that rises from the bottom.
+   Tap or swipe up and it becomes the full sheet; the sheet coming down
+   returns to the pill; the pill closing returns to the chart. */
+function showPill(title,sub,cta){
+  pill.innerHTML=`<b>${title}</b><span>${sub}</span>
+    <i class="pillcta">${cta} <svg viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg></i>`;
+  pill.classList.add("on"); closeBtn.classList.add("on");
+}
+function hidePill(){ pill.classList.remove("on") }
+function hideSheetKeepFocus(){ sheet.classList.remove("up") }
+function expandSheet(){ hidePill(); buzz(7);
+  sheet.classList.add("up"); sheet.scrollTop=0; closeBtn.classList.add("on"); }
+(()=>{  /* tap or a short upward drag both open */
+  let y0=null;
+  pill.addEventListener("pointerdown",e=>{y0=e.clientY;
+    try{pill.setPointerCapture(e.pointerId)}catch(_){}});
+  pill.addEventListener("pointerup",e=>{
+    if(y0===null) return;
+    if(y0-e.clientY>-40) expandSheet();   /* tap or upward */
+    y0=null;
+  });
+})();
 const qa=s=>Array.from(document.querySelectorAll(s));
 
 function clearMarks(){
@@ -1139,7 +1189,7 @@ function resetChart(){
   const pl=document.getElementById("plane");
   if(pl){pl.style.transform="";pl.style.transformOrigin="50% 50%"}
   qa(".p").forEach(b=>{b.style.transform="";b.style.zIndex=""});
-  sheet.classList.remove("up"); closeBtn.classList.remove("on");
+  sheet.classList.remove("up"); closeBtn.classList.remove("on"); hidePill();
   document.getElementById("pg-universe").classList.remove("zoomed");
 }
 function showSheet(){
@@ -1161,27 +1211,33 @@ function openHouse(h){
   }
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
-  CHART.placements.forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
-  sheetHouse(h); showSheet();
+  uniPlacements().forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
+  hideSheetKeepFocus();
+  sheetHouse(h);
+  showPill(`${ordinal(h)} house &#183; ${SIGNS[CHART.signOfHouse(h)-1]}`,
+    BHAVA[h-1][1], "Explore");
 }
 
-function openPlanet(g){
-  if(mode==="planet"&&current===g)return;
-  const p=CHART.get(g); mode="planet";current=g;clearMarks();buzz(12);
+function openPlanet(g,opts={}){
+  if(mode==="planet"&&current===g && !opts.sub)return;
+  const list=uniPlacements();                  /* the placements ON SCREEN */
+  const p=list.find(x=>x.graha===g)||CHART.get(g);
+  mode="planet";current=g;clearMarks();hideSheetKeepFocus();buzz(12);
   document.getElementById("stage").classList.add("pmode");
   const b=PEL[g],[px,py]=b._pos,T=[.5,.26];
   b.classList.add("focus"); b.style.zIndex=40;
-  /* translate() percentages resolve against the button's own 30px box,
-     which is why this motion silently died - so move in stage pixels */
   const st=document.getElementById("stage").getBoundingClientRect();
   b.style.transform=`translate(${((T[0]-px)*st.width).toFixed(1)}px, ${((T[1]-py)*st.height).toFixed(1)}px) scale(2.3)`;
-  /* the others recede rather than vanish, so one graha leads straight to
-     the next without a trip back through the chart */
-  CHART.placements.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("recede")});
+  list.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("recede")});
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===p.house?"lit":"dim"));
   qa(".sn").forEach(e=>{if(+e.dataset.h!==p.house)e.classList.add("dim")});
-  drawAspects(p); sheetPlanet(p); showSheet();
+  drawAspects(CHART.get(g)||p);
+  sheetPlanet(p);                              /* built now, shown on demand */
+  showPill(`${g} &#183; ${ordinal(p.house)} house`,
+    opts.sub || cap(GRAHA_MEANING[g].is),
+    `Explore ${g}`);
 }
+const cap=t=>t.charAt(0).toUpperCase()+t.slice(1)
 
 function drawAspects(p){
   const asp=document.getElementById("asp"), from=ANCHOR[p.house];
@@ -1230,48 +1286,57 @@ function sheetHouse(h){
     ${(()=>{const n=CHART.dasha.at(new Date());
       const active=n.maha.lord===lord||n.antar.lord===lord||occ.some(o=>o.graha===n.maha.lord);
       return active?`<p class="interp brass">This house is live right now &#8212; ${lord} governs the period you are running.</p>`:""})()}
+    <button class="askastra" data-q="What should I know about my ${ordinal(h)} house?">
+      <span class="orbdot" aria-hidden="true"></span>
+      Ask Astra about your ${ordinal(h)} house</button>
     <p class="note">Traditional readings for this configuration. Not a prediction.</p>`;
 }
 
 function sheetPlanet(p){
-  const g=p.graha, ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
+  const g=p.graha, natal=CHART.get(g);
+  const ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
   const now=CHART.dasha.at(new Date());
+  const transiting = uniMode==="today";
   document.getElementById("sheetbody").innerHTML=`
     <div class="sheethead">
       <img class="sheetart" src="assets/graha/${g.toLowerCase()}.png" alt="" draggable="false">
       <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
-        <h1 style="font-size:26px;margin:0">${g}</h1></div>
+        <h1 style="font-size:26px;margin:0">${g} in your ${ordinal(p.house)}</h1></div>
     </div>
-    <p class="muted" style="margin:0 0 12px">${PLANET_STORY[g].opener}</p>
-    <p class="muted" style="margin:0 0 14px">${PLANET_STORY[g].inHouse[p.house]}</p>
-    <p class="lordline">${ruled.length
-      ? `Lord of the <b>${ruled.map(ordinal).join(" & ")}</b>, sitting in the <b>${ordinal(p.house)}</b>`
-      : `Owns no sign, so rules no house. Sitting in the <b>${ordinal(p.house)}</b>`}
-      ${p.retro?` &#183; <b>retrograde</b>`:""}${p.dig?` &#183; <b>${p.dig.toLowerCase()}</b>`:""}</p>
-    ${conj.length?`<p class="muted" style="font-size:13px;margin:0 0 14px">Sharing the sign:
-      <b style="color:var(--ink)">${conj.join(", ")}</b> &#8212; their significations blend.</p>`:""}
+    ${transiting?`<p class="lordline">Right now &#8212; passing through <b>${SIGNS[p.sign-1]}</b>,
+       your <b>${ordinal(p.house)}</b>. At your birth: ${SIGNS[natal.sign-1]}, your ${ordinal(natal.house)}.</p>`:""}
+
+    <div class="eyebrow" style="margin:16px 0 7px">What it means</div>
+    <p class="interp">${GRAHA_MEANING[g].body}</p>
+
+    <div class="eyebrow" style="margin:20px 0 7px">In your chart</div>
+    <p class="interp">${PLANET_STORY[g].inHouse[natal.house]}</p>
+    <p class="interp">${ruled.length
+        ? `It rules your <b>${ruled.map(ordinal).join(" and ")}</b>, so ${ruled.map(h=>HOUSE_ADVICE[h][0]).join(" and ")} answer to it.`
+        : `It owns no sign, so it is read through the house it occupies and the grahas it sits with.`}
+      ${natal.dig?` It is <b>${natal.dig.toLowerCase()}</b> here.`:""}${natal.retro&&!shadow(g)?" It was <b>retrograde</b> at your birth &#8212; its themes turn inward, or come back for a second pass.":""}</p>
+    ${conj.length?`<p class="interp">It shares the sign with <b>${conj.join(" and ")}</b>; their significations blend.</p>`:""}
+    ${now.maha.lord===g?`<p class="interp brass">You are living its mahadasha right now &#8212; this graha governs the present period.</p>`
+      :now.antar.lord===g?`<p class="interp brass">It rules the current antardasha &#8212; the sub-period inside your ${now.maha.lord} years.</p>`:""}
+
+    <button class="askastra" data-q="Why is ${g} important in my life right now?">
+      <span class="orbdot" aria-hidden="true"></span>
+      Ask Astra &#8212; &#8220;Why is ${g} important in my life?&#8221;</button>
+
     <details class="adv">
       <summary>The technical placement</summary>
       ${rows([
-        ["Sign",`${SIGNS[p.sign-1]} (${p.sign})`],
-        ["Degree",p.degf],
-        ["Nakshatra",`${p.nak} &#183; pada ${p.pada}`],
-        ["Motion",p.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
-        ["Dignity",p.dig||"&#8212;"],
+        ["Sign",`${SIGNS[natal.sign-1]} (${natal.sign})`],
+        ["Degree",natal.degf],
+        ["Nakshatra",`${natal.nak} &#183; pada ${natal.pada}`],
+        ["Motion",natal.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
+        ["Dignity",natal.dig||"&#8212;"],
         ["Conjunct",conj.length?conj.join(", "):"&#8212;"],
         ["Aspects",CHART.aspectedBy(g).map(ordinal).join(", ")],
         ["Natural karaka",KARAKA[g]]
       ])}
     </details>
-    <p class="muted" style="font-size:13px">${
-      now.maha.lord===g?`You are currently running the <b style="color:var(--ink)">${g} mahadasha</b>, so this graha governs the present period.`
-      :now.antar.lord===g?`${g} rules your current <b style="color:var(--ink)">antardasha</b> &#8212; the sub-period inside a ${now.maha.lord} mahadasha.`
-      :`${g} does not rule the period you are currently running (${now.maha.lord}/${now.antar.lord}).`}</p>
-    ${p.retro&&!shadow(g)?`<p class="muted" style="font-size:12.5px;margin-top:10px">
-      Retrograde motion is apparent, not real. ${g} does not reverse in space &#8212; Earth
-      overtakes it on the inside of its orbit, the way a slower train seems to slide
-      backwards as yours passes. Tradition reads it as a matter returned to rather than
-      settled first time.</p>`:``}`;
+    <p class="note">Traditional readings for this placement. Not a prediction.</p>`;
 }
 
 /* the transparent gap shows the chart; a tap there should reach it, but the
@@ -1289,9 +1354,22 @@ document.querySelector(".sheetgap").addEventListener("click",e=>{
     if(btn) openPlanet(btn.dataset.g); else resetChart();
   }
 });
-closeBtn.onclick=resetChart;
+closeBtn.onclick=()=>{
+  if(sheet.classList.contains("up")){ hideSheetKeepFocus(); buzz(6);
+    if(mode) pill.classList.add("on"); else resetChart();
+  } else resetChart();
+};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
-sheet.addEventListener("click",e=>e.stopPropagation());
+sheet.addEventListener("click",e=>{
+  const a=e.target.closest(".askastra");
+  if(a){ buzz(9); askAstra(a.dataset.q); }
+  e.stopPropagation();
+});
+function askAstra(q){
+  resetChart(); go(3);
+  const inp=document.getElementById("cmpin");
+  if(inp){ inp.value=q; inp.focus(); }
+}
 
 /* &#9552;&#9552;&#9552; GUIDE &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 const ASKS=[

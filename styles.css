@@ -955,29 +955,6 @@ details.adv summary::after{content:"\203A";margin-left:auto;font-size:17px;
 details.adv[open] summary::after{transform:rotate(-90deg)}
 details.adv .rows{margin-bottom:6px}
 
-/* ---- the glass pill: Layer 1 of the focus interaction ---- */
-.focuspill{position:fixed;left:14px;right:14px;bottom:calc(var(--tabh) + 16px);z-index:45;
-  display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;
-  text-align:left;padding:13px 16px;border:1px solid rgba(190,198,245,.22);
-  border-radius:20px;cursor:pointer;color:var(--ink);font-family:var(--ff);
-  background:rgba(44,44,92,.55);
-  -webkit-backdrop-filter:saturate(170%) blur(22px);backdrop-filter:saturate(170%) blur(22px);
-  box-shadow:0 14px 38px -14px rgba(0,0,0,.75);
-  opacity:0;transform:translateY(24px) scale(.97);pointer-events:none;
-  transition:opacity .34s var(--ease),transform .42s cubic-bezier(.3,1.3,.4,1)}
-.focuspill.on{opacity:1;transform:none;pointer-events:auto}
-.focuspill{text-transform:none;letter-spacing:0;font-size:14px}
-.focuspill b{grid-column:1;font-size:15.5px;font-weight:650;letter-spacing:-.015em;
-  font-family:var(--ff);text-transform:none}
-.focuspill span{grid-column:1;font-size:12.5px;color:var(--ink-2);margin-top:2px}
-.focuspill .pillcta{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;gap:5px;
-  font-style:normal;font-size:12.5px;font-weight:580;color:var(--hot);white-space:nowrap}
-.focuspill .pillcta svg{width:14px;height:14px;fill:none;stroke:currentColor;
-  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
-  animation:pillnudge 2.6s var(--ease) infinite}
-@keyframes pillnudge{0%,100%{transform:translateY(0)}12%{transform:translateY(-3px)}24%{transform:translateY(0)}}
-.focuspill:active{transform:scale(.985)}
-
 /* ---- idle life: the grahas breathe, very slowly ---- */
 .p::before{content:"";position:absolute;inset:-26%;border-radius:50%;z-index:-1;
   background:radial-gradient(circle,var(--fill) 0%,transparent 62%);
@@ -994,7 +971,7 @@ details.adv .rows{margin-bottom:6px}
 /* one primary motion event: while something is focused, the rest hold still */
 .stage.pmode .p:not(.focus) .art,.stage.pmode .p:not(.focus)::before{animation-play-state:paused}
 @media (prefers-reduced-motion: reduce){
-  .p .art,.p::before,.focuspill .pillcta svg{animation:none!important}
+  .p .art,.p::before{animation:none!important}
 }
 
 /* ---- Ask Astra ---- */
@@ -1015,3 +992,75 @@ details.adv .rows{margin-bottom:6px}
 .showme svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
 .showme:active{opacity:.6}
+
+
+/* ---- the collapsed detent: one line and a handle over the chart ----
+   In peek the sheet is transparent to touches except the card itself, so
+   the chart above stays directly tappable - house to house, no forwarding. */
+.sheet.peek{overflow:hidden;pointer-events:none}
+.sheet.peek .sheetcard{pointer-events:auto}
+.sheet.peek .sheetgap{pointer-events:none}
+.sheet .sheetcard{transition:transform .46s cubic-bezier(.3,1.15,.35,1)}
+/* card top sits at gap(47dvh); bring it to 118px+tabs above the bottom */
+.sheet.peek .sheetcard{transform:translateY(calc(53dvh - var(--tabh) - 118px))}
+.grabwrap{display:block;width:100%;border:0;background:none;cursor:grab;
+  color:var(--ink);font-family:var(--ff);text-align:left;padding:2px 0 14px;
+  touch-action:none}
+.grabwrap:active{cursor:grabbing}
+.grabber{display:block;width:40px;height:4.5px;border-radius:99px;margin:0 auto 13px;
+  background:rgba(190,198,245,.35)}
+.peekline{display:block}
+.peekline b{display:block;font-size:16.5px;font-weight:660;letter-spacing:-.02em}
+.peekline i{display:block;font-style:normal;font-size:13px;color:var(--ink-2);margin-top:3px}
+@media (prefers-reduced-motion: reduce){ .sheet .sheetcard{transition:none} }
+
+/* ---- Today: three things, soft disclosures ---- */
+.things{display:flex;flex-direction:column;gap:8px;margin:2px 0 14px}
+.thing{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;
+  border-radius:16px;background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.thing.favourable{border-left:2.5px solid var(--brass)}
+.thing.slow{border-left:2.5px solid rgba(170,180,235,.55)}
+.thingdot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex:0 0 auto;
+  background:rgba(170,180,235,.5)}
+.thingdot.favourable{background:var(--brass);box-shadow:0 0 7px -1px var(--brass)}
+.thingtxt{flex:1;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.thingtxt b{display:block;color:var(--ink);font-weight:640;font-size:14.5px;margin-bottom:2px}
+.showme.sm2{margin:2px 0 0;padding:8px;border-radius:50%;flex:0 0 auto}
+details.adv.soft{background:none;border-color:var(--edge-soft);margin-bottom:10px}
+details.adv.soft summary{font-size:14px;color:var(--ink-2)}
+details.adv.soft .interp{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0 0 12px}
+
+/* ---- Astra replies: cards that point at chart objects ---- */
+.astrareply{max-width:88%;margin:0 0 12px;padding:13px 15px;border-radius:18px 18px 18px 6px;
+  background:rgba(255,255,255,.06);border:1px solid var(--edge-soft)}
+.astrahead{display:flex;align-items:center;gap:7px;font-family:var(--fm);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--hot);margin-bottom:7px}
+.astratext{font-size:14px;line-height:1.55;color:var(--ink-2)}
+.astratext b{color:var(--ink);font-weight:620}
+.chiprow{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.entchip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;
+  cursor:pointer;font-family:var(--ff);font-size:12.5px;font-weight:560;color:var(--ink);
+  background:rgba(150,162,235,.13);border:1px solid var(--edge)}
+.entchip:active{opacity:.6}
+.entchip .gico{width:15px;height:15px}
+
+/* ---- Find in sky ---- */
+.findsky{display:flex;align-items:center;gap:10px;width:100%;margin:20px 0 0;
+  padding:13px 15px;border-radius:16px;cursor:pointer;text-align:left;
+  font-family:var(--ff);font-size:13.5px;font-weight:560;color:var(--ink);
+  background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.findsky:active{opacity:.7}
+.findsky svg{width:17px;height:17px;fill:none;stroke:var(--brass);stroke-width:1.7;
+  stroke-linecap:round}
+.fschev{margin-left:auto;color:var(--ink-3);font-size:16px}
+.skypanel{margin:8px 0 0}
+.skyline{font-size:13px;color:var(--ink-3);margin:8px 0 0}
+.skyfacts{display:flex;align-items:center;gap:15px;padding:14px 15px;margin-top:8px;
+  border-radius:16px;background:rgba(150,162,235,.09);border:1px solid var(--edge-soft)}
+.skyfacts b{display:block;font-size:14.5px;font-weight:640;letter-spacing:-.01em}
+.skyfacts span{display:block;font-size:12px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+.skyarrow{width:52px;height:52px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.06);border:1px solid var(--edge);
+  transform:rotate(var(--turn,var(--az,0deg)));
+  transition:transform .3s var(--ease)}
+.skyarrow svg{width:26px;height:26px;fill:var(--brass);stroke:none}

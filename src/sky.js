@@ -1,0 +1,114 @@
+/* ---------------------------------------------------------------
+   SKY - where to look for a graha in the real sky.
+
+   Takes the engine's sidereal longitudes back to tropical (add
+   Lahiri ayanamsa), assumes ecliptic latitude 0, converts to
+   RA/Dec with the mean obliquity, then to alt/az via GMST
+   (IAU 1982) and the observer's lat/lon.
+
+   The beta=0 approximation costs at most the body's ecliptic
+   latitude: ~2 deg for the planets, up to ~5.1 deg for the Moon.
+   Fine for "look south-west, about halfway up"; not for a
+   telescope. Rahu/Ketu are points, not bodies - alt/az says
+   where the node direction sits, nothing is visible there.
+
+   Verified against the Sun: solar noon in Kopargaon puts it
+   high in the south, sunrise puts it low in the east, midnight
+   puts it below the horizon; near-full Moon is up at 21:00 IST.
+   --------------------------------------------------------------- */
+
+import { positions, ayanamsa, jd, sunTropical } from './ephemeris.js';
+
+const D = Math.PI/180;
+const norm = d => ((d % 360) + 360) % 360;
+
+/* Tropical ecliptic longitude of a graha, degrees. */
+function tropicalLon(graha, date){
+  const J = jd(date);
+  if (graha === 'Sun') return sunTropical(J);
+  const sid = positions(date)[graha];
+  if (sid === undefined) throw new Error(`unknown graha: ${graha}`);
+  return norm(sid + ayanamsa(J));
+}
+
+/* Ecliptic (lambda, beta=0) -> equatorial RA/Dec, degrees.
+   Mean obliquity: eps = 23.439281 - 0.0130042 T (T = centuries from J2000). */
+function raDec(lambda, J){
+  const T = (J - 2451545) / 36525;
+  const eps = 23.439281 - 0.0130042 * T;
+  const ra  = norm(Math.atan2(Math.sin(lambda*D)*Math.cos(eps*D), Math.cos(lambda*D)) / D);
+  const dec = Math.asin(Math.sin(eps*D)*Math.sin(lambda*D)) / D;
+  return { ra, dec };
+}
+
+/* Greenwich mean sidereal time, degrees (IAU 1982, good to ~0.1s). */
+function gmst(J){
+  const J0 = Math.floor(J - 0.5) + 0.5;      // previous 0h UT
+  const D0 = J0 - 2451545;
+  const UT = (J - J0) * 24;                   // hours since 0h UT
+  const T  = (J - 2451545) / 36525;
+  const h  = 6.697374558 + 0.06570982441908*D0 + 1.00273790935*UT + 0.000026*T*T;
+  return norm(h * 15);
+}
+
+/* Where is this graha in the sky right now, from lat/lon (degrees,
+   east-positive lon)? -> { alt, az, up }; az 0=N, 90=E. */
+export function altAz(graha, date, lat, lon){
+  const J = jd(date);
+  const { ra, dec } = raDec(tropicalLon(graha, date), J);
+  const lst = norm(gmst(J) + lon);            // local sidereal time, degrees
+  const H = norm(lst - ra);                   // hour angle, degrees
+  const sinAlt = Math.sin(lat*D)*Math.sin(dec*D)
+               + Math.cos(lat*D)*Math.cos(dec*D)*Math.cos(H*D);
+  const alt = Math.asin(sinAlt) / D;
+  /* Azimuth from north, clockwise through east. Verified numerically
+     against the Sun (noon->south, sunrise->east). */
+  const az = norm(Math.atan2(
+    -Math.cos(dec*D)*Math.sin(H*D),
+    Math.sin(dec*D)*Math.cos(lat*D) - Math.cos(dec*D)*Math.sin(lat*D)*Math.cos(H*D)
+  ) / D);
+  return { alt, az, up: alt > 0 };
+}
+
+const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+                 'S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
+/* altAz plus a 16-point compass word. */
+export function whereIs(graha, date, lat, lon){
+  const p = altAz(graha, date, lat, lon);
+  return { ...p, compass: COMPASS[Math.round(p.az / 22.5) % 16] };
+}
+
+/* Sample the coming hours: [{ t, alt, az }, ...]. */
+export function skyPath(graha, date, lat, lon, hours = 24, stepMin = 30){
+  const out = [];
+  for (let m = 0; m <= hours * 60; m += stepMin){
+    const t = new Date(date.getTime() + m * 60000);
+    const { alt, az } = altAz(graha, t, lat, lon);
+    out.push({ t, alt, az });
+  }
+  return out;
+}
+
+/* HH:MM in the runtime's local zone (the observer's zone on-device). */
+function hhmm(t){
+  const p = n => String(n).padStart(2, '0');
+  return `${p(t.getHours())}:${p(t.getMinutes())}`;
+}
+
+/* One-line rise/set hint: "up now, sets ~21:40" / "rises ~03:10".
+   Crossing time is a linear interpolation between 10-minute samples,
+   so ~ really means approximately - refraction is ignored too. */
+export function riseSetHint(graha, date, lat, lon){
+  const path = skyPath(graha, date, lat, lon, 24, 10);
+  const upNow = path[0].alt > 0;
+  for (let i = 1; i < path.length; i++){
+    const a = path[i-1], b = path[i];
+    if ((a.alt > 0) !== (b.alt > 0)){
+      const f = a.alt / (a.alt - b.alt);      // fraction of step to the horizon
+      const t = new Date(a.t.getTime() + f * (b.t.getTime() - a.t.getTime()));
+      return upNow ? `up now, sets ~${hhmm(t)}` : `rises ~${hhmm(t)}`;
+    }
+  }
+  return upNow ? 'up now' : 'below the horizon';
+}

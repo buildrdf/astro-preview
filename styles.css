@@ -918,7 +918,8 @@ body.glossary .page{padding-right:30px}
 .glyphcell{display:flex;flex-direction:column;align-items:center;gap:1px;
   padding:9px 2px 7px;border-radius:12px;background:rgba(255,255,255,.045);
   border:1px solid var(--edge-soft)}
-.glyphcell b{font-size:17px;font-weight:500;line-height:1.2}
+.glyphcell b{font-size:17px;font-weight:500;line-height:1.2;color:var(--brass);
+  font-family:"Apple Symbols","Segoe UI Symbol",var(--ff)}
 .glyphcell small{font-size:9px;color:var(--ink-2)}
 .glyphcell small.sk{color:var(--ink-3);font-family:var(--fm);font-size:8px}
 .elgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}

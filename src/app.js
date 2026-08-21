@@ -1691,8 +1691,10 @@ const nakLord2=i=>ORDER[i%9];
    (CLAUDE.md 42) - not with stock art.
    =================================================================== */
 
-const SIGN_GLYPH=["♈","♉","♊","♋","♌","♍",
-                  "♎","♏","♐","♑","♒","♓"];
+/* U+FE0E pins text presentation - without it these render as emoji
+   squares, which is exactly the generic-astrology look we refuse */
+const SIGN_GLYPH=["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D",
+  "\u264E","\u264F","\u2650","\u2651","\u2652","\u2653"].map(g=>g+"\uFE0E");
 const ELEMENTS=[["Fire","Aries, Leo, Sagittarius","var(--mars)"],
                 ["Earth","Taurus, Virgo, Capricorn","var(--brass)"],
                 ["Air","Gemini, Libra, Aquarius","var(--hot)"],

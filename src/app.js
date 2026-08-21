@@ -1,5 +1,8 @@
 import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js";
+import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
+         DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
+import { LEARN_LEVELS } from "./learn.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
 const julian = jd;
@@ -460,19 +463,11 @@ function areaScore(area, F){
     const c=(nature*0.6 + (p.favourable?0.55:-0.4)) * reach;
     score+=c; n+=reach;
     ev.push({graha:p.graha, house:p.house, houseFromMoon:p.houseFromMoon,
-      occupies, aspects, favourable:p.favourable, retro:p.retro, weight:Math.abs(c),
-      text:`<b>${p.graha}</b> ${occupies?`is transiting your ${ordinal(p.house)} house`
-        :`aspects your ${aspects.map(ordinal).join(" and ")} house`}`
-        +`, ${ordinal(p.houseFromMoon)} from your Moon`
-        +` &#8212; ${p.favourable?"one of the placements this tradition reads as supportive"
-                                :"not one of the placements this tradition favours"}`
-        +`${p.retro?", and retrograde":""}.`});
+      occupies, aspects, favourable:p.favourable, retro:p.retro, weight:Math.abs(c)});
   });
   /* the Moon's tara colours every area of the day equally */
   score += F.tara.tone==="good"?.45 : F.tara.tone==="testing"?-.45 : 0; n+=1;
-  ev.push({graha:"Moon", tara:true, weight:.45,
-    text:`Today's Moon is in <b>${NAK[F.todayMoonNak]}</b>, the ${ordinal(F.tara.count)} nakshatra `+
-         `from your birth star ${NAK[F.natalMoonNak]} &#8212; <b>${F.tara.name}</b>. ${F.tara.note}`});
+  ev.push({graha:"Moon", tara:true, weight:.45});
 
   /* a mean, not a sum: an area touched by six grahas should not read
      darker than one touched by two simply for being busier */
@@ -522,9 +517,77 @@ function dayReading(date){
   return {F, areas, head, body};
 }
 
+/* ---- prose assembly: facts from the engine, words from the library ---- */
+function leadLine(e,F){
+  if(e.tara) return `Today's Moon is in <b>${NAK[F.todayMoonNak]}</b>, `+
+    `${ordinal(F.tara.count)} from your birth star &#8212; <b>${F.tara.name}</b>, `+
+    `${F.tara.tone==="good"?"a supportive count":F.tara.tone==="testing"?"a count that asks for patience":"your own star"}.`;
+  return `<b>${e.graha}</b> ${e.occupies
+      ?`is moving through your ${ordinal(e.house)} house`
+      :`aspects your ${e.aspects.map(ordinal).join(" and ")}`}`
+    +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
+    +`${e.retro?", and retrograde":""}.`;
+}
+function whyLines(a,F){
+  const out=a.evidence.map(e=>{
+    if(e.tara) return `<p><b>Tara bala.</b> The Moon today is in ${NAK[F.todayMoonNak]}, the `+
+      `${ordinal(F.tara.count)} nakshatra counted from ${NAK[F.natalMoonNak]}, your birth star. `+
+      `That count is called <b>${F.tara.name}</b>. ${F.tara.note}</p>`;
+    const gm=GRAHA_MEANING[e.graha], hs=HOUSE_TRANSIT_SENSE[e.house];
+    const feel=GOCHARA_FEEL[e.graha][e.favourable?"fav":"unfav"];
+    return `<p><b>${e.graha}</b> &#8212; ${gm.is}. `+
+      (e.occupies
+        ? `It is moving through your ${ordinal(e.house)} house: ${hs}. `
+        : `From your ${ordinal(e.house)} house it aspects your ${e.aspects.map(ordinal).join(" and ")}, the house${e.aspects.length>1?"s":""} this area is read from. `)+
+      `Counted from your natal Moon it stands in the ${ordinal(e.houseFromMoon)} &#8212; `+
+      `${e.favourable?"one of its supportive positions":"not one of its favoured positions"} in the gochara tables. ${feel}`+
+      `${e.retro?" It is also retrograde, which the tradition reads as this graha's themes turning inward or returning for a second pass.":""}</p>`;
+  });
+  return out.join("")+`<p class="whyfoot">Houses read for ${a.area.toLowerCase()}: ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts are the classical gochara tables, counted from your Moon; schools differ, most visibly over Rahu and Ketu.</p>`;
+}
+const pickBy=(arr,seed,n)=>Array.from({length:Math.min(n,arr.length)},(_,i)=>arr[(seed+i*2)%arr.length]);
+const dayOfYear=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
+
+/* ---- special long transits, checked from real positions ---- */
+function specialTransits(F){
+  const out=[];
+  const sat=F.sky.find(p=>p.graha==="Saturn"), jup=F.sky.find(p=>p.graha==="Jupiter");
+  if([12,1,2].includes(sat.houseFromMoon)){
+    const phase={12:"first",1:"middle",2:"final"}[sat.houseFromMoon];
+    out.push({...SPECIAL.sadeSati, extra:`You are in its ${phase} phase &#8212; Saturn is ${ordinal(sat.houseFromMoon)} from your Moon.`});
+  }
+  if(jup.returned) out.push(SPECIAL.jupiterReturn);
+  if(sat.returned) out.push(SPECIAL.saturnReturn);
+  if(F.chandrashtama) out.push(SPECIAL.chandrashtama);
+  return out;
+}
+
+/* ---- next sign change for each graha, one daily sweep, cached per day ---- */
+let ingressCache={key:null,map:null};
+function nextIngressMap(from){
+  const key=from.toDateString();
+  if(ingressCache.key===key) return ingressCache.map;
+  const map={}, start={};
+  const p0=positions(from);
+  GRAHA_ORDER.forEach(g=>start[g]=signOf(p0[g]));
+  let pending=GRAHA_ORDER.length;
+  for(let d=1;d<=1100 && pending;d++){
+    const t=new Date(from.getTime()+d*864e5);
+    const pos=positions(t);
+    for(const g of GRAHA_ORDER){
+      if(map[g]) continue;
+      const sg=signOf(pos[g]);
+      if(sg!==start[g]){ map[g]={sign:sg,date:t,days:d}; pending--; }
+    }
+  }
+  ingressCache={key,map};
+  return map;
+}
+
+let todayTab="horo", todayBodies=null;
 function renderToday(){
   const R=dayReading(viewDate), F=R.F, tr=F.tr;
-  const now=F.dasha;
+  const now=F.dasha, seed=dayOfYear(viewDate);
 
   const days=[];
   for(let i=-14;i<=14;i++){
@@ -542,8 +605,50 @@ function renderToday(){
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
          <path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/></svg></button>`});
 
-  /* every graha, in the user's own houses. This is the thing a twelve-sign
-     horoscope cannot do, so it is shown before any interpretation. */
+  /* ---- HOROSCOPE ---- */
+  const areaCards=R.areas.map((a,i)=>`
+    <div class="areacard ${a.tone}">
+      <div class="areahead">
+        <span class="aname">${a.area}</span>
+        <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
+      </div>
+      <p class="ameta">${AREA_LINE[a.area]}</p>
+      <p class="asub">${leadLine(a.lead,F)}</p>
+      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
+      <div class="whybox" id="why${i}" hidden>${whyLines(a,F)}</div>
+    </div>`).join("");
+
+  const tone=R.areas.some(a=>a.tone==="slow")&&!R.areas.some(a=>a.tone==="favourable")?"slow"
+    :R.areas.filter(a=>a.tone==="favourable").length>=2?"good":"mixed";
+  const vp=VARA_PRACTICE[F.vara.lord];
+  const better=`
+    <h3 class="secttl">Make today better</h3>
+    <div class="card mtb">
+      <div class="mtbrow"><span class="mtbk do">Lean in</span>
+        <ul>${pickBy(DAY_DO[tone==="good"?"good":tone==="slow"?"slow":"mixed"],seed,2).map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      <div class="mtbrow"><span class="mtbk hold">Hold</span>
+        <ul>${pickBy(DAY_AVOID[tone==="good"?"good":tone==="slow"?"slow":"mixed"],seed,1).map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      <div class="mtbrow"><span class="mtbk prac">${F.vara.name}</span>
+        <ul><li>${vp.practice}</li></ul></div>
+    </div>`;
+
+  const horo=`
+    <div class="reading">
+      <h2>${R.head}</h2>
+      <p>${R.body}</p>
+    </div>
+    <div class="areas">${areaCards}</div>
+    ${better}
+    <h3 class="secttl">Underneath <span>your dasha</span></h3>
+    <p class="dashaline">A <b>${now.maha.lord}</b> mahadasha to ${fmtDate(now.maha.end)},
+      with a <b>${now.antar.lord}</b> sub-period to ${fmtDate(now.antar.end)}.
+      ${CHART.housesRuled(now.maha.lord).length
+        ? `${now.maha.lord} rules your ${CHART.housesRuled(now.maha.lord).map(ordinal).join(" and ")} house,
+           so those themes sit behind every day of it.`
+        : `${now.maha.lord} rules no sign, so it is read through the house it occupies.`}</p>
+    <div class="section">${practiceFor(now.maha.lord)}</div>`;
+
+  /* ---- SKY TODAY ---- */
   const skyRow=F.sky.map(p=>`
     <button class="skycell" data-g="${p.graha}">
       ${gIcon(p.graha,26)}
@@ -553,96 +658,117 @@ function renderToday(){
       ${p.retro?`<span class="rtag">R</span>`:""}
     </button>`).join("");
 
-  const areaCards=R.areas.map((a,i)=>`
-    <div class="areacard ${a.tone}">
-      <div class="areahead">
-        <span class="aname">${a.area}</span>
-        <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
-      </div>
-      <p class="ameta">${AREA_LINE[a.area]}</p>
-      <p class="asub">${a.lead.text}</p>
-      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
-      <div class="whybox" id="why${i}" hidden>
-        ${a.evidence.map(e=>`<p>${e.text}</p>`).join("")}
-        <p class="whyfoot">Houses read for this area:
-          ${AREA_HOUSES[a.area].map(ordinal).join(", ")}.</p>
-      </div>
-    </div>`).join("");
+  const specials=specialTransits(F);
+  const ing=nextIngressMap(viewDate);
+  const moves=F.sky.map(p=>{
+    const nx=ing[p.graha];
+    const when=!nx?"" : nx.days<=1?"tomorrow" : nx.days<=14?`in ${nx.days} days`
+      : nx.date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(nx.date.getFullYear()!==viewDate.getFullYear()?" "+nx.date.getFullYear():"");
+    return `<button class="ingrow" data-g="${p.graha}">
+      ${gIcon(p.graha,22)}
+      <span class="ingmain"><b>${p.graha}</b> in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}
+        ${p.retro?`<i class="ingr">retrograde</i>`:""}</span>
+      <span class="ingnext">${nx?`&#8594; ${SIGNS[nx.sign-1]} ${when}`:""}</span>
+    </button>`}).join("");
 
-  document.getElementById("pg-today").innerHTML=`
-    <div class="datestrip" id="dates">${days.join("")}</div>
-
-    <div class="reading">
-      <h2>${R.head}</h2>
-      <p>${R.body}</p>
-    </div>
-
-    <h3 class="secttl">Where the nine are today <span>in your houses</span></h3>
+  const sky=`
+    <p class="skylead">Where the nine grahas are ${isToday(viewDate)?"today":"on this date"},
+      in <b>your</b> houses &#8212; and when each moves next.</p>
     <div class="skyrow">${skyRow}</div>
-    <p class="skykey"><i class="dotm good"></i> in a position this tradition
-      reads as supportive &#183; <i class="dotm testing"></i> not one it favours.
-      Counted from your Moon in ${SIGNS[F.natalMoonSign-1]}.</p>
+    <p class="skykey"><i class="dotm good"></i> supportive from your Moon &#183;
+      <i class="dotm testing"></i> slower going. Tap any graha to see it in your chart.</p>
+    ${specials.length?`<h3 class="secttl">Long weather</h3>`+specials.map(x=>`
+      <div class="card special"><b>${x.name}</b><p>${x.body}${x.extra?" "+x.extra:""}</p></div>`).join(""):""}
+    <h3 class="secttl">Each graha, and its next move</h3>
+    <div class="list ings">${moves}</div>
+    <p class="note">Positions computed from the ephemeris for this date; houses are counted
+      from your lagna, verdicts from your natal Moon. Traditional interpretation, not a prediction.</p>`;
 
-    <h3 class="secttl">Your five areas</h3>
-    <div class="areas">${areaCards}</div>
-
-    <h3 class="secttl">The day itself <span>panchang</span></h3>
+  /* ---- PANCHANG ---- */
+  const LIMB_MEANS={
+    Vara:"the weekday, each ruled by a graha",
+    Tithi:"the lunar day &#8212; one thirtieth of the Moon&#8217;s lap around the Sun",
+    Nakshatra:"the lunar mansion the Moon sits in",
+    Yoga:"a Sun&#8211;Moon angle, one of twenty-seven",
+    Karana:"half a tithi",
+    "Tara bala":"today&#8217;s Moon star counted from your birth star"};
+  const panch=`
+    <p class="skylead">The five limbs of ${isToday(viewDate)?"today":"this day"} &#8212;
+      the traditional Vedic almanac, computed for this date.</p>
     <div class="rows panch">
-      <div class="row"><span class="k">Vara</span><span class="v">${F.vara.name} &#183; ${F.vara.lord}</span></div>
-      <div class="row"><span class="k">Tithi</span><span class="v">${F.limbs.tithi.paksha} ${F.limbs.tithi.name}</span></div>
-      <div class="row"><span class="k">Nakshatra</span><span class="v">${NAK[F.todayMoonNak]} ${tr.Moon.pada}</span></div>
-      <div class="row"><span class="k">Yoga</span><span class="v">${F.limbs.yoga.name}</span></div>
-      <div class="row"><span class="k">Karana</span><span class="v">${F.limbs.karana.name}</span></div>
-      <div class="row"><span class="k">Tara bala</span><span class="v">${F.tara.name}</span></div>
+      ${[["Vara",`${F.vara.name} &#183; ruled by ${F.vara.lord}`],
+         ["Tithi",`${F.limbs.tithi.paksha} ${F.limbs.tithi.name}`],
+         ["Nakshatra",`${NAK[F.todayMoonNak]} &#183; pada ${tr.Moon.pada}`],
+         ["Yoga",F.limbs.yoga.name],
+         ["Karana",F.limbs.karana.name],
+         ["Tara bala",F.tara.name]]
+        .map(([k,v])=>`<div class="row panchrow"><span class="k">${k}
+          <small>${LIMB_MEANS[k]}</small></span><span class="v">${v}</span></div>`).join("")}
     </div>
-
     <div class="moonline">
       ${moonImg(viewDate,30)}
       <span><b>${tr.phase.name}</b> ${Math.round(tr.phase.illum*100)}% &#183;
         ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
     </div>
+    <div class="card special"><b>${F.tara.name} &#183; your tara today</b>
+      <p>The Moon is in ${NAK[F.todayMoonNak]}, the ${ordinal(F.tara.count)} nakshatra from your
+      birth star ${NAK[F.natalMoonNak]}. ${F.tara.note}</p></div>
+    ${F.limbs.karana.vishti?`<div class="card special"><b>Vishti karana</b>
+      <p>This half-tithi is traditionally set aside from new beginnings &#8212; an hour for finishing, not starting.</p></div>`:""}`;
 
-    <h3 class="secttl">Underneath <span>your dasha</span></h3>
-    <p class="dashaline">A <b>${now.maha.lord}</b> mahadasha to ${fmtDate(now.maha.end)},
-      with a <b>${now.antar.lord}</b> sub-period to ${fmtDate(now.antar.end)}.
-      ${CHART.housesRuled(now.maha.lord).length
-        ? `${now.maha.lord} rules your ${CHART.housesRuled(now.maha.lord).map(ordinal).join(" and ")} house,
-           so those themes sit behind every day of it.`
-        : `${now.maha.lord} rules no sign, so it is read through the house it occupies.`}</p>
+  todayBodies={horo,sky,panch};
+  document.getElementById("pg-today").innerHTML=`
+    <div class="datestrip" id="dates">${days.join("")}</div>
+    <div class="tbseg subseg" id="todayseg" role="tablist">
+      <span class="thumb" aria-hidden="true"></span>
+      ${[["horo","Horoscope"],["sky","Sky today"],["panch","Panchang"]].map(([k,l])=>
+        `<button class="${todayTab===k?"on":""}" data-t="${k}" role="tab"
+           aria-selected="${todayTab===k}">${l}</button>`).join("")}
+    </div>
+    <div id="todaybody">${todayBodies[todayTab]}</div>`;
 
-    <div class="section">${practiceFor(now.maha.lord)}</div>
-
-    <p class="note">All nine positions are computed for this date from the
-      ephemeris; the houses are your own, counted from your lagna and your
-      natal Moon. Gochara and tara bala are classical techniques, and schools
-      differ, most visibly over Rahu and Ketu. Traditional interpretation, not
-      a prediction.</p>`;
+  const seg=document.getElementById("todayseg");
+  requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
 
   const strip=document.getElementById("dates");
-  strip.onclick=e=>{
-    const b=e.target.closest(".dchip"); if(!b)return;
-    const d=new Date(); d.setDate(d.getDate()+ +b.dataset.off); d.setHours(12,0,0,0);
-    viewDate=d; buzz(6); renderToday();
-  };
-  const sel=strip.querySelector(".dchip.on");
-  if(sel && stripScroll===null) stripScroll=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
   strip.style.scrollBehavior="auto";
-  strip.scrollLeft=stripScroll??0;
+  const centreStrip=()=>{
+    const sel=strip.querySelector(".dchip.on");
+    if(sel && stripScroll===null && strip.scrollWidth>strip.clientWidth)
+      stripScroll=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
+    if(stripScroll!==null && Math.abs(strip.scrollLeft-stripScroll)>2)
+      strip.scrollLeft=stripScroll;
+  };
+  centreStrip(); requestAnimationFrame(centreStrip); setTimeout(centreStrip,120);
   strip.addEventListener("scroll",()=>{stripScroll=strip.scrollLeft},{passive:true});
   document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
   if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
 
-  /* Why? is the trust control: it opens the evidence, it does not navigate */
-  document.getElementById("pg-today").addEventListener("click",e=>{
+  /* one assigned handler; pg-today survives re-renders */
+  document.getElementById("pg-today").onclick=e=>{
+    const d=e.target.closest(".dchip");
+    if(d){ const nd=new Date(); nd.setDate(nd.getDate()+ +d.dataset.off); nd.setHours(12,0,0,0);
+      viewDate=nd; buzz(6); renderToday(); return; }
+    const t=e.target.closest("#todayseg button[data-t]");
+    if(t){
+      todayTab=t.dataset.t; buzz(6);
+      const seg2=document.getElementById("todayseg");
+      seg2.querySelectorAll("button").forEach(b=>{
+        b.classList.toggle("on",b.dataset.t===todayTab);
+        b.setAttribute("aria-selected",String(b.dataset.t===todayTab));
+      });
+      setThumb(seg2,false);                       /* the slide */
+      document.getElementById("todaybody").innerHTML=todayBodies[todayTab];
+      return; }
     const w=e.target.closest(".whybtn");
     if(w){ const box=document.getElementById("why"+w.dataset.why);
       const open=box.hidden;
       box.hidden=!open; w.setAttribute("aria-expanded",String(open));
       w.textContent=open?"Hide":"Why?"; buzz(5); return; }
-    const c=e.target.closest(".skycell");
+    const c=e.target.closest(".skycell,.ingrow");
     if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
-  });
+  };
 }
 
 const PEL={};
@@ -663,7 +789,7 @@ const uniPlacements=()=>{
    underneath it. Sixty tick elements are recycled rather than
    rebuilt, so dragging stays cheap.
    --------------------------------------------------------------- */
-const PX_PER_DAY=46, TICKS=61;
+const PX_PER_DAY=24, TICKS=101;
 let dayOffset=0, rulerReady=false;
 
 const dateAtOffset=off=>{
@@ -684,9 +810,10 @@ function paintRuler(){
   if(!track||!wrap) return;
   if(!rulerReady) buildTicks();
   const half=wrap.clientWidth/2;
-  /* laid out at zero width because the scrubber is still hidden; try again
-     on the next frame, once the mode switch has made it visible */
-  if(!half){ requestAnimationFrame(paintRuler); return; }
+  /* laid out at zero width while the scrubber is hidden - the visible-time
+     call in setMode paints it, so just stand down (an rAF retry never fires
+     when the page is backgrounded, which left the ruler empty) */
+  if(!half) return;
   const base=Math.round(dayOffset);
   track.querySelectorAll(".tick").forEach(t=>{
     const k=base + (+t.dataset.i - (TICKS-1)/2);
@@ -754,9 +881,33 @@ function wireRuler(){
     dayOffset = o0 - (e.clientX-x0)/PX_PER_DAY;
     applyScrub();
   });
-  const end=()=>{ dragging=false };
+  /* release: a still finger is a tap on a day - go there; a drag snaps
+     to the nearest whole day, because days are the unit of this scale */
+  const glide=to=>{
+    const from=dayOffset;
+    /* Reduce Motion, or a backgrounded page where rAF is asleep: land at once */
+    if(Math.abs(to-from)<.01 || document.hidden ||
+       matchMedia("(prefers-reduced-motion: reduce)").matches){
+      dayOffset=to; applyScrub(); return;
+    }
+    const t0=performance.now(), D=Math.min(420, 90+Math.abs(to-from)*26);
+    const step=t=>{
+      const k=Math.min(1,(t-t0)/D), e2=1-Math.pow(1-k,3);
+      dayOffset=from+(to-from)*e2; applyScrub();
+      if(k<1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const end=e=>{
+    if(!dragging) return; dragging=false;
+    const moved=Math.abs(e.clientX-x0)>6;
+    if(!moved){
+      const rect=r.getBoundingClientRect();
+      glide(Math.round(o0+(e.clientX-(rect.left+rect.width/2))/PX_PER_DAY));
+    } else glide(Math.round(dayOffset));
+  };
   r.addEventListener("pointerup",end);
-  r.addEventListener("pointercancel",end);
+  r.addEventListener("pointercancel",()=>{dragging=false});
   r.addEventListener("keydown",e=>{
     const step=e.shiftKey?7:1;
     if(e.key==="ArrowRight"){dayOffset+=step;applyScrub();e.preventDefault()}
@@ -772,14 +923,28 @@ function wireRuler(){
    tab, it must stay reachable while a house sheet is open, and the bar is the
    one surface nothing is ever allowed to scroll over. */
 function setUniverseBar(){
-  setTopBar("",{actions:`
-    <div class="segmented tbseg" id="unimode" role="tablist" aria-label="Chart mode">
+  setTopBar("",{centre:`
+    <div class="tbseg" id="unimode" role="tablist" aria-label="Chart mode">
+      <span class="thumb" aria-hidden="true"></span>
       <button class="${uniMode==="birth"?"on":""}" data-m="birth" role="tab"
         aria-selected="${uniMode==="birth"}">Birth</button>
       <button class="${uniMode==="today"?"on":""}" data-m="today" role="tab"
         aria-selected="${uniMode==="today"}">Today&#8217;s sky</button>
     </div>`});
+  requestAnimationFrame(()=>placeThumb(true)); setTimeout(()=>placeThumb(true),80);
 }
+
+/* the capsule's highlight is one object that slides between the labels;
+   the first placement is instant so it never animates in from nowhere */
+function setThumb(seg,instant){
+  if(!seg) return;
+  const on=seg.querySelector("button.on"), th=seg.querySelector(".thumb");
+  if(!on||!th) return;
+  if(instant) th.style.transition="none";
+  th.style.left=on.offsetLeft+"px"; th.style.width=on.offsetWidth+"px";
+  if(instant){ void th.offsetWidth; th.style.transition=""; }
+}
+function placeThumb(instant){ setThumb(document.getElementById("unimode"),instant) }
 
 function renderUniverse(){
   setUniverseBar();
@@ -793,8 +958,8 @@ function renderUniverse(){
                aria-label="North Indian chart, twelve houses"></svg>
           <svg class="asp" viewBox="0 0 100 100" id="asp"></svg>
           <div class="ghosts" id="ghosts"></div>
-          <div class="plane" id="plane"></div>
         </div>
+        <div class="plane" id="plane"></div>
       </div>
     </div>
     <div class="scrubwrap" id="scrubwrap">
@@ -854,7 +1019,7 @@ function renderUniverse(){
   plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation();openPlanet(b.dataset.g)}};
   document.getElementById("dlchart").onclick=()=>{buzz(8);
     alert("Not built yet. The export will render your chart as an image with the app name on it.")};
-  document.getElementById("tbact").onclick=e=>{
+  document.getElementById("tbcentre").onclick=e=>{
     const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===uniMode)return;
     setMode(b.dataset.m);
   };
@@ -886,6 +1051,8 @@ function paintUniverse(instant){
     ? `The sky at your birth &#8212; 26 March 1992, 10:00.`
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
+  const ca=document.getElementById("chartactions");
+  if(ca) ca.style.display = uniMode==="birth" ? "" : "none";
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
 }
 
@@ -902,14 +1069,16 @@ function paintGhosts(){
 }
 
 function setMode(m){
+  if(mode) resetChart();          /* an open house or planet froze the switch */
   uniMode=m; buzz(9);
   document.querySelectorAll("#unimode button").forEach(b=>{
     b.classList.toggle("on", b.dataset.m===m);
     b.setAttribute("aria-selected", String(b.dataset.m===m));
   });
+  placeThumb();
   if(m==="today"){ uniDate=dateAtOffset(dayOffset); }
-  paintUniverse(false);
-  if(m==="today") requestAnimationFrame(paintRuler);
+  paintUniverse(false);          /* makes the scrubber visible... */
+  if(m==="today") paintRuler();  /* ...so it can be measured and painted now */
   updateScrubLabel();
 }
 
@@ -931,6 +1100,8 @@ function resetChart(){
   const st=document.getElementById("stage"),ob=document.getElementById("orbit");
   if(st)st.classList.remove("pmode");
   if(ob){ob.style.transform="";ob.style.transformOrigin="50% 50%"}
+  const pl=document.getElementById("plane");
+  if(pl){pl.style.transform="";pl.style.transformOrigin="50% 50%"}
   qa(".p").forEach(b=>{b.style.transform="";b.style.zIndex=""});
   sheet.classList.remove("up"); closeBtn.classList.remove("on");
   document.getElementById("pg-universe").classList.remove("zoomed");
@@ -947,9 +1118,11 @@ function openHouse(h){
      every other house stays visible and tappable, so the user can move
      from one house straight to the next (CLAUDE.md 34, 79, 130). */
   const a=ANCHOR[h],k=1.16;
-  const ob=document.getElementById("orbit");
-  ob.style.transformOrigin="50% 50%";
-  ob.style.transform=`translate(${(50-a[0])*.22}%, ${(42-a[1])*.22}%) scale(${k})`;
+  const t=`translate(${(50-a[0])*.22}%, ${(42-a[1])*.22}%) scale(${k})`;
+  for(const id of ["orbit","plane"]){
+    const n=document.getElementById(id);
+    n.style.transformOrigin="50% 50%"; n.style.transform=t;
+  }
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   CHART.placements.forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
@@ -960,9 +1133,12 @@ function openPlanet(g){
   if(mode==="planet"&&current===g)return;
   const p=CHART.get(g); mode="planet";current=g;clearMarks();buzz(12);
   document.getElementById("stage").classList.add("pmode");
-  const b=PEL[g],[px,py]=b._pos,K=.94,T=[.5,.26];
+  const b=PEL[g],[px,py]=b._pos,T=[.5,.26];
   b.classList.add("focus"); b.style.zIndex=40;
-  b.style.transform=`translate(${((T[0]-.5)/K+.5-px)*100}%, ${((T[1]-.5)/K+.5-py)*100}%) scale(${(2.2/K).toFixed(3)})`;
+  /* translate() percentages resolve against the button's own 30px box,
+     which is why this motion silently died - so move in stage pixels */
+  const st=document.getElementById("stage").getBoundingClientRect();
+  b.style.transform=`translate(${((T[0]-px)*st.width).toFixed(1)}px, ${((T[1]-py)*st.height).toFixed(1)}px) scale(2.3)`;
   /* the others recede rather than vanish, so one graha leads straight to
      the next without a trip back through the chart */
   CHART.placements.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("recede")});
@@ -1030,20 +1206,27 @@ function sheetPlanet(p){
       <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
         <h1 style="font-size:26px;margin:0">${g}</h1></div>
     </div>
-    <p class="muted" style="margin:0 0 14px">${CORE[g]}</p>
+    <p class="muted" style="margin:0 0 12px">${PLANET_STORY[g].opener}</p>
+    <p class="muted" style="margin:0 0 14px">${PLANET_STORY[g].inHouse[p.house]}</p>
     <p class="lordline">${ruled.length
       ? `Lord of the <b>${ruled.map(ordinal).join(" & ")}</b>, sitting in the <b>${ordinal(p.house)}</b>`
-      : `Owns no sign, so rules no house. Sitting in the <b>${ordinal(p.house)}</b>`}</p>
-    ${rows([
-      ["Sign",`${SIGNS[p.sign-1]} (${p.sign})`],
-      ["Degree",p.degf],
-      ["Nakshatra",`${p.nak} &#183; pada ${p.pada}`],
-      ["Motion",p.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
-      ["Dignity",p.dig||"&#8212;"],
-      ["Conjunct",conj.length?conj.join(", "):"&#8212;"],
-      ["Aspects",CHART.aspectedBy(g).map(ordinal).join(", ")],
-      ["Natural karaka",KARAKA[g]]
-    ])}
+      : `Owns no sign, so rules no house. Sitting in the <b>${ordinal(p.house)}</b>`}
+      ${p.retro?` &#183; <b>retrograde</b>`:""}${p.dig?` &#183; <b>${p.dig.toLowerCase()}</b>`:""}</p>
+    ${conj.length?`<p class="muted" style="font-size:13px;margin:0 0 14px">Sharing the sign:
+      <b style="color:var(--ink)">${conj.join(", ")}</b> &#8212; their significations blend.</p>`:""}
+    <details class="adv">
+      <summary>The technical placement</summary>
+      ${rows([
+        ["Sign",`${SIGNS[p.sign-1]} (${p.sign})`],
+        ["Degree",p.degf],
+        ["Nakshatra",`${p.nak} &#183; pada ${p.pada}`],
+        ["Motion",p.retro?(shadow(g)?"Retrograde (always)":"Retrograde"):"Direct"],
+        ["Dignity",p.dig||"&#8212;"],
+        ["Conjunct",conj.length?conj.join(", "):"&#8212;"],
+        ["Aspects",CHART.aspectedBy(g).map(ordinal).join(", ")],
+        ["Natural karaka",KARAKA[g]]
+      ])}
+    </details>
     <p class="muted" style="font-size:13px">${
       now.maha.lord===g?`You are currently running the <b style="color:var(--ink)">${g} mahadasha</b>, so this graha governs the present period.`
       :now.antar.lord===g?`${g} rules your current <b style="color:var(--ink)">antardasha</b> &#8212; the sub-period inside a ${now.maha.lord} mahadasha.`
@@ -1196,7 +1379,7 @@ const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
-  {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>LEARN.length+" topics"},
+  {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>LEARN_LEVELS.reduce((a,l)=>a+l.topics.length,0)+" topics, three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
   {id:"report", label:"Detailed report", icon:ICONS.doc, sub:()=>"PDF"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
@@ -1383,16 +1566,22 @@ function wireGlossary(){
   rail.addEventListener("pointercancel",end);
 }
 
-const SAVED=()=>[
- {t:"Saturn exalted in Libra",w:"Universe &#183; graha",
-  b:`Exalted and retrograde in your ${ordinal(CHART.get("Saturn").house)}, ruling your ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")}. Career and gains both answer to it.`},
- {t:"Mercury debilitated, and combust",w:"Universe &#183; graha",
-  b:`Mercury sits in Pisces, its sign of debilitation, less than a degree from your Sun - close enough to be read as combust. Retrograde as well.`},
- {t:"Moon mahadasha to 2028",w:"Timeline",
-  b:`Ten years governed by the lord of your 3rd, sitting in your 8th alongside Rahu. The antardasha inside it changes roughly every year.`},
- {t:"Jupiter and the Moon in the 4th",w:"Universe &#183; house",
-  b:`Your 4th carries Leo. Jupiter sits there - the house of mother, home and rest.`}
-];
+/* Sample saved entries, but every fact in them is read from the engine at
+   render time - a sample must never contradict the chart (CLAUDE.md 104). */
+const SAVED=()=>{
+  const sat=CHART.get("Saturn"), mer=CHART.get("Mercury"), jup=CHART.get("Jupiter");
+  const now=CHART.dasha.at(new Date());
+  return [
+   {t:`Saturn ${sat.dig?sat.dig.toLowerCase():"in "+SIGNS[sat.sign-1]}`,w:"Universe &#183; graha",
+    b:`${sat.dig||"Placed"} in ${SIGNS[sat.sign-1]}, your ${ordinal(sat.house)}, ruling your ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")}.${sat.retro?" Retrograde.":""}`},
+   {t:`Mercury ${mer.dig?mer.dig.toLowerCase():"in "+SIGNS[mer.sign-1]}`,w:"Universe &#183; graha",
+    b:`Mercury sits in ${SIGNS[mer.sign-1]}${mer.dig?`, its sign of ${mer.dig.toLowerCase()}`:""}, in your ${ordinal(mer.house)}${CHART.conjunct("Mercury").includes("Sun")?", conjunct the Sun &#8212; close enough to be read as combust":""}.${mer.retro?" Retrograde as well.":""}`},
+   {t:`${now.maha.lord} mahadasha to ${now.maha.end.getFullYear()}`,w:"Timeline",
+    b:`The present period, ruled by the lord of your ${CHART.housesRuled(now.maha.lord).map(ordinal).join(" and ")||ordinal(CHART.get(now.maha.lord).house)}. The antardasha inside it changes roughly every year.`},
+   {t:`Jupiter in your ${ordinal(jup.house)}`,w:"Universe &#183; house",
+    b:`Your ${ordinal(jup.house)} carries ${SIGNS[jup.sign-1]}. Jupiter sits there &#8212; ${BHAVA[jup.house-1][1].toLowerCase()}.`}
+  ];
+};
 function subSaved(){
   return backBar("Saved insights")+`
     <p class="muted" style="font-size:13px;margin:-6px 0 16px">Things you kept.</p>
@@ -1449,7 +1638,7 @@ function renderSub(){
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",
-    learn:"Learn astrology",learntopic:(LEARN.find(x=>x.id===learnTopic)||{}).title||"Learn",
+    learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
@@ -1469,7 +1658,7 @@ function renderSub(){
   document.body.classList.toggle("glossary",subView==="glossary");
   if(subView!=="glossary") document.body.classList.remove("gstuck","gtyping");
   if(subView==="glossary") wireGlossary();
-  if(subView==="learn") wireLearn();
+  if(subView==="learn"||subView==="learntopic") wireLearn();
   if(subView==="people") wirePeople();
   if(subView==="personchart") wirePersonChart();
   if(subView==="settings") wireSettings();
@@ -1493,123 +1682,171 @@ const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",
    The app should leave someone more knowledgeable than it found them
    (CLAUDE.md 39, 146). Beginner first, then depth. */
 const nakLord2=i=>ORDER[i%9];
-const LEARN=[
- {id:"houses", title:"The twelve houses", blurb:"What each division of the chart covers",
-  body:`<p>A chart is a map of the sky at one moment, cut into twelve slices called <b>bhavas</b>, or houses. Each covers an area of life.</p>
-<p>The crucial thing, and the thing most people get wrong at first: <b>houses do not move</b>. House 1 is always the same position on the chart. What changes from person to person is which <b>sign</b> sits in each house, and that is decided entirely by the moment and place of birth.</p>
-<p>The twelve, in order:</p>
-<ol class="lrn">
-${BHAVA.map((b,i)=>`<li><b>${ordinal(i+1)} &#183; ${b[0]} Bhava</b> &#8212; ${b[1]}. ${b[2]}</li>`).join("")}
-</ol>
-<p>Houses are also grouped. The <b>kendras</b> (1, 4, 7, 10) are the angles and are read as the strongest positions. The <b>trikonas</b> (1, 5, 9) are the most fortunate. The <b>dusthanas</b> (6, 8, 12) are the difficult ones &#8212; debt, upheaval, loss &#8212; though difficulty is not the same as disaster.</p>`},
+/* ===================================================================
+   LEARN ASTROLOGY
+   -------------------------------------------------------------------
+   The curriculum lives in learn.js: three levels, concept by concept.
+   The diagrams are drawn here, from the same geometry as the real
+   chart, because the app should teach with its own visual language
+   (CLAUDE.md 42) - not with stock art.
+   =================================================================== */
 
- {id:"grahas", title:"The nine grahas", blurb:"Not planets, exactly",
-  body:`<p><b>Graha</b> means "grasper" &#8212; something that takes hold. It is not the same word as planet, and the difference matters.</p>
-<p>Two of the nine are not planets at all: the <b>Sun</b> and <b>Moon</b> are luminaries. Two more have no physical body whatsoever: <b>Rahu</b> and <b>Ketu</b> are the two points where the Moon's path crosses the Sun's, which is why eclipses happen there. They are called <b>chhaya grahas</b> &#8212; shadow grahas.</p>
-<p>Each graha carries natural significations, called <b>karakatva</b>, which it brings wherever it sits:</p>
-<ul class="lrn">
-${Object.keys(KARAKA).map(g=>`<li>${gIcon(g,18)}<b>${g}</b> &#8212; ${KARAKA[g]}</li>`).join("")}
-</ul>
-<p>Vedic astrology uses these nine and no others. Uranus, Neptune and Pluto belong to Western practice; you will occasionally see them in a KP chart, but they play no part in classical readings.</p>`},
+const SIGN_GLYPH=["♈","♉","♊","♋","♌","♍",
+                  "♎","♏","♐","♑","♒","♓"];
+const ELEMENTS=[["Fire","Aries, Leo, Sagittarius","var(--mars)"],
+                ["Earth","Taurus, Virgo, Capricorn","var(--brass)"],
+                ["Air","Gemini, Libra, Aquarius","var(--hot)"],
+                ["Water","Cancer, Scorpio, Pisces","var(--venus)"]];
 
- {id:"signs", title:"The twelve signs", blurb:"And why they differ from your Western sign",
-  body:`<p>The zodiac is a 360&#176; band divided into twelve <b>rashis</b> of 30&#176; each. So far, identical to Western astrology.</p>
-<p>The difference is where you start measuring. Western astrology uses the <b>tropical</b> zodiac, anchored to the seasons &#8212; 0&#176; Aries is the spring equinox. Vedic astrology uses the <b>sidereal</b> zodiac, anchored to the fixed stars.</p>
-<p>Because the Earth wobbles slowly on its axis, those two starting points have drifted apart by roughly <b>24&#176;</b> over the last two thousand years. That gap is the <b>ayanamsa</b>.</p>
-<p>Practically: your Vedic sign is usually the one before your Western sign. Someone who has always been told they are a Leo is very often a Vedic Cancer. Neither is wrong; they are measuring from different origins.</p>
-<p>Each sign has an owner, called its <b>lord</b>, and that lordship is the backbone of chart reading:</p>
-<ul class="lrn">
-${SIGNS.map((sg,i)=>`<li><b>${sg}</b> (${SIGNS_SK[i]}) &#8212; ruled by ${SIGN_LORD[i+1]}</li>`).join("")}
-</ul>`},
+/* a miniature of the real chart geometry, with optional per-house label */
+function miniChart(label,opts={}){
+  const cell=h=>label?label(h):"";
+  return `<svg class="lgfig" viewBox="-3 -3 106 106" aria-hidden="true">
+    <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+    <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
+    <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
+    <polygon points="50,0 100,50 50,100 0,50" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
+    ${opts.lagna?`<polygon points="${HOUSES[1].map(p=>p.join(",")).join(" ")}"
+      fill="rgba(194,155,78,.14)" stroke="var(--brass)" stroke-width="1.4"/>`:""}
+    ${Object.keys(LABEL).map(h=>`<text x="${LABEL[h][0]}" y="${LABEL[h][1]}"
+      font-size="7.5" fill="${opts.lagna&&+h===1?"var(--brass)":"var(--ink-3)"}"
+      text-anchor="middle" dominant-baseline="middle"
+      font-family="var(--fm)">${cell(+h)}</text>`).join("")}
+  </svg>`;
+}
 
- {id:"nakshatras", title:"The 27 nakshatras", blurb:"A finer grid than the signs",
-  body:`<p>Long before the twelve signs, Indian astronomy divided the sky into <b>27 nakshatras</b> &#8212; lunar mansions, each 13&#176;20' wide. They track the Moon: it passes through roughly one per day, and 27 of them make a lunar month.</p>
-<p>Nakshatras are finer than signs and often more telling. Two people can share a Moon sign and have completely different nakshatras.</p>
-<p>Each divides again into four <b>padas</b> of 3&#176;20', giving 108 padas across the zodiac &#8212; the same 108 that recurs throughout Indian tradition.</p>
-<p>Most importantly, <b>the nakshatra your Moon occupies at birth decides your entire dasha sequence</b>. Every nakshatra has a ruling graha, and that ruler names the first period of your life. Nothing else in the chart does this.</p>
-<ul class="lrn">
-${NAK.map((n,i)=>`<li><b>${n}</b> &#8212; ruled by ${nakLord2(i)}</li>`).join("")}
-</ul>`},
+const GRAPHIC={
+  "chart-anatomy":()=>`<figure class="lg">
+    ${miniChart(h=>h===1?"1":"", {lagna:true})}
+    <figcaption>The North Indian chart. The gold diamond at the top is the
+      <b>1st house</b> &#8212; the lagna. Houses run anticlockwise from it and
+      never move.</figcaption></figure>`,
+  "houses-wheel":()=>`<figure class="lg">
+    ${miniChart(h=>String(h))}
+    <figcaption>The twelve houses. The positions are fixed &#8212; only the signs
+      and grahas inside them change from person to person.</figcaption></figure>`,
+  "sign-glyphs":()=>`<figure class="lg"><div class="glyphgrid">
+    ${SIGNS.map((n,i)=>`<span class="glyphcell"><b>${SIGN_GLYPH[i]}</b>
+      <small>${n}</small><small class="sk">${SIGNS_SK[i]}</small></span>`).join("")}
+    </div><figcaption>The twelve rashis, in order. In your chart each occupies
+      one house, starting from wherever your lagna sign fell.</figcaption></figure>`,
+  "elements-grid":()=>`<figure class="lg"><div class="elgrid">
+    ${ELEMENTS.map(([e,list,c])=>`<span class="elcell" style="--ec:${c}">
+      <b>${e}</b><small>${list}</small></span>`).join("")}
+    </div><figcaption>Four elements, three signs each. Fire initiates, earth
+      builds, air connects, water feels.</figcaption></figure>`,
+  "aspect-lines":()=>`<figure class="lg">
+    <svg class="lgfig" viewBox="-3 -3 106 106" aria-hidden="true">
+      <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+      <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
+      <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
+      <polygon points="50,0 100,50 50,100 0,50" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
+      <circle cx="50" cy="14" r="4.5" fill="var(--saturn)"/>
+      <path d="M 50 14 Q 78 40 50 86" fill="none" stroke="var(--hot)" stroke-width="1.6" stroke-dasharray="3 2.4"/>
+      <circle cx="50" cy="86" r="2.6" fill="var(--hot)"/>
+      <path d="M 50 14 Q 22 30 14 50" fill="none" stroke="var(--hot)" stroke-width="1.6" stroke-dasharray="3 2.4" opacity=".65"/>
+      <circle cx="14" cy="50" r="2.6" fill="var(--hot)" opacity=".65"/>
+      <path d="M 50 14 Q 86 26 86 50" fill="none" stroke="var(--hot)" stroke-width="1.6" stroke-dasharray="3 2.4" opacity=".65"/>
+      <circle cx="86" cy="50" r="2.6" fill="var(--hot)" opacity=".65"/>
+    </svg>
+    <figcaption>Drishti: a graha in the 1st casting its glance. Every graha
+      aspects the 7th from itself; Saturn (shown) also reaches the 3rd and 10th.</figcaption></figure>`,
+  "retrograde-loop":()=>`<figure class="lg">
+    <svg class="lgfig wide" viewBox="0 0 200 66" aria-hidden="true">
+      <line x1="8" y1="46" x2="192" y2="46" stroke="var(--line-2)" stroke-width="1.4"/>
+      <path d="M 16 46 C 60 46 74 20 100 20 C 126 20 118 46 100 46 C 82 46 116 46 184 46"
+        fill="none" stroke="var(--mars)" stroke-width="2"/>
+      <polygon points="184,46 176,42 176,50" fill="var(--mars)"/>
+      <text x="100" y="12" font-size="8.5" fill="var(--ink-3)" text-anchor="middle"
+        font-family="var(--fm)">apparent backward loop</text>
+    </svg>
+    <figcaption>A retrograde is apparent motion: Earth overtakes, and for a
+      while the planet seems to slip backwards along the zodiac before resuming.</figcaption></figure>`,
+  "dasha-timeline":()=>{
+    const SEQ=[["Ketu",7],["Venus",20],["Sun",6],["Moon",10],["Mars",7],
+               ["Rahu",18],["Jupiter",16],["Saturn",19],["Mercury",17]];
+    let x=0;
+    return `<figure class="lg">
+    <svg class="lgfig wide" viewBox="0 0 240 44" aria-hidden="true">
+      ${SEQ.map(([g,y])=>{const w=y*2, r=`<rect x="${x}" y="8" width="${w-1}" height="16" rx="3"
+          fill="${'var(--'+g.toLowerCase()+')'}" opacity=".8"/>
+        <text x="${x+w/2}" y="36" font-size="6.5" fill="var(--ink-3)" text-anchor="middle"
+          font-family="var(--fm)">${y>=10?g:g.slice(0,2)}</text>`; x+=w; return r}).join("")}
+    </svg>
+    <figcaption>The Vimshottari cycle: 120 years split unevenly between the nine
+      grahas. Where you enter the wheel is set by your birth nakshatra.</figcaption></figure>`},
+  "varga-split":()=>`<figure class="lg"><div class="vargarow">
+    ${miniChart(h=>h===1?"D1":"" ,{lagna:true})}
+    <span class="varga-arrow">&#8594;</span>
+    ${miniChart(h=>h===1?"D9":"" ,{lagna:true})}
+    </div><figcaption>Every sign can be subdivided. The ninth division builds a
+      second chart, the navamsha (D9), read alongside the birth chart.</figcaption></figure>`,
+  "nakshatra-belt":()=>`<figure class="lg">
+    <svg class="lgfig wide" viewBox="0 0 240 52" aria-hidden="true">
+      <line x1="10" y1="26" x2="230" y2="26" stroke="var(--line-2)" stroke-width="1.4"/>
+      ${Array.from({length:27},(_,i)=>`<line x1="${10+i*220/26}" y1="${i%9===0?16:20}"
+        x2="${10+i*220/26}" y2="${i%9===0?36:32}" stroke="${i%9===0?"var(--brass)":"var(--ink-3)"}"
+        stroke-width="1.3"/>`).join("")}
+      <circle cx="${10+18*220/26}" cy="26" r="4" fill="var(--moon)"/>
+      <text x="${10+18*220/26}" y="48" font-size="7.5" fill="var(--ink-3)" text-anchor="middle"
+        font-family="var(--fm)">Mula &#183; your Moon</text>
+    </svg>
+    <figcaption>The 27 nakshatras divide the zodiac finer than the signs &#8212;
+      13&#176;20&#8242; each. Your Moon's nakshatra is the anchor of the dasha system.</figcaption></figure>`,
+  "moon-phases":()=>`<figure class="lg"><div class="phaserow">
+    ${[0,4,7,11,15,19,22,26].map(k=>`<img src="assets/moon/phase_${String(k).padStart(2,"0")}.png"
+      width="30" height="30" alt="">`).join("")}
+    </div><figcaption>One lunar month: new to full and back. The tithi &#8212; the
+      Vedic lunar day &#8212; is a thirtieth of this lap.</figcaption></figure>`,
+};
 
- {id:"dashas", title:"Dashas and timing", blurb:"How astrology answers 'when'",
-  body:`<p>A chart shows what is there. A <b>dasha</b> system says when it becomes active.</p>
-<p>The main one is <b>Vimshottari</b>, a 120-year cycle divided among the nine grahas. Ketu gets 7 years, Venus 20, the Sun 6, the Moon 10, Mars 7, Rahu 18, Jupiter 16, Saturn 19, Mercury 17. They always run in that order.</p>
-<p>Where you enter the cycle is not arbitrary. It comes from the Moon's nakshatra at birth: that nakshatra's ruler runs first, and how far the Moon had already travelled through it decides how much of that first period had elapsed before you were born.</p>
-<p>Each <b>mahadasha</b> subdivides into nine <b>antardashas</b> in the same order and proportion, and those subdivide again. So the texture of a period changes every year or two even when the governing graha does not.</p>
-<p>Reading a period means asking what its lord rules in your chart and where it sits. The same Saturn dasha is a very different decade for two different people.</p>`},
-
- {id:"divisional", title:"Divisional charts", blurb:"D1, D9, D10 and the rest",
-  body:`<p>The chart everyone knows &#8212; the one with your grahas in twelve houses &#8212; is the <b>D1</b>, or <b>Rashi</b> chart. It describes life broadly.</p>
-<p>For any specific area, Vedic astrology divides each sign further and builds a new chart from the result. These are <b>vargas</b>, or divisional charts. The maths is pure arithmetic on the same longitudes; no new information is needed.</p>
-<ul class="lrn">
-<li><b>D1 &#183; Rashi</b> &#8212; the life as a whole</li>
-<li><b>D2 &#183; Hora</b> &#8212; wealth</li>
-<li><b>D3 &#183; Drekkana</b> &#8212; siblings, courage</li>
-<li><b>D4 &#183; Chaturthamsa</b> &#8212; property and home</li>
-<li><b>D7 &#183; Saptamsa</b> &#8212; children</li>
-<li><b>D9 &#183; Navamsa</b> &#8212; marriage, and the chart's underlying strength</li>
-<li><b>D10 &#183; Dasamsa</b> &#8212; career</li>
-<li><b>D12 &#183; Dwadasamsa</b> &#8212; parents</li>
-<li><b>D16, D20, D24, D27, D30, D40, D45, D60</b> &#8212; vehicles, spirituality, education, strengths, misfortune, and finer readings still</li>
-</ul>
-<p>The <b>D9</b> deserves special mention. It is read alongside the D1 almost always, not only for marriage: a graha that looks weak in the D1 but strong in the D9 is traditionally read as coming good over time.</p>
-<p class="lrn-note">Not yet built in this app. It is the largest single thing we are missing.</p>`},
-
- {id:"drishti", title:"Aspects", blurb:"How grahas reach across a chart",
-  body:`<p><b>Drishti</b> means gaze. A graha influences not only the house it sits in but the houses it looks at.</p>
-<p>Every graha aspects the <b>7th house from itself</b> &#8212; directly opposite. Three have additional special aspects:</p>
-<ul class="lrn">
-<li>${gIcon("Mars",18)}<b>Mars</b> also aspects the 4th and 8th</li>
-<li>${gIcon("Jupiter",18)}<b>Jupiter</b> also aspects the 5th and 9th</li>
-<li>${gIcon("Saturn",18)}<b>Saturn</b> also aspects the 3rd and 10th</li>
-</ul>
-<p>Note this is not symmetrical. Saturn may aspect a graha that does not aspect it back &#8212; an asymmetry Western astrology does not have, since its aspects are angular and mutual.</p>
-<p>Whether Rahu and Ketu aspect at all is disputed. Some schools give them the 5th, 7th and 9th; others none. This app leaves it off by default and lets you turn it on in Settings.</p>`},
-
- {id:"strength", title:"Strength and dignity", blurb:"Why the same graha is not equal everywhere",
-  body:`<p>A graha's power depends heavily on which sign it occupies.</p>
-<ul class="lrn">
-<li><b>Exalted</b> (uccha) &#8212; its strongest sign. Saturn in Libra, Jupiter in Cancer, Mars in Capricorn.</li>
-<li><b>Own sign</b> &#8212; a sign it rules. Comfortable and reliably itself.</li>
-<li><b>Moolatrikona</b> &#8212; a specific degree range within its own sign where it is at root strength.</li>
-<li><b>Debilitated</b> (neecha) &#8212; the sign opposite its exaltation. Weakest, though not doomed: a debilitated graha in a strong house can still deliver.</li>
-</ul>
-<p>Beyond dignity there are numeric systems. <b>Shadbala</b> scores each graha across six components &#8212; position, time, direction, motion, nature and aspect. <b>Ashtakavarga</b> gives each house a score in points called bindus.</p>
-<p>A graha can also be <b>combust</b> &#8212; so close to the Sun that it cannot be seen, and traditionally weakened by the proximity.</p>
-<p class="lrn-note">Shadbala and Ashtakavarga are not yet built here.</p>`},
-
- {id:"reading", title:"How a chart is actually read", blurb:"Putting the pieces together",
-  body:`<p>Beginners tend to look up single placements &#8212; "Saturn in the 7th" &#8212; and read a verdict. That is not how it works. A chart is read in layers, and later layers routinely overturn earlier ones.</p>
-<ol class="lrn">
-<li><b>Find the lagna.</b> Everything is measured from the rising sign. Change the birth time by two hours and the whole chart re-numbers.</li>
-<li><b>Follow the lords.</b> A house is read through the graha that rules it and, crucially, through <i>where that graha sits</i>. Your 10th house of career is read through its lord's position, not just through the 10th.</li>
-<li><b>Weigh the grahas.</b> Dignity, then house, then aspects received.</li>
-<li><b>Check the D9.</b> Strength there modifies everything in the D1.</li>
-<li><b>Then time it.</b> A placement is potential; the dasha says when it activates.</li>
-</ol>
-<p>This is why two people with the same Sun sign share almost nothing astrologically, and why a one-line horoscope for a twelfth of humanity is a different activity from reading a chart.</p>`}
-];
-
+let learnTopic=null;
 function subLearn(){
   return `
     <p class="muted" style="font-size:13.5px;margin:0 0 18px">
-      From first principles to the parts practitioners argue about. Read in any order.</p>
-    <div class="list">
-      ${LEARN.map(l=>`<button class="item lrnitem" data-l="${l.id}">
-        <span style="flex:1"><b style="font-weight:600">${l.title}</b>
-          <span class="gdef">${l.blurb}</span></span>
-        <span class="chev">&#8250;</span></button>`).join("")}
-    </div>`;
+      Concept by concept, using your own chart as the classroom.</p>
+    ${LEARN_LEVELS.map(lv=>`
+      <div class="lvlhead"><b>${lv.level}</b><span>${lv.tag}</span></div>
+      <p class="lvlintro">${lv.intro}</p>
+      <div class="list lvllist">
+        ${lv.topics.map(t=>`<button class="item lrnitem" data-l="${t.id}">
+          <span style="flex:1"><b style="font-weight:600">${t.title}</b>
+            <span class="gdef">${t.one}</span></span>
+          <span class="lrnread">${t.read}</span>
+          <span class="chev">&#8250;</span></button>`).join("")}
+      </div>`).join("")}`;
+}
+function learnSection(sec){
+  if(sec.h) return `<h3>${sec.h}</h3>`;
+  if(sec.p) return `<p>${sec.p}</p>`;
+  if(sec.graphic) return GRAPHIC[sec.graphic]?GRAPHIC[sec.graphic]():"";
+  if(sec.list) return `<ul>${sec.list.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+  if(sec.term) return `<div class="lterm"><b>${sec.term}</b><span>${sec.means}</span></div>`;
+  if(sec.try) return `<div class="ltry"><span class="ltryk">Try it</span><p>${sec.try}</p></div>`;
+  return "";
 }
 function subLearnTopic(){
-  const l=LEARN.find(x=>x.id===learnTopic); if(!l) return subLearn();
-  return `<article class="lrnbody">${l.body}</article>`;
+  let lv=null, t=null;
+  for(const l of LEARN_LEVELS){ const f=l.topics.find(x=>x.id===learnTopic); if(f){lv=l;t=f;break} }
+  if(!t) return subLearn();
+  const flat=LEARN_LEVELS.flatMap(l=>l.topics);
+  const i=flat.findIndex(x=>x.id===t.id), next=flat[i+1];
+  return `<article class="lrnbody">
+    <div class="eyebrow">${lv.level} &#183; ${t.read}</div>
+    <h1>${t.title}</h1>
+    ${t.sections.map(learnSection).join("")}
+    ${next?`<button class="item lrnnext" data-l="${next.id}">
+      <span style="flex:1"><small class="gdef">Next up</small>
+        <b style="font-weight:600">${next.title}</b></span>
+      <span class="chev">&#8250;</span></button>`:""}
+  </article>`;
 }
-let learnTopic=null;
 function wireLearn(){
-  document.querySelectorAll(".lrnitem").forEach(b=>b.onclick=()=>{
+  document.getElementById("pg-you").onclick=e=>{
+    const b=e.target.closest(".lrnitem,.lrnnext"); if(!b) return;
     learnTopic=b.dataset.l; subView="learntopic"; buzz(7); renderSub();
-  });
+    document.getElementById("pg-you").scrollTop=0;
+  };
 }
 
 function subPeople(){
@@ -2325,18 +2562,19 @@ function wirePartner(){}
 const TABS=[
   {id:"today",label:"Today",icon:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/><circle cx="12" cy="14.6" r="1.5" fill="currentColor" stroke="none"/>'},
   {id:"timeline",label:"Timeline",icon:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>'},
-  {id:"universe",label:"Birth chart",
+  {id:"universe",label:"Universe",
    icon:'<rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/>'},
   {id:"guide",label:"Guide",icon:'<path d="M20 15.2a2.6 2.6 0 01-2.6 2.6H8.2L4 20.8V6.2A2.6 2.6 0 016.6 3.6h10.8A2.6 2.6 0 0120 6.2z"/>'},
   {id:"you",label:"You",icon:'<circle cx="12" cy="8.4" r="3.5"/><path d="M4.8 20.4c0-4 3.2-7.2 7.2-7.2s7.2 3.2 7.2 7.2"/>'}
 ];
 
 const YOU_INDEX=4, CHART_INDEX=2, TIMELINE_INDEX=1;
-function setTopBar(title,{back=false,actions="",sub=""}={}){
+function setTopBar(title,{back=false,actions="",sub="",centre=""}={}){
   document.getElementById("tbtitle").innerHTML=
     !title ? "" : sub?`<b>${title}</b><span>${sub}</span>`:`<b>${title}</b>`;
   document.getElementById("tbback").classList.toggle("on",back);
   document.getElementById("tbact").innerHTML=actions;
+  document.getElementById("tbcentre").innerHTML=centre;
 }
 document.getElementById("tbback").onclick=()=>{
   buzz(5);

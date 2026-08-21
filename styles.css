@@ -29,7 +29,9 @@ body{
 
 /* -- scaffold ---------------------------------------------------- */
 .app{position:relative;z-index:2;height:100dvh;display:flex;flex-direction:column}
-.pages{flex:1 1 auto;position:relative;min-height:0}
+/* pages start below the bar and are clipped by it - content can never be
+   read through or above the one fixed surface */
+.pages{flex:1 1 auto;position:relative;min-height:0;margin-top:var(--barh)}
 .page{
   position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
@@ -130,9 +132,14 @@ body.insub .tabs{transform:translateY(115%);pointer-events:none}
 .tb-title span{font-family:var(--fm);font-size:10.5px;color:var(--ink-3);
   letter-spacing:.02em;margin-top:1px;white-space:nowrap}
 .tb-back{width:0;overflow:hidden;opacity:0;border:0;background:none;color:var(--ink);
-  font-size:26px;line-height:1;padding:0;cursor:pointer;transition:width .25s var(--ease),opacity .2s}
-.tb-back.on{width:24px;opacity:1;margin-left:-6px}
+  font-size:28px;line-height:1;padding:0;cursor:pointer;height:44px;
+  display:grid;place-items:center;
+  transition:width .25s var(--ease),opacity .2s}
+.tb-back.on{width:44px;opacity:1;margin-left:-14px}
+.tb-back:active{opacity:.5}
 .tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.tb-centre{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  padding-top:env(safe-area-inset-top)}
 .tb-btn{width:32px;height:32px;border:0;background:none;cursor:pointer;display:grid;
   place-items:center;color:var(--ink);padding:0}
 .tb-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;
@@ -140,7 +147,7 @@ body.insub .tabs{transform:translateY(115%);pointer-events:none}
 .tb-btn.txt{width:auto;padding:0 2px;font-family:var(--ff);font-size:14px;font-weight:540;
   color:var(--brass)}
 .tb-btn:active{opacity:.5}
-.page{padding-top:calc(64px + env(safe-area-inset-top))}
+.page{padding-top:12px}
 .subhead{display:none}
 
 /* five tabs, the chart raised in the centre */
@@ -348,7 +355,8 @@ svg.asp{pointer-events:none}
   -webkit-user-drag:none;user-select:none;
   filter:drop-shadow(0 2px 10px rgba(0,0,0,.55)) drop-shadow(0 0 13px var(--fill));
   transition:filter .5s var(--ease),transform .5s var(--ease)}
-.p:focus-visible .art{outline:2.5px solid rgba(150,190,255,.9);outline-offset:2px;border-radius:50%}
+.p:focus-visible .art{box-shadow:0 0 0 2.5px rgba(150,190,255,.9);border-radius:50%}
+.p:focus:not(:focus-visible) .art{box-shadow:none;outline:none}
 .p.focus .art{filter:drop-shadow(0 6px 22px rgba(0,0,0,.7)) drop-shadow(0 0 30px var(--fill))}
 .p.focus[data-g="Sun"] .art{animation:breathe 6s ease-in-out infinite}
 .p.focus[data-g="Jupiter"] .art,.p.focus[data-g="Mars"] .art,
@@ -419,13 +427,13 @@ svg.asp{pointer-events:none}
 .k{font-size:12.5px;color:var(--ink-3)}
 .v{font-family:var(--fm);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
 .sw{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
-/* the close control sits in the bar's left slot, where it can never collide
-   with the mode pill on the right */
+/* close sits at the bar's right edge with a full 44pt target; the centred
+   pill never collides with it */
 .closebtn{width:0;overflow:hidden;border:0;background:none;color:var(--ink);
-  font-size:17px;line-height:1;padding:0;cursor:pointer;flex:0 0 auto;
-  display:grid;place-items:center;height:30px;opacity:0;pointer-events:none;
+  font-size:18px;line-height:1;padding:0;cursor:pointer;flex:0 0 auto;
+  display:grid;place-items:center;height:44px;opacity:0;pointer-events:none;
   transition:width .24s var(--ease),opacity .2s var(--ease)}
-.closebtn.on{width:30px;opacity:1;pointer-events:auto;margin-left:-5px}
+.closebtn.on{width:44px;opacity:1;pointer-events:auto;margin-right:-14px}
 .closebtn:active{opacity:.5}
 
 /* -- guide ------------------------------------------------------- */
@@ -670,14 +678,18 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 /* glossary, on the Contacts pattern: persistent search, sticky letter
    headers, generous rows, and an index rail pinned to the right edge */
 
+/* the search sticks flush under the bar as a matching blur band, and the
+   letter headers snap to its underside - one continuous chrome, no gap */
 .gsearch{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;
-  margin:0 0 4px;padding:6px 0 10px;background:var(--void)}
-.gsico{position:absolute;left:11px;top:6px;bottom:10px;display:flex;align-items:center;
+  height:58px;margin:-12px 0 2px;padding:7px 0;
+  background:rgba(23,26,51,.88);
+  -webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px)}
+.gsico{position:absolute;left:11px;top:0;bottom:0;display:flex;align-items:center;
   color:var(--ink-3);pointer-events:none}
 .gsico svg{width:16px;height:16px}
 .gsearch input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
-  background:rgba(255,255,255,.08);border:0;border-radius:11px;
-  padding:11px 14px 11px 36px;-webkit-appearance:none}
+  background:rgba(255,255,255,.08);border:0;border-radius:12px;height:44px;
+  padding:0 14px 0 36px;-webkit-appearance:none}
 .gsearch input::-webkit-search-cancel-button{display:none}
 .gsearch input::placeholder{color:var(--ink-3)}
 .gsearch input:focus{outline:none;background:rgba(255,255,255,.12)}
@@ -698,10 +710,14 @@ body.gtyping .gcancel{display:block}
   transition:opacity .16s var(--ease),transform .16s var(--ease)}
 .azbubble.on{opacity:1;transform:translateY(-50%) scale(1)}
 .gsec{margin:0}
-.gletter{position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:5;
-  margin:0;padding:6px 0 6px 2px;
-  font-size:13px;font-weight:680;letter-spacing:.03em;color:var(--ink-2);
-  background:var(--void);border-bottom:.5px solid rgba(170,180,235,.13)}
+.gletter{position:sticky;top:57px;z-index:5;
+  margin:0;padding:5px 0 5px 2px;
+  font-size:12.5px;font-weight:680;letter-spacing:.04em;color:var(--ink-2);
+  background:rgba(23,26,51,.88);
+  -webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px);
+  border-bottom:.5px solid rgba(170,180,235,.13)}
+/* rows never run under the index rail */
+body.glossary .gsec{padding-right:22px}
 .gterm{padding:14px 2px 15px;border-bottom:.5px solid rgba(170,180,235,.09)}
 .gterm:last-child{border-bottom:0}
 .gterm h4{margin:0 0 5px;font-size:16px;font-weight:640;letter-spacing:-.015em;color:var(--ink)}
@@ -713,9 +729,19 @@ body.gtyping .gcancel{display:block}
 body.glossary .page{padding-right:30px}
 
 /* ---- Universe: mode switch, ghosts, time scrubber ---- */
-/* compact segmented control, sized for the 54px bar */
-.tbseg{margin:0;padding:2px;border-radius:99px;flex:0 0 auto}
-.tbseg button{font-size:12.5px;padding:5px 11px;letter-spacing:-.01em;white-space:nowrap}
+/* one capsule, one highlight that slides between its two labels */
+.tbseg{position:relative;display:flex;margin:0;padding:2.5px;border-radius:99px;
+  background:rgba(255,255,255,.09);border:.5px solid rgba(170,180,235,.16)}
+.tbseg .thumb{position:absolute;top:2.5px;bottom:2.5px;left:2.5px;width:40px;
+  border-radius:99px;background:rgba(160,172,240,.32);
+  box-shadow:0 1px 6px -1px rgba(0,0,0,.45);
+  transition:left .34s cubic-bezier(.3,1.4,.4,1),width .34s cubic-bezier(.3,1.4,.4,1)}
+.tbseg button{position:relative;z-index:1;border:0;background:none;cursor:pointer;
+  font-family:var(--ff);font-size:12.5px;font-weight:560;color:var(--ink-2);
+  padding:6px 13px;border-radius:99px;white-space:nowrap;letter-spacing:-.01em;
+  transition:color .25s var(--ease)}
+.tbseg button.on{color:var(--ink)}
+@media (prefers-reduced-motion: reduce){ .tbseg .thumb{transition:none} }
 .unihint{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin:0 0 4px;max-width:52ch}
 
 /* planets glide between positions; a mode change or a scrub is the same
@@ -745,7 +771,7 @@ body.glossary .page{padding-right:30px}
 .tick{position:absolute;top:0;bottom:0;width:0;display:flex;flex-direction:column;
   align-items:center;justify-content:flex-start;padding-top:9px}
 .tick i{display:block;width:1px;height:11px;background:rgba(255,255,255,.22)}
-.tick b{font-family:var(--fm);font-size:9.5px;color:var(--ink-3);margin-top:5px;
+.tick b{font-family:var(--fm);font-size:9px;color:var(--ink-3);margin-top:5px;
   white-space:nowrap;font-weight:500}
 .tick.month i{height:17px;background:rgba(150,162,235,.6)}
 .tick.month b{color:var(--ink-2)}
@@ -820,3 +846,99 @@ body.glossary .page{padding-right:30px}
 .panch .v{letter-spacing:.01em}
 .dashaline{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0}
 .dashaline b{color:var(--ink);font-weight:620}
+
+/* ---- Today sub-tabs and new sections ---- */
+.subseg{margin:4px auto 18px;width:max-content;max-width:100%}
+.skylead{font-size:14px;line-height:1.55;color:var(--ink-2);margin:0 0 14px}
+.skylead b{color:var(--ink)}
+.mtb{padding:4px 15px}
+.mtbrow{display:flex;gap:13px;padding:12px 0;border-top:.5px solid var(--line)}
+.mtbrow:first-child{border-top:0}
+.mtbk{flex:0 0 62px;font-family:var(--fm);font-size:10px;letter-spacing:.07em;
+  text-transform:uppercase;padding-top:2px}
+.mtbk.do{color:var(--brass)} .mtbk.hold{color:var(--ink-3)} .mtbk.prac{color:var(--hot)}
+.mtbrow ul{margin:0;padding:0;list-style:none}
+.mtbrow li{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:0 0 6px}
+.mtbrow li:last-child{margin-bottom:0}
+.ings{margin:0}
+.ingrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  padding:11px 4px;border:0;border-top:.5px solid var(--line);background:none;
+  color:var(--ink);font-family:var(--ff);cursor:pointer}
+.ingrow:first-child{border-top:0}
+.ingrow:active{opacity:.6}
+.ingmain{flex:1;font-size:13.5px;color:var(--ink-2)}
+.ingmain b{color:var(--ink);font-weight:620}
+.ingr{font-family:var(--fm);font-style:normal;font-size:9.5px;color:var(--ink-3);
+  border:1px solid var(--line-2);border-radius:99px;padding:1px 6px;margin-left:5px}
+.ingnext{font-family:var(--fm);font-size:11px;color:var(--ink-3);white-space:nowrap}
+.card.special{margin:0 0 10px;padding:13px 15px}
+.card.special b{font-size:14px;font-weight:640;letter-spacing:-.01em}
+.card.special p{font-size:13px;line-height:1.55;color:var(--ink-2);margin:6px 0 0}
+.panchrow .k small{display:block;font-family:var(--ff);font-size:10.5px;
+  color:var(--ink-3);opacity:.75;margin-top:2px;letter-spacing:0}
+.panchrow{align-items:flex-start}
+
+/* ---- Learn astrology ---- */
+.lvlhead{display:flex;align-items:baseline;gap:9px;margin:26px 0 4px}
+.lvlhead:first-of-type{margin-top:4px}
+.lvlhead b{font-size:19px;font-weight:660;letter-spacing:-.02em}
+.lvlhead span{font-family:var(--fm);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--brass)}
+.lvlintro{font-size:13px;line-height:1.5;color:var(--ink-3);margin:0 0 12px}
+.lrnread{font-family:var(--fm);font-size:10px;color:var(--ink-3);white-space:nowrap;
+  margin-right:2px}
+.lrnbody{padding-bottom:26px}
+.lrnbody h1{font-size:25px;font-weight:680;letter-spacing:-.025em;margin:4px 0 16px}
+.lrnbody h3{font-size:16px;font-weight:640;letter-spacing:-.015em;margin:24px 0 8px}
+.lrnbody p{font-size:14.5px;line-height:1.62;color:var(--ink-2);margin:0 0 13px}
+.lrnbody b{color:var(--ink);font-weight:620}
+.lrnbody ul{margin:0 0 13px;padding-left:19px}
+.lrnbody li{font-size:14px;line-height:1.6;color:var(--ink-2);margin-bottom:5px}
+.lterm{display:flex;align-items:baseline;gap:12px;padding:9px 13px;margin:0 0 9px;
+  border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.lterm b{font-size:13.5px;font-weight:640;white-space:nowrap}
+.lterm span{font-size:13px;line-height:1.5;color:var(--ink-2)}
+.ltry{margin:20px 0 6px;padding:13px 15px;border-radius:15px;
+  background:rgba(194,155,78,.09);border:1px solid rgba(194,155,78,.28)}
+.ltryk{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--brass)}
+.ltry p{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:6px 0 0}
+.lrnnext{margin-top:22px;border:1px solid var(--edge-soft)!important;border-radius:15px}
+.lrnnext .gdef{display:block;font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:2px}
+
+/* diagrams: drawn with the app's own geometry */
+.lg{margin:14px 0 18px;padding:0}
+.lgfig{display:block;width:min(64vw,240px);margin:0 auto}
+.lgfig.wide{width:100%;max-width:340px}
+.lg figcaption{font-size:12px;line-height:1.55;color:var(--ink-3);text-align:center;
+  margin-top:10px;max-width:34ch;margin-left:auto;margin-right:auto}
+.lg figcaption b{color:var(--ink-2)}
+.glyphgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.glyphcell{display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:9px 2px 7px;border-radius:12px;background:rgba(255,255,255,.045);
+  border:1px solid var(--edge-soft)}
+.glyphcell b{font-size:17px;font-weight:500;line-height:1.2}
+.glyphcell small{font-size:9px;color:var(--ink-2)}
+.glyphcell small.sk{color:var(--ink-3);font-family:var(--fm);font-size:8px}
+.elgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.elcell{padding:11px 13px;border-radius:13px;background:rgba(255,255,255,.045);
+  border:1px solid var(--edge-soft);border-left:2.5px solid var(--ec)}
+.elcell b{display:block;font-size:14px;font-weight:640}
+.elcell small{font-size:10.5px;color:var(--ink-3);line-height:1.45;display:block;margin-top:2px}
+.vargarow{display:flex;align-items:center;gap:6px;justify-content:center}
+.vargarow .lgfig{width:min(34vw,132px);margin:0}
+.varga-arrow{font-size:19px;color:var(--ink-3)}
+.phaserow{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
+.phaserow img{filter:drop-shadow(0 1px 5px rgba(0,0,0,.5))}
+
+/* collapsible technical block on graha sheets */
+details.adv{margin:2px 0 16px;border:1px solid var(--edge-soft);border-radius:14px;
+  padding:0 14px;background:rgba(255,255,255,.035)}
+details.adv summary{cursor:pointer;list-style:none;padding:12px 0;
+  font-size:13.5px;font-weight:560;color:var(--hot);display:flex;align-items:center}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::after{content:"\203A";margin-left:auto;font-size:17px;
+  color:var(--ink-3);transform:rotate(90deg);transition:transform .25s var(--ease)}
+details.adv[open] summary::after{transform:rotate(-90deg)}
+details.adv .rows{margin-bottom:6px}

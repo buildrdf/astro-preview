@@ -21,7 +21,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 html,body,button{touch-action:manipulation}
 html,body{margin:0;height:100%}
 body{
-  background:linear-gradient(180deg,#1C2049 0%,#171A33 42%,#111427 100%);
+  /* the evening-sky gradient Sangram pointed at - richer violet-indigo
+     light at the top falling into deep navy night. Kept a step bluer
+     than the reference: depth is the borrowed idea, purple is not. */
+  background:linear-gradient(180deg,
+    #34306C 0%, #252455 22%, #1B1E44 48%, #131630 74%, #0E1024 100%);
   background-attachment:fixed;color:var(--ink);font-family:var(--ff);
   -webkit-font-smoothing:antialiased;overflow:hidden;
   height:100dvh;position:relative;
@@ -53,7 +57,7 @@ body{
   height:calc(var(--tabh) + env(safe-area-inset-bottom));
   padding-bottom:env(safe-area-inset-bottom);
   display:grid;grid-template-columns:repeat(4,1fr);
-  background:rgba(23,26,51,.82);
+  background:rgba(33,32,74,.60);
   -webkit-backdrop-filter:saturate(180%) blur(26px);
   backdrop-filter:saturate(180%) blur(26px);
   border-top:.5px solid rgba(170,180,235,.16);
@@ -123,7 +127,7 @@ body.insub .tabs{transform:translateY(115%);pointer-events:none}
 .topbar{position:absolute;top:0;left:0;right:0;z-index:50;height:54px;
   display:flex;align-items:center;gap:4px;padding:0 16px;
   padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top));
-  background:rgba(23,26,51,.82);
+  background:rgba(33,32,74,.60);
   border-bottom:.5px solid rgba(170,180,235,.15);
   -webkit-backdrop-filter:saturate(160%) blur(20px);backdrop-filter:saturate(160%) blur(20px);
   pointer-events:none}

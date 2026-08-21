@@ -13,6 +13,25 @@
 
 <div class="wash"></div>
 
+<script>
+/* Device-side error trap. Errors are always collected; adding #debug to the
+   URL paints them on screen - so an iPhone-only failure can be read without
+   a connected inspector. */
+window.__errs=[];
+addEventListener("error",e=>{
+  const m=(e.error&&e.error.stack||e.message||"error").split("\n").slice(0,3).join(" | ");
+  window.__errs.push(m);
+  if(location.hash.includes("debug")){
+    let n=document.getElementById("errband");
+    if(!n){n=document.createElement("div");n.id="errband";
+      n.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:9999;"+
+      "background:#7f1d1d;color:#fff;font:11px/1.5 -apple-system,monospace;"+
+      "padding:8px 12px;max-height:40vh;overflow:auto;white-space:pre-wrap";
+      document.body.appendChild(n)}
+    n.textContent=window.__errs.join("\n\n");
+  }
+},true);
+</script>
 <div class="app">
   <header class="topbar" id="topbar">
       <button class="tb-back" id="tbback" aria-label="Back">&#8249;</button>

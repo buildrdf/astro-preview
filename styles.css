@@ -15,6 +15,9 @@
   --tabh:70px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* an instrument, not a document: taps navigate, they do not select */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea{-webkit-user-select:text;user-select:text}
 html,body,button{touch-action:manipulation}
 html,body{margin:0;height:100%}
 body{
@@ -337,7 +340,9 @@ svg.asp{pointer-events:none}
   dominant-baseline:middle;pointer-events:none;opacity:.75;
   transition:opacity .45s var(--ease),fill .45s var(--ease)}
 .sn.dim{opacity:.08} .sn.sel{fill:var(--ink-2);opacity:1}
-.lg{fill:none;stroke:var(--brass);stroke-width:1.4;vector-effect:non-scaling-stroke;opacity:.5}
+/* lagna marker is a soft fill, not a stroke - a straight outline would
+   clash with the curved rhombus edges */
+.lg{fill:rgba(194,155,78,.06);stroke:none;pointer-events:none}
 .asclbl{font-family:var(--fm);font-size:3px;fill:var(--brass);letter-spacing:.35px;
   text-anchor:middle;dominant-baseline:middle;pointer-events:none;opacity:.85}
 .al{fill:none;stroke-width:1;vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:0}
@@ -349,7 +354,7 @@ svg.asp{pointer-events:none}
   margin-left:calc(var(--d)/-2);margin-top:calc(var(--d)/-2);
   left:calc(var(--x)*100%);top:calc(var(--y)*100%);
   border:0;padding:0;background:none;pointer-events:auto;cursor:pointer;
-  border-radius:50%;outline:none;perspective:240px;
+  border-radius:50%;outline:none;
   transition:transform .72s var(--ease),opacity .5s var(--ease),filter .5s var(--ease)}
 .p .art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
   -webkit-user-drag:none;user-select:none;
@@ -369,7 +374,7 @@ svg.asp{pointer-events:none}
   font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.06em;
   color:var(--ink-2);white-space:nowrap;
   text-shadow:0 1px 3px rgba(0,0,0,.9);transition:opacity .4s var(--ease)}
-.p .retro{position:absolute;right:-3px;top:-3px;font-family:var(--fm);font-size:8px;
+.p .retro{display:none;position:absolute;right:-3px;top:-3px;font-family:var(--fm);font-size:8px;
   color:var(--ink-2);background:var(--void-2);border:1px solid var(--line-2);
   border-radius:99px;padding:0 3px;line-height:11px}
 .p .name{position:absolute;left:50%;bottom:calc(100% + 14%);
@@ -388,6 +393,7 @@ svg.asp{pointer-events:none}
 .p.focus[data-g="Jupiter"] .surf,.p.focus[data-g="Saturn"] .surf{animation:drift 30s linear infinite}
 .p.focus[data-g="Mars"] .surf,.p.focus[data-g="Moon"] .surf{animation:turn 46s linear infinite}
 .p.focus[data-g="Sun"] .corona{animation:turn 120s linear infinite}
+.p.retro .retro{display:block}
 .p.focus.retro .surf{animation-direction:reverse!important}
 .p.focus .ring{animation:tilt 18s ease-in-out infinite alternate}
 .p.focus .halo{animation:corona 5s ease-in-out infinite}
@@ -396,14 +402,19 @@ svg.asp{pointer-events:none}
 @keyframes tilt{to{transform:rotateX(66deg) rotate(-11deg)}}
 @keyframes corona{50%{opacity:.55;inset:-20%}}
 
+/* When closed the sheet is visibility:hidden, not merely transparent.
+   Transparent still hit-tests: its tap-through gap sat invisibly over the
+   top half of every screen, and iOS Safari - which does not synthesise
+   click events on plain divs - let it swallow every tap beneath it. */
 .sheet{
   position:fixed;inset:0;z-index:40;overflow-y:auto;overscroll-behavior:contain;
-  background:none;opacity:0;pointer-events:none;
-  transition:opacity .38s var(--ease);-webkit-overflow-scrolling:touch}
+  background:none;opacity:0;pointer-events:none;visibility:hidden;
+  transition:opacity .38s var(--ease),visibility 0s .38s;
+  -webkit-overflow-scrolling:touch}
 .sheet::-webkit-scrollbar{display:none}
 /* the gap must RECEIVE the tap in order to forward it to the chart
    underneath; pointer-events:none here meant the listener never fired */
-.sheetgap{height:47dvh;pointer-events:auto}
+.sheetgap{height:47dvh;pointer-events:auto;cursor:pointer}
 .sheet::after{content:"";display:block;height:1px}
 /* the card can rise until its top meets the bar and no further, so its
    border never passes behind the one surface that must stay on top */
@@ -414,7 +425,8 @@ svg.asp{pointer-events:none}
   border-top:1px solid var(--edge);
   border-radius:26px 26px 0 0;
   box-shadow:0 -18px 44px -18px rgba(0,0,0,.85)}
-.sheet.up{opacity:1;pointer-events:auto}
+.sheet.up{opacity:1;pointer-events:auto;visibility:visible;
+  transition:opacity .38s var(--ease),visibility 0s 0s}
 .loc{width:26px;height:26px;vertical-align:-8px;margin-right:9px;overflow:visible}
 .lordline{font-size:13.5px;line-height:1.45;color:var(--ink-2);margin:0 0 15px;
   padding:9px 12px;background:rgba(255,255,255,.07);border-left:2px solid var(--hot);
@@ -678,24 +690,20 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 /* glossary, on the Contacts pattern: persistent search, sticky letter
    headers, generous rows, and an index rail pinned to the right edge */
 
-/* the search sticks flush under the bar as a matching blur band, and the
-   letter headers snap to its underside - one continuous chrome, no gap */
-.gsearch{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;
-  height:58px;margin:-12px 0 2px;padding:7px 0;
-  background:rgba(23,26,51,.88);
-  -webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px)}
+/* search lives in the bar: a magnifier on the Glossary line that expands
+   in place to a full-width field with Cancel - the AdviceBazaar pattern */
+.topbar.searching .tb-actions{flex:1;min-width:0}
+.topbar.searching .tb-title{display:none}
+.barsearch{position:relative;flex:1;min-width:0;display:flex;align-items:center}
 .gsico{position:absolute;left:11px;top:0;bottom:0;display:flex;align-items:center;
   color:var(--ink-3);pointer-events:none}
-.gsico svg{width:16px;height:16px}
-.gsearch input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
-  background:rgba(255,255,255,.08);border:0;border-radius:12px;height:44px;
-  padding:0 14px 0 36px;-webkit-appearance:none}
-.gsearch input::-webkit-search-cancel-button{display:none}
-.gsearch input::placeholder{color:var(--ink-3)}
-.gsearch input:focus{outline:none;background:rgba(255,255,255,.12)}
-.gcancel{display:none;border:0;background:none;color:var(--brass);font-family:var(--ff);
-  font-size:15px;cursor:pointer;padding:0 2px;white-space:nowrap}
-body.gtyping .gcancel{display:block}
+.gsico svg{width:15px;height:15px}
+.barsearch input{flex:1;min-width:0;font-family:var(--ff);font-size:16px;color:var(--ink);
+  background:rgba(255,255,255,.09);border:0;border-radius:11px;height:36px;
+  padding:0 12px 0 33px;-webkit-appearance:none}
+.barsearch input::-webkit-search-cancel-button{display:none}
+.barsearch input::placeholder{color:var(--ink-3)}
+.barsearch input:focus{outline:none;background:rgba(255,255,255,.13)}
 .azrail{position:fixed;right:1px;top:50%;transform:translateY(-50%);z-index:20;
   display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:none;
   touch-action:none;cursor:grab}
@@ -710,7 +718,7 @@ body.gtyping .gcancel{display:block}
   transition:opacity .16s var(--ease),transform .16s var(--ease)}
 .azbubble.on{opacity:1;transform:translateY(-50%) scale(1)}
 .gsec{margin:0}
-.gletter{position:sticky;top:57px;z-index:5;
+.gletter{position:sticky;top:0;z-index:5;
   margin:0;padding:5px 0 5px 2px;
   font-size:12.5px;font-weight:680;letter-spacing:.04em;color:var(--ink-2);
   background:rgba(23,26,51,.88);

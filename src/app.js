@@ -198,6 +198,15 @@ function inradius(poly){
   return m;
 }
 const cent=p=>[p.reduce((a,q)=>a+q[0],0)/p.length,p.reduce((a,q)=>a+q[1],0)/p.length];
+/* rhombus edges as quadratics, control points pulled toward the centre */
+const RH_BOW=7.5;
+const RHOMBUS_D=(()=>{const c=RH_BOW;
+  return `M 50 0 Q ${75-c} ${25+c} 100 50 Q ${75-c} ${75-c} 50 100 `+
+         `Q ${25+c} ${75-c} 0 50 Q ${25+c} ${25+c} 50 0 Z`})();
+/* the lagna wash follows the same curvature, so highlight and line agree */
+const LAGNA_D=(()=>{const c=RH_BOW;
+  return `M 50 0 Q ${62.5-c/2} ${12.5+c/2} ${75-c/2} ${25+c/2} L 50 50 `+
+         `L ${25+c/2} ${25+c/2} Q ${37.5+c/2} ${12.5+c/2} 50 0 Z`})();
 const ANCHOR={},LABEL={};
 for(const h in HOUSES){
   const c=cent(HOUSES[h]),tri=HOUSES[h].length===3;
@@ -476,7 +485,26 @@ function areaScore(area, F){
   return {area, score:mean, evidence:ev, lead};
 }
 
-const TONE_WORD={favourable:"Most supported",balanced:"Level",slow:"Slower"};
+const TONE_WORD={favourable:"Good",balanced:"Steady",slow:"Slow"};
+
+/* the sentence a person actually wants, per area and verdict - plain
+   words in front, the astrology underneath in Why? */
+const PLAIN_DAY={
+  Career:{favourable:"A good day to push work forward and be seen doing it.",
+          balanced:"Work runs on rails today &#8212; keep the routine.",
+          slow:"Let work be ordinary today; save the big push."},
+  Wealth:{favourable:"A fine day to sort money &#8212; ask, invoice, tidy the accounts.",
+          balanced:"Money is quiet. Nothing needs forcing.",
+          slow:"Spend lightly and let financial decisions wait a day."},
+  Relationships:{favourable:"People are receptive &#8212; reach out, say the thing.",
+          balanced:"Company is easy today; nothing needs managing.",
+          slow:"Give people room. Keep delicate talks for another day."},
+  Wellbeing:{favourable:"Energy is with you &#8212; move, start the habit.",
+          balanced:"Energy is even. Keep the routines that hold you.",
+          slow:"A rest-first day. Go gently with yourself."},
+  "Inner life":{favourable:"A clear-headed day for learning and reflection.",
+          balanced:"A quiet-mind day &#8212; small readings, small notes.",
+          slow:"Let the mind idle; conclusions can wait."}};
 
 /* Tone is read ACROSS the five areas of one day, not against an absolute
    scale. Two reasons. Gochara verdicts are lopsided by construction - most
@@ -612,8 +640,8 @@ function renderToday(){
         <span class="aname">${a.area}</span>
         <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
       </div>
-      <p class="ameta">${AREA_LINE[a.area]}</p>
-      <p class="asub">${leadLine(a.lead,F)}</p>
+      <p class="asub">${PLAIN_DAY[a.area][a.tone]}</p>
+      <p class="ameta">${leadLine(a.lead,F)}</p>
       <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
       <div class="whybox" id="why${i}" hidden>${whyLines(a,F)}</div>
     </div>`).join("");
@@ -639,13 +667,12 @@ function renderToday(){
     </div>
     <div class="areas">${areaCards}</div>
     ${better}
-    <h3 class="secttl">Underneath <span>your dasha</span></h3>
-    <p class="dashaline">A <b>${now.maha.lord}</b> mahadasha to ${fmtDate(now.maha.end)},
-      with a <b>${now.antar.lord}</b> sub-period to ${fmtDate(now.antar.end)}.
+    <h3 class="secttl">The longer season</h3>
+    <p class="dashaline">Behind every day right now runs a <b>${now.maha.lord}</b> period,
+      until ${fmtDate(now.maha.end)}. Days change; this does not.
       ${CHART.housesRuled(now.maha.lord).length
-        ? `${now.maha.lord} rules your ${CHART.housesRuled(now.maha.lord).map(ordinal).join(" and ")} house,
-           so those themes sit behind every day of it.`
-        : `${now.maha.lord} rules no sign, so it is read through the house it occupies.`}</p>
+        ? `It keeps ${CHART.housesRuled(now.maha.lord).map(h=>HOUSE_ADVICE[h][0]).join(" and ")} quietly in the background.`
+        : `It colours the house it sits in &#8212; your ${ordinal(CHART.get(now.maha.lord).house)}.`}</p>
     <div class="section">${practiceFor(now.maha.lord)}</div>`;
 
   /* ---- SKY TODAY ---- */
@@ -993,8 +1020,11 @@ function renderUniverse(){
   chart.appendChild(el("rect",{x:0,y:0,width:100,height:100,class:"fr"}));
   chart.appendChild(el("line",{x1:0,y1:0,x2:100,y2:100,class:"fr in"}));
   chart.appendChild(el("line",{x1:100,y1:0,x2:0,y2:100,class:"fr in"}));
-  chart.appendChild(el("polygon",{points:"50,0 100,50 50,100 0,50",class:"fr in"}));
-  chart.appendChild(el("polygon",{points:HOUSES[1].map(p=>p.join(",")).join(" "),class:"lg"}));
+  /* the inner rhombus bows gently toward the centre, the way the lines of
+     a hand-drawn North Indian chart do - pointed at the four gates,
+     Vedic rather than geometric */
+  chart.appendChild(el("path",{d:RHOMBUS_D,class:"fr in"}));
+  chart.appendChild(el("path",{d:LAGNA_D,class:"lg"}));
   const asc=el("text",{class:"asclbl",x:50,y:9}); asc.textContent="ASC"; chart.appendChild(asc);
 
   const SZ={Sun:1.14,Moon:1.0,Mars:.98,Mercury:.9,Jupiter:1.06,Venus:.98,Saturn:1.16,Rahu:.94,Ketu:.9};
@@ -1495,14 +1525,6 @@ function subGlossary(){
     let v=""; try{v=f()}catch(_){}; return v?`<p class="gmine">${v}</p>`:""};
 
   return `
-    <div class="gsearch" id="gsearch">
-      <span class="gsico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></span>
-      <input id="gq" type="search" value="${glossQ}" placeholder="Search ${all.length} terms"
-             aria-label="Search the glossary">
-      <button class="gcancel" id="gcancel">Cancel</button>
-    </div>
     ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
       <section class="gsec">
         <h3 class="gletter" id="L-${L}">${L}</h3>
@@ -1522,20 +1544,28 @@ function subGlossary(){
 
 function wireGlossary(){
   const page=document.getElementById("pg-you");
-  const q=document.getElementById("gq"), gs=document.getElementById("gsearch");
+  const open=document.getElementById("gsbtn");
+  if(open) open.onclick=()=>{ glossSearching=true; buzz(5); renderSub();
+    const n=document.getElementById("gq"); if(n) n.focus(); };
+  const q=document.getElementById("gq");
   if(q) q.oninput=()=>{
     glossQ=q.value; const at=q.selectionStart;
-    renderSub();
-    const n=document.getElementById("gq");
-    if(n){n.focus();n.setSelectionRange(at,at)}
+    /* only the LIST re-renders while typing; the bar (and its focused
+       input) is left alone, so the keyboard never flickers */
+    document.getElementById("pg-you").innerHTML=subGlossary();
+    wireGlossaryRail();
+    void at;
   };
   const cancel=document.getElementById("gcancel");
-  if(cancel) cancel.onclick=()=>{glossQ=""; renderSub(); page.scrollTop=0;};
-  document.body.classList.toggle("gtyping", !!glossQ);
-  page.onscroll=()=>{ if(gs) document.body.classList.toggle("gstuck", page.scrollTop>4) };
-  page.onscroll();
+  if(cancel) cancel.onclick=()=>{glossSearching=false; glossQ="";
+    renderSub(); page.scrollTop=0;};
 
-  /* index rail: drag it like Contacts, showing the letter as you move */
+  wireGlossaryRail();
+}
+
+/* index rail: drag it like Contacts, showing the letter as you move */
+function wireGlossaryRail(){
+  const page=document.getElementById("pg-you");
   const rail=document.getElementById("azrail"), bubble=document.getElementById("azbubble");
   if(!rail) return;
   const jump=L=>{
@@ -1593,7 +1623,7 @@ function subSaved(){
     is not wired up yet.</p>`;
 }
 
-let subView=null, subArg=null, cameFrom=null;
+let subView=null, subArg=null, cameFrom=null, glossSearching=false;
 
 function renderYou(){
   if(subView) return renderSub();
@@ -1634,7 +1664,18 @@ function renderSub(){
     events:`<button class="tb-btn" id="tbaddev" aria-label="Add an event">
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>`,
     partner:`<button class="tb-btn txt" id="tbedit">Edit</button>`,
-
+    glossary: glossSearching
+      ? `<div class="barsearch">
+           <span class="gsico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+             <circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></span>
+           <input id="gq" type="search" value="${glossQ.replace(/"/g,"&quot;")}"
+             placeholder="Search the glossary" aria-label="Search the glossary">
+         </div>
+         <button class="tb-btn txt" id="gcancel">Cancel</button>`
+      : `<button class="tb-btn" id="gsbtn" aria-label="Search the glossary">
+           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/>
+             <path d="M16.5 16.5l4 4"/></svg></button>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",
@@ -1642,7 +1683,9 @@ function renderSub(){
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
     partner:(partners()[subArg]||{}).name||"Person"};
-  setTopBar(TITLES[subView]||"",{back:true,actions:ACTIONS[subView]||""});
+  const searching=subView==="glossary"&&glossSearching;
+  setTopBar(searching?"":TITLES[subView]||"",{back:!searching,actions:ACTIONS[subView]||""});
+  document.getElementById("topbar").classList.toggle("searching",searching);
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
               settings:subSettings}[subView];
@@ -1656,6 +1699,8 @@ function renderSub(){
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
   document.body.classList.toggle("glossary",subView==="glossary");
+  if(subView!=="glossary"){ glossSearching=false;
+    document.getElementById("topbar").classList.remove("searching"); }
   if(subView!=="glossary") document.body.classList.remove("gstuck","gtyping");
   if(subView==="glossary") wireGlossary();
   if(subView==="learn"||subView==="learntopic") wireLearn();
@@ -1707,9 +1752,9 @@ function miniChart(label,opts={}){
     <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
     <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
     <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
-    <polygon points="50,0 100,50 50,100 0,50" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
-    ${opts.lagna?`<polygon points="${HOUSES[1].map(p=>p.join(",")).join(" ")}"
-      fill="rgba(194,155,78,.14)" stroke="var(--brass)" stroke-width="1.4"/>`:""}
+    <path d="${RHOMBUS_D}" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
+    ${opts.lagna?`<path d="${LAGNA_D}"
+      fill="rgba(194,155,78,.14)" stroke="none"/>`:""}
     ${Object.keys(LABEL).map(h=>`<text x="${LABEL[h][0]}" y="${LABEL[h][1]}"
       font-size="7.5" fill="${opts.lagna&&+h===1?"var(--brass)":"var(--ink-3)"}"
       text-anchor="middle" dominant-baseline="middle"
@@ -1742,7 +1787,7 @@ const GRAPHIC={
       <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
       <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
       <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
-      <polygon points="50,0 100,50 50,100 0,50" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
+      <path d="${RHOMBUS_D}" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
       <circle cx="50" cy="14" r="4.5" fill="var(--saturn)"/>
       <path d="M 50 14 Q 78 40 50 86" fill="none" stroke="var(--hot)" stroke-width="1.6" stroke-dasharray="3 2.4"/>
       <circle cx="50" cy="86" r="2.6" fill="var(--hot)"/>

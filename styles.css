@@ -335,7 +335,9 @@ svg.asp{pointer-events:none}
 .hs.lit{fill:rgba(194,155,78,.11)}
 .hs.dim{opacity:.32}
 .fr{fill:none;stroke:var(--line-2);stroke-width:1.1;vector-effect:non-scaling-stroke}
-.fr.in{stroke:var(--line);stroke-width:.9}
+/* the inner lines carry the Vedic petal geometry, so they read a step
+   brighter than the outer frame instead of a step fainter */
+.fr.in{stroke:rgba(170,180,235,.34);stroke-width:1}
 .sn{font-family:var(--fm);font-size:3.6px;fill:var(--ink-3);text-anchor:middle;
   dominant-baseline:middle;pointer-events:none;opacity:.75;
   transition:opacity .45s var(--ease),fill .45s var(--ease)}

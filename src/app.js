@@ -198,15 +198,18 @@ function inradius(poly){
   return m;
 }
 const cent=p=>[p.reduce((a,q)=>a+q[0],0)/p.length,p.reduce((a,q)=>a+q[1],0)/p.length];
-/* rhombus edges as quadratics, control points pulled toward the centre */
-const RH_BOW=7.5;
+/* The four inner edges bow OUTWARD, toward the corners - so the central
+   houses become pointed petals meeting at the four gates, the onion-dome
+   geometry of a hand-drawn North Indian chart. Diagonals stay straight.
+   Each edge crosses its diagonal exactly at the quadratic's midpoint, so
+   wash and line agree by construction. */
+const RH_BOW=9;
 const RHOMBUS_D=(()=>{const c=RH_BOW;
-  return `M 50 0 Q ${75-c} ${25+c} 100 50 Q ${75-c} ${75-c} 50 100 `+
-         `Q ${25+c} ${75-c} 0 50 Q ${25+c} ${25+c} 50 0 Z`})();
-/* the lagna wash follows the same curvature, so highlight and line agree */
+  return `M 50 0 Q ${75+c} ${25-c} 100 50 Q ${75+c} ${75+c} 50 100 `+
+         `Q ${25-c} ${75+c} 0 50 Q ${25-c} ${25-c} 50 0 Z`})();
 const LAGNA_D=(()=>{const c=RH_BOW;
-  return `M 50 0 Q ${62.5-c/2} ${12.5+c/2} ${75-c/2} ${25+c/2} L 50 50 `+
-         `L ${25+c/2} ${25+c/2} Q ${37.5+c/2} ${12.5+c/2} 50 0 Z`})();
+  return `M 50 0 Q ${62.5+c/2} ${12.5-c/2} ${75+c/2} ${25-c/2} L 50 50 `+
+         `L ${25-c/2} ${25-c/2} Q ${37.5-c/2} ${12.5-c/2} 50 0 Z`})();
 const ANCHOR={},LABEL={};
 for(const h in HOUSES){
   const c=cent(HOUSES[h]),tri=HOUSES[h].length===3;

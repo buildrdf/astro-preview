@@ -296,8 +296,8 @@ const PATH_CACHE={};
 for(let h=1;h<=12;h++){
   const prev=((h+10)%12)+1, next=(h%12)+1, A=ANCHOR[h];
   const pull=(m,k)=>[m[0]+(A[0]-m[0])*k, m[1]+(A[1]-m[1])*k];
-  const E=pull(sharedEdgeMid(h,prev), HOUSES[h].length===3?0.40:0.24);
-  const X=pull(sharedEdgeMid(h,next), HOUSES[h].length===3?0.40:0.24);
+  const E=pull(sharedEdgeMid(h,prev), 0.12);
+  const X=pull(sharedEdgeMid(h,next), 0.12);
   const l1=Math.hypot(A[0]-E[0],A[1]-E[1]), l2=Math.hypot(X[0]-A[0],X[1]-A[1]);
   PATH_CACHE[h]={E,A,X,l1,l2,L:l1+l2};
 }
@@ -315,33 +315,45 @@ function pathPoint(h,t){
 /* longitude -> a point inside its house, ordered by degree along the
    house's long axis, then nudged apart if two land on top of each other */
 function placeByDegree(list){
+  /* Continuous by construction (no clamping, no steps): every graha rides
+     its house's gate-to-gate path at its exact degree, so each frame of a
+     scrub moves it - the earlier clamp walked in 8% jumps and froze the
+     motion Sangram asked for. House polygons are convex and the path's
+     endpoints sit just inside them, so the path can never leave its house. */
   const byHouse={};
   list.forEach(p=>{ (byHouse[p.house]=byHouse[p.house]||[]).push(p) });
   const out={};
   for(const h in byHouse){
-    const poly=HOUSES[h];
     const group=byHouse[h].slice().sort((a,b)=>degIn(a.L)-degIn(b.L));
-    const dpx=(group.length>=3?22:group.length===2?25:29);
-    const margin=Math.min(dpx/2/CHART_PX*100/inradius(poly),0.42);
-    if(group.length===1){
-      const p=group[0], t=0.09+(degIn(p.L)/30)*0.82, pt=pathPoint(+h,t);
-      out[p.graha]=fitInside([pt.x,pt.y],poly,ANCHOR[h],margin);
-      continue;
+    const P=PATH_CACHE[h];
+    /* minimum separation along the path, as a fraction of its length */
+    const gap=Math.min(11.5/P.L, group.length>1 ? 1/(group.length-1) : 1);
+    const raw=group.map(p=>degIn(p.L)/30);
+    /* pool-adjacent-violators: crowded neighbours merge into a block
+       centred on their MEAN, so a slow graha never freezes fast ones -
+       the block glides whenever any member's degree drifts */
+    let blocks=raw.map(v=>({sum:v,n:1}));
+    let merged=true;
+    while(merged){
+      merged=false;
+      for(let i2=0;i2<blocks.length-1;i2++){
+        const A=blocks[i2],B=blocks[i2+1];
+        const endA=A.sum/A.n+(A.n-1)*gap/2, startB=B.sum/B.n-(B.n-1)*gap/2;
+        if(endA+gap>startB){
+          blocks.splice(i2,2,{sum:A.sum+B.sum,n:A.n+B.n}); merged=true; break;
+        }
+      }
     }
-    /* several grahas in one house: the CLUSTER travels the path at the
-       mean degree, and the members sit radially around it. The ring is
-       sized to the house and only its CENTRE is clamped - clamping each
-       member separately collapsed them onto one point in the triangles. */
-    const meanT=0.09+(group.reduce((a,p)=>a+degIn(p.L),0)/group.length/30)*0.82;
-    const inr=inradius(poly);
-    const R=Math.min(group.length===2?5.4:7.2, inr*0.72);
-    const c0=pathPoint(+h,meanT);
-    const cm=Math.min(0.42, margin + R/inr*0.5);
-    const c=fitInside([c0.x,c0.y],poly,ANCHOR[h],cm);
-    const a0=Math.atan2(c0.uy,c0.ux)-Math.PI/2;   /* first disc perpendicular to travel */
-    group.forEach((p,i)=>{
-      const a=a0 + i*(2*Math.PI/group.length);
-      out[p.graha]=[c[0]+Math.cos(a)*R, c[1]+Math.sin(a)*R];
+    const t=[];
+    for(const bl of blocks){
+      let c=bl.sum/bl.n;
+      const half=(bl.n-1)*gap/2;
+      c=Math.max(half,Math.min(1-half,c));   /* keep the block on the path */
+      for(let i2=0;i2<bl.n;i2++) t.push(c-half+i2*gap);
+    }
+    group.forEach((p,i2)=>{
+      const pt=pathPoint(+h,Math.max(0,Math.min(1,t[i2])));
+      out[p.graha]=[pt.x,pt.y];
     });
   }
   return out;

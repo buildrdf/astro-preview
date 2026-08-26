@@ -3,8 +3,9 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
-import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR } from "./narrative.js";
-import { whereIs, riseSetHint, ascendant } from "./sky.js";
+import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
+         VARA_NUM, RAHU_KALAM_SEGMENT } from "./narrative.js";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -295,43 +296,52 @@ const sharedEdgeMid=(a,b)=>{
 const PATH_CACHE={};
 for(let h=1;h<=12;h++){
   const prev=((h+10)%12)+1, next=(h%12)+1, A=ANCHOR[h];
-  const pull=(m,k)=>[m[0]+(A[0]-m[0])*k, m[1]+(A[1]-m[1])*k];
-  const E=pull(sharedEdgeMid(h,prev), 0.12);
-  const X=pull(sharedEdgeMid(h,next), 0.12);
+  const gE=sharedEdgeMid(h,prev), gX=sharedEdgeMid(h,next);
+  /* parked positions sit a full disc INSIDE the house; the gate points on
+     the shared edges are touched only at the instant of crossing, and both
+     neighbouring houses share them exactly - so the position function is
+     continuous across every boundary, and a parked graha never sits on a
+     line (Sangram, 25 Aug) */
+  const inset=(g)=>{const d=Math.hypot(A[0]-g[0],A[1]-g[1]);
+    const k=Math.min(5.2/d,0.5); return [g[0]+(A[0]-g[0])*k, g[1]+(A[1]-g[1])*k]};
+  const E=inset(gE), X=inset(gX);
   const l1=Math.hypot(A[0]-E[0],A[1]-E[1]), l2=Math.hypot(X[0]-A[0],X[1]-A[1]);
-  PATH_CACHE[h]={E,A,X,l1,l2,L:l1+l2};
+  PATH_CACHE[h]={gE,gX,E,A,X,l1,l2,L:l1+l2};
 }
-/* position along E -> anchor -> X by fraction of the sign traversed */
-function pathPoint(h,t){
-  const P=PATH_CACHE[h], s=t*P.L;
-  if(s<=P.l1){ const k=P.l1?s/P.l1:0;
-    return {x:P.E[0]+(P.A[0]-P.E[0])*k, y:P.E[1]+(P.A[1]-P.E[1])*k,
-            ux:(P.A[0]-P.E[0])/(P.l1||1), uy:(P.A[1]-P.E[1])/(P.l1||1)}; }
-  const k=P.l2?(s-P.l1)/P.l2:0;
-  return {x:P.A[0]+(P.X[0]-P.A[0])*k, y:P.A[1]+(P.X[1]-P.A[1])*k,
-          ux:(P.X[0]-P.A[0])/(P.l2||1), uy:(P.X[1]-P.A[1])/(P.l2||1)};
+const BLEND=1.2;   /* degrees of sign spent easing through the gate */
+function pathPoint(h,t){          /* t = 0..1 across the CORE path */
+  const P=PATH_CACHE[h], sgm=t*P.L;
+  if(sgm<=P.l1){ const k=P.l1?sgm/P.l1:0;
+    return {x:P.E[0]+(P.A[0]-P.E[0])*k, y:P.E[1]+(P.A[1]-P.E[1])*k}; }
+  const k=P.l2?(sgm-P.l1)/P.l2:0;
+  return {x:P.A[0]+(P.X[0]-P.A[0])*k, y:P.A[1]+(P.X[1]-P.A[1])*k};
 }
-
-/* longitude -> a point inside its house, ordered by degree along the
-   house's long axis, then nudged apart if two land on top of each other */
+/* full position by degree-in-sign, with gate blends at both ends */
+function pathPos(h,deg){
+  const P=PATH_CACHE[h];
+  if(deg<BLEND){ const k=deg/BLEND;
+    return {x:P.gE[0]+(P.E[0]-P.gE[0])*k, y:P.gE[1]+(P.E[1]-P.gE[1])*k}; }
+  if(deg>30-BLEND){ const k=(deg-(30-BLEND))/BLEND;
+    return {x:P.X[0]+(P.gX[0]-P.X[0])*k, y:P.X[1]+(P.gX[1]-P.X[1])*k}; }
+  return pathPoint(h,(deg-BLEND)/(30-2*BLEND));
+}
 function placeByDegree(list){
-  /* Continuous by construction (no clamping, no steps): every graha rides
-     its house's gate-to-gate path at its exact degree, so each frame of a
-     scrub moves it - the earlier clamp walked in 8% jumps and froze the
-     motion Sangram asked for. House polygons are convex and the path's
-     endpoints sit just inside them, so the path can never leave its house. */
+  /* Continuous by construction: each graha rides its house's path at its
+     exact degree; crowded neighbours merge into blocks centred on their
+     collective mean (a slow graha never freezes fast ones). */
   const byHouse={};
   list.forEach(p=>{ (byHouse[p.house]=byHouse[p.house]||[]).push(p) });
   const out={};
   for(const h in byHouse){
     const group=byHouse[h].slice().sort((a,b)=>degIn(a.L)-degIn(b.L));
+    if(group.length===1){
+      const p=group[0], pt=pathPos(+h,degIn(p.L));
+      out[p.graha]=[pt.x,pt.y];
+      continue;
+    }
     const P=PATH_CACHE[h];
-    /* minimum separation along the path, as a fraction of its length */
-    const gap=Math.min(11.5/P.L, group.length>1 ? 1/(group.length-1) : 1);
+    const gap=Math.min(9.6/P.L, 1/(group.length-1));
     const raw=group.map(p=>degIn(p.L)/30);
-    /* pool-adjacent-violators: crowded neighbours merge into a block
-       centred on their MEAN, so a slow graha never freezes fast ones -
-       the block glides whenever any member's degree drifts */
     let blocks=raw.map(v=>({sum:v,n:1}));
     let merged=true;
     while(merged){
@@ -348,7 +358,7 @@ function placeByDegree(list){
     for(const bl of blocks){
       let c=bl.sum/bl.n;
       const half=(bl.n-1)*gap/2;
-      c=Math.max(half,Math.min(1-half,c));   /* keep the block on the path */
+      c=Math.max(half,Math.min(1-half,c));
       for(let i2=0;i2<bl.n;i2++) t.push(c-half+i2*gap);
     }
     group.forEach((p,i2)=>{
@@ -581,6 +591,28 @@ function leadLine(e,F){
     +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
     +`${e.retro?", and retrograde":""}.`;
 }
+/* one reason line per touching graha, each carrying its sky link */
+function reasonLines(a,F){
+  const rows=a.evidence.map(e=>{
+    if(e.tara) return `<div class="whyrow"><span>The Moon is in <b>${NAK[F.todayMoonNak]}</b>,
+      ${ordinal(F.tara.count)} from your birth star &#8212; <b>${F.tara.name}</b>.
+      ${F.tara.note}</span>
+      <button class="seesky" data-g="Moon" aria-label="See the Moon in the sky">
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>`;
+    const gm=GRAHA_MEANING[e.graha];
+    return `<div class="whyrow"><span><b>${e.graha}</b> &#8212; ${gm.is} &#8212; ${e.occupies
+        ?`is crossing your ${ordinal(e.house)}`
+        :`aspects your ${e.aspects.map(ordinal).join(" and ")}`},
+      ${ordinal(e.houseFromMoon)} from your Moon:
+      ${e.favourable?"a supportive placement":"a slower placement"}${e.retro?", retrograde":""}.</span>
+      <button class="seesky" data-g="${e.graha}" aria-label="See ${e.graha} in the sky">
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>`;
+  });
+  return rows.join("")+`<p class="whyfoot">Houses read for ${a.area.toLowerCase()}:
+    ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts from the classical gochara
+    tables, counted from your Moon; schools differ over Rahu and Ketu.</p>`;
+}
+
 const pickBy=(arr,seed,n)=>Array.from({length:Math.min(n,arr.length)},(_,i)=>arr[(seed+i*2)%arr.length]);
 const dayOfYear=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
 
@@ -620,6 +652,7 @@ function nextIngressMap(from){
   return map;
 }
 
+let todayTab="horo", todayBodies=null;
 function renderToday(){
   lastRenderAt=Date.now();
   const R=dayReading(viewDate), F=R.F, tr=F.tr;
@@ -641,54 +674,69 @@ function renderToday(){
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
          <path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/></svg></button>`});
 
-  /* three things: the best-supported area, the one asking patience, and
-     the Moon itself. One line each; the astrology is behind Show me. */
-  const rank=[...R.areas].sort((a,b)=>b.score-a.score);
-  const best=rank[0], slow=rank[rank.length-1];
-  const insight=(a)=>`
-    <div class="thing ${a.tone}">
-      <span class="thingdot ${a.tone}" aria-hidden="true"></span>
-      <span class="thingtxt"><b>${a.area}</b> ${PLAIN_DAY[a.area][a.tone]}</span>
-      <button class="showme sm2" data-g="${a.lead.graha}" data-area="${a.area}"
-        aria-label="Show ${a.area.toLowerCase()} in the sky">
-        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-    </div>`;
-  const moonThing=`
-    <div class="thing">
-      <span class="thingdot" aria-hidden="true"></span>
-      <span class="thingtxt"><b>Moon</b> ${leadLine({graha:"Moon",tara:true},F)}</span>
-      <button class="showme sm2" data-g="Moon" data-area="Relationships"
-        aria-label="Show the Moon in the sky">
-        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-    </div>`;
+  /* ---- day quality + the lucky row ---- */
+  const favN=R.areas.filter(a=>a.tone==="favourable").length,
+        slowN=R.areas.filter(a=>a.tone==="slow").length;
+  const dayTone=favN>=2?"favourable":slowN>=2?"slow":"balanced";
+  const DAY_WORD={favourable:"A good day",balanced:"A steady day",slow:"A slow day"};
+  const vc=VARA_COLOUR[F.vara.lord], vp=VARA_PRACTICE[F.vara.lord];
 
-  const tone=R.areas.filter(a=>a.tone==="favourable").length>=2?"good"
-    :R.areas.some(a=>a.tone==="slow")&&!R.areas.some(a=>a.tone==="favourable")?"slow":"mixed";
-  const doLine=pickBy(DAY_DO[tone==="good"?"good":tone==="slow"?"slow":"mixed"],seed,1)[0];
-  const holdLine=pickBy(DAY_AVOID[tone==="good"?"good":tone==="slow"?"slow":"mixed"],seed,1)[0];
-  const vp=VARA_PRACTICE[F.vara.lord], vc=VARA_COLOUR[F.vara.lord];
+  const st=sunTimes(viewDate, BIRTHPLACE.lat, BIRTHPLACE.lon);
+  const ft=d2=>d2?d2.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"–";
+  let abhijit="", rahu="";
+  if(st.rise&&st.set){
+    const dayMs=st.set-st.rise, noon=new Date((st.rise.getTime()+st.set.getTime())/2);
+    abhijit=`${ft(new Date(noon-24*6e4))}&#8211;${ft(new Date(noon.getTime()+24*6e4))}`;
+    const seg=RAHU_KALAM_SEGMENT[viewDate.getDay()];
+    rahu=`${ft(new Date(st.rise.getTime()+dayMs*(seg-1)/8))}&#8211;${ft(new Date(st.rise.getTime()+dayMs*seg/8))}`;
+  }
+  const wednesday=viewDate.getDay()===3;
 
-  const specials=specialTransits(F);
-  const ing=nextIngressMap(viewDate);
-  const skyRow=F.sky.map(p=>`
-    <button class="skycell" data-g="${p.graha}">
-      ${gIcon(p.graha,26)}
-      <b>${ordinal(p.house)}</b>
-      <small>${SIGNS[p.sign-1].slice(0,3)}</small>
-      <i class="dotm ${p.favourable?"good":"testing"}" aria-hidden="true"></i>
-      ${p.retro?`<span class="rtag">R</span>`:""}
-    </button>`).join("");
-  const moves=F.sky.map(p=>{
-    const nx=ing[p.graha];
-    const when=!nx?"" : nx.days<=1?"tomorrow" : nx.days<=14?`in ${nx.days} days`
-      : nx.date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(nx.date.getFullYear()!==viewDate.getFullYear()?" "+nx.date.getFullYear():"");
-    return `<button class="ingrow" data-g="${p.graha}">
-      ${gIcon(p.graha,22)}
-      <span class="ingmain"><b>${p.graha}</b> in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}
-        ${p.retro?`<i class="ingr">retrograde</i>`:""}</span>
-      <span class="ingnext">${nx?`&#8594; ${SIGNS[nx.sign-1]} ${when}`:""}</span>
-    </button>`}).join("");
+  const luckyRow=`
+    <div class="luckyrow">
+      <div class="lk"><small>Day</small><b class="tone-${dayTone}">${DAY_WORD[dayTone]}</b></div>
+      <div class="lk"><small>Colour</small><b>${vc.c.split(" and ")[0]}</b></div>
+      <div class="lk"><small>Number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
+      <div class="lk"><small>Good hours${wednesday?"*":""}</small><b>${abhijit||"&#8212;"}</b></div>
+      <div class="lk"><small>Avoid &#183; Rahu Kalam</small><b>${rahu||"&#8212;"}</b></div>
+    </div>
+    <p class="luckynote">Colour and number follow ${F.vara.name}&#8217;s lord ${F.vara.lord};
+      the hours are Abhijit muhurta${wednesday?" (*traditionally skipped on Wednesdays)":""} and
+      Rahu Kalam, computed from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
 
+  /* ---- five areas, each with a Why? expansion and sky links ---- */
+  const areaCards=R.areas.map((a,i)=>`
+    <div class="areacard ${a.tone}">
+      <div class="areahead">
+        <span class="aname">${a.area}</span>
+        <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
+      </div>
+      <p class="asub">${PLAIN_DAY[a.area][a.tone]}</p>
+      <p class="ameta">${AREA_LINE[a.area]}</p>
+      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
+      <div class="whybox" id="why${i}" hidden>${reasonLines(a,F)}</div>
+    </div>`).join("");
+
+  const horo=`
+    <div class="reading">
+      <h2>${R.head}</h2>
+      <p>${R.body.split(". ")[0]}.</p>
+    </div>
+    ${luckyRow}
+    <div class="areas">${areaCards}</div>
+    <div class="card mtb">
+      <div class="mtbrow"><span class="mtbk do">Do</span><ul><li>${pickBy(DAY_DO[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
+      <div class="mtbrow"><span class="mtbk hold">Hold</span><ul><li>${pickBy(DAY_AVOID[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
+    </div>
+    <details class="adv soft">
+      <summary>Traditional practice for ${F.vara.name}</summary>
+      <p class="interp">${vp.practice}</p>
+      <div class="section" style="margin-top:8px">${practiceFor(now.maha.lord)}</div>
+    </details>
+    <p class="dashaline" style="margin-top:14px">The longer season: a <b>${now.maha.lord}</b>
+      period runs to ${fmtDate(now.maha.end)}. Days change; this does not.</p>`;
+
+  /* ---- panchang ---- */
   const LIMB_MEANS={
     Vara:"the weekday, each ruled by a graha",
     Tithi:"the lunar day",
@@ -696,67 +744,78 @@ function renderToday(){
     Yoga:"a Sun&#8211;Moon angle, one of twenty-seven",
     Karana:"half a tithi",
     "Tara bala":"today&#8217;s Moon star counted from your birth star"};
+  const panch=`
+    <p class="skylead">The five limbs of ${isToday(viewDate)?"today":"this day"},
+      computed for this date.</p>
+    <div class="rows panch">
+      ${[["Vara",`${F.vara.name} &#183; ruled by ${F.vara.lord}`],
+         ["Tithi",`${F.limbs.tithi.paksha} ${F.limbs.tithi.name}`],
+         ["Nakshatra",`${NAK[F.todayMoonNak]} &#183; pada ${tr.Moon.pada}`],
+         ["Yoga",F.limbs.yoga.name],
+         ["Karana",F.limbs.karana.name],
+         ["Tara bala",F.tara.name]]
+        .map(([k,v])=>`<div class="row panchrow"><span class="k">${k}
+          <small>${LIMB_MEANS[k]}</small></span><span class="v">${v}</span></div>`).join("")}
+      <div class="row panchrow"><span class="k">Sunrise &#183; sunset
+        <small>at ${BIRTHPLACE.name.split(",")[0]}</small></span>
+        <span class="v">${ft(st.rise)} &#183; ${ft(st.set)}</span></div>
+      <div class="row panchrow"><span class="k">Colour of the day
+        <small>${vc.why} in this tradition</small></span><span class="v">${vc.c}</span></div>
+    </div>
+    <div class="moonline">
+      ${moonImg(viewDate,30)}
+      <span><b>${tr.phase.name}</b> ${Math.round(tr.phase.illum*100)}% &#183;
+        ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
+    </div>
+    ${F.limbs.karana.vishti?`<div class="card special"><b>Vishti karana</b>
+      <p>This half-tithi is traditionally set aside from new beginnings.</p></div>`:""}`;
 
+  /* ---- placements ---- */
+  const specials=specialTransits(F);
+  const ing=nextIngressMap(viewDate);
+  const skyRow=F.sky.map(p2=>`
+    <button class="skycell" data-g="${p2.graha}">
+      ${gIcon(p2.graha,26)}
+      <b>${ordinal(p2.house)}</b>
+      <small>${SIGNS[p2.sign-1].slice(0,3)}</small>
+      <i class="dotm ${p2.favourable?"good":"testing"}" aria-hidden="true"></i>
+      ${p2.retro?`<span class="rtag">R</span>`:""}
+    </button>`).join("");
+  const moves=F.sky.map(p2=>{
+    const nx=ing[p2.graha];
+    const when=!nx?"" : nx.days<=1?"tomorrow" : nx.days<=14?`in ${nx.days} days`
+      : nx.date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(nx.date.getFullYear()!==viewDate.getFullYear()?" "+nx.date.getFullYear():"");
+    return `<button class="ingrow" data-g="${p2.graha}">
+      ${gIcon(p2.graha,22)}
+      <span class="ingmain"><b>${p2.graha}</b> in ${SIGNS[p2.sign-1]}, your ${ordinal(p2.house)}
+        ${p2.retro?`<i class="ingr">retrograde</i>`:""}</span>
+      <span class="ingnext">${nx?`&#8594; ${SIGNS[nx.sign-1]} ${when}`:""}</span>
+    </button>`}).join("");
+  const sky=`
+    <p class="skylead">The nine grahas ${isToday(viewDate)?"today":"on this date"},
+      in <b>your</b> houses &#8212; and when each moves next.</p>
+    <div class="skyrow">${skyRow}</div>
+    <p class="skykey"><i class="dotm good"></i> supportive from your Moon &#183;
+      <i class="dotm testing"></i> slower going. Tap any graha to see it in your chart.</p>
+    ${specials.length?specials.map(x=>`
+      <div class="card special"><b>${x.name}</b><p>${x.body}${x.extra?" "+x.extra:""}</p></div>`).join(""):""}
+    <div class="list ings">${moves}</div>
+    <p class="note">Positions computed from the ephemeris; houses counted from your
+      lagna, verdicts from your natal Moon. Traditional interpretation, not a prediction.</p>`;
+
+  todayBodies={horo,panch,sky};
   document.getElementById("pg-today").innerHTML=`
     <div class="datestrip" id="dates">${days.join("")}</div>
-
-    <div class="reading">
-      <h2>${R.head}</h2>
-      <p>${R.body.split(". ")[0]}.</p>
+    <div class="tbseg subseg" id="todayseg" role="tablist">
+      <span class="thumb" aria-hidden="true"></span>
+      ${[["horo","Horoscope"],["panch","Panchang"],["sky","Placements"]].map(([k,l])=>
+        `<button class="${todayTab===k?"on":""}" data-t="${k}" role="tab"
+           aria-selected="${todayTab===k}">${l}</button>`).join("")}
     </div>
+    <div id="todaybody">${todayBodies[todayTab]}</div>`;
 
-    <div class="things">
-      ${insight(best)}
-      ${slow!==best?insight(slow):""}
-      ${moonThing}
-    </div>
-
-    <div class="card mtb">
-      <div class="mtbrow"><span class="mtbk do">Do</span><ul><li>${doLine}</li></ul></div>
-      <div class="mtbrow"><span class="mtbk hold">Hold</span><ul><li>${holdLine}</li></ul></div>
-    </div>
-    <details class="adv soft">
-      <summary>Traditional practice for ${F.vara.name}</summary>
-      <p class="interp">${vp.practice}</p>
-      <div class="section" style="margin-top:8px">${practiceFor(now.maha.lord)}</div>
-    </details>
-
-    <details class="adv soft">
-      <summary>The day itself &#183; panchang</summary>
-      <div class="rows panch">
-        ${[["Vara",`${F.vara.name} &#183; ruled by ${F.vara.lord}`],
-           ["Tithi",`${F.limbs.tithi.paksha} ${F.limbs.tithi.name}`],
-           ["Nakshatra",`${NAK[F.todayMoonNak]} &#183; pada ${tr.Moon.pada}`],
-           ["Yoga",F.limbs.yoga.name],
-           ["Karana",F.limbs.karana.name],
-           ["Tara bala",F.tara.name]]
-          .map(([k,v])=>`<div class="row panchrow"><span class="k">${k}
-            <small>${LIMB_MEANS[k]}</small></span><span class="v">${v}</span></div>`).join("")}
-        <div class="row panchrow"><span class="k">Colour of the day
-          <small>${vc.why} in this tradition</small></span><span class="v">${vc.c}</span></div>
-      </div>
-      <div class="moonline">
-        ${moonImg(viewDate,30)}
-        <span><b>${tr.phase.name}</b> ${Math.round(tr.phase.illum*100)}% &#183;
-          ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
-      </div>
-    </details>
-
-    <details class="adv soft">
-      <summary>The sky right now &#183; all nine</summary>
-      <div class="skyrow" style="margin-top:4px">${skyRow}</div>
-      <p class="skykey"><i class="dotm good"></i> supportive from your Moon &#183;
-        <i class="dotm testing"></i> slower going. Tap any graha to see it in your chart.</p>
-      ${specials.length?specials.map(x=>`
-        <div class="card special"><b>${x.name}</b><p>${x.body}${x.extra?" "+x.extra:""}</p></div>`).join(""):""}
-      <div class="list ings">${moves}</div>
-    </details>
-
-    <p class="note">Computed from the ephemeris for this date, in your houses,
-      judged from your natal Moon. Traditional interpretation, not a prediction.</p>
-
-    <p class="dashaline" style="margin-top:16px">The longer season: a <b>${now.maha.lord}</b>
-      period runs to ${fmtDate(now.maha.end)}. Days change; this does not.</p>`;
+  const seg=document.getElementById("todayseg");
+  requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
 
   const strip=document.getElementById("dates");
   strip.style.scrollBehavior="auto";
@@ -777,9 +836,24 @@ function renderToday(){
     const d=e.target.closest(".dchip");
     if(d){ const nd=new Date(); nd.setDate(nd.getDate()+ +d.dataset.off); nd.setHours(12,0,0,0);
       viewDate=nd; buzz(6); renderToday(); return; }
-    const sm=e.target.closest(".showme");
-    if(sm){ buzz(9); go(CHART_INDEX); setMode("today");
-      openPlanet(sm.dataset.g,{sub:AREA_LINE[sm.dataset.area]}); return; }
+    const t2=e.target.closest("#todayseg button[data-t]");
+    if(t2){
+      todayTab=t2.dataset.t; buzz(6);
+      const seg2=document.getElementById("todayseg");
+      seg2.querySelectorAll("button").forEach(b=>{
+        b.classList.toggle("on",b.dataset.t===todayTab);
+        b.setAttribute("aria-selected",String(b.dataset.t===todayTab));
+      });
+      setThumb(seg2,false);
+      document.getElementById("todaybody").innerHTML=todayBodies[todayTab];
+      return; }
+    const w=e.target.closest(".whybtn");
+    if(w){ const box=document.getElementById("why"+w.dataset.why);
+      const open=box.hidden;
+      box.hidden=!open; w.setAttribute("aria-expanded",String(open));
+      w.textContent=open?"Hide":"Why?"; buzz(5); return; }
+    const sky2=e.target.closest(".seesky");
+    if(sky2){ buzz(9); go(CHART_INDEX); setMode("today"); openPlanet(sky2.dataset.g); return; }
     const c=e.target.closest(".skycell,.ingrow");
     if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
   };
@@ -857,8 +931,6 @@ function updateScrubLabel(){
 }
 
 let lastSigns=null, lastDay=null, lastScrubDate=null;
-/* the exact moment a graha crossed - bisect between the previous scrub
-   position and this one, so the toast can carry a time */
 function crossingTime(g,d0,d1,fromSign){
   let a=d0.getTime(), b=d1.getTime();
   if(a>b){[a,b]=[b,a]}
@@ -868,12 +940,47 @@ function crossingTime(g,d0,d1,fromSign){
   }
   return new Date(b);
 }
-function applyScrub(){
+
+/* ------------------------------------------------------------------
+   THE CHASE. Input never moves planets directly: the ruler sets a
+   TARGET day, and a frame loop eases the shown day toward it, so a
+   four-day flick sweeps THROUGH four days of sky - every ingress,
+   every path - no matter how few touch events the phone delivers.
+   (iOS coalesces drag events; animating between sparse targets was
+   why fast drags looked like teleports.) CSS transitions are off
+   while the loop runs - the loop IS the animation.
+   ------------------------------------------------------------------ */
+let targetOffset=0, chasing=false, lastFrame=0;
+const TAU=105;                     /* ms; smaller = tighter tracking */
+function setScrubTarget(off){
+  targetOffset=off;
+  if(!chasing){ chasing=true; lastFrame=performance.now();
+    document.getElementById("stage")?.classList.add("instant");
+    requestAnimationFrame(chaseFrame); }
+}
+function chaseFrame(now){
+  if(!chasing) return;
+  const dt=Math.min(64, now-lastFrame); lastFrame=now;
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const k=(reduce||document.hidden)?1:1-Math.exp(-dt/TAU);
+  dayOffset+=(targetOffset-dayOffset)*k;
+  if(Math.abs(targetOffset-dayOffset)<0.004){
+    dayOffset=targetOffset; chasing=false;
+    document.getElementById("stage")?.classList.remove("instant");
+    applyScrub(true);
+    return;
+  }
+  applyScrub(false);
+  requestAnimationFrame(chaseFrame);
+}
+
+function applyScrub(settled){
   const prevDate=lastScrubDate||uniDate;
   uniDate=dateAtOffset(dayOffset);
-  paintRuler(); paintUniverse(false); updateScrubLabel();
+  paintRuler(); paintUniverse(false);
   const day=Math.round(dayOffset);
-  if(day!==lastDay){ lastDay=day; buzz(3) }
+  if(day!==lastDay){ lastDay=day; buzz(3); updateScrubLabel(); }
+  if(settled) updateScrubLabel();
   const list=uniPlacements();
   const sig=list.map(p=>p.sign).join(",");
   if(lastSigns!==null && sig!==lastSigns){
@@ -881,14 +988,13 @@ function applyScrub(){
     const prev=lastSigns.split(",");
     const changed=list.filter((p,i)=>prev[i]!==String(p.sign));
     if(changed.length){
-      const p=changed[0];
-      const when=crossingTime(p.graha, prevDate, uniDate, +prev[GRAHA_ORDER.indexOf(p.graha)]);
-      flashEvent(p, when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}));
+      const p2=changed[0];
+      const when=crossingTime(p2.graha, prevDate, uniDate, +prev[GRAHA_ORDER.indexOf(p2.graha)]);
+      flashEvent(p2, when.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}));
     }
   }
   lastSigns=sig; lastScrubDate=uniDate;
 }
-
 function flashEvent(p,time){
   const host=document.getElementById("scrubwrap"); if(!host) return;
   let n=host.querySelector(".scrubevent");
@@ -904,51 +1010,32 @@ function wireRuler(){
   rulerReady=false;
   let dragging=false, x0=0, o0=0;
   r.addEventListener("pointerdown",e=>{
-    dragging=true; x0=e.clientX; o0=dayOffset;
+    dragging=true; x0=e.clientX; o0=targetOffset;
     try{r.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
   });
   r.addEventListener("pointermove",e=>{
     if(!dragging) return;
-    dayOffset = o0 - (e.clientX-x0)/PX_PER_DAY;
-    applyScrub();
+    setScrubTarget(o0 - (e.clientX-x0)/PX_PER_DAY);
   });
-  /* release: a still finger is a tap on a day - go there; a drag snaps
-     to the nearest whole day, because days are the unit of this scale */
-  const glide=to=>{
-    const from=dayOffset;
-    /* Reduce Motion, or a backgrounded page where rAF is asleep: land at once */
-    if(Math.abs(to-from)<.01 || document.hidden ||
-       matchMedia("(prefers-reduced-motion: reduce)").matches){
-      dayOffset=to; applyScrub(); return;
-    }
-    const t0=performance.now(), D=Math.min(420, 90+Math.abs(to-from)*26);
-    const step=t=>{
-      const k=Math.min(1,(t-t0)/D), e2=1-Math.pow(1-k,3);
-      dayOffset=from+(to-from)*e2; applyScrub();
-      if(k<1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
   const end=e=>{
     if(!dragging) return; dragging=false;
     const moved=Math.abs(e.clientX-x0)>6;
-    /* a still finger is a tap on a day - glide there. A drag simply stops
-       where the finger stops: time is continuous, no snap (DDR 0003). */
+    /* a still finger is a tap on a day; a drag stops where it stops */
     if(!moved){
       const rect=r.getBoundingClientRect();
-      glide(Math.round(o0+(e.clientX-(rect.left+rect.width/2))/PX_PER_DAY));
+      setScrubTarget(Math.round(o0+(e.clientX-(rect.left+rect.width/2))/PX_PER_DAY));
     }
   };
   r.addEventListener("pointerup",end);
   r.addEventListener("pointercancel",()=>{dragging=false});
   r.addEventListener("keydown",e=>{
     const step=e.shiftKey?7:1;
-    if(e.key==="ArrowRight"){dayOffset+=step;applyScrub();e.preventDefault()}
-    if(e.key==="ArrowLeft"){dayOffset-=step;applyScrub();e.preventDefault()}
-    if(e.key==="Home"){dayOffset=0;applyScrub();e.preventDefault()}
+    if(e.key==="ArrowRight"){setScrubTarget(targetOffset+step);e.preventDefault()}
+    if(e.key==="ArrowLeft"){setScrubTarget(targetOffset-step);e.preventDefault()}
+    if(e.key==="Home"){setScrubTarget(0);e.preventDefault()}
   });
-  document.getElementById("scrubnow").onclick=()=>{dayOffset=0;buzz(10);applyScrub()};
+  document.getElementById("scrubnow").onclick=()=>{buzz(10);setScrubTarget(0)};
   requestAnimationFrame(()=>{ paintRuler(); updateScrubLabel(); });
 }
 
@@ -1207,6 +1294,7 @@ function openPlanet(g,opts={}){
   drawAspects(CHART.get(g)||p);
   sheetPlanet(p,opts);
   showSheetPeek();
+  requestAnimationFrame(()=>setThumb(document.getElementById("psheetseg"),true));
 }
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1)
 
@@ -1243,7 +1331,9 @@ function sheetHouse(h){
     <p class="lordline">Sign <b>${sg}</b> (${SIGNS[sg-1]}) &#183; ruled by ${gIcon(lord,17)}<b>${lord}</b>, which sits in the <b>${ordinal(lp.house)}</b></p>
     ${rows([
       ["Sign",`${SIGNS[sg-1]} (${sg})`],
-      ["Grahas here",occ.length?occ.map(o=>`${gIcon(o.graha,16)}${o.graha}`).join("&nbsp; "):"&#8212;"],
+      ["At your birth",occ.length?occ.map(o=>`${gIcon(o.graha,16)}${o.graha}`).join("&nbsp; "):"&#8212;"],
+      ["Passing through now",(()=>{const nowOcc=uniPlacements().filter(q=>q.house===h);
+        return nowOcc.length?nowOcc.map(o=>`${gIcon(o.graha,16)}${o.graha}`).join("&nbsp; "):"&#8212;"})()],
       ["Aspected by",inc.length?inc.join(", "):"&#8212;"],
       ["Classification",[h===1||h===4||h===7||h===10?"Kendra":null,
         [1,5,9].includes(h)?"Trikona":null,[6,8,12].includes(h)?"Dusthana":null,
@@ -1277,8 +1367,24 @@ function sheetPlanet(p,opts){
       <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
         <h1 style="font-size:26px;margin:0">${g} in your ${ordinal(p.house)}</h1></div>
     </div>
-    ${transiting?`<p class="lordline">Right now &#8212; passing through <b>${SIGNS[p.sign-1]}</b>,
-       your <b>${ordinal(p.house)}</b>. At your birth: ${SIGNS[natal.sign-1]}, your ${ordinal(natal.house)}.</p>`:""}
+    <div class="tbseg subseg sheetseg" id="psheetseg" role="tablist">
+      <span class="thumb" aria-hidden="true"></span>
+      <button class="${transiting?"":"on"}" data-w="birth" role="tab">At your birth</button>
+      <button class="${transiting?"on":""}" data-w="today" role="tab">Now</button>
+    </div>
+    <div class="modeblk" data-w="birth" ${transiting?"hidden":""}>
+      <p class="lordline">Born with ${g} in <b>${SIGNS[natal.sign-1]}</b>, your
+        <b>${ordinal(natal.house)}</b> &#183; ${natal.degf}
+        ${natal.retro&&!shadow(g)?" &#183; retrograde":""}${natal.dig?` &#183; ${natal.dig.toLowerCase()}`:""}</p>
+      <p class="ameta" style="margin:0 0 12px">${natal.nak} nakshatra &#183; pada ${natal.pada}</p>
+    </div>
+    <div class="modeblk" data-w="today" ${transiting?"":"hidden"}>
+      <p class="lordline">${isToday(uniDate)?"Right now":"On this date"} &#8212; passing through
+        <b>${SIGNS[p.sign-1]}</b>, your <b>${ordinal(p.house)}</b>
+        ${p.degf?` &#183; ${p.degf}`:""}${p.retro&&!shadow(g)?" &#183; retrograde":""}</p>
+      <p class="ameta" style="margin:0 0 12px">${p.nak||""}${p.pada?` nakshatra &#183; pada ${p.pada}`:""}
+        &#183; at birth: ${SIGNS[natal.sign-1]}, your ${ordinal(natal.house)}</p>
+    </div>
 
     <div class="eyebrow" style="margin:16px 0 7px">What it means</div>
     <p class="interp">${GRAHA_MEANING[g].body}</p>
@@ -1340,6 +1446,14 @@ closeBtn.onclick=()=>{
 };
 document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
 sheet.addEventListener("click",e=>{
+  const sw=e.target.closest("#psheetseg button[data-w]");
+  if(sw){
+    const seg=sw.closest("#psheetseg");
+    seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===sw));
+    setThumb(seg,false); buzz(5);
+    document.querySelectorAll("#sheetbody .modeblk").forEach(b=>
+      b.hidden = b.dataset.w!==sw.dataset.w);
+  }
   const a=e.target.closest(".askastra");
   if(a){ buzz(9); askAstra(a.dataset.q); }
   const f=e.target.closest(".findsky");

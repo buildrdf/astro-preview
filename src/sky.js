@@ -137,3 +137,30 @@ export function ascendant(date, lat, lon){
     -(Math.sin(ramc)*Math.cos(eps) + Math.tan(phi)*Math.sin(eps))) / D;
   return norm(norm(lambda) - ayanamsa(J));   /* sidereal, 0..360 */
 }
+
+/* ---------------------------------------------------------------
+   SUNRISE / SUNSET - Sun's centre at -0.833 deg altitude (standard
+   refraction + semidiameter), found by bisection on the day's
+   altitude curve. Feeds the muhurta windows (Rahu Kalam, Abhijit).
+   --------------------------------------------------------------- */
+export function sunTimes(date, lat, lon){
+  const day0=new Date(date); day0.setHours(0,0,0,0);
+  const altAt=h=>altAz("Sun", new Date(day0.getTime()+h*36e5), lat, lon).alt;
+  const cross=(h1,h2,rising)=>{
+    let a=h1,b=h2;
+    for(let i=0;i<24;i++){
+      const m=(a+b)/2, up=altAt(m)>-0.833;
+      if(up===rising) b=m; else a=m;
+    }
+    return new Date(day0.getTime()+((a+b)/2)*36e5);
+  };
+  /* coarse scan for the two crossings */
+  let rise=null,set=null,prev=altAt(0);
+  for(let h=1;h<=24;h++){
+    const cur=altAt(h);
+    if(prev<=-0.833&&cur>-0.833) rise=cross(h-1,h,true);
+    if(prev>-0.833&&cur<=-0.833) set=cross(h-1,h,false);
+    prev=cur;
+  }
+  return {rise,set};
+}

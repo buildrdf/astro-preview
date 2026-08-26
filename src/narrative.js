@@ -53,3 +53,10 @@ export const VARA_COLOUR={
   Jupiter:{c:"Yellow",why:"Thursday belongs to Jupiter"},
   Venus:{c:"White and bright pastels",why:"Friday belongs to Venus"},
   Saturn:{c:"Deep blue and black",why:"Saturday belongs to Saturn"}};
+
+/* number of the day: the weekday lord's classical navagraha number */
+export const VARA_NUM={Sun:1,Moon:2,Mars:9,Mercury:5,Jupiter:3,Venus:6,Saturn:8};
+
+/* Rahu Kalam occupies one eighth of daylight, indexed by weekday
+   (1-based eighth, the standard table) */
+export const RAHU_KALAM_SEGMENT={0:8,1:2,2:7,3:5,4:6,5:4,6:3};

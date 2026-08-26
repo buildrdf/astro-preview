@@ -2104,8 +2104,10 @@ const GRAPHIC={
     <figcaption>The 27 nakshatras divide the zodiac finer than the signs &#8212;
       13&#176;20&#8242; each. Your Moon's nakshatra is the anchor of the dasha system.</figcaption></figure>`,
   "moon-phases":()=>`<figure class="lg"><div class="phaserow">
-    ${[0,4,7,11,15,19,22,26].map(k=>`<img src="assets/moon/phase_${String(k).padStart(2,"0")}.png"
-      width="30" height="30" alt="">`).join("")}
+    ${[["00","new_moon"],["04","waxing_crescent"],["07","first_quarter"],
+       ["11","waxing_gibbous"],["15","full_moon"],["19","waning_gibbous"],
+       ["22","last_quarter"],["26","waning_crescent"]].map(([k,n])=>
+      `<img src="assets/moon/phase_${k}_${n}.png" width="30" height="30" alt="">`).join("")}
     </div><figcaption>One lunar month: new to full and back. The tithi &#8212; the
       Vedic lunar day &#8212; is a thirtieth of this lap.</figcaption></figure>`,
 };

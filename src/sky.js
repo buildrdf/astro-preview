@@ -164,3 +164,22 @@ export function sunTimes(date, lat, lon){
   }
   return {rise,set};
 }
+
+/* ---------------------------------------------------------------
+   SKY-VIEW SUPPORT - generic projections for the magic-window sky.
+   --------------------------------------------------------------- */
+export function raDecToAltAz(ra, dec, date, lat, lon){
+  const J=jd(date);
+  const H=(norm(gmst(J)+lon)-ra);
+  const phi=lat*D, dd=dec*D, HH=H*D;
+  const alt=Math.asin(Math.sin(phi)*Math.sin(dd)+Math.cos(phi)*Math.cos(dd)*Math.cos(HH))/D;
+  const az=norm(Math.atan2(-Math.cos(dd)*Math.sin(HH),
+      Math.sin(dd)*Math.cos(phi)-Math.cos(dd)*Math.sin(phi)*Math.cos(HH))/D);
+  return {alt,az,up:alt>0};
+}
+/* a point ON the ecliptic by SIDEREAL longitude (rashi space) */
+export function siderealPointAltAz(lambdaSid, date, lat, lon){
+  const J=jd(date);
+  const {ra,dec}=raDec(norm(lambdaSid+ayanamsa(J))*1, J);
+  return raDecToAltAz(ra, dec, date, lat, lon);
+}

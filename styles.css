@@ -1091,3 +1091,22 @@ details.adv.soft .interp{font-size:13.5px;line-height:1.55;color:var(--ink-2);ma
 .modeblk{animation:blkin .3s var(--ease)}
 @keyframes blkin{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion: reduce){ .modeblk{animation:none} }
+
+/* ---- Sky view: the magic window ---- */
+.skyview{position:fixed;inset:0;z-index:80;display:none;touch-action:none;
+  background:linear-gradient(180deg,#1A1C3E 0%,#101228 55%,#0A0B1A 100%)}
+.skyview.on{display:block}
+.skyview canvas{position:absolute;inset:0;width:100%;height:100%}
+.svclose{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:12px;
+  width:44px;height:44px;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(44,44,92,.55);color:var(--ink);font-size:17px;
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.svtitle{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:18px;right:70px;
+  pointer-events:none}
+.svtitle b{display:block;font-size:17px;font-weight:660;letter-spacing:-.02em;
+  text-shadow:0 2px 12px rgba(0,0,0,.8)}
+.svtitle span{display:block;font-size:12px;color:var(--ink-2);margin-top:3px;
+  text-shadow:0 2px 10px rgba(0,0,0,.8)}
+.svfoot{position:absolute;left:18px;right:18px;bottom:calc(env(safe-area-inset-bottom) + 14px);
+  font-size:11px;line-height:1.5;color:var(--ink-3);text-align:center;pointer-events:none;
+  text-shadow:0 2px 10px rgba(0,0,0,.8)}

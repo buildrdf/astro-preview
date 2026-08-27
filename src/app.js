@@ -6,6 +6,7 @@ import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT } from "./narrative.js";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
+import { openSkyView } from "./skyview.js";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -1044,7 +1045,10 @@ function wireRuler(){
    tab, it must stay reachable while a house sheet is open, and the bar is the
    one surface nothing is ever allowed to scroll over. */
 function setUniverseBar(){
-  setTopBar("",{centre:`
+  setTopBar("",{actions:`
+    <button class="tb-btn" id="tbsky" aria-label="Open the sky view">
+      <svg viewBox="0 0 24 24"><path d="M12 3.5l2 4.4 4.8.5-3.6 3.2 1 4.7-4.2-2.4-4.2 2.4 1-4.7L5.2 8.4l4.8-.5z"/></svg>
+    </button>`,centre:`
     <div class="tbseg" id="unimode" role="tablist" aria-label="Chart mode">
       <span class="thumb" aria-hidden="true"></span>
       <button class="${uniMode==="birth"?"on":""}" data-m="birth" role="tab"
@@ -1053,6 +1057,8 @@ function setUniverseBar(){
         aria-selected="${uniMode==="today"}">Today&#8217;s sky</button>
     </div>`});
   requestAnimationFrame(()=>placeThumb(true)); setTimeout(()=>placeThumb(true),80);
+  const sk=document.getElementById("tbsky");
+  if(sk) sk.onclick=async()=>{buzz(9); openSkyView(await getSpot());};
 }
 
 /* the capsule's highlight is one object that slides between the labels;
@@ -1495,7 +1501,12 @@ async function openSkyPanel(g){
         <span>${hint} &#183; computed for ${spot.from}</span>
         <span id="skyorient">${w.up?"Point your phone and the arrow turns with you.":""}</span>
       </div>
-    </div>`;
+    </div>
+    <button class="askastra" id="opensky">
+      <span class="orbdot" aria-hidden="true"></span>
+      Open the sky &#8212; see ${g} among the rashis</button>`;
+  document.getElementById("opensky").onclick=()=>{buzz(9);
+    openSkyView({...spot, focus:g});};
   if(!w.up) return;
   /* iOS wants a user-gesture permission request; this tap was one */
   const arm=()=>{
@@ -1774,6 +1785,7 @@ const PERSONAL={
    return pairs.length?`Yours: <b>${pairs.map(x=>x.replace("+"," and ")).join("; ")}</b>.`:""},
  "Lord":()=>`Your lagna lord is <b>${SIGN_LORD[CHART.lagna]}</b>, sitting in the ${ordinal(CHART.get(SIGN_LORD[CHART.lagna]).house)}.`
 };
+const escg=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const GLOSS_FLAT=()=>GLOSSARY.flatMap(([grp,items])=>items.map(([t,d])=>({t,d,grp})))
   .sort((x,y)=>x.t.localeCompare(y.t));
 
@@ -1798,7 +1810,7 @@ function subGlossary(){
             ${mine(x.t)}
           </article>`).join("")}
       </section>`).join("")
-      :`<p class="gempty">No results for &#8220;${glossQ}&#8221;</p>`}
+      :`<p class="gempty">No results for &#8220;${escg(glossQ)}&#8221;</p>`}
     <div class="azbubble" id="azbubble" aria-hidden="true"></div>
     <nav class="azrail" id="azrail" aria-label="Jump to letter">
       ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
@@ -1932,7 +1944,7 @@ function renderSub(){
            <span class="gsico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round">
              <circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></span>
-           <input id="gq" type="search" value="${glossQ.replace(/"/g,"&quot;")}"
+           <input id="gq" type="search" value="${escg(glossQ)}"
              placeholder="Search the glossary" aria-label="Search the glossary">
          </div>
          <button class="tb-btn txt" id="gcancel">Cancel</button>`

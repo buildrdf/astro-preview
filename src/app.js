@@ -6,7 +6,7 @@ import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT } from "./narrative.js";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js";
+import { openSkyView } from "./skyview.js?v=20260829a";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -184,6 +184,9 @@ const buzz=ms=>{try{if(PREFS().haptics!==false&&navigator.vibrate)navigator.vibr
 const el=(t,a={})=>{const e=document.createElementNS("http://www.w3.org/2000/svg",t);
   for(const k in a)e.setAttribute(k,a[k]);return e};
 const fmtDate=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+/* 12-hour clock everywhere a human reads a time; the zone is named once per
+   surface, not per value (Sangram, 29 Aug: "it should say full timing"). */
+const fmtClock=d=>d?d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):"&#8211;";
 
 /* &#9552;&#9552;&#9552; GEOMETRY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 const PT={tl:[0,0],tr:[100,0],br:[100,100],bl:[0,100],t:[50,0],r:[100,50],
@@ -377,7 +380,7 @@ function locator(h){
 }
 
 /* &#9552;&#9552;&#9552; TODAY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
-let viewDate=new Date(); let stripScroll=null;
+let viewDate=new Date(); let stripKeep=null, stripGlide=false;
 const isToday=d=>d.toDateString()===new Date().toDateString();
 const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
@@ -592,22 +595,38 @@ function leadLine(e,F){
     +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
     +`${e.retro?", and retrograde":""}.`;
 }
-/* one reason line per touching graha, each carrying its sky link */
+/* one reason line per touching graha, each carrying its sky link.
+   Visual first (Sangram, 29 Aug): the graha's own art, then where it sits,
+   as tags - house, sign, verdict - before the prose explains. */
 function reasonLines(a,F){
+  const seeBtn=g=>`<button class="seesky" data-g="${g}" aria-label="See ${g} in the sky">
+      <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>`;
   const rows=a.evidence.map(e=>{
-    if(e.tara) return `<div class="whyrow"><span>The Moon is in <b>${NAK[F.todayMoonNak]}</b>,
-      ${ordinal(F.tara.count)} from your birth star &#8212; <b>${F.tara.name}</b>.
-      ${F.tara.note}</span>
-      <button class="seesky" data-g="Moon" aria-label="See the Moon in the sky">
-        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>`;
+    if(e.tara) return `<div class="whyrow">
+      <span class="whyart">${gIcon("Moon",30)}</span>
+      <span class="whymain">
+        <span class="whytags"><i class="wtag">${NAK[F.todayMoonNak]}</i>
+          <i class="wtag ${F.tara.tone==="good"?"good":F.tara.tone==="testing"?"slow":""}">${F.tara.name}</i></span>
+        <span class="whytext">The Moon is ${ordinal(F.tara.count)} from your birth star.
+        ${F.tara.note}</span>
+      </span>${seeBtn("Moon")}</div>`;
     const gm=GRAHA_MEANING[e.graha];
-    return `<div class="whyrow"><span><b>${e.graha}</b> &#8212; ${gm.is} &#8212; ${e.occupies
-        ?`is crossing your ${ordinal(e.house)}`
-        :`aspects your ${e.aspects.map(ordinal).join(" and ")}`},
-      ${ordinal(e.houseFromMoon)} from your Moon:
-      ${e.favourable?"a supportive placement":"a slower placement"}${e.retro?", retrograde":""}.</span>
-      <button class="seesky" data-g="${e.graha}" aria-label="See ${e.graha} in the sky">
-        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>`;
+    const sk=F.sky.find(p=>p.graha===e.graha);
+    return `<div class="whyrow">
+      <span class="whyart">${gIcon(e.graha,30)}</span>
+      <span class="whymain">
+        <span class="whytags">
+          ${e.occupies?`<i class="wtag">${ordinal(e.house)} house</i>`
+                      :`<i class="wtag">gazes your ${e.aspects.map(ordinal).join(", ")}</i>`}
+          ${sk?`<i class="wtag">${SIGNS[sk.sign-1]}</i>`:""}
+          ${e.retro?`<i class="wtag rt">retrograde</i>`:""}
+          <i class="wtag ${e.favourable?"good":"slow"}">${e.favourable?"supportive":"slower"}</i>
+        </span>
+        <span class="whytext"><b>${e.graha}</b> &#8212; ${gm.is} &#8212; ${e.occupies
+            ?`is crossing your ${ordinal(e.house)}`
+            :`aspects your ${e.aspects.map(ordinal).join(" and ")}`},
+          ${ordinal(e.houseFromMoon)} from your Moon${e.retro?", moving retrograde":""}.</span>
+      </span>${seeBtn(e.graha)}</div>`;
   });
   return rows.join("")+`<p class="whyfoot">Houses read for ${a.area.toLowerCase()}:
     ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts from the classical gochara
@@ -675,15 +694,19 @@ function renderToday(){
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
          <path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/></svg></button>`});
 
-  /* ---- day quality + the lucky row ---- */
+  /* ---- day quality: the panchang's own verdict word, then English ---- */
   const favN=R.areas.filter(a=>a.tone==="favourable").length,
         slowN=R.areas.filter(a=>a.tone==="slow").length;
   const dayTone=favN>=2?"favourable":slowN>=2?"slow":"balanced";
-  const DAY_WORD={favourable:"A good day",balanced:"A steady day",slow:"A slow day"};
+  const VERDICT={favourable:["Shubh","an auspicious day"],
+                 balanced:["Sama","an even day"],
+                 slow:["Ashubh","traditionally inauspicious &#8212; go gently"]};
+  const [vWord,vGloss]=VERDICT[dayTone];
+  const verdict=`<div class="dayverdict tone-${dayTone}"><b>${vWord}</b><span>${vGloss}</span></div>`;
   const vc=VARA_COLOUR[F.vara.lord], vp=VARA_PRACTICE[F.vara.lord];
 
   const st=sunTimes(viewDate, BIRTHPLACE.lat, BIRTHPLACE.lon);
-  const ft=d2=>d2?d2.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"–";
+  const ft=fmtClock;
   let abhijit="", rahu="";
   if(st.rise&&st.set){
     const dayMs=st.set-st.rise, noon=new Date((st.rise.getTime()+st.set.getTime())/2);
@@ -693,17 +716,22 @@ function renderToday(){
   }
   const wednesday=viewDate.getDay()===3;
 
+  /* one horizontal card, not five loose boxes (Sangram, 29 Aug) */
   const luckyRow=`
-    <div class="luckyrow">
-      <div class="lk"><small>Day</small><b class="tone-${dayTone}">${DAY_WORD[dayTone]}</b></div>
-      <div class="lk"><small>Colour</small><b>${vc.c.split(" and ")[0]}</b></div>
-      <div class="lk"><small>Number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
-      <div class="lk"><small>Good hours${wednesday?"*":""}</small><b>${abhijit||"&#8212;"}</b></div>
-      <div class="lk"><small>Avoid &#183; Rahu Kalam</small><b>${rahu||"&#8212;"}</b></div>
+    <div class="card luckycard">
+      <div class="lstats">
+        <div class="ls"><small>Colour</small><b>${vc.c.split(" and ")[0]}</b></div>
+        <div class="ls"><small>Number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
+        <div class="ls"><small>Day lord</small><b>${F.vara.lord}</b></div>
+      </div>
+      <div class="lhours">
+        <div class="lh good"><small>Good hours${wednesday?"*":""} &#183; Abhijit</small><b>${abhijit||"&#8212;"}</b></div>
+        <div class="lh avoid"><small>Avoid &#183; Rahu Kalam</small><b>${rahu||"&#8212;"}</b></div>
+      </div>
     </div>
-    <p class="luckynote">Colour and number follow ${F.vara.name}&#8217;s lord ${F.vara.lord};
-      the hours are Abhijit muhurta${wednesday?" (*traditionally skipped on Wednesdays)":""} and
-      Rahu Kalam, computed from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
+    <p class="luckynote">All times IST. Colour and number follow ${F.vara.name}&#8217;s lord ${F.vara.lord};
+      Abhijit muhurta${wednesday?" (*traditionally skipped on Wednesdays)":""} and Rahu Kalam
+      run from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
 
   /* ---- five areas, each with a Why? expansion and sky links ---- */
   const areaCards=R.areas.map((a,i)=>`
@@ -718,7 +746,24 @@ function renderToday(){
       <div class="whybox" id="why${i}" hidden>${reasonLines(a,F)}</div>
     </div>`).join("");
 
-  const horo=`
+  /* free window: yesterday, today, tomorrow. Farther readings ride with Pro. */
+  const dayDiff=Math.round((new Date(viewDate).setHours(12,0,0,0)
+                           -new Date().setHours(12,0,0,0))/864e5);
+  const horoLocked=Math.abs(dayDiff)>1 && !isPro();
+
+  const horo=horoLocked?`
+    ${verdict}
+    <div class="reading"><h2>${R.head}</h2></div>
+    <div class="procard">
+      <div class="prolock" aria-hidden="true"><svg viewBox="0 0 24 24">
+        <rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/>
+        <path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div>
+      <h3>Time travel is part of Astra Pro</h3>
+      <p>Yesterday, today and tomorrow are always free. Any other day&#8217;s full reading
+        &#8212; decades either way &#8212; comes with Pro, along with your detailed reports.</p>
+      <button class="primary" id="prosee">See Astra Pro</button>
+    </div>`:`
+    ${verdict}
     <div class="reading">
       <h2>${R.head}</h2>
       <p>${R.body.split(". ")[0]}.</p>
@@ -735,7 +780,11 @@ function renderToday(){
       <div class="section" style="margin-top:8px">${practiceFor(now.maha.lord)}</div>
     </details>
     <p class="dashaline" style="margin-top:14px">The longer season: a <b>${now.maha.lord}</b>
-      period runs to ${fmtDate(now.maha.end)}. Days change; this does not.</p>`;
+      period runs to ${fmtDate(now.maha.end)}. Days change; this does not.</p>
+    <button class="item repentry" id="torpts">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Detailed reports
+      <span class="sub">kundali &#183; relationship</span><span class="chev">&#8250;</span>
+    </button>`;
 
   /* ---- panchang ---- */
   const LIMB_MEANS={
@@ -758,7 +807,7 @@ function renderToday(){
         .map(([k,v])=>`<div class="row panchrow"><span class="k">${k}
           <small>${LIMB_MEANS[k]}</small></span><span class="v">${v}</span></div>`).join("")}
       <div class="row panchrow"><span class="k">Sunrise &#183; sunset
-        <small>at ${BIRTHPLACE.name.split(",")[0]}</small></span>
+        <small>at ${BIRTHPLACE.name.split(",")[0]}, IST</small></span>
         <span class="v">${ft(st.rise)} &#183; ${ft(st.set)}</span></div>
       <div class="row panchrow"><span class="k">Colour of the day
         <small>${vc.why} in this tradition</small></span><span class="v">${vc.c}</span></div>
@@ -778,19 +827,24 @@ function renderToday(){
     <button class="skycell" data-g="${p2.graha}">
       ${gIcon(p2.graha,26)}
       <b>${ordinal(p2.house)}</b>
-      <small>${SIGNS[p2.sign-1].slice(0,3)}</small>
+      <small>${SIGNS[p2.sign-1]}</small>
       <i class="dotm ${p2.favourable?"good":"testing"}" aria-hidden="true"></i>
       ${p2.retro?`<span class="rtag">R</span>`:""}
     </button>`).join("");
+  /* two lines per graha so nothing ever crops: where it is, then where it
+     goes next - the next-move detail gets its own line, free to breathe */
   const moves=F.sky.map(p2=>{
     const nx=ing[p2.graha];
     const when=!nx?"" : nx.days<=1?"tomorrow" : nx.days<=14?`in ${nx.days} days`
       : nx.date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(nx.date.getFullYear()!==viewDate.getFullYear()?" "+nx.date.getFullYear():"");
     return `<button class="ingrow" data-g="${p2.graha}">
-      ${gIcon(p2.graha,22)}
-      <span class="ingmain"><b>${p2.graha}</b> in ${SIGNS[p2.sign-1]}, your ${ordinal(p2.house)}
-        ${p2.retro?`<i class="ingr">retrograde</i>`:""}</span>
-      <span class="ingnext">${nx?`&#8594; ${SIGNS[nx.sign-1]} ${when}`:""}</span>
+      ${gIcon(p2.graha,24)}
+      <span class="ingbody">
+        <span class="ingmain"><b>${p2.graha}</b> in ${SIGNS[p2.sign-1]}, your ${ordinal(p2.house)}
+          ${p2.retro?`<i class="ingr">retrograde</i>`:""}</span>
+        ${nx?`<span class="ingnext">moves to ${SIGNS[nx.sign-1]} ${when}</span>`:""}
+      </span>
+      <span class="chev">&#8250;</span>
     </button>`}).join("");
   const sky=`
     <p class="skylead">The nine grahas ${isToday(viewDate)?"today":"on this date"},
@@ -818,25 +872,45 @@ function renderToday(){
   const seg=document.getElementById("todayseg");
   requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
 
+  /* The strip: a chip tap keeps your place (the handler captured it);
+     any other entry centres the selected day. Coming home to today
+     GLIDES to centre - the one case Sangram asked to see move. */
   const strip=document.getElementById("dates");
   strip.style.scrollBehavior="auto";
-  const centreStrip=()=>{
+  const stripCentreAt=()=>{
     const sel=strip.querySelector(".dchip.on");
-    if(sel && stripScroll===null && strip.scrollWidth>strip.clientWidth)
-      stripScroll=sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2;
-    if(stripScroll!==null && Math.abs(strip.scrollLeft-stripScroll)>2)
-      strip.scrollLeft=stripScroll;
+    return sel? sel.offsetLeft-strip.clientWidth/2+sel.offsetWidth/2 : 0;
   };
-  centreStrip(); requestAnimationFrame(centreStrip); setTimeout(centreStrip,120);
-  strip.addEventListener("scroll",()=>{stripScroll=strip.scrollLeft},{passive:true});
+  if(stripKeep!=null){
+    const k=stripKeep, glide=stripGlide;
+    stripKeep=null; stripGlide=false;
+    strip.scrollLeft=k;
+    if(glide) setTimeout(()=>{ const t=stripCentreAt();
+      strip.scrollTo({left:t,behavior:"smooth"});
+      /* land regardless - a stalled smooth scroll must not strand the strip */
+      setTimeout(()=>{ if(Math.abs(strip.scrollLeft-t)>8) strip.scrollLeft=t; },800);
+    },70);
+    else setTimeout(()=>{ strip.scrollLeft=k; },80);
+  } else {
+    stripGlide=false;
+    const centre=()=>{ strip.scrollLeft=stripCentreAt(); };
+    centre(); setTimeout(centre,120);
+  }
   document.getElementById("calbtn").onclick=openCalendar;
   const tt=document.getElementById("totoday");
-  if(tt) tt.onclick=()=>{ viewDate=new Date(); buzz(10); renderToday(); };
+  if(tt) tt.onclick=()=>{ viewDate=new Date();
+    stripKeep=strip.scrollLeft; stripGlide=true; buzz(10); renderToday(); };
 
   document.getElementById("pg-today").onclick=e=>{
     const d=e.target.closest(".dchip");
     if(d){ const nd=new Date(); nd.setDate(nd.getDate()+ +d.dataset.off); nd.setHours(12,0,0,0);
-      viewDate=nd; buzz(6); renderToday(); return; }
+      viewDate=nd; stripKeep=strip.scrollLeft;
+      if(+d.dataset.off===0) stripGlide=true;
+      buzz(6); renderToday(); return; }
+    const pr=e.target.closest("#prosee");
+    if(pr){ buzz(8); openProSheet(); return; }
+    const rp=e.target.closest("#torpts");
+    if(rp){ buzz(8); subView="report"; subArg=null; go(YOU_INDEX); renderYou(); return; }
     const t2=e.target.closest("#todayseg button[data-t]");
     if(t2){
       todayTab=t2.dataset.t; buzz(6);
@@ -1047,7 +1121,9 @@ function wireRuler(){
 function setUniverseBar(){
   setTopBar("",{actions:`
     <button class="tb-btn" id="tbsky" aria-label="Open the sky view">
-      <svg viewBox="0 0 24 24"><path d="M12 3.5l2 4.4 4.8.5-3.6 3.2 1 4.7-4.2-2.4-4.2 2.4 1-4.7L5.2 8.4l4.8-.5z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M3.5 8V6.3a2.8 2.8 0 012.8-2.8H8M16 3.5h1.7a2.8 2.8 0 012.8 2.8V8M20.5 16v1.7a2.8 2.8 0 01-2.8 2.8H16M8 20.5H6.3a2.8 2.8 0 01-2.8-2.8V16"/>
+        <path d="M12 7.6l3.5 2v4.8l-3.5 2-3.5-2V9.6z"/>
+        <path d="M12 7.6v4.4m0 0l3.5-2m-3.5 2l-3.5-2"/></svg>
     </button>`,centre:`
     <div class="tbseg" id="unimode" role="tablist" aria-label="Chart mode">
       <span class="thumb" aria-hidden="true"></span>
@@ -1624,8 +1700,15 @@ function wireChips(scope){
   });
 }
 
+function setGuideBar(){
+  setTopBar("Guide",{actions:`<button class="tb-btn" id="gclose" aria-label="Close Guide">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`});
+  const c=document.getElementById("gclose");
+  if(c) c.onclick=()=>{ buzz(6); go(guideFrom); if(guideFrom===YOU_INDEX) renderYou(); };
+}
+
 function renderGuide(){
-  setTopBar("Guide");
+  setGuideBar();
   document.getElementById("pg-guide").innerHTML=`
     <div class="chatwrap">
       <div class="voice"><div class="orb"></div>
@@ -1685,7 +1768,7 @@ const SUBS=[
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>LEARN_LEVELS.reduce((a,l)=>a+l.topics.length,0)+" topics, three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
-  {id:"report", label:"Detailed report", icon:ICONS.doc, sub:()=>"PDF"},
+  {id:"report", label:"Reports", icon:ICONS.doc, sub:()=>"kundali &#183; relationship"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
 ];
 
@@ -1953,7 +2036,7 @@ function renderSub(){
              <path d="M16.5 16.5l4 4"/></svg></button>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
-    glossary:"Glossary",settings:"Settings",report:"Detailed report",people:"Charts",
+    glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",
     learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
@@ -1995,6 +2078,50 @@ function subStub(name){
 
 const PREFS=()=>{try{return JSON.parse(localStorage.getItem("astro.prefs")||"{}")}catch(_){return{}}};
 const setPref=(k,v)=>{const p=PREFS();p[k]=v;localStorage.setItem("astro.prefs",JSON.stringify(p));};
+
+/* ---- ASTRA PRO --------------------------------------------------
+   The gate is real; the payment is not, yet. Until pricing is settled
+   the sheet offers an honest preview switch instead of a fake buy
+   button - no dark patterns, per the constitution (107). */
+const isPro=()=>!!PREFS().pro;
+let proHost=null;
+function openProSheet(){
+  if(!proHost){ proHost=document.createElement("div"); proHost.className="prosheet";
+    document.body.appendChild(proHost); }
+  proHost.innerHTML=`
+    <div class="proscrim"></div>
+    <div class="propanel">
+      <div class="prohead">
+        <svg viewBox="0 0 24 24" class="prostar"><path d="M12 3.5l2 4.4 4.8.5-3.6 3.2 1 4.7-4.2-2.4-4.2 2.4 1-4.7L5.2 8.4l4.8-.5z"/></svg>
+        <h2>Astra Pro</h2>
+        <p>The whole of time, and everything written down.</p>
+      </div>
+      <div class="probens">
+        ${[["Time travel","Any day&#8217;s full reading &#8212; decades back or forward"],
+           ["Detailed reports","Your kundali and every relationship, as considered PDFs"],
+           ["More people","Charts for family and friends beyond the first"],
+           ["Guide","Longer conversations when the live Guide arrives"]].map(([t,s])=>`
+          <div class="proben"><svg viewBox="0 0 24 24" class="tick"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            <div><b>${t}</b><span>${s}</span></div></div>`).join("")}
+      </div>
+      <div class="proprice"><b>Pricing is being decided</b>
+        <span>planned as a yearly plan, priced like one good consultation</span></div>
+      <button class="primary" id="prostart">Preview Pro while we build</button>
+      <button class="proclose" id="proclose">Not now</button>
+    </div>`;
+  /* a forced reflow, not rAF: the class must land even in a hidden tab,
+     and the reflow still lets the slide-in transition play */
+  void proHost.offsetHeight;
+  proHost.classList.add("open");
+  proHost.querySelector(".proscrim").onclick=closeProSheet;
+  document.getElementById("proclose").onclick=closeProSheet;
+  document.getElementById("prostart").onclick=()=>{
+    setPref("pro",true); buzz(12); closeProSheet();
+    if(activeTab===0) renderToday(); else if(activeTab===YOU_INDEX) renderYou();
+  };
+  buzz(8);
+}
+function closeProSheet(){ if(proHost) proHost.classList.remove("open"); }
 
 
 
@@ -2254,24 +2381,43 @@ function wirePersonChart(){
 
 function subReport(){
   const now=CHART.dasha.at(new Date());
+  const pro=isPro();
+  const tag=pro?"":`<span class="protag">Pro</span>`;
   return `
-    <div class="card" style="margin-bottom:16px">
-      <div class="eyebrow" style="margin-bottom:7px">What you get</div>
-      <p class="muted" style="font-size:14px;margin:0 0 12px">A full written chart -
-      every graha with sign, degree, nakshatra and dignity; all twelve houses and their
-      lords; the complete Vimshottari sequence; drishti; and the yogas your chart carries.</p>
-      ${rows([["Pages","~40"],["Chart","Vrishabha lagna"],
+    <div class="card repcard">
+      <div class="rephead">
+        <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>
+        <div><b>Your kundali report</b>
+          <span>Every graha, house and lord; the full Vimshottari; yogas, strengths and
+          traditional practices &#8212; written for you, not filled into a template.</span></div>
+        ${tag}
+      </div>
+      ${rows([["For","Sangram"],["Chart","Vrishabha lagna"],
               ["Current period",`${now.maha.lord}/${now.antar.lord}`],
-              ["Format","PDF"]])}
+              ["Format","PDF &#183; in depth"]])}
+      <button class="primary" data-rep="self">${pro?"Generate report":"Get with Astra Pro"}</button>
     </div>
-    <button class="primary" id="buyreport">Get the report &#183; &#8377;499</button>
-    <p class="note">Not built yet. When it is, it will be generated from the same engine
-    the app runs on, so the report and the screens can never disagree. Nothing here is
-    sold on fear, and no remedy is gated behind payment.</p>`;
+    ${partners().map((p,i)=>`
+    <div class="card repcard">
+      <div class="rephead">
+        <svg class="ico" viewBox="0 0 24 24">${ICONS.people}</svg>
+        <div><b>Relationship report &#183; ${p.name}</b>
+          <span>Both charts side by side; the eight kootas with their reasons;
+          the periods that matter for the two of you.</span></div>
+        ${tag}
+      </div>
+      <button class="primary" data-rep="rel${i}">${pro?"Generate report":"Get with Astra Pro"}</button>
+    </div>`).join("")}
+    <p class="note">Reports come from the same engine the app runs on, so a report and its
+    screens can never disagree. Nothing here is sold on fear, and no remedy is gated
+    behind payment.</p>`;
 }
 function wireReport(){
-  const b=document.getElementById("buyreport");
-  if(b) b.onclick=()=>alert("Not wired up yet - this is a placeholder.");
+  document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{
+    buzz(8);
+    if(!isPro()) return openProSheet();
+    b.textContent="Coming in the next build"; b.disabled=true;
+  });
 }
 
 let setOpen=null;
@@ -2302,6 +2448,9 @@ function subSettings(){
       ${tog("s_nodal","Nodal drishti",!!pr.nodal,"Rahu and Ketu aspect the 5th and 9th")}
       ${tog("s_haptics","Haptics",pr.haptics!==false)}
     </div>
+    <div class="setgroup">
+      ${tog("s_pro","Astra Pro (preview)",isPro(),"Unlocks Pro features while pricing is decided")}
+    </div>
     <p class="note">Ayanamsa and chart style are saved but not yet applied.</p>`;
 }
 
@@ -2320,11 +2469,14 @@ function wireSettings(){
   const h=document.getElementById("s_haptics");
   h.onclick=()=>{const v=!h.classList.contains("on");h.classList.toggle("on",v);
     h.setAttribute("aria-checked",v);setPref("haptics",v);if(v)buzz(10)};
+  const pp=document.getElementById("s_pro");
+  if(pp) pp.onclick=()=>{const v=!pp.classList.contains("on");pp.classList.toggle("on",v);
+    pp.setAttribute("aria-checked",v);setPref("pro",v);buzz(8)};
 }
 
 function subBirth(){
   return `
-    ${rows([["Date","26 Mar 1992"],["Time","10:00 IST"],
+    ${rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
       ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
       ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
       ["Lagna nakshatra","Rohini"],["Ayanamsa","Lahiri"]])}
@@ -2406,8 +2558,13 @@ function monthGrid(y,m){
   for(let d=1;d<=days;d++){
     const dt=new Date(y,m,d,12);
     const today=isToday(dt), sel=dt.toDateString()===viewDate.toDateString();
-    cells.push(`<button class="cday${today?" today":""}${sel?" sel":""}"
-      data-iso="${isoOf(dt)}" aria-label="${dt.toDateString()}">
+    /* Purnima glows, Amavasya gets a rim - otherwise both vanish in a
+       grid of small discs (Sangram, 29 Aug) */
+    const pf=Math.round(moonPhase(dt).f*PHASE_COUNT)%PHASE_COUNT;
+    const mark=pf===15?" fullm":pf===0?" newm":"";
+    cells.push(`<button class="cday${today?" today":""}${sel?" sel":""}${mark}"
+      data-iso="${isoOf(dt)}" aria-label="${dt.toDateString()}${
+        mark===" fullm"?", full moon":mark===" newm"?", new moon":""}">
       <span class="cnum">${d}</span>${moonImg(dt,27)}</button>`);
   }
   return `<section class="cmonth" data-label="${first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}">
@@ -2857,7 +3014,7 @@ function subPartner(){
         <p class="muted" style="font-size:12.5px;margin:0">${verdict}.</p>
       </div>
     </div>
-    ${rows([["Born",new Date(p.born).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})],
+    ${rows([["Born",`${fmtDate(new Date(p.born))}, ${fmtClock(new Date(p.born))} IST`],
             ["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
             ["Nakshatra",`${NAK[nakOf(p.moonL)]} &#183; pada ${padaOf(p.moonL)}`],
             ["Yours",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
@@ -2876,6 +3033,10 @@ function subPartner(){
         <p class="kvals">You: <b>${SK[x.a]?gIcon(x.a,15):""}${x.a}</b> &#183; ${p.name}: <b>${SK[x.b]?gIcon(x.b,15):""}${x.b}</b>${
           x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
       </div>`).join("")}
+    <button class="item repentry" id="prelrep" style="margin-top:18px">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Relationship report
+      <span class="sub">detailed PDF${isPro()?"":" &#183; Pro"}</span><span class="chev">&#8250;</span>
+    </button>
     <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
@@ -2884,7 +3045,13 @@ function subPartner(){
       classical table and will be completed later.</p>`;
 }
 
-function wirePartner(){}
+function wirePartner(){
+  const r=document.getElementById("prelrep");
+  if(r) r.onclick=()=>{ buzz(8);
+    if(!isPro()) return openProSheet();
+    r.querySelector(".sub").textContent="coming in the next build";
+  };
+}
 
 const TABS=[
   {id:"today",label:"Today",icon:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/><circle cx="12" cy="14.6" r="1.5" fill="currentColor" stroke="none"/>'},
@@ -2917,19 +3084,23 @@ nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"o
   <span class="tabico"><svg viewBox="0 0 24 24">${t.icon}</svg></span>
   <span class="tablbl">${t.label}</span></button>`).join("");
 
-let activeTab=0;
+let activeTab=0, guideFrom=0;
 function go(i){
   if(mode) resetChart();
   /* iOS convention: tapping the tab you are already on pops to its root */
   if(i!==YOU_INDEX || activeTab===YOU_INDEX){
     subView=null; subArg=null; document.body.classList.remove("insub"); }
+  const from=activeTab;
   activeTab=i;
   /* the bar belongs to the tab, so it has to be reset on every switch -
      the render functions only run once at startup */
   if(i===0) renderToday();
   else if(i===TIMELINE_INDEX) renderTimelineTab();
   else if(i===CHART_INDEX) setUniverseBar();
-  else if(i===3) setTopBar("Guide");
+  else if(i===3) setGuideBar();
+  /* Guide is a room, not a tab: the nav bows out and a close returns you */
+  if(i===3){ if(from!==3) guideFrom=from; document.body.classList.add("guidefull"); }
+  else document.body.classList.remove("guidefull");
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
     nav.children[j].classList.toggle("on",j===i);
@@ -2960,6 +3131,56 @@ document.addEventListener("visibilitychange",()=>{
     paintUniverse(true); paintRuler(); updateScrubLabel();
   }
 });
+
+/* ---- PULL TO REFRESH -------------------------------------------
+   The shell is fixed and pages scroll inside it, so Safari's own
+   pull-to-refresh (which watches the document scroller) can never
+   fire here. So the app supplies its own: pull down from the top of
+   Today or You and the tab re-renders against the live clock.
+   Universe, Timeline and Guide are excluded - they own their drags. */
+const ptrEl=document.createElement("div");
+ptrEl.className="ptr";
+ptrEl.innerHTML=`<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 108 8"/><path d="M12 1.5V6.5"/></svg>`;
+document.body.appendChild(ptrEl);
+let ptrY0=null, ptrArmed=false;
+const ptrPage=()=>document.querySelector(".page.on");
+const ptrReset=()=>{ptrEl.style.opacity=0;ptrEl.style.transform="translate(-50%,0)";
+  ptrEl.classList.remove("armed","spin")};
+const pagesEl=document.querySelector(".pages");
+pagesEl.addEventListener("touchstart",e=>{
+  const pg=ptrPage();
+  if(!pg||!["pg-today","pg-you"].includes(pg.id)||pg.scrollTop>2) {ptrY0=null;return}
+  if(document.body.classList.contains("noscroll")) {ptrY0=null;return}
+  ptrY0=e.touches[0].clientY; ptrArmed=false;
+},{passive:true});
+pagesEl.addEventListener("touchmove",e=>{
+  if(ptrY0==null) return;
+  const pg=ptrPage();
+  if(!pg||pg.scrollTop>2){ ptrY0=null; ptrReset(); return }
+  const dy=e.touches[0].clientY-ptrY0;
+  if(dy<=8){ ptrReset(); ptrArmed=false; return }
+  const pull=Math.min((dy-8)*0.45,86);
+  ptrArmed=pull>=60;
+  ptrEl.style.opacity=Math.min(pull/40,1);
+  ptrEl.style.transform=`translate(-50%,${pull}px) rotate(${pull*3.4}deg)`;
+  ptrEl.classList.toggle("armed",ptrArmed);
+},{passive:true});
+pagesEl.addEventListener("touchend",()=>{
+  if(ptrY0==null) return;
+  ptrY0=null;
+  if(!ptrArmed){ ptrReset(); return }
+  ptrEl.classList.add("spin"); buzz(10);
+  setTimeout(()=>{
+    lastRenderAt=Date.now();
+    const pg=ptrPage();
+    if(pg&&pg.id==="pg-you") renderYou();
+    else{
+      if(isToday(viewDate)||viewDate<new Date()) viewDate=new Date();
+      renderToday();
+    }
+    ptrReset();
+  },520);
+},{passive:true});
 
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();

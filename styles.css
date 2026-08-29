@@ -473,8 +473,10 @@ svg.asp{pointer-events:none}
   display:grid;place-items:center;color:var(--ink-2)}
 .cmp-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round}
-.cmp-btn.mic{background:var(--ink);color:#141731;border:0}
-.cmp-btn.mic.live{background:var(--mars);color:#fff;animation:pulse 1.6s ease-in-out infinite}
+.cmp-btn.mic{background:rgba(255,255,255,.09);color:var(--ink);
+  border:1px solid var(--edge-soft)}
+.cmp-btn.mic.live{background:var(--mars);border-color:var(--mars);color:#fff;
+  animation:pulse 1.6s ease-in-out infinite}
 .chat{padding-bottom:6px}
 .bubble.it .cmd{opacity:.85}
 .chat{display:flex;flex-direction:column;gap:12px;margin-top:14px}
@@ -1249,3 +1251,98 @@ body.guidefull #pg-guide{padding-bottom:26px}
   border:1px solid rgba(160,175,225,.3);background:none;color:var(--ink-2);
   font-family:var(--ff);font-size:11px;cursor:pointer;pointer-events:auto}
 .svclear:active{opacity:.6}
+
+/* ---- SETTINGS — these classes shipped with no styles at all; the
+   screen was riding on browser defaults (caught by Sangram, 30 Aug) ---- */
+.setgroup{background:rgba(255,255,255,.05);border:1px solid var(--edge-soft);
+  border-radius:16px;margin-bottom:14px;overflow:hidden}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  width:100%;padding:14px 16px;border:0;background:none;color:var(--ink);
+  font-family:var(--ff);text-align:left;border-top:.5px solid var(--line)}
+.setgroup>.setrow:first-child,.setgroup>button:first-child{border-top:0}
+.setrow.tap{cursor:pointer}
+.setrow.tap:active{background:rgba(255,255,255,.06)}
+.setlabel{flex:1;min-width:0}
+.setlabel b{display:block;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.setlabel span{display:block;font-size:12px;color:var(--ink-3);margin-top:2px;line-height:1.45}
+.setval{flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:13.5px;
+  color:var(--ink-2)}
+.setval .chev{color:var(--ink-3);font-size:16px}
+.setopts{border-top:.5px solid var(--line);background:rgba(0,0,0,.14);padding:4px 0}
+.setopt{display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:11px 16px 11px 28px;border:0;background:none;color:var(--ink-2);
+  font-family:var(--ff);font-size:14px;cursor:pointer;text-align:left}
+.setopt.on{color:var(--ink);font-weight:600}
+.setopt:active{background:rgba(255,255,255,.05)}
+.setopt .tick{width:16px;height:16px;fill:none;stroke:var(--brass);stroke-width:2.4;
+  stroke-linecap:round;stroke-linejoin:round}
+.switch{flex:0 0 auto;width:48px;height:29px;border-radius:99px;border:0;cursor:pointer;
+  background:rgba(255,255,255,.14);position:relative;transition:background .25s}
+.switch i{position:absolute;top:2.5px;left:2.5px;width:24px;height:24px;border-radius:50%;
+  background:#fff;box-shadow:0 1.5px 5px rgba(0,0,0,.4);transition:transform .25s var(--ease)}
+.switch.on{background:var(--brass)}
+.switch.on i{transform:translateX(19px)}
+
+/* ---- day verdict speaks in colour as well as words ---- */
+.dayverdict.tone-favourable b{color:#8FCB9C}
+.dayverdict.tone-balanced b{color:#DDB86A}
+.dayverdict.tone-slow b{color:#E08E7C}
+.whysum{font-size:12.5px;line-height:1.55;color:var(--ink-2);margin:10px 0 0;
+  padding-top:9px;border-top:.5px solid var(--line)}
+.whysum .tone-favourable{color:#8FCB9C}
+.whysum .tone-balanced{color:#DDB86A}
+.whysum .tone-slow{color:#E08E7C}
+.aev{font-size:12px;line-height:1.5;color:var(--ink-3);margin:5px 0 0;font-style:italic}
+
+/* ---- plan badge + plans page ---- */
+.planbadge{display:inline-flex;align-items:center;gap:5px;margin-top:7px;
+  padding:4px 11px;border-radius:99px;cursor:pointer;font-family:var(--ff);
+  font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.07);
+  border:1px solid var(--edge-soft)}
+.planbadge b{color:var(--brass);font-weight:640}
+.planbadge .chev{color:var(--ink-3)}
+.planbadge:active{opacity:.6}
+.plancard{background:rgba(255,255,255,.05);border:1px solid var(--edge-soft);
+  border-radius:18px;padding:17px 18px;margin-bottom:13px}
+.plancard.reco{border-color:rgba(194,155,78,.5);
+  background:linear-gradient(180deg,rgba(194,155,78,.10),rgba(255,255,255,.04))}
+.planhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.planhead b{font-size:17px;font-weight:660;letter-spacing:-.015em}
+.plantag{font-family:var(--fm);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--brass);border:1px solid rgba(194,155,78,.5);border-radius:99px;padding:3px 9px}
+.plantag.now{color:var(--ink);border-color:var(--edge)}
+.planprice{font-size:13.5px;color:var(--ink-2);margin:7px 0 12px;
+  font-variant-numeric:tabular-nums}
+.planprice b{color:var(--ink);font-weight:640}
+.planprice .usd{display:block;font-family:var(--fm);font-size:10.5px;color:var(--ink-3);
+  margin-top:3px}
+.planfeats{list-style:none;margin:0;padding:0}
+.planfeats li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;
+  line-height:1.5;padding:5px 0;color:var(--ink-2)}
+.planfeats li i{flex:0 0 16px;font-style:normal;font-weight:800;font-size:14px;
+  text-align:center;color:var(--brass)}
+.planfeats li.off{color:var(--ink-3)}
+.planfeats li.off i{color:var(--ink-3);font-weight:400}
+.plancard .primary{margin-top:13px}
+
+/* ---- one-line You rows ---- */
+.item .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+
+/* ---- dasha cards ---- */
+.antarcard{background:rgba(255,255,255,.05);border:1px solid var(--edge-soft);
+  border-radius:15px;padding:13px 15px;margin-top:16px}
+.abig{display:flex;align-items:center;gap:8px;font-size:15.5px;font-weight:650;
+  letter-spacing:-.01em;margin:0 0 8px}
+.spanrow.sm .sk{font-size:9px}
+.spanrow.sm b{font-size:13px}
+.bar.sm{height:5px;margin-top:8px}
+.dashamore{margin-top:16px;border-radius:15px;background:rgba(255,255,255,.05);
+  border:1px solid var(--edge-soft)}
+
+/* ---- sky view: follow-my-phone ---- */
+.svfollow{position:absolute;left:50%;transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom) + 58px);padding:11px 20px;border-radius:99px;
+  border:1px solid rgba(194,155,78,.55);background:rgba(30,34,66,.85);color:var(--brass);
+  font-family:var(--ff);font-size:14px;font-weight:600;cursor:pointer;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.svfollow:active{opacity:.7}

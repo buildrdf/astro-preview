@@ -4,9 +4,9 @@ import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
-         VARA_NUM, RAHU_KALAM_SEGMENT } from "./narrative.js";
+         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js?v=20260830";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260829a";
+import { openSkyView } from "./skyview.js?v=20260830";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -595,40 +595,49 @@ function leadLine(e,F){
     +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
     +`${e.retro?", and retrograde":""}.`;
 }
-/* one reason line per touching graha, each carrying its sky link.
-   Visual first (Sangram, 29 Aug): the graha's own art, then where it sits,
-   as tags - house, sign, verdict - before the prose explains. */
+/* one full explanation per touching graha, each carrying its sky link.
+   Written as cause and effect (Sangram, 30 Aug): where the graha is, what
+   that house governs, and what the placement traditionally does to this
+   area - in sentences, not capsules. */
 function reasonLines(a,F){
   const seeBtn=g=>`<button class="seesky" data-g="${g}" aria-label="See ${g} in the sky">
       <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>`;
   const rows=a.evidence.map(e=>{
     if(e.tara) return `<div class="whyrow">
       <span class="whyart">${gIcon("Moon",30)}</span>
-      <span class="whymain">
-        <span class="whytags"><i class="wtag">${NAK[F.todayMoonNak]}</i>
-          <i class="wtag ${F.tara.tone==="good"?"good":F.tara.tone==="testing"?"slow":""}">${F.tara.name}</i></span>
-        <span class="whytext">The Moon is ${ordinal(F.tara.count)} from your birth star.
-        ${F.tara.note}</span>
+      <span class="whymain"><span class="whytext">Today&#8217;s Moon rides
+        <b>${NAK[F.todayMoonNak]}</b> &#8212; the ${ordinal(F.tara.count)} star counted from
+        your birth star, called <b>${F.tara.name}</b> in tara bala. ${F.tara.note}</span>
       </span>${seeBtn("Moon")}</div>`;
     const gm=GRAHA_MEANING[e.graha];
     const sk=F.sky.find(p=>p.graha===e.graha);
+    const feel=GOCHARA_FEEL[e.graha];
+    const where=e.occupies
+      ?`is in your <b>${ordinal(e.house)} house</b>${sk?` in ${SIGNS[sk.sign-1]}`:""} today
+        &#8212; the house of ${HOUSE_TRANSIT_SENSE[e.house]}`
+      :`casts its gaze on your <b>${e.aspects.map(ordinal).join(" and ")}</b>
+        ${e.aspects.length>1?"houses":"house"} today &#8212;
+        ${e.aspects.map(h=>HOUSE_TRANSIT_SENSE[h]).join("; and ")}`;
     return `<div class="whyrow">
       <span class="whyart">${gIcon(e.graha,30)}</span>
-      <span class="whymain">
-        <span class="whytags">
-          ${e.occupies?`<i class="wtag">${ordinal(e.house)} house</i>`
-                      :`<i class="wtag">gazes your ${e.aspects.map(ordinal).join(", ")}</i>`}
-          ${sk?`<i class="wtag">${SIGNS[sk.sign-1]}</i>`:""}
-          ${e.retro?`<i class="wtag rt">retrograde</i>`:""}
-          <i class="wtag ${e.favourable?"good":"slow"}">${e.favourable?"supportive":"slower"}</i>
-        </span>
-        <span class="whytext"><b>${e.graha}</b> &#8212; ${gm.is} &#8212; ${e.occupies
-            ?`is crossing your ${ordinal(e.house)}`
-            :`aspects your ${e.aspects.map(ordinal).join(" and ")}`},
-          ${ordinal(e.houseFromMoon)} from your Moon${e.retro?", moving retrograde":""}.</span>
+      <span class="whymain"><span class="whytext"><b>${e.graha}</b>, ${gm.is}, ${where}.
+        Counted from your natal Moon it sits ${ordinal(e.houseFromMoon)}, which the
+        classical tables read as <b>${e.favourable?"supportive":"slower going"}</b>${
+        e.retro?", and it is moving retrograde &#8212; matters returned to rather than settled first time":""}.
+        ${feel?(e.favourable?feel.fav:feel.unfav):""}</span>
       </span>${seeBtn(e.graha)}</div>`;
   });
-  return rows.join("")+`<p class="whyfoot">Houses read for ${a.area.toLowerCase()}:
+  const fav=a.evidence.filter(e=>!e.tara&&e.favourable).length,
+        slow=a.evidence.filter(e=>!e.tara&&!e.favourable).length;
+  const aligned=(a.tone==="favourable"&&fav>=slow)||(a.tone==="slow"&&slow>=fav)
+             ||a.tone==="balanced";
+  return rows.join("")+`<p class="whysum">${aligned
+    ?`Weighed together &#8212; ${fav} supportive, ${slow} slower &#8212;`
+    :`Not every influence counts equally: a graha standing in one of these houses
+      weighs more than a distant gaze. On balance,`}
+    ${a.area.toLowerCase()} reads as
+    <b class="tone-${a.tone}">${TONE_WORD[a.tone].toLowerCase()}</b> today.</p>
+  <p class="whyfoot">Houses read for ${a.area.toLowerCase()}:
     ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts from the classical gochara
     tables, counted from your Moon; schools differ over Rahu and Ketu.</p>`;
 }
@@ -720,8 +729,8 @@ function renderToday(){
   const luckyRow=`
     <div class="card luckycard">
       <div class="lstats">
-        <div class="ls"><small>Colour</small><b>${vc.c.split(" and ")[0]}</b></div>
-        <div class="ls"><small>Number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
+        <div class="ls"><small>Lucky colour</small><b>${vc.c.split(" and ")[0]}</b></div>
+        <div class="ls"><small>Lucky number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
         <div class="ls"><small>Day lord</small><b>${F.vara.lord}</b></div>
       </div>
       <div class="lhours">
@@ -734,17 +743,22 @@ function renderToday(){
       run from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
 
   /* ---- five areas, each with a Why? expansion and sky links ---- */
-  const areaCards=R.areas.map((a,i)=>`
+  const areaCards=R.areas.map((a,i)=>{
+    const bits=a.evidence.filter(e=>!e.tara).slice(0,3).map(e=>e.occupies
+      ?`${e.graha} in your ${ordinal(e.house)}`
+      :`${e.graha} gazing your ${e.aspects.map(ordinal).join(" and ")}`);
+    return `
     <div class="areacard ${a.tone}">
       <div class="areahead">
         <span class="aname">${a.area}</span>
         <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
       </div>
       <p class="asub">${PLAIN_DAY[a.area][a.tone]}</p>
+      ${bits.length?`<p class="aev">Shaped by ${bits.join(", ")}.</p>`:""}
       <p class="ameta">${AREA_LINE[a.area]}</p>
       <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
       <div class="whybox" id="why${i}" hidden>${reasonLines(a,F)}</div>
-    </div>`).join("");
+    </div>`}).join("");
 
   /* free window: yesterday, today, tomorrow. Farther readings ride with Pro. */
   const dayDiff=Math.round((new Date(viewDate).setHours(12,0,0,0)
@@ -764,11 +778,26 @@ function renderToday(){
       <button class="primary" id="prosee">See Astra Pro</button>
     </div>`:`
     ${verdict}
+    ${luckyRow}
     <div class="reading">
       <h2>${R.head}</h2>
-      <p>${R.body.split(". ")[0]}.</p>
+      <p>${R.body}</p>
+      ${(()=>{ /* the fuller sky story: the loudest supportive and slowest
+                  currents, told in sentences (Sangram, 30 Aug) */
+        const evAll=[...new Map(R.areas.flatMap(x=>x.evidence)
+          .filter(e=>!e.tara&&e.occupies&&e.graha!=="Moon")
+          .map(e=>[e.graha,e])).values()];
+        const sup=evAll.find(e=>e.favourable), sl=evAll.find(e=>!e.favourable);
+        const s=[];
+        if(sup) s.push(`<b>${sup.graha}</b> is moving through your ${ordinal(sup.house)}
+          house &#8212; ${HOUSE_TRANSIT_SENSE[sup.house]} &#8212; and it sits well from
+          your Moon: a current worth using${sup.retro?", even moving retrograde":""}.`);
+        if(sl) s.push(`<b>${sl.graha}</b> in your ${ordinal(sl.house)} runs slower;
+          around ${HOUSE_TRANSIT_SENSE[sl.house]}, let things take longer than
+          you&#8217;d like${sl.retro?" &#8212; retrograde, it favours revisiting over launching":""}.`);
+        return s.length?`<p>${s.join(" ")}</p>`:"";
+      })()}
     </div>
-    ${luckyRow}
     <div class="areas">${areaCards}</div>
     <div class="card mtb">
       <div class="mtbrow"><span class="mtbk do">Do</span><ul><li>${pickBy(DAY_DO[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
@@ -1134,7 +1163,12 @@ function setUniverseBar(){
     </div>`});
   requestAnimationFrame(()=>placeThumb(true)); setTimeout(()=>placeThumb(true),80);
   const sk=document.getElementById("tbsky");
-  if(sk) sk.onclick=async()=>{buzz(9); openSkyView(await getSpot());};
+  if(sk) sk.onclick=()=>{buzz(9);
+    /* iOS grants motion access only inside the raw tap - ask BEFORE any
+       await, or the permission window closes while geolocation resolves */
+    const motion=askMotion();
+    getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m})));
+  };
 }
 
 /* the capsule's highlight is one object that slides between the labels;
@@ -1545,6 +1579,16 @@ sheet.addEventListener("click",e=>{
 
 /* ---- Find in sky: sensors point you at the graha (DDR 0003 §5) ---- */
 let skyWatch=null;
+/* motion permission, synchronously inside a user gesture. Resolves true
+   when sensors may be armed, false when iOS wants a fresh tap later. */
+function askMotion(){
+  if(typeof DeviceOrientationEvent==="undefined"
+     || typeof DeviceOrientationEvent.requestPermission!=="function")
+    return Promise.resolve(true);          /* non-iOS: no gate */
+  return DeviceOrientationEvent.requestPermission()
+    .then(r=>r==="granted").catch(()=>false);
+}
+
 function getSpot(){                       /* quick fix, honest fallback */
   return new Promise(res=>{
     let done=false;
@@ -1582,7 +1626,8 @@ async function openSkyPanel(g){
       <span class="orbdot" aria-hidden="true"></span>
       Open the sky &#8212; see ${g} among the rashis</button>`;
   document.getElementById("opensky").onclick=()=>{buzz(9);
-    openSkyView({...spot, focus:g});};
+    const motion=askMotion();
+    motion.then(m=>openSkyView({...spot, focus:g, motion:m}));};
   if(!w.up) return;
   /* iOS wants a user-gesture permission request; this tap was one */
   const arm=()=>{
@@ -1726,7 +1771,6 @@ function renderGuide(){
       a small server to hold the API key &#8212; a key in this page would be readable by anyone.</p>
     </div>
     <div class="composer">
-      <button class="cmp-btn" aria-label="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <input id="cmpin" placeholder="Ask your chart" aria-label="Message">
       <button class="cmp-btn mic" id="cmpmic" aria-label="Voice">
         <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
@@ -1766,7 +1810,7 @@ const SUBS=[
   {id:"birth", label:"Birth details", icon:ICONS.chart, sub:()=>SIGNS_SK[CHART.lagna-1]},
   {id:"events", label:"Life events", icon:ICONS.star, sub:()=>events().length+""},
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
-  {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>LEARN_LEVELS.reduce((a,l)=>a+l.topics.length,0)+" topics, three levels"},
+  {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>"three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
   {id:"report", label:"Reports", icon:ICONS.doc, sub:()=>"kundali &#183; relationship"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
@@ -1992,7 +2036,10 @@ function renderYou(){
     <div class="me-head">
       <div class="avatar">S</div>
       <div class="me-id"><h1>Sangram</h1>
-        <p>${SIGNS_SK[CHART.lagna-1]} lagna &#183; Moon in ${CHART.get("Moon").nak}</p></div>
+        <p>${SIGNS_SK[CHART.lagna-1]} lagna &#183; Moon in ${CHART.get("Moon").nak}</p>
+        <button class="planbadge" id="planbadge">${isPro()
+          ?`<b>Astra Pro</b> &#183; preview`:`<b>Free plan</b> &#183; see plans`}
+          <span class="chev">&#8250;</span></button></div>
       <button class="switchbtn" id="switchuser">Switch</button>
     </div>
     <div class="section">
@@ -2004,6 +2051,8 @@ function renderYou(){
     </div>`;
   const sw=document.getElementById("switchuser");
   if(sw) sw.onclick=()=>{buzz(7); subView="people"; subArg=null; renderSub();};
+  const pb=document.getElementById("planbadge");
+  if(pb) pb.onclick=()=>{buzz(7); subView="plans"; subArg=null; renderSub();};
   document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
     subView=b.dataset.v; subArg=null; buzz(7); renderSub();
   });
@@ -2036,7 +2085,7 @@ function renderSub(){
              <path d="M16.5 16.5l4 4"/></svg></button>`,
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
-    glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",
+    glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",plans:"Plans",
     learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
@@ -2046,7 +2095,7 @@ function renderSub(){
   document.getElementById("topbar").classList.toggle("searching",searching);
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
-              settings:subSettings}[subView];
+              settings:subSettings,plans:subPlans}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
   const ta=document.getElementById("tbadd"), te=document.getElementById("tbaddev"),
@@ -2065,6 +2114,7 @@ function renderSub(){
   if(subView==="people") wirePeople();
   if(subView==="personchart") wirePersonChart();
   if(subView==="settings") wireSettings();
+  if(subView==="plans") wirePlans();
   if(subView==="report") wireReport();
   if(subView==="addpartner") wireAddPartner();
   if(subView==="addevent") wireAddEvent();
@@ -2379,6 +2429,73 @@ function wirePersonChart(){
   if(e) e.onclick=()=>{cameFrom="people";subView="addpartner";buzz(7);renderSub()};
 }
 
+/* ---- PLANS — the three tiers, spelled out ------------------------
+   Reached from the plan badge under the name. Checkmarks are text
+   glyphs at full contrast - no icon subtlety here (Sangram, 30 Aug). */
+function subPlans(){
+  const pro=isPro();
+  const li=(on,txt)=>`<li class="${on?"on":"off"}"><i>${on?"&#10003;":"&#8212;"}</i>${txt}</li>`;
+  return `
+    <div class="plancard${pro?"":" cur"}">
+      <div class="planhead"><b>Free</b>${pro?"":`<span class="plantag now">your plan</span>`}</div>
+      <p class="planprice">&#8377;0 &#183; forever</p>
+      <ul class="planfeats">
+        ${li(1,"Your full birth chart, explorable forever")}
+        ${li(1,"Today&#8217;s sky, panchang and placements")}
+        ${li(1,"The AR sky view")}
+        ${li(1,"Horoscope for yesterday, today and tomorrow")}
+        ${li(1,"Guide &#8212; 3 questions a day")}
+        ${li(1,"You + 1 person, compatibility summary")}
+        ${li(0,"Other days&#8217; readings, full dasha timeline")}
+        ${li(0,"Detailed PDF reports (sold separately below)")}
+      </ul>
+    </div>
+    <div class="plancard reco${pro?" cur":""}">
+      <div class="planhead"><b>Astra Pro</b>${pro?`<span class="plantag now">your plan &#183; preview</span>`:`<span class="plantag">recommended</span>`}</div>
+      <p class="planprice">&#8377;499/mo &#183; &#8377;1,199/quarter &#183; <b>&#8377;2,999/yr</b>
+        <span class="usd">$9.99 &#183; $24.99 &#183; $69.99</span></p>
+      <ul class="planfeats">
+        ${li(1,"Everything in Free")}
+        ${li(1,"Any day&#8217;s full reading &#8212; decades either way")}
+        ${li(1,"Full 120-year dasha timeline, all levels")}
+        ${li(1,"All 8 kootas with complete reasoning")}
+        ${li(1,"You + 3 people")}
+        ${li(1,"Your kundali report + 1 relationship report a year")}
+        ${li(1,"Guide &#8212; 300 questions a month")}
+        ${li(0,"Voice conversations")}
+      </ul>
+      ${pro?"":`<button class="primary" data-plan="pro">Preview Pro while pricing is decided</button>`}
+    </div>
+    <div class="plancard">
+      <div class="planhead"><b>Astra Pro+</b></div>
+      <p class="planprice">&#8377;999/mo &#183; <b>&#8377;7,999/yr</b>
+        <span class="usd">$19.99 &#183; $149.99</span></p>
+      <ul class="planfeats">
+        ${li(1,"Everything in Pro")}
+        ${li(1,"Voice conversations with the Guide &#8212; 60 min a month")}
+        ${li(1,"You + 10 people, reports for everyone")}
+        ${li(1,"Guide &#8212; 1,000 questions a month")}
+        ${li(1,"New features first")}
+      </ul>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="eyebrow" style="margin-bottom:7px">Sold separately</div>
+      ${rows([["Kundali report &#183; PDF","&#8377;499 &#183; $14.99"],
+              ["Relationship report &#183; PDF","&#8377;399 &#183; $11.99"]])}
+    </div>
+    ${pro?`<button class="proclose" id="planoff">Switch back to Free</button>`:""}
+    <p class="note">Preview pricing &#8212; nothing is charged in this prototype. Real
+    purchases arrive with the App Store build. No remedy is ever behind a paywall,
+    and nothing here is sold on fear.</p>`;
+}
+function wirePlans(){
+  document.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{
+    setPref("pro",true); buzz(12); renderSub();
+  });
+  const off=document.getElementById("planoff");
+  if(off) off.onclick=()=>{ setPref("pro",false); buzz(8); renderSub(); };
+}
+
 function subReport(){
   const now=CHART.dasha.at(new Date());
   const pro=isPro();
@@ -2394,8 +2511,9 @@ function subReport(){
       </div>
       ${rows([["For","Sangram"],["Chart","Vrishabha lagna"],
               ["Current period",`${now.maha.lord}/${now.antar.lord}`],
+              ["Price",pro?"Included with Astra Pro":"&#8377;499 &#183; $14.99 &#183; or free with Pro"],
               ["Format","PDF &#183; in depth"]])}
-      <button class="primary" data-rep="self">${pro?"Generate report":"Get with Astra Pro"}</button>
+      <button class="primary" data-rep="self">${pro?"Generate report":"Get for &#8377;499 &#183; $14.99"}</button>
     </div>
     ${partners().map((p,i)=>`
     <div class="card repcard">
@@ -2406,7 +2524,8 @@ function subReport(){
           the periods that matter for the two of you.</span></div>
         ${tag}
       </div>
-      <button class="primary" data-rep="rel${i}">${pro?"Generate report":"Get with Astra Pro"}</button>
+      ${rows([["Price",pro?"Included with Astra Pro":"&#8377;399 &#183; $11.99 &#183; or free with Pro"]])}
+      <button class="primary" data-rep="rel${i}">${pro?"Generate report":"Get for &#8377;399 &#183; $11.99"}</button>
     </div>`).join("")}
     <p class="note">Reports come from the same engine the app runs on, so a report and its
     screens can never disagree. Nothing here is sold on fear, and no remedy is gated
@@ -2415,8 +2534,9 @@ function subReport(){
 function wireReport(){
   document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{
     buzz(8);
-    if(!isPro()) return openProSheet();
-    b.textContent="Coming in the next build"; b.disabled=true;
+    b.textContent=isPro()?"The report engine ships in the next build"
+      :"Purchases arrive with the App Store build";
+    b.disabled=true;
   });
 }
 
@@ -2645,7 +2765,7 @@ function closeCalendar(){
    19 years should dwarf the Sun's 6. So instead of shrinking them to fit,
    the column is taller than its viewport and scrolls, holding the selected
    moment in the middle. The rail carries a Today tick and a dot per event. */
-let tlT=null;
+let tlT=null, tlDetail=null;
 const TL_H=780;                     // full column height, px
 function tlBounds(){
   const m=CHART.dasha.mahas.slice(0,9);
@@ -2693,9 +2813,66 @@ function practiceFor(lord){
 }
 
 function renderTimelineTab(){
-
+  if(tlDetail){ renderDashaDetail(); return; }
   document.getElementById("pg-timeline").innerHTML=timelineBody();
   wireTimeline();
+}
+
+/* ---- DASHA DETAIL — its own page, the way the paid reports do it,
+   but derived from this chart and honestly worded. Back returns to
+   the timeline exactly where it was. ---- */
+function renderDashaDetail(){
+  const {maha,antar,when}=tlDetail;
+  const pos=Math.min(Math.max((when-maha.start)/(maha.end-maha.start),0),1);
+  const apos=Math.min(Math.max((when-antar.start)/(antar.end-antar.start),0),1);
+  const mp=CHART.get(maha.lord), ap=CHART.get(antar.lord);
+  const natal=(g,p)=>p?`In your chart ${g} sits in your <b>${ordinal(p.house)} house</b>
+    in ${SIGNS[p.sign-1]}${p.dig?`, ${p.dig.toLowerCase()}`:""} &#8212; so this period is
+    read through ${HOUSE_TRANSIT_SENSE[p.house]}.`:"";
+  const nxt=CHART.dasha.at(new Date(antar.end.getTime()+864e5));
+  setTopBar(`${maha.lord} mahadasha`,{back:true,sub:`${antar.lord} antardasha`});
+  document.getElementById("pg-timeline").innerHTML=`
+    <div class="card" style="margin-bottom:12px">
+      <p class="big" style="color:${COLOUR(maha.lord)};margin-top:0">${gIcon(maha.lord,26)}${maha.lord} mahadasha</p>
+      <div class="spanrow sm">
+        <div><span class="sk">from</span><b>${fmtDate(maha.start)}</b><span class="sa">age ${ageAt(maha.start)}</span></div>
+        <span class="sarrow">&#8594;</span>
+        <div><span class="sk">to</span><b>${fmtDate(maha.end)}</b><span class="sa">age ${ageAt(maha.end)}</span></div>
+      </div>
+      <div class="bar sm"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(maha.lord)}"></i></div>
+      <p class="poslabel">${Math.round(pos*100)}% through</p>
+    </div>
+    <div class="section">
+      <div class="eyebrow">The season</div>
+      <p class="interp">${DASHA_THEME[maha.lord]}</p>
+      <p class="interp">${natal(maha.lord,mp)}</p>
+    </div>
+    <div class="antarcard" style="margin:16px 0">
+      <p class="abig" style="color:${COLOUR(antar.lord)}">${gIcon(antar.lord,22)}${antar.lord} antardasha</p>
+      <div class="spanrow sm">
+        <div><span class="sk">from</span><b>${fmtDate(antar.start)}</b></div>
+        <span class="sarrow">&#8594;</span>
+        <div><span class="sk">to</span><b>${fmtDate(antar.end)}</b></div>
+      </div>
+      <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(antar.lord)}"></i></div>
+      <p class="poslabel">${Math.round(apos*100)}% through</p>
+    </div>
+    <div class="section">
+      <div class="eyebrow">This stretch within it</div>
+      <p class="interp">Within the larger ${maha.lord} season, a ${antar.lord} antardasha
+        traditionally ${ANTAR_FLAVOR[antar.lord]}.</p>
+      <p class="interp">${natal(antar.lord,ap)}</p>
+      ${nxt&&nxt.antar?`<p class="interp">Next comes the <b>${nxt.antar.lord}</b> antardasha,
+        from ${fmtDate(antar.end)}.</p>`:""}
+    </div>
+    <div class="section">
+      <div class="eyebrow">What this period touches</div>
+      ${dashaImpact(maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
+    </div>
+    ${practiceFor(maha.lord)}
+    <p class="note">Traditional associations within Vedic astrology &#8212; a lens for
+    reflection, not a forecast. Nothing here predicts events.</p>`;
+  document.getElementById("pg-timeline").scrollTop=0;
 }
 function timelineBody(){
   const {m}=tlBounds();
@@ -2757,10 +2934,22 @@ function wireTimeline(){
       <div class="bar"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i>
         <span class="barnow" style="left:${(pos*100).toFixed(1)}%"></span></div>
       <p class="poslabel">${Math.round(pos*100)}% through</p>
-      <div class="antar">
-        ${gIcon(now.antar.lord,20)}<b style="color:${COLOUR(now.antar.lord)};font-size:15px">${now.antar.lord}</b>
-        <span class="evmeta">antardasha &#183; ${fmtDate(now.antar.start)} to ${fmtDate(now.antar.end)}</span>
-      </div>
+      ${(()=>{ /* the antardasha in the same language, one size down */
+        const apos=Math.min(Math.max((when-now.antar.start)/(now.antar.end-now.antar.start),0),1);
+        return `<div class="antarcard">
+          <p class="abig" style="color:${COLOUR(now.antar.lord)}">${gIcon(now.antar.lord,22)}${now.antar.lord} antardasha</p>
+          <div class="spanrow sm">
+            <div><span class="sk">from</span><b>${fmtDate(now.antar.start)}</b></div>
+            <span class="sarrow">&#8594;</span>
+            <div><span class="sk">to</span><b>${fmtDate(now.antar.end)}</b></div>
+          </div>
+          <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(now.antar.lord)}"></i></div>
+          <p class="poslabel">${Math.round(apos*100)}% through</p>
+        </div>`})()}
+      <button class="item dashamore" id="dashamore">
+        <svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>
+        What this period means<span class="sub">${now.maha.lord} / ${now.antar.lord}</span>
+        <span class="chev">&#8250;</span></button>
       ${inPeriod.length?`
         <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
         ${inPeriod.map(e=>{const ed=eventDasha(e.d);
@@ -2779,6 +2968,9 @@ function wireTimeline(){
          :`<button class="tb-btn txt" id="tlnow">Today</button>`});
     const tn=document.getElementById("tlnow");
     if(tn) tn.onclick=()=>{tlT=tlNowT();buzz(10);paint()};
+    const dm=document.getElementById("dashamore");
+    if(dm) dm.onclick=()=>{ tlDetail={maha:now.maha, antar:now.antar, when};
+      buzz(8); renderTimelineTab(); };
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
 
@@ -3072,6 +3264,7 @@ function setTopBar(title,{back=false,actions="",sub="",centre=""}={}){
 }
 document.getElementById("tbback").onclick=()=>{
   buzz(5);
+  if(activeTab===TIMELINE_INDEX && tlDetail){ tlDetail=null; renderTimelineTab(); return; }
   if(subView==="partner"||subView==="addpartner"){subView=cameFrom||"rel";subArg=null;renderSub()}
   else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
   else if(subView==="learntopic"){subView="learn";renderSub()}
@@ -3090,6 +3283,7 @@ function go(i){
   /* iOS convention: tapping the tab you are already on pops to its root */
   if(i!==YOU_INDEX || activeTab===YOU_INDEX){
     subView=null; subArg=null; document.body.classList.remove("insub"); }
+  if(i===TIMELINE_INDEX && activeTab===TIMELINE_INDEX) tlDetail=null;
   const from=activeTab;
   activeTab=i;
   /* the bar belongs to the tab, so it has to be reset on every switch -

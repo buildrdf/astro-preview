@@ -60,3 +60,29 @@ export const VARA_NUM={Sun:1,Moon:2,Mars:9,Mercury:5,Jupiter:3,Venus:6,Saturn:8}
 /* Rahu Kalam occupies one eighth of daylight, indexed by weekday
    (1-based eighth, the standard table) */
 export const RAHU_KALAM_SEGMENT={0:8,1:2,2:7,3:5,4:6,5:4,6:3};
+
+/* ---- DASHA PERIODS ------------------------------------------------
+   The season a mahadasha lord traditionally sets, and the colouring an
+   antardasha lord lays over it. Composed with the person's real chart
+   facts in app.js - never printed as bare fortune-telling. */
+export const DASHA_THEME={
+  Sun:"Sun periods are traditionally read as years of definition &#8212; authority, visibility and the slow clarifying of who you are when people are watching. Work tends to move toward the centre of life, and recognition matters more than it used to.",
+  Moon:"Moon periods are traditionally read as years lived close to the skin &#8212; home, family, feeling and belonging come forward, and life is steered more by tides than by plans. Care, rest and the people who feel like harbour set the tone.",
+  Mars:"Mars periods are traditionally read as years of drive &#8212; effort, competition, property and physical energy. Things move fast when they move; the classical advice is to give the heat somewhere useful to go.",
+  Mercury:"Mercury periods are traditionally read as years of exchange &#8212; learning, trade, writing, networks and quick adaptation. Skills sharpen and doors open through conversation rather than force.",
+  Jupiter:"Jupiter periods are traditionally read as expansive years &#8212; teachers, faith, children, growth and luck that arrives looking like good judgement. What you believe in tends to grow, so the tradition asks you to choose it carefully.",
+  Venus:"Venus periods are traditionally read as years of relationship and refinement &#8212; partnership, beauty, comfort, art and the pleasures of a settled life. What you love takes the wheel.",
+  Saturn:"Saturn periods are traditionally read as the great structural years &#8212; discipline, duty, endurance and work that compounds slowly. They are demanding, and what they build tends to stay built.",
+  Rahu:"Rahu periods are traditionally read as years of appetite &#8212; ambition, foreign ground, unconventional routes and a hunger for what is just out of reach. They can carry you far; the classical caution is to check the map while moving.",
+  Ketu:"Ketu periods are traditionally read as years of release &#8212; insight, detachment, spiritual pull and the quiet dismantling of what no longer fits. Less is gained than clarified."};
+
+export const ANTAR_FLAVOR={
+  Sun:"brings matters of standing and direction to a head",
+  Moon:"softens the stretch toward feeling, home and rest",
+  Mars:"quickens it &#8212; effort, urgency and courage rise",
+  Mercury:"turns it toward talk, trade, study and paperwork",
+  Jupiter:"opens it out &#8212; growth, guidance and opportunity",
+  Venus:"sweetens it &#8212; relationship, comfort and taste lead",
+  Saturn:"slows and tests it &#8212; patient work is favoured",
+  Rahu:"amplifies it &#8212; ambition and unusual routes call",
+  Ketu:"loosens it &#8212; endings, insight and simplification"};

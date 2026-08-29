@@ -339,9 +339,20 @@ function onOrient(ev){
   const heading=ev.webkitCompassHeading!=null ? ev.webkitCompassHeading
     : (ev.absolute&&ev.alpha!=null ? 360-ev.alpha : null);
   if(heading!=null){ sensing=true; wantAz=heading; }
-  if(ev.beta!=null&&sensing) wantAlt=clampAlt(ev.beta-60);
-  const hint=document.getElementById("svhint");
-  if(hint&&sensing) hint.textContent="Move your phone — the sky follows. Drag to look around.";
+  /* holding the phone upright at the horizon puts beta near 90 */
+  if(ev.beta!=null&&sensing) wantAlt=clampAlt(ev.beta-90);
+  if(sensing){
+    const hint=document.getElementById("svhint");
+    if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
+    const fb=el?.root.querySelector(".svfollow");
+    if(fb) fb.hidden=true;
+  }
+}
+function armSensors(){
+  if(watch) return;
+  watch=onOrient;
+  addEventListener("deviceorientationabsolute",watch);
+  addEventListener("deviceorientation",watch);
 }
 
 export function openSkyView(opts={}){
@@ -357,6 +368,7 @@ export function openSkyView(opts={}){
         <input id="svq" type="search" placeholder="Find a graha, nakshatra or star"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </div>
+      <button class="svfollow" hidden>Follow my phone</button>
       <div class="svres" id="svres"></div>
       <div class="svfoot" id="svfoot"></div>`;
     document.body.appendChild(n);
@@ -407,16 +419,28 @@ export function openSkyView(opts={}){
            viewAz=wantAz-18; viewAlt=wantAlt; }
   setFoot();
   running=true; draw();          /* first frame now; rAF takes over */
-  if(typeof DeviceOrientationEvent!=="undefined" &&
-     typeof DeviceOrientationEvent.requestPermission==="function"){
-    DeviceOrientationEvent.requestPermission().then(r=>{
-      if(r==="granted"){ watch=onOrient;
-        addEventListener("deviceorientationabsolute",watch);
-        addEventListener("deviceorientation",watch); }
-    }).catch(()=>{});
-  } else { watch=onOrient;
-    addEventListener("deviceorientationabsolute",watch);
-    addEventListener("deviceorientation",watch); }
+  /* Sensors: permission was requested inside the opening tap and its
+     verdict arrives via opts.motion. When iOS said no (or the gesture
+     expired), offer a button - a fresh tap reopens the window. */
+  const canAsk=typeof DeviceOrientationEvent!=="undefined" &&
+     typeof DeviceOrientationEvent.requestPermission==="function";
+  const fb=el.root.querySelector(".svfollow");
+  if(!canAsk || opts.motion===true){
+    armSensors(); if(fb) fb.hidden=true;
+  } else {
+    if(fb){ fb.hidden=false;
+      fb.onclick=()=>{
+        DeviceOrientationEvent.requestPermission().then(r=>{
+          if(r==="granted"){ armSensors(); fb.hidden=true; }
+          else{ const hint=document.getElementById("svhint");
+            if(hint) hint.textContent=
+              "Motion access is off. Allow it in Settings › Safari › Motion & Orientation.";}
+        }).catch(()=>{});
+      };
+    }
+    const hint=document.getElementById("svhint");
+    if(hint) hint.textContent="Drag to look around — or tap Follow my phone.";
+  }
 }
 export function closeSkyView(){
   running=false; sensing=false; target=null;

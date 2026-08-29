@@ -9,6 +9,7 @@
    =================================================================== */
 import { positions, retrograde } from "./ephemeris.js";
 import { raDecToAltAz, siderealPointAltAz } from "./sky.js";
+import { ASTERISMS } from "./asterisms.js?v=20260830b";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
@@ -87,6 +88,8 @@ function computeSky(){
       ...siderealPointAltAz(pos[g], d, spot.lat, spot.lon)})),
     stars:STARS.map((s,i)=>({...s, nak:NAKS[i],
       ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)})),
+    asts:ASTERISMS.map(A=>({lines:A.lines,
+      pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)}))})),
     amb:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)})),
     ecliptic:Array.from({length:121},(_,i)=>{
       const L=i*3;
@@ -176,6 +179,29 @@ function draw(){
     const a=s.m>5?.08:s.m>4.4?.13:.2;
     c.fillStyle=`rgba(225,232,255,${a})`;
     c.beginPath(); c.arc(x,y,s.m>4.6?0.7:1.05,0,7); c.fill();
+  }
+
+  /* the nakshatra figures - each mansion's own stars, joined the way the
+     tradition sketches them. Vedic asterisms, not Greek constellations. */
+  for(const A of cache.asts){
+    const px=A.pts.map(p=>{
+      const [x,y]=project(p,W,H,ppd);
+      return {x,y,up:p.up,m:p.m,on:x>-80&&x<W+80&&y>-80&&y<H+80};
+    });
+    if(!px.some(p=>p.on)) continue;
+    for(const [i,j] of A.lines){
+      const a2=px[i],b2=px[j]; if(!a2||!b2||(!a2.on&&!b2.on)) continue;
+      c.strokeStyle=`rgba(168,182,236,${(a2.up||b2.up)?0.26:0.08})`;
+      c.lineWidth=1;
+      c.beginPath(); c.moveTo(a2.x,a2.y); c.lineTo(b2.x,b2.y); c.stroke();
+    }
+    for(const p of px){
+      if(!p.on) continue;
+      const a3=p.up?0.8:0.18;
+      const r2=p.m<=1.2?2.2:p.m<=2.6?1.7:p.m<=3.6?1.3:1.0;
+      c.fillStyle=`rgba(235,240,255,${a3})`;
+      c.beginPath(); c.arc(p.x,p.y,r2,0,7); c.fill();
+    }
   }
 
   /* the ecliptic: a soft golden ribbon with the sharp path inside it */
@@ -335,18 +361,45 @@ function selectTarget(hit){
   setFoot();
 }
 
+/* ---- device orientation, done properly ----------------------------
+   The old heading/beta shortcut snapped 180 degrees whenever the phone
+   pitched past vertical or rolled (gimbal flip in the raw angles). The
+   fix: build the full ZXY rotation matrix from alpha/beta/gamma, take
+   the back-camera direction from it (smooth through every attitude),
+   and on iOS - where alpha has an arbitrary zero - anchor it to the
+   compass with a slowly-settling offset. */
+let azOff=null;
 function onOrient(ev){
-  const heading=ev.webkitCompassHeading!=null ? ev.webkitCompassHeading
-    : (ev.absolute&&ev.alpha!=null ? 360-ev.alpha : null);
-  if(heading!=null){ sensing=true; wantAz=heading; }
-  /* holding the phone upright at the horizon puts beta near 90 */
-  if(ev.beta!=null&&sensing) wantAlt=clampAlt(ev.beta-90);
-  if(sensing){
-    const hint=document.getElementById("svhint");
-    if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
-    const fb=el?.root.querySelector(".svfollow");
-    if(fb) fb.hidden=true;
+  if(ev.alpha==null && ev.webkitCompassHeading==null) return;
+  const D=Math.PI/180;
+  const a=(ev.alpha||0)*D, b=(ev.beta||0)*D, g=(ev.gamma||0)*D;
+  const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),
+        cg=Math.cos(g),sg=Math.sin(g);
+  /* view = where the back camera points = -(3rd column of Rz(a)Rx(b)Ry(g)) */
+  const vx=-(ca*sg+sa*sb*cg), vy=-(sa*sg-ca*sb*cg), vz=-(cb*cg);
+  /* device-top vector (2nd column), for anchoring to the compass */
+  const tx=-sa*cb, ty=ca*cb, tz=sb;
+  const azm=Math.atan2(vx,vy)/D;
+  const altm=Math.asin(Math.max(-1,Math.min(1,vz)))/D;
+  if(ev.webkitCompassHeading!=null){
+    /* only trust the compass while the top vector has real horizontal
+       reach - near the zenith its heading is meaningless */
+    if(Math.hypot(tx,ty)>0.35){
+      const topAzm=Math.atan2(tx,ty)/D;
+      const off=wrap(ev.webkitCompassHeading-topAzm);
+      azOff=azOff==null?off:azOff+wrap(off-azOff)*0.06;
+    }
+  } else if(ev.absolute===true && azOff==null){
+    azOff=0;                     /* android absolute frame: alpha is true */
   }
+  if(azOff==null) return;        /* no north reference yet - wait */
+  sensing=true;
+  wantAz=((azm+azOff)%360+360)%360;
+  wantAlt=clampAlt(altm);
+  const hint=document.getElementById("svhint");
+  if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
+  const fb=el?.root.querySelector(".svfollow");
+  if(fb) fb.hidden=true;
 }
 function armSensors(){
   if(watch) return;
@@ -379,18 +432,34 @@ export function openSkyView(opts={}){
     q.oninput=()=>runSearch(q.value);
     q.onkeydown=e=>{ if(e.key==="Enter"){
       const first=n.querySelector(".svhit"); if(first) first.click(); }};
-    let px=0,py=0,drag=false;
+    let px=0,py=0,drag=false,moved=0;
     n.addEventListener("pointerdown",e=>{
-      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot")) return;
-      drag=true;px=e.clientX;py=e.clientY;});
+      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot,.svfollow")) return;
+      drag=true;moved=0;px=e.clientX;py=e.clientY;});
     n.addEventListener("pointermove",e=>{
       if(!drag) return;
       const ppd=(el.canvas.height/devicePixelRatio)/70;
+      moved+=Math.abs(e.clientX-px)+Math.abs(e.clientY-py);
       wantAz-= (e.clientX-px)/ppd; wantAlt+=(e.clientY-py)/ppd;
       wantAlt=clampAlt(wantAlt);
       px=e.clientX; py=e.clientY;
     });
-    n.addEventListener("pointerup",()=>drag=false);
+    n.addEventListener("pointerup",e=>{
+      const wasDrag=drag; drag=false;
+      if(!wasDrag||moved>10||!cache) return;
+      /* a clean tap: was it on a graha? Land on its chart page. */
+      const W=el.canvas.width/devicePixelRatio, H=el.canvas.height/devicePixelRatio;
+      const ppd=H/70, r=el.canvas.getBoundingClientRect();
+      const cx=e.clientX-r.left, cy=e.clientY-r.top;
+      let best=null,bd=34;
+      for(const p of cache.grahas){
+        const x=W/2+wrap(p.az-viewAz)*ppd, y=H/2-(p.alt-viewAlt)*ppd;
+        const d2=Math.hypot(x-cx,y-cy);
+        if(d2<bd){bd=d2;best=p.g;}
+      }
+      if(best){ closeSkyView();
+        dispatchEvent(new CustomEvent("astra:openplanet",{detail:best})); }
+    });
   }
   const fit=()=>{
     const w=Math.max(innerWidth,document.documentElement.clientWidth||0,320),

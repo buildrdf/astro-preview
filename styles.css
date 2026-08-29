@@ -1346,3 +1346,77 @@ body.guidefull #pg-guide{padding-bottom:26px}
   font-family:var(--ff);font-size:14px;font-weight:600;cursor:pointer;
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .svfollow:active{opacity:.7}
+
+/* ---- YOU header v2 — iOS-account grammar: avatar, name, tier chip,
+   one quiet fact, then the people capsule (Sangram, 30 Aug) ---- */
+.me-head{align-items:flex-start;margin:10px 0 14px}
+.avatar.big{width:64px;height:64px;font-size:24px}
+.me-id{flex:1;min-width:0;padding-top:2px}
+.me-row{display:flex;align-items:center;gap:10px}
+.me-row h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.me-sub{margin:3px 0 0;font-size:13px;color:var(--ink-2)}
+.planbadge{margin-top:0;padding:4px 10px;font-family:var(--fm);font-size:9.5px;
+  letter-spacing:.1em;font-weight:600;color:var(--brass);
+  background:rgba(194,155,78,.12);border:1px solid rgba(194,155,78,.5)}
+.editlink{display:inline-flex;align-items:center;gap:3px;margin-top:7px;padding:0;
+  border:0;background:none;color:var(--hot);font-family:var(--ff);font-size:13px;
+  cursor:pointer}
+.editlink .chev{font-size:15px}
+.editlink:active{opacity:.6}
+.userstrip{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin-bottom:16px;
+  scrollbar-width:none}
+.userstrip::-webkit-scrollbar{display:none}
+.uchip{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;
+  padding:6px 13px 6px 7px;border-radius:99px;cursor:pointer;
+  font-family:var(--ff);font-size:13.5px;font-weight:560;color:var(--ink-2);
+  background:rgba(255,255,255,.06);border:1px solid var(--edge-soft)}
+.uchip .uavatar{width:26px;height:26px;border-radius:50%;font-style:normal;
+  display:grid;place-items:center;font-size:12px;font-weight:700;color:#141731;
+  background:conic-gradient(from 210deg,var(--venus),var(--jupiter),var(--saturn),var(--venus))}
+.uchip.on{color:var(--ink);border-color:rgba(194,155,78,.55);
+  background:rgba(194,155,78,.13)}
+.uchip.add{padding:6px 15px;color:var(--ink-3);font-size:16px}
+.uchip:active{opacity:.7}
+.uchip .ulock{width:12px;height:12px;fill:none;stroke:var(--ink-3);stroke-width:2}
+
+/* ---- how-it-felt segment on the event form ---- */
+.feelseg{display:flex;gap:6px}
+.feelseg button{flex:1;padding:10px 0;border-radius:12px;cursor:pointer;
+  font-family:var(--ff);font-size:13.5px;color:var(--ink-2);
+  background:rgba(255,255,255,.06);border:1px solid var(--edge-soft)}
+.feelseg button.on{color:var(--ink);border-color:rgba(194,155,78,.55);
+  background:rgba(194,155,78,.13);font-weight:600}
+.evrow.tap{width:100%;border:0;background:none;text-align:left;cursor:pointer;
+  font-family:var(--ff);color:var(--ink);display:flex;align-items:center;gap:10px}
+.evrow.tap:active{opacity:.6}
+.evrow.tap .chev{margin-left:auto;color:var(--ink-3)}
+
+/* ---- PAPER — the light reading surface for long-form pages.
+   The experiment Sangram asked for: celestial dark for sky and chart,
+   warm paper where the words live. Token overrides cascade to children. */
+.paper{
+  --ink:#23263C; --ink-2:#4A4F6E; --ink-3:#7B809E;
+  --line:rgba(42,48,95,.14); --edge:rgba(42,48,95,.26); --edge-soft:rgba(42,48,95,.16);
+  --brass:#8F6B24; --hot:#5A5FB0;
+  background:#F5F3EC; color:var(--ink);
+  border-radius:22px; padding:20px 18px 22px;
+  margin:0 -6px;
+  box-shadow:0 10px 40px -18px rgba(0,0,0,.55);
+}
+.paper .card,.paper .antarcard,.paper .dashamore{background:#FFFFFF;
+  border-color:var(--edge-soft)}
+.paper .note{color:var(--ink-3)}
+.paper .interp,.paper .impact{color:var(--ink-2)}
+.paper h2{color:var(--ink);margin:0 0 2px;font-size:19px;letter-spacing:-.015em}
+.paper .bar{background:rgba(42,48,95,.1)}
+.evhead{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+.evkey.big{width:12px;height:12px;border-radius:4px;margin-top:6px;flex:0 0 auto}
+.paper .evmeta{color:var(--ink-3);font-size:12px}
+
+/* ---- sky view: search moves to the thumb (bottom), results grow up ---- */
+.svsearch{top:auto;bottom:calc(env(safe-area-inset-bottom) + 64px);right:18px}
+.svres{top:auto;bottom:calc(env(safe-area-inset-bottom) + 112px);right:18px;
+  display:flex;flex-direction:column-reverse}
+.svres .svhit{margin-bottom:0;margin-top:5px}
+.svfollow{bottom:calc(env(safe-area-inset-bottom) + 118px)}
+.svfoot{bottom:calc(env(safe-area-inset-bottom) + 12px);left:18px;right:18px}

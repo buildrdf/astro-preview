@@ -6,7 +6,7 @@ import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js?v=20260830";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260830";
+import { openSkyView } from "./skyview.js?v=20260830b";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -175,7 +175,30 @@ function chartFor(date, ascendant){
     placements: GRAHA_ORDER.map(g=>({graha:g, L:pos[g], retro:retro[g]}))
   });
 }
-const CHART = chartFor(BIRTH, ASCENDANT);
+let CHART = chartFor(BIRTH, ASCENDANT);
+
+/* ---- ACTIVE USER — the whole app reads one chart at a time.
+   Switching rebuilds CHART from the person's birth moment (ascendant
+   computed on the fly) and re-renders every tab. Pro feature. ---- */
+let ACTIVE={name:"Sangram", first:"Sangram", p:null};
+function setActiveUser(p){
+  if(!p){
+    ACTIVE={name:"Sangram", first:"Sangram", p:null};
+    CHART=chartFor(BIRTH, ASCENDANT);
+    localStorage.removeItem("astro.activeUser");
+  }else{
+    const d=new Date(p.born);
+    const lat=p.lat??BIRTHPLACE.lat, lon2=p.lon??BIRTHPLACE.lon;
+    CHART=chartFor(d, ascendant(d, lat, lon2));
+    ACTIVE={name:p.name, first:p.name.split(" ")[0], p};
+    try{localStorage.setItem("astro.activeUser",p.name)}catch(_){}
+  }
+  ingressCache={key:null,map:null};
+  tlT=null; tlDetail=null; uniMode="birth";
+  renderUniverse(); renderGuide(); renderTimelineTab(); renderToday(); renderYou();
+  go(activeTab);
+  if(activeTab===YOU_INDEX) renderYou();
+}
 
 const gIcon=(g,sz=18)=>`<img class="gico" src="assets/graha/${g.toLowerCase()}.png" width="${sz}" height="${sz}" alt="" draggable="false">`;
 const COLOUR=g=>`var(--${g.toLowerCase()})`;
@@ -696,7 +719,7 @@ function renderToday(){
       <b>${d.getDate()}</b>${moonImg(d,22)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
-  setTopBar("Hi Sangram",{sub:viewDate.toLocaleDateString("en-GB",
+  setTopBar(`Hi ${ACTIVE.first}`,{sub:viewDate.toLocaleDateString("en-GB",
       {weekday:"short",day:"numeric",month:"short"}).replace(",",""),
     actions:`${isToday(viewDate)?"":`<button class="tb-btn txt" id="totoday">Today</button>`}
      <button class="tb-btn" id="calbtn" aria-label="Choose a date">
@@ -774,7 +797,8 @@ function renderToday(){
         <path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div>
       <h3>Time travel is part of Astra Pro</h3>
       <p>Yesterday, today and tomorrow are always free. Any other day&#8217;s full reading
-        &#8212; decades either way &#8212; comes with Pro, along with your detailed reports.</p>
+        &#8212; decades either way &#8212; comes with Pro, along with the Guide and
+        charts for your people.</p>
       <button class="primary" id="prosee">See Astra Pro</button>
     </div>`:`
     ${verdict}
@@ -1150,9 +1174,8 @@ function wireRuler(){
 function setUniverseBar(){
   setTopBar("",{actions:`
     <button class="tb-btn" id="tbsky" aria-label="Open the sky view">
-      <svg viewBox="0 0 24 24"><path d="M3.5 8V6.3a2.8 2.8 0 012.8-2.8H8M16 3.5h1.7a2.8 2.8 0 012.8 2.8V8M20.5 16v1.7a2.8 2.8 0 01-2.8 2.8H16M8 20.5H6.3a2.8 2.8 0 01-2.8-2.8V16"/>
-        <path d="M12 7.6l3.5 2v4.8l-3.5 2-3.5-2V9.6z"/>
-        <path d="M12 7.6v4.4m0 0l3.5-2m-3.5 2l-3.5-2"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 4v9.2l-7.2 4-7.2-4V7.4z"/>
+        <path d="M12 11.4l7.2-4M12 11.4L4.8 7.4M12 11.4v9.2"/></svg>
     </button>`,centre:`
     <div class="tbseg" id="unimode" role="tablist" aria-label="Chart mode">
       <span class="thumb" aria-hidden="true"></span>
@@ -1754,6 +1777,37 @@ function setGuideBar(){
 
 function renderGuide(){
   setGuideBar();
+  /* Guide rides with Pro. Free users get one crafted, fully-derived sample -
+     a taste of the mechanic (the answer moves the chart), never a weak live
+     trial that could sour the sale (Sangram, 30 Aug). */
+  if(!isPro()){
+    CHIP_ACTS=[];
+    const s=ASKS[0];
+    document.getElementById("pg-guide").innerHTML=`
+      <div class="chatwrap">
+        <div class="voice"><div class="orb"></div>
+          <p class="muted" style="text-align:center;font-size:13px;max-width:30ch;margin:14px auto 0">
+            Ask about your chart. The answer moves it.</p></div>
+        <div class="chat">
+          <div class="bubble me">${s.q}</div>
+          ${astraCard(s.a(), s.chips)}
+        </div>
+        <div class="procard" style="margin-top:20px">
+          <div class="prolock" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/>
+            <path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div>
+          <h3>Talk to your chart with Astra Pro</h3>
+          <p>That answer above came from ${ACTIVE.p?`${ACTIVE.first}&#8217;s`:"your"} real chart
+            &#8212; tap its buttons and watch the app move. Pro opens the full conversation,
+            voice included when it ships.</p>
+          <button class="primary" id="prosee2">See Astra Pro</button>
+        </div>
+      </div>`;
+    wireChips(document.getElementById("pg-guide"));
+    const b=document.getElementById("prosee2");
+    if(b) b.onclick=()=>{buzz(8); openProSheet();};
+    return;
+  }
   document.getElementById("pg-guide").innerHTML=`
     <div class="chatwrap">
       <div class="voice"><div class="orb"></div>
@@ -2034,13 +2088,23 @@ function renderYou(){
   setTopBar("You");
   document.getElementById("pg-you").innerHTML=`
     <div class="me-head">
-      <div class="avatar">S</div>
-      <div class="me-id"><h1>Sangram</h1>
-        <p>${SIGNS_SK[CHART.lagna-1]} lagna &#183; Moon in ${CHART.get("Moon").nak}</p>
-        <button class="planbadge" id="planbadge">${isPro()
-          ?`<b>Astra Pro</b> &#183; preview`:`<b>Free plan</b> &#183; see plans`}
-          <span class="chev">&#8250;</span></button></div>
-      <button class="switchbtn" id="switchuser">Switch</button>
+      <div class="avatar big">${ACTIVE.name[0]}</div>
+      <div class="me-id">
+        <div class="me-row">
+          <h1>${ACTIVE.name}</h1>
+          <button class="planbadge" id="planbadge">${isPro()?"ASTRA PRO":"FREE"}</button>
+        </div>
+        <p class="me-sub">${SIGNS_SK[CHART.lagna-1]} lagna</p>
+        <button class="editlink" id="editme">${ACTIVE.p?"See & edit details":"Birth details"}
+          <span class="chev">&#8250;</span></button>
+      </div>
+    </div>
+    <div class="userstrip" id="userstrip" role="tablist" aria-label="Whose chart">
+      <button class="uchip${ACTIVE.p?"":" on"}" data-u="me"><i class="uavatar">S</i>You</button>
+      ${partners().map((p,i)=>`<button class="uchip${ACTIVE.p&&ACTIVE.name===p.name?" on":""}"
+        data-u="${i}"><i class="uavatar">${p.name[0]}</i>${p.name.split(" ")[0]}${
+        isPro()?"":`<svg class="ulock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg>`}</button>`).join("")}
+      <button class="uchip add" data-u="add">+</button>
     </div>
     <div class="section">
       <div class="list">
@@ -2049,10 +2113,23 @@ function renderYou(){
           <span class="sub">${v.sub()}</span><span class="chev">&#8250;</span></button>`).join("")}
       </div>
     </div>`;
-  const sw=document.getElementById("switchuser");
-  if(sw) sw.onclick=()=>{buzz(7); subView="people"; subArg=null; renderSub();};
   const pb=document.getElementById("planbadge");
   if(pb) pb.onclick=()=>{buzz(7); subView="plans"; subArg=null; renderSub();};
+  const em=document.getElementById("editme");
+  if(em) em.onclick=()=>{buzz(7);
+    if(ACTIVE.p){ subArg=partners().findIndex(x=>x.name===ACTIVE.name);
+      cameFrom=null; subView="addpartner"; }
+    else subView="birth";
+    renderSub();};
+  document.getElementById("userstrip").onclick=e=>{
+    const c=e.target.closest(".uchip"); if(!c) return;
+    buzz(8);
+    if(c.dataset.u==="add"){ subArg=null; subView="addpartner"; renderSub(); return; }
+    if(c.dataset.u==="me"){ if(ACTIVE.p) setActiveUser(null); return; }
+    if(!isPro()) return openProSheet();
+    const p=partners()[+c.dataset.u];
+    if(p && (!ACTIVE.p||ACTIVE.name!==p.name)) setActiveUser(p);
+  };
   document.querySelectorAll("#pg-you .item").forEach(b=>b.onclick=()=>{
     subView=b.dataset.v; subArg=null; buzz(7); renderSub();
   });
@@ -2148,9 +2225,9 @@ function openProSheet(){
       </div>
       <div class="probens">
         ${[["Time travel","Any day&#8217;s full reading &#8212; decades back or forward"],
-           ["Detailed reports","Your kundali and every relationship, as considered PDFs"],
-           ["More people","Charts for family and friends beyond the first"],
-           ["Guide","Longer conversations when the live Guide arrives"]].map(([t,s])=>`
+           ["Guide","Talk to the chart &#8212; 300 questions and 30 voice minutes a month"],
+           ["Your people","Up to 3 charts, and the whole app switches to them"],
+           ["The full timeline","Every dasha level, all 8 kootas, complete reasoning"]].map(([t,s])=>`
           <div class="proben"><svg viewBox="0 0 24 24" class="tick"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
             <div><b>${t}</b><span>${s}</span></div></div>`).join("")}
       </div>
@@ -2444,10 +2521,10 @@ function subPlans(){
         ${li(1,"Today&#8217;s sky, panchang and placements")}
         ${li(1,"The AR sky view")}
         ${li(1,"Horoscope for yesterday, today and tomorrow")}
-        ${li(1,"Guide &#8212; 3 questions a day")}
-        ${li(1,"You + 1 person, compatibility summary")}
+        ${li(1,"One person saved, compatibility summary")}
         ${li(0,"Other days&#8217; readings, full dasha timeline")}
-        ${li(0,"Detailed PDF reports (sold separately below)")}
+        ${li(0,"Guide &#8212; conversations with the chart")}
+        ${li(0,"Switching the whole app to another person")}
       </ul>
     </div>
     <div class="plancard reco${pro?" cur":""}">
@@ -2457,33 +2534,22 @@ function subPlans(){
       <ul class="planfeats">
         ${li(1,"Everything in Free")}
         ${li(1,"Any day&#8217;s full reading &#8212; decades either way")}
-        ${li(1,"Full 120-year dasha timeline, all levels")}
+        ${li(1,"Full 120-year dasha timeline, every level")}
+        ${li(1,"Guide &#8212; talk to the chart, 300 questions a month")}
+        ${li(1,"Voice conversations &#8212; 30 minutes a month, when it ships")}
+        ${li(1,"Up to 3 people, and the whole app switches to them")}
         ${li(1,"All 8 kootas with complete reasoning")}
-        ${li(1,"You + 3 people")}
-        ${li(1,"Your kundali report + 1 relationship report a year")}
-        ${li(1,"Guide &#8212; 300 questions a month")}
-        ${li(0,"Voice conversations")}
       </ul>
       ${pro?"":`<button class="primary" data-plan="pro">Preview Pro while pricing is decided</button>`}
     </div>
-    <div class="plancard">
-      <div class="planhead"><b>Astra Pro+</b></div>
-      <p class="planprice">&#8377;999/mo &#183; <b>&#8377;7,999/yr</b>
-        <span class="usd">$19.99 &#183; $149.99</span></p>
-      <ul class="planfeats">
-        ${li(1,"Everything in Pro")}
-        ${li(1,"Voice conversations with the Guide &#8212; 60 min a month")}
-        ${li(1,"You + 10 people, reports for everyone")}
-        ${li(1,"Guide &#8212; 1,000 questions a month")}
-        ${li(1,"New features first")}
-      </ul>
-    </div>
     <div class="card" style="margin-top:14px">
-      <div class="eyebrow" style="margin-bottom:7px">Sold separately</div>
+      <div class="eyebrow" style="margin-bottom:7px">Reports &#8212; always priced separately</div>
       ${rows([["Kundali report &#183; PDF","&#8377;499 &#183; $14.99"],
               ["Relationship report &#183; PDF","&#8377;399 &#183; $11.99"]])}
+      <p class="note" style="margin:10px 0 0">Every report is a one-time purchase, on any
+      plan &#8212; delivered in the app and by email when purchases arrive.</p>
     </div>
-    ${pro?`<button class="proclose" id="planoff">Switch back to Free</button>`:""}
+    ${pro?`<button class="proclose" id="planoff">Manage &#183; switch back to Free</button>`:""}
     <p class="note">Preview pricing &#8212; nothing is charged in this prototype. Real
     purchases arrive with the App Store build. No remedy is ever behind a paywall,
     and nothing here is sold on fear.</p>`;
@@ -2498,8 +2564,7 @@ function wirePlans(){
 
 function subReport(){
   const now=CHART.dasha.at(new Date());
-  const pro=isPro();
-  const tag=pro?"":`<span class="protag">Pro</span>`;
+  const tag="";
   return `
     <div class="card repcard">
       <div class="rephead">
@@ -2509,11 +2574,11 @@ function subReport(){
           traditional practices &#8212; written for you, not filled into a template.</span></div>
         ${tag}
       </div>
-      ${rows([["For","Sangram"],["Chart","Vrishabha lagna"],
+      ${rows([["For",ACTIVE.name],["Chart",`${SIGNS_SK[CHART.lagna-1]} lagna`],
               ["Current period",`${now.maha.lord}/${now.antar.lord}`],
-              ["Price",pro?"Included with Astra Pro":"&#8377;499 &#183; $14.99 &#183; or free with Pro"],
-              ["Format","PDF &#183; in depth"]])}
-      <button class="primary" data-rep="self">${pro?"Generate report":"Get for &#8377;499 &#183; $14.99"}</button>
+              ["Price","&#8377;499 &#183; $14.99 &#183; one-time"],
+              ["Delivery","in the app + by email"]])}
+      <button class="primary" data-rep="self">Get for &#8377;499 &#183; $14.99</button>
     </div>
     ${partners().map((p,i)=>`
     <div class="card repcard">
@@ -2522,10 +2587,9 @@ function subReport(){
         <div><b>Relationship report &#183; ${p.name}</b>
           <span>Both charts side by side; the eight kootas with their reasons;
           the periods that matter for the two of you.</span></div>
-        ${tag}
       </div>
-      ${rows([["Price",pro?"Included with Astra Pro":"&#8377;399 &#183; $11.99 &#183; or free with Pro"]])}
-      <button class="primary" data-rep="rel${i}">${pro?"Generate report":"Get for &#8377;399 &#183; $11.99"}</button>
+      ${rows([["Price","&#8377;399 &#183; $11.99 &#183; one-time"],["Delivery","in the app + by email"]])}
+      <button class="primary" data-rep="rel${i}">Get for &#8377;399 &#183; $11.99</button>
     </div>`).join("")}
     <p class="note">Reports come from the same engine the app runs on, so a report and its
     screens can never disagree. Nothing here is sold on fear, and no remedy is gated
@@ -2534,8 +2598,7 @@ function subReport(){
 function wireReport(){
   document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{
     buzz(8);
-    b.textContent=isPro()?"The report engine ships in the next build"
-      :"Purchases arrive with the App Store build";
+    b.textContent="Purchases arrive with the App Store build";
     b.disabled=true;
   });
 }
@@ -2595,6 +2658,21 @@ function wireSettings(){
 }
 
 function subBirth(){
+  if(ACTIVE.p){
+    const p=ACTIVE.p, d=new Date(p.born);
+    return `
+      ${rows([["Date",fmtDate(d)],["Time",p.approx?"not given (noon assumed)":`${fmtClock(d)} IST`],
+        ["Place",p.place||"&#8212;"],
+        ["Lagna",`${SIGNS_SK[CHART.lagna-1]} &#183; ${fmtDeg(CHART.ascendant)}`],
+        ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
+        ["Ayanamsa","Lahiri"]])}
+      <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
+      ${rows(CHART.placements.map(q=>[
+        `${gIcon(q.graha)}${q.graha}`,
+        `${SIGNS[q.sign-1]} ${q.degf}${q.retro?" R":""}`]))}
+      <p class="note">Computed from the birth details you entered for ${ACTIVE.first}.
+      Edit them from the profile header.</p>`;
+  }
   return `
     ${rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
       ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
@@ -2813,9 +2891,52 @@ function practiceFor(lord){
 }
 
 function renderTimelineTab(){
-  if(tlDetail){ renderDashaDetail(); return; }
+  if(tlDetail){ tlDetail.ev!=null ? renderEventDetail() : renderDashaDetail(); return; }
   document.getElementById("pg-timeline").innerHTML=timelineBody();
   wireTimeline();
+}
+
+/* ---- LIFE EVENT DETAIL — the reflective page. Lays the person's own
+   moment against the periods and transits that were running. Language
+   holds the constitution's line: alongside, never caused (§50-51). ---- */
+function renderEventDetail(){
+  const e=events()[tlDetail.ev];
+  if(!e){ tlDetail=null; renderTimelineTab(); return; }
+  const d=new Date(e.d+"T12:00:00");
+  const now=CHART.dasha.at(d);
+  const pos=positions(d), retro=retrograde(d);
+  const FEEL={good:"a happy one",hard:"a hard one",neutral:"one you marked"};
+  const slow=["Saturn","Jupiter","Rahu","Ketu"];
+  const lines=slow.map(g=>{
+    const h=CHART.houseOfSign(signOf(pos[g]));
+    return `<p class="interp"><b>${g}</b> was crossing your ${ordinal(h)} house
+      &#8212; ${HOUSE_TRANSIT_SENSE[h]}${retro[g]&&g!=="Rahu"&&g!=="Ketu"?", retrograde":""}.</p>`;
+  }).join("");
+  const moonH=CHART.houseOfSign(signOf(pos.Moon));
+  setTopBar(e.t.length>22?e.t.slice(0,22)+"&#8230;":e.t,{back:true,sub:fmtDate(d)});
+  document.getElementById("pg-timeline").innerHTML=`
+  <div class="paper">
+    <div class="evhead">
+      <span class="evkey big" style="background:${KIND_COLOUR[e.k]}"></span>
+      <div><h2>${e.t}</h2>
+        <p class="evmeta">${fmtDate(d)} &#183; ${EVENT_KINDS[e.k]||e.k} &#183; ${FEEL[e.f]||FEEL.neutral}</p></div>
+    </div>
+    ${e.n?`<p class="interp" style="font-style:italic">&#8220;${e.n}&#8221;</p>`:""}
+    <div class="eyebrow" style="margin:20px 0 8px">The period you were in</div>
+    ${now?`<p class="interp">You were in a <b>${now.maha.lord} mahadasha</b>, inside its
+      <b>${now.antar.lord} antardasha</b> (${fmtDate(now.antar.start)} to
+      ${fmtDate(now.antar.end)}). ${DASHA_THEME[now.maha.lord].split(" &#8212; ")[0]}
+      &#8212; and a ${now.antar.lord} stretch traditionally ${ANTAR_FLAVOR[now.antar.lord]}.</p>`
+      :`<p class="interp">This date falls outside the computed dasha range.</p>`}
+    <div class="eyebrow" style="margin:20px 0 8px">The sky that day</div>
+    <p class="interp">The Moon was moving through your ${ordinal(moonH)} house
+      &#8212; ${HOUSE_TRANSIT_SENSE[moonH]}.</p>
+    ${lines}
+    <p class="note">Within Vedic astrology these periods are traditionally associated with
+    such themes &#8212; shown alongside your memory as a frame for reflection. Nothing here
+    means the sky caused what happened.</p>
+  </div>`;
+  document.getElementById("pg-timeline").scrollTop=0;
 }
 
 /* ---- DASHA DETAIL — its own page, the way the paid reports do it,
@@ -2832,6 +2953,7 @@ function renderDashaDetail(){
   const nxt=CHART.dasha.at(new Date(antar.end.getTime()+864e5));
   setTopBar(`${maha.lord} mahadasha`,{back:true,sub:`${antar.lord} antardasha`});
   document.getElementById("pg-timeline").innerHTML=`
+  <div class="paper">
     <div class="card" style="margin-bottom:12px">
       <p class="big" style="color:${COLOUR(maha.lord)};margin-top:0">${gIcon(maha.lord,26)}${maha.lord} mahadasha</p>
       <div class="spanrow sm">
@@ -2871,7 +2993,8 @@ function renderDashaDetail(){
     </div>
     ${practiceFor(maha.lord)}
     <p class="note">Traditional associations within Vedic astrology &#8212; a lens for
-    reflection, not a forecast. Nothing here predicts events.</p>`;
+    reflection, not a forecast. Nothing here predicts events.</p>
+  </div>`;
   document.getElementById("pg-timeline").scrollTop=0;
 }
 function timelineBody(){
@@ -2918,7 +3041,8 @@ function wireTimeline(){
       b.classList.toggle("on", when>=m[i].start && when<m[i].end));
 
     const pos=(when-now.maha.start)/(now.maha.end-now.maha.start);
-    const inPeriod=events().filter(e=>{const d=new Date(e.d+"T12:00:00");
+    const inPeriod=events().map((e,i)=>({...e,_i:i})).filter(e=>{
+      const d=new Date(e.d+"T12:00:00");
       return d>=now.maha.start && d<now.maha.end});
 
     document.getElementById("ro").innerHTML=`
@@ -2953,9 +3077,11 @@ function wireTimeline(){
       ${inPeriod.length?`
         <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
         ${inPeriod.map(e=>{const ed=eventDasha(e.d);
-          return `<div class="evrow"><span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
+          return `<button class="evrow tap" data-ev="${e._i}">
+            <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
             <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
-            &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span></div>`}).join("")}
+            &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span>
+            <span class="chev">&#8250;</span></button>`}).join("")}
         <p class="muted" style="font-size:11px;color:var(--ink-3);margin:2px 0 0">
           Shown alongside the period, not caused by it.</p>`:``}
       <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
@@ -2971,6 +3097,8 @@ function wireTimeline(){
     const dm=document.getElementById("dashamore");
     if(dm) dm.onclick=()=>{ tlDetail={maha:now.maha, antar:now.antar, when};
       buzz(8); renderTimelineTab(); };
+    document.querySelectorAll(".evrow.tap").forEach(b=>b.onclick=()=>{
+      tlDetail={ev:+b.dataset.ev}; buzz(8); renderTimelineTab(); });
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
   };
 
@@ -3058,6 +3186,12 @@ function subAddEvent(){
     <label class="fld"><span class="flabel">Kind</span>
       <select id="e_kind">${Object.entries(EVENT_KINDS).map(([k,v])=>
         `<option value="${k}"${ed&&ed.k===k?" selected":""}>${v}</option>`).join("")}</select></label>
+    <div class="fld"><span class="flabel">How it felt</span>
+      <div class="feelseg" id="feelseg">
+        ${[["good","Happy"],["neutral","Neutral"],["hard","Hard"]].map(([v,l])=>
+          `<button type="button" data-f="${v}"
+            class="${(ed?.f||"neutral")===v?"on":""}">${l}</button>`).join("")}
+      </div></div>
     <button class="primary" id="esave">${ed?"Save changes":"Add event"}</button>
     ${ed?`<button class="danger" id="edel">Remove</button>`:""}`;
 }
@@ -3067,11 +3201,15 @@ function wireAddEvent(){
     const t=document.getElementById("e_title").value.trim();
     const n=document.getElementById("e_note").value.trim();
     const k=document.getElementById("e_kind").value;
+    const f=document.querySelector("#feelseg .on")?.dataset.f||"neutral";
     if(!d||!t){alert("A date and a description are needed.");return}
     const l=events();
-    if(subArg!=null) l[subArg]={...l[subArg],d,t,n,k,demo:false}; else l.push({d,t,n,k});
+    if(subArg!=null) l[subArg]={...l[subArg],d,t,n,k,f,demo:false}; else l.push({d,t,n,k,f});
     saveEvents(l); buzz(12); subArg=null; subView="events"; renderSub();
   };
+  const fs=document.getElementById("feelseg");
+  if(fs) fs.onclick=e=>{const b=e.target.closest("[data-f]"); if(!b) return;
+    fs.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); buzz(5);};
   const del=document.getElementById("edel");
   if(del) del.onclick=()=>{
     const l=events(); if(!confirm(`Remove "${l[subArg].t}"?`))return;
@@ -3226,8 +3364,8 @@ function subPartner(){
           x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
       </div>`).join("")}
     <button class="item repentry" id="prelrep" style="margin-top:18px">
-      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Relationship report
-      <span class="sub">detailed PDF${isPro()?"":" &#183; Pro"}</span><span class="chev">&#8250;</span>
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Download relationship report
+      <span class="sub">&#8377;399 &#183; $11.99</span><span class="chev">&#8250;</span>
     </button>
     <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
@@ -3240,8 +3378,7 @@ function subPartner(){
 function wirePartner(){
   const r=document.getElementById("prelrep");
   if(r) r.onclick=()=>{ buzz(8);
-    if(!isPro()) return openProSheet();
-    r.querySelector(".sub").textContent="coming in the next build";
+    r.querySelector(".sub").textContent="purchases arrive with the App Store build";
   };
 }
 
@@ -3378,3 +3515,15 @@ pagesEl.addEventListener("touchend",()=>{
 
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();
+
+/* a planet tapped inside the sky view lands on its chart page */
+addEventListener("astra:openplanet",e=>{
+  go(CHART_INDEX); setMode("today");
+  setTimeout(()=>openPlanet(e.detail),260);
+});
+
+/* a Pro user who was viewing another person comes back to them */
+try{
+  const an=localStorage.getItem("astro.activeUser");
+  if(an && isPro()){ const p=partners().find(x=>x.name===an); if(p) setActiveUser(p); }
+}catch(_){}

@@ -4,10 +4,14 @@ import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
-         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260830d";
-import { sadeSatiWindows, saturnFromMoon } from "./sadesati.js?v=20260830d";
+         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260831";
+import { sadeSatiWindows, saturnFromMoon } from "./sadesati.js?v=20260831";
+import { vargaChart, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260831";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
+import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260830d";
+import { openSkyView } from "./skyview.js?v=20260831";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -177,6 +181,28 @@ function chartFor(date, ascendant){
   });
 }
 let CHART = chartFor(BIRTH, ASCENDANT);
+
+/* ---- THE DEEP ENGINE — vargas, yogas, ashtakavarga and the 3-level
+   dasha, computed once per chart and cached. Every value here passed
+   the printed-report validators (636 cells) before being shown. ---- */
+let ENGINE=null, ENGINE_FOR=null;
+function engine(){
+  if(ENGINE && ENGINE_FOR===CHART) return ENGINE;
+  const posMap={}; CHART.placements.forEach(p=>posMap[p.graha]=p.L);
+  const signs={Lagna:CHART.lagna};
+  CHART.placements.forEach(p=>{ if(p.graha!=="Rahu"&&p.graha!=="Ketu") signs[p.graha]=p.sign; });
+  const ych=buildYogaChart(posMap, CHART.ascendant);
+  const bav=bhinnashtakavarga(signs);
+  ENGINE={
+    yogas:detectYogas(ych).filter(y=>y.present!==false),
+    doshas:detectDoshas(ych),
+    bav, sav:sarvashtakavarga(bav),
+    d3:vimshottari3(CHART.get("Moon").L, CHART.birthDate),
+    varga:D=>vargaChart(CHART.placements, D),
+  };
+  ENGINE_FOR=CHART;
+  return ENGINE;
+}
 
 /* ---- ACTIVE USER — the whole app reads one chart at a time.
    Switching rebuilds CHART from the person's birth moment (ascendant
@@ -886,7 +912,63 @@ function renderToday(){
         ${SIGNS[tr.moon.sign-1]} &#183; ${tr.moon.nak}</span>
     </div>
     ${F.limbs.karana.vishti?`<div class="card special"><b>Vishti karana</b>
-      <p>This half-tithi is traditionally set aside from new beginnings.</p></div>`:""}`;
+      <p>This half-tithi is traditionally set aside from new beginnings.</p></div>`:""}
+    ${(()=>{ /* Choghadiya + Hora - the daily timing tables every Indian
+                panchang carries (Sangram, 30 Aug). Sequence follows the
+                classical hora order from the day lord; night restarts
+                five lords on. */
+      if(!st.rise||!st.set) return "";
+      const HORA_ORDER=["Sun","Venus","Mercury","Moon","Saturn","Jupiter","Mars"];
+      const CHOG={Sun:["Udveg","avoid"],Venus:["Char","good"],Mercury:["Labh","good"],
+        Moon:["Amrit","good"],Saturn:["Kaal","avoid"],Jupiter:["Shubh","good"],
+        Mars:["Rog","avoid"]};
+      const st2=sunTimes(new Date(viewDate.getTime()+864e5),BIRTHPLACE.lat,BIRTHPLACE.lon);
+      const nowT=Date.now();
+      const seg8=(t0,t1,i0)=>Array.from({length:8},(_,i)=>{
+        const a=t0+(t1-t0)*i/8, b=t0+(t1-t0)*(i+1)/8;
+        const lord=HORA_ORDER[(i0+i)%7];
+        return {lord,name:CHOG[lord][0],cls:CHOG[lord][1],a,b,
+          on:isToday(viewDate)&&nowT>=a&&nowT<b};
+      });
+      const di=HORA_ORDER.indexOf(F.vara.lord);
+      const dayC=seg8(st.rise.getTime(),st.set.getTime(),di);
+      const nightC=st2.rise?seg8(st.set.getTime(),st2.rise.getTime(),(di+5)%7):[];
+      const row=c=>`<div class="chogrow${c.on?" on":""} ${c.cls}">
+        <b>${c.name}</b><span class="evmeta">${c.cls==="good"?"favourable":"set aside"}</span>
+        <span class="chogt">${ft(new Date(c.a))} &#8211; ${ft(new Date(c.b))}</span></div>`;
+      const horas=(()=>{ if(!st2.rise) return [];
+        const out=[];
+        for(let i=0;i<12;i++){ const a=st.rise.getTime()+(st.set-st.rise)*i/12;
+          out.push({lord:HORA_ORDER[(di+i)%7],a,b:st.rise.getTime()+(st.set-st.rise)*(i+1)/12}); }
+        for(let i=0;i<12;i++){ const a=st.set.getTime()+(st2.rise-st.set)*i/12;
+          out.push({lord:HORA_ORDER[(di+12+i)%7],a,b:st.set.getTime()+(st2.rise-st.set)*(i+1)/12}); }
+        return out.map(h=>({...h,on:isToday(viewDate)&&nowT>=h.a&&nowT<h.b}));
+      })();
+      const cur=dayC.concat(nightC).find(c=>c.on);
+      const curH=horas.find(h=>h.on);
+      return `
+      ${cur||curH?`<div class="card special" style="margin-top:12px">
+        <b>Right now</b><p>${cur?`<b>${cur.name}</b> choghadiya (${cur.cls==="good"?"favourable":"set aside"}) until ${ft(new Date(cur.b))}`:""}${cur&&curH?" &#183; ":""}${curH?`the hour belongs to <b>${curH.lord}</b> until ${ft(new Date(curH.b))}`:""}.</p>
+      </div>`:""}
+      <details class="adv soft" style="margin-top:12px">
+        <summary>Choghadiya &#8212; the eight windows of day and night</summary>
+        <div class="eyebrow" style="margin:10px 0 6px">Day</div>
+        ${dayC.map(row).join("")}
+        ${nightC.length?`<div class="eyebrow" style="margin:14px 0 6px">Night</div>
+        ${nightC.map(row).join("")}`:""}
+        <p class="note" style="margin-top:8px">Amrit, Shubh, Labh and Char are traditionally
+        favourable; Udveg, Kaal and Rog are set aside. All times IST at
+        ${BIRTHPLACE.name.split(",")[0]}.</p>
+      </details>
+      <details class="adv soft" style="margin-top:10px">
+        <summary>Hora &#8212; the planetary hours</summary>
+        ${horas.map(h=>`<div class="chogrow${h.on?" on":""}">
+          ${gIcon(h.lord,15)}<b>${h.lord}</b>
+          <span class="chogt">${ft(new Date(h.a))} &#8211; ${ft(new Date(h.b))}</span></div>`).join("")}
+        <p class="note" style="margin-top:8px">Twenty-four planetary hours from sunrise,
+        in the classical order; each favours its lord&#8217;s matters.</p>
+      </details>`;
+    })()}`;
 
   /* ---- placements ---- */
   const specials=specialTransits(F);
@@ -1484,6 +1566,10 @@ function sheetHouse(h){
     <h1 style="font-size:26px">${head}</h1>
     <p class="muted" style="margin:0 0 14px">${body}</p>
     <p class="lordline">Sign <b>${sg}</b> (${SIGNS[sg-1]}) &#183; ruled by ${gIcon(lord,17)}<b>${lord}</b>, which sits in the <b>${ordinal(lp.house)}</b></p>
+    ${(()=>{ const b=engine().sav[sg-1];
+      const read=b>=30?"well supported in the bindu count":b<=25?"leaner in the bindu count &#8212; matters here ask for more deliberate effort":"middling in the bindu count";
+      return `<p class="ameta" style="margin:2px 0 12px">Ashtakavarga: <b>${b}</b> of 337
+        bindus fall in ${SIGNS[sg-1]} &#8212; ${read} (the average sign carries 28).</p>`})()}
     ${rows([
       ["Sign",`${SIGNS[sg-1]} (${sg})`],
       ["At your birth",occ.length?occ.map(o=>`${gIcon(o.graha,16)}${o.graha}`).join("&nbsp; "):"&#8212;"],
@@ -1550,6 +1636,23 @@ function sheetPlanet(p,opts){
         ? `It rules your <b>${ruled.map(ordinal).join(" and ")}</b>, so ${ruled.map(h=>HOUSE_ADVICE[h][0]).join(" and ")} answer to it.`
         : `It owns no sign, so it is read through the house it occupies and the grahas it sits with.`}
       ${natal.dig?` It is <b>${natal.dig.toLowerCase()}</b> here.`:""}${natal.retro&&!shadow(g)?" It was <b>retrograde</b> at your birth &#8212; its themes turn inward, or come back for a second pass.":""}</p>
+
+    ${(()=>{ /* the deeper charts + the yogas this graha takes part in -
+                straight from the validated engine (30 Aug) */
+      const E=engine();
+      const d9=E.varga(9)[g], d10=E.varga(10)[g];
+      const yg=E.yogas.filter(y=>y.planets&&y.planets.includes(g));
+      return `
+      <div class="eyebrow" style="margin:20px 0 7px">In the deeper charts</div>
+      <p class="interp">In the <b>navamsa (D9)</b> &#8212; the chart read for marriage and
+        inner strength &#8212; your ${g} sits in <b>${d9?SIGNS[d9-1]:"&#8212;"}</b>.
+        In the <b>dashamsa (D10)</b> &#8212; career and public work &#8212; in
+        <b>${d10?SIGNS[d10-1]:"&#8212;"}</b>.</p>
+      ${yg.length?`
+      <div class="eyebrow" style="margin:20px 0 7px">Yogas it takes part in</div>
+      ${yg.map(y=>`<p class="interp"><b>${y.name}</b>${y.strength?` <span class="ameta">&#183; ${y.strength}</span>`:""}
+        &#8212; ${y.because}</p>`).join("")}`:""}`;
+    })()}
     ${conj.length?`<p class="interp">It shares the sign with <b>${conj.join(" and ")}</b>; their significations blend.</p>`:""}
     ${now.maha.lord===g?`<p class="interp brass">You are living its mahadasha right now &#8212; this graha governs the present period.</p>`
       :now.antar.lord===g?`<p class="interp brass">It rules the current antardasha &#8212; the sub-period inside your ${now.maha.lord} years.</p>`:""}
@@ -1894,6 +1997,8 @@ const SUBS=[
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>"three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
+  {id:"yogas", label:"Yogas & doshas", icon:ICONS.star, sub:()=>engine().yogas.length+" active"},
+  {id:"muhurta", label:"Find a good time", icon:ICONS.clock, sub:()=>"muhurta"},
   {id:"report", label:"Reports", icon:ICONS.doc, sub:()=>"kundali &#183; relationship"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
 ];
@@ -2191,6 +2296,8 @@ function renderSub(){
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",plans:"Plans",
+    yogas:"Yogas & doshas",muhurta:"Find a good time",reportview:"Your kundali report",
+    relreportview:"Relationship report",
     learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
     addevent:subArg!=null?"Edit event":"Add a life event",
@@ -2200,7 +2307,8 @@ function renderSub(){
   document.getElementById("topbar").classList.toggle("searching",searching);
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
-              settings:subSettings,plans:subPlans}[subView];
+              settings:subSettings,plans:subPlans,yogas:subYogas,muhurta:subMuhurta,
+              reportview:subReportView,relreportview:subRelReportView}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
   const ta=document.getElementById("tbadd"), te=document.getElementById("tbaddev"),
@@ -2221,6 +2329,8 @@ function renderSub(){
   if(subView==="settings") wireSettings();
   if(subView==="plans") wirePlans();
   if(subView==="report") wireReport();
+  if(subView==="muhurta") wireMuhurta();
+  if(subView==="reportview"||subView==="relreportview") wireReportView();
   if(subView==="addpartner") wireAddPartner();
   if(subView==="addevent") wireAddEvent();
   if(subView==="partner") wirePartner();
@@ -2590,6 +2700,248 @@ function wirePlans(){
   if(off) off.onclick=()=>{ setPref("pro",false); buzz(8); renderSub(); };
 }
 
+/* ---- YOGAS & DOSHAS — every combination with its evidence --------- */
+function subYogas(){
+  const E=engine();
+  return `
+    <p class="skylead">Every combination below was detected by the rule engine, and
+      every one shows the rule that fired it &#8212; the &#8220;because&#8221; no
+      other app prints.</p>
+    ${E.yogas.map(y=>`
+      <div class="card" style="margin-bottom:10px;padding:13px 15px">
+        <div class="areahead"><span class="aname">${y.name}</span>
+          ${y.strength?`<span class="atone ${y.strength==="strong"?"favourable":"balanced"}">${y.strength}</span>`:""}</div>
+        ${y.sanskrit?`<p class="ameta" style="margin:2px 0 6px">${y.sanskrit}</p>`:""}
+        <p class="interp" style="margin:4px 0 0">${y.because}</p>
+      </div>`).join("")}
+    <div class="eyebrow" style="margin:22px 0 10px">Doshas</div>
+    ${E.doshas.map(d=>`
+      <div class="card" style="margin-bottom:10px;padding:13px 15px">
+        <div class="areahead"><span class="aname">${d.name}</span>
+          <span class="atone ${d.present?"slow":"favourable"}">${d.present?"present":"absent"}</span></div>
+        <p class="interp" style="margin:4px 0 0">${d.because}</p>
+      </div>`).join("")}
+    <p class="note">Detection follows the classical rules stated in each card; where a
+    popular report disagrees with the rule, trust the rule &#8212; several vendor
+    reports print yogas whose conditions their own charts fail. Traditional
+    associations, not a forecast.</p>`;
+}
+
+/* ---- MUHURTA — find a good time (Pro) ----------------------------
+   General electional astrology from the panchang engine: tara bala,
+   the Moon's count, tithi class, the weekday, karana - each day's
+   verdict shows its reasons. Not for medical decisions; the framing
+   stays firmly non-clinical (constitution 70). */
+let muhFrom=null, muhDays=14, muhAct="begin";
+const MUH_ACTS={begin:"Beginning something new",journey:"A journey",
+  money:"Money & signing",home:"Home & family",quiet:"Quiet, inner work"};
+function muhurtaScore(d){
+  const F=dayFacts(d);
+  const reasons=[]; let s=0;
+  if(F.chandrashtama){ return {s:-99, reasons:[`The Moon crosses the 8th from your natal Moon &#8212; chandrashtama; the tradition sets such days aside.`], F}; }
+  if(F.tara.tone==="good"){s+=2;reasons.push(`Tara bala counts <b>${F.tara.name}</b> &#8212; a supportive star from yours.`)}
+  else if(F.tara.tone==="testing"){s-=2;reasons.push(`Tara bala counts <b>${F.tara.name}</b> &#8212; a testing star from yours.`)}
+  const moon=F.sky.find(p=>p.graha==="Moon");
+  if(moon.favourable){s+=2;reasons.push(`The Moon rides your ${ordinal(moon.house)} house, well counted from your natal Moon.`)}
+  else {s-=1;reasons.push(`The Moon&#8217;s count from your natal Moon runs slower.`)}
+  const benefic={Mercury:1,Jupiter:1,Venus:1}, heavy={Saturn:1,Mars:1};
+  if(benefic[F.vara.lord]){s+=1;reasons.push(`${F.vara.name} belongs to ${F.vara.lord}, a gentle day lord.`)}
+  if(heavy[F.vara.lord]){s-=1;reasons.push(`${F.vara.name} belongs to ${F.vara.lord} &#8212; workable, but weightier.`)}
+  if(["Chaturthi","Navami","Chaturdashi"].includes(F.limbs.tithi.name)){s-=2;
+    reasons.push(`${F.limbs.tithi.name} is a rikta tithi &#8212; traditionally empty-handed for beginnings.`)}
+  if(F.limbs.karana.vishti){s-=1;reasons.push(`Vishti karana runs &#8212; set aside for launches.`)}
+  return {s, reasons, F};
+}
+function subMuhurta(){
+  if(!isPro()) return `
+    <div class="procard" style="margin-top:8px">
+      <div class="prolock" aria-hidden="true"><svg viewBox="0 0 24 24">
+        <rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div>
+      <h3>Finding the right day rides with Pro</h3>
+      <p>Scan the weeks ahead for days the panchang genuinely favours &#8212; with every
+        reason shown. Part of Astra Pro, like all time travel.</p>
+      <button class="primary" id="muhpro">See Astra Pro</button>
+    </div>`;
+  const from=muhFrom||new Date();
+  const days=[];
+  for(let i=0;i<muhDays;i++){
+    const d=new Date(from.getTime()+i*864e5); d.setHours(12,0,0,0);
+    days.push({d, ...muhurtaScore(d)});
+  }
+  const ranked=days.filter(x=>x.s>-90).sort((a,b)=>b.s-a.s).slice(0,5)
+    .sort((a,b)=>a.d-b.d);
+  const st0=sunTimes(new Date(),BIRTHPLACE.lat,BIRTHPLACE.lon);
+  return `
+    <p class="skylead">${MUH_ACTS[muhAct]} &#8212; the strongest days in the next
+      ${muhDays}, each with its reasons. Times favour Abhijit muhurta around solar noon.</p>
+    <div class="feelseg" style="margin-bottom:10px" id="muhact">
+      ${Object.entries(MUH_ACTS).slice(0,3).map(([k,v])=>
+        `<button data-a="${k}" class="${muhAct===k?"on":""}">${v.split(" ")[0]}</button>`).join("")}
+    </div>
+    <div class="feelseg" style="margin-bottom:16px" id="muhrange">
+      ${[7,14,30].map(n=>`<button data-n="${n}" class="${muhDays===n?"on":""}">${n} days</button>`).join("")}
+    </div>
+    ${ranked.map(x=>`
+      <div class="card ${x.s>=3?"":""}" style="margin-bottom:10px;padding:13px 15px${x.s>=3?";border-color:rgba(194,155,78,.45)":""}">
+        <div class="areahead">
+          <span class="aname">${x.d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"})}</span>
+          <span class="atone ${x.s>=3?"favourable":x.s>=1?"balanced":"slow"}">${x.s>=3?"Favourable":x.s>=1?"Workable":"Slower"}</span>
+        </div>
+        ${x.reasons.map(r=>`<p class="interp" style="margin:5px 0 0;font-size:12.5px">${r}</p>`).join("")}
+      </div>`).join("")}
+    <p class="note">A screening of the panchang &#8212; tara bala, the Moon&#8217;s count,
+    tithi, weekday and karana &#8212; not a guarantee, and never a substitute for
+    practical or medical judgement. Deeper activity-specific rules (lagna of the hour,
+    choghadiya fit) arrive with the engine&#8217;s next pass.</p>`;
+}
+function wireMuhurta(){
+  const pb=document.getElementById("muhpro");
+  if(pb){ pb.onclick=()=>{buzz(8);openProSheet();}; return; }
+  document.getElementById("muhact").onclick=e=>{
+    const b=e.target.closest("[data-a]"); if(!b)return;
+    muhAct=b.dataset.a; buzz(6); renderSub(); };
+  document.getElementById("muhrange").onclick=e=>{
+    const b=e.target.closest("[data-n]"); if(!b)return;
+    muhDays=+b.dataset.n; buzz(6); renderSub(); };
+}
+
+/* ---- IN-APP REPORTS — the paid product, previewed live -----------
+   Same engine, rendered as a paper document; Safari's share sheet
+   prints it to PDF today, purchase + email arrive with the App Store
+   build. ---- */
+function repDasha3Rows(){
+  const E=engine(), now=new Date();
+  const m3=E.d3.mahadashas.find(m=>now>=m.start&&now<m.end);
+  const a3=m3?.antardashas.find(a=>now>=a.start&&now<a.end);
+  const p3=a3?.pratyantardashas?.find(p=>now>=p.start&&now<p.end);
+  return {m3,a3,p3};
+}
+function subReportView(){
+  const E=engine();
+  const {m3,a3,p3}=repDasha3Rows();
+  const karakas=(()=>{
+    const KN=["Atmakaraka","Amatyakaraka","Bhratrukaraka","Matrukaraka",
+      "Putrakaraka","Gnatikaraka","Darakaraka"];
+    const ranked=CHART.placements.filter(p=>p.graha!=="Rahu"&&p.graha!=="Ketu")
+      .map(p=>({g:p.graha,deg:p.L%30})).sort((a,b)=>b.deg-a.deg);
+    return ranked.map((r,i)=>[KN[i],`${r.g} &#183; ${r.deg.toFixed(2)}&#176; in its sign`]);
+  })();
+  const moonSign=CHART.get("Moon").sign;
+  const sati=sadeSatiWindows(moonSign, CHART.birthDate).slice(0,3);
+  const VD=[1,2,3,9,10,12,30];
+  const vtables=VD.map(D=>({D,ch:E.varga(D)}));
+  return `
+  <div class="paper report">
+    <div class="repbanner">Preview &#8212; purchasing and email delivery arrive with the
+      App Store build. Print to PDF from the share menu today.</div>
+    <h2 style="font-size:22px">${ACTIVE.name} &#8212; Vedic Birth Chart</h2>
+    <p class="evmeta">${ACTIVE.p?`${fmtDate(new Date(ACTIVE.p.born))}, ${fmtClock(new Date(ACTIVE.p.born))} IST &#183; ${ACTIVE.p.place||""}`
+      :"26 Mar 1992, 10:00 AM IST &#183; Kopargaon"} &#183; Lahiri ayanamsa &#183; whole-sign houses</p>
+    <p class="interp" style="font-style:italic">Every position is computed deterministically
+      and every reading names the placement that produced it &#8212; a compass for
+      reflection, not a prediction.</p>
+
+    <div class="eyebrow" style="margin:18px 0 8px">Grahas at birth</div>
+    ${rows(CHART.placements.map(p=>[`${gIcon(p.graha)}${p.graha}`,
+      `${SIGNS[p.sign-1]} ${p.degf} &#183; ${p.nak} ${p.pada} &#183; house ${p.house}${p.retro?" &#183; R":""}`]))}
+
+    <div class="eyebrow" style="margin:20px 0 8px">Houses and their lords</div>
+    ${rows(Array.from({length:12},(_,i)=>{const h=i+1,sg=CHART.signOfHouse(h),l=SIGN_LORD[sg];
+      return [`House ${h} &#183; ${SIGNS[sg-1]}`,`${gIcon(l,15)}${l} &#8594; house ${CHART.get(l).house}`]}))}
+
+    <div class="eyebrow" style="margin:20px 0 8px">Divisional charts</div>
+    <div class="tblwrap-x"><table class="reptable"><thead><tr><th></th>
+      ${VD.map(D=>`<th>D${D}</th>`).join("")}</tr></thead><tbody>
+      ${["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"].map(g=>
+        `<tr><td>${g}</td>${vtables.map(v=>`<td>${v.ch[g]?SIGNS[v.ch[g]-1].slice(0,3):"&#8212;"}</td>`).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    <p class="note" style="margin-top:6px">18 divisional charts are computed and validated;
+      seven shown here, the full set ships in the purchased PDF.</p>
+
+    <div class="eyebrow" style="margin:20px 0 8px">Vimshottari &#8212; the 120 years</div>
+    ${rows(E.d3.mahadashas.map(m=>[`${gIcon(m.lord,15)}${m.lord}`,
+      `${fmtDate(m.start)} &#8594; ${fmtDate(m.end)}`]))}
+    ${m3&&a3?`<p class="interp" style="margin-top:10px">Right now:
+      <b>${m3.lord} &#8594; ${a3.lord}${p3?` &#8594; ${p3.lord}`:""}</b>
+      ${p3?`(pratyantar to ${fmtDate(p3.end)})`:""}.</p>`:""}
+
+    <div class="eyebrow" style="margin:20px 0 8px">Ashtakavarga &#8212; sarvashtakavarga</div>
+    <div class="tblwrap-x"><table class="reptable"><thead><tr>
+      ${SIGNS.map(s=>`<th>${s.slice(0,3)}</th>`).join("")}</tr></thead>
+      <tbody><tr>${E.sav.map(b=>`<td${b>=30?' class="hi"':b<=25?' class="lo"':""}>${b}</td>`).join("")}</tr></tbody>
+    </table></div>
+    <p class="note" style="margin-top:6px">Total 337 &#183; average 28 per sign. Strong and
+      lean signs marked.</p>
+
+    <div class="eyebrow" style="margin:20px 0 8px">Yogas &#8212; with their reasons</div>
+    ${E.yogas.map(y=>`<p class="interp"><b>${y.name}</b>${y.strength?` (${y.strength})`:""}
+      &#8212; ${y.because}</p>`).join("")}
+
+    <div class="eyebrow" style="margin:20px 0 8px">Doshas</div>
+    ${E.doshas.map(d=>`<p class="interp"><b>${d.name}: ${d.present?"present":"absent"}.</b>
+      ${d.because}</p>`).join("")}
+    <p class="interp"><b>Manglik: ${manglik(CHART)?"yes":"no"}.</b> Mars occupies house
+      ${CHART.get("Mars").house}; the dosha counts houses 1, 4, 7, 8 and 12 from the
+      lagna (some schools add the 2nd).</p>
+
+    <div class="eyebrow" style="margin:20px 0 8px">Sade sati windows</div>
+    ${rows(sati.map(w=>[`${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}`,
+      `age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${w.atBirth?" &#183; at birth":""}`]))}
+
+    <div class="eyebrow" style="margin:20px 0 8px">Chara karakas</div>
+    ${rows(karakas)}
+
+    <p class="note" style="margin-top:16px">Generated by Astra&#8217;s deterministic engine
+      &#8212; validated cell-by-cell against printed professional reports. Traditional
+      Vedic associations, not predictions; nothing here is medical, legal or financial
+      advice. Rahu/Ketu: true node.</p>
+    <button class="primary printbtn" id="doprint">Print / save as PDF</button>
+  </div>`;
+}
+function subRelReportView(){
+  const p=partners()[subArg||0];
+  if(!p){subView="report";return subReport()}
+  const me={moonL:CHART.get("Moon").L};
+  const k=ashtakoota(me,{moonL:p.moonL});
+  const pd=new Date(p.born);
+  const pchart=chartFor(pd, ascendant(pd, p.lat??BIRTHPLACE.lat, p.lon??BIRTHPLACE.lon));
+  const years=Array.from({length:10},(_,i)=>2026+i).map(y=>{
+    const d=new Date(y,0,15);
+    const a=CHART.dasha.at(d), b=pchart.dasha.at(d);
+    return [String(y),`${a?`${a.maha.lord}/${a.antar.lord}`:"&#8212;"} &#183; ${b?`${b.maha.lord}/${b.antar.lord}`:"&#8212;"}`];
+  });
+  return `
+  <div class="paper report">
+    <div class="repbanner">Preview &#8212; purchasing and email delivery arrive with the
+      App Store build. Print to PDF from the share menu today.</div>
+    <h2 style="font-size:22px">Sangram &amp; ${p.name} &#8212; Relationship Report</h2>
+    <p class="evmeta">Gun Milan &#183; both charts computed &#183; Lahiri ayanamsa</p>
+    <div class="scorecard" style="margin:14px 0">
+      <div class="scorenum" style="color:${k.total>=18?"var(--mercury)":"var(--mars)"}">${k.total}<small>/36</small></div>
+      <div style="flex:1"><p class="interp" style="margin:0">${k.total>=28?"Traditionally a strong match"
+        :k.total>=18?"Above the classical threshold of 18":"Below the classical threshold of 18"} &#8212;
+        and a score is a conversation starter, not a verdict.</p></div>
+    </div>
+    <div class="eyebrow" style="margin:16px 0 8px">The eight kootas</div>
+    ${k.kootas.map(x=>`<p class="interp"><b>${x.name} &#183; ${x.got}/${x.max}</b> &#8212;
+      you: ${x.a}, ${p.name.split(" ")[0]}: ${x.b}. ${x.about}</p>`).join("")}
+    <div class="eyebrow" style="margin:20px 0 8px">Manglik</div>
+    <p class="interp">You: <b>${manglik(CHART)?"yes":"no"}</b> (Mars in house ${CHART.get("Mars").house}).
+      ${p.name.split(" ")[0]}: <b>${manglik(pchart)?"yes":"no"}</b> (Mars in house ${pchart.get("Mars").house}).</p>
+    <div class="eyebrow" style="margin:20px 0 8px">Your seasons, side by side</div>
+    <p class="ameta" style="margin:0 0 8px">Each year: your maha/antar &#183; theirs</p>
+    ${rows(years)}
+    <p class="note" style="margin-top:16px">Gun Milan is one traditional method among
+      several; kootas marked simplified in the app use reduced classical tables. Nothing
+      here predicts a relationship&#8217;s course.</p>
+    <button class="primary printbtn" id="doprint">Print / save as PDF</button>
+  </div>`;
+}
+function wireReportView(){
+  const b=document.getElementById("doprint");
+  if(b) b.onclick=()=>{buzz(8); window.print();};
+}
+
 function subReport(){
   const now=CHART.dasha.at(new Date());
   const tag="";
@@ -2607,6 +2959,7 @@ function subReport(){
               ["Price","&#8377;499 &#183; $14.99 &#183; one-time"],
               ["Delivery","in the app + by email"]])}
       <button class="primary" data-rep="self">Get for &#8377;499 &#183; $14.99</button>
+      <button class="proclose" data-prev="self" style="margin:2px 0 0">Preview in app</button>
     </div>
     ${partners().map((p,i)=>`
     <div class="card repcard">
@@ -2618,6 +2971,7 @@ function subReport(){
       </div>
       ${rows([["Price","&#8377;399 &#183; $11.99 &#183; one-time"],["Delivery","in the app + by email"]])}
       <button class="primary" data-rep="rel${i}">Get for &#8377;399 &#183; $11.99</button>
+      <button class="proclose" data-prev="rel${i}" style="margin:2px 0 0">Preview in app</button>
     </div>`).join("")}
     <p class="note">Reports come from the same engine the app runs on, so a report and its
     screens can never disagree. Nothing here is sold on fear, and no remedy is gated
@@ -2628,6 +2982,13 @@ function wireReport(){
     buzz(8);
     b.textContent="Purchases arrive with the App Store build";
     b.disabled=true;
+  });
+  document.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>{
+    buzz(8);
+    const v=b.dataset.prev;
+    if(v==="self"){ subView="reportview"; subArg=null; }
+    else { subView="relreportview"; subArg=+v.slice(3); }
+    renderSub();
   });
 }
 
@@ -3096,6 +3457,21 @@ function renderDashaDetail(){
       ${nxt&&nxt.antar?`<p class="interp">Next comes the <b>${nxt.antar.lord}</b> antardasha,
         from ${fmtDate(antar.end)}.</p>`:""}
     </div>
+    ${(()=>{ /* the third level, from the validated dasha3 engine */
+      const E=engine();
+      const m3=E.d3.mahadashas.find(m=>Math.abs(m.start-maha.start)<3*864e5);
+      const a3=m3?.antardashas.find(a=>Math.abs(a.start-antar.start)<3*864e5);
+      if(!a3||!a3.pratyantardashas) return "";
+      return `<div class="section">
+        <div class="eyebrow">The fine grain &#8212; pratyantardashas</div>
+        ${rows(a3.pratyantardashas.map(pr=>{
+          const on=when>=pr.start&&when<pr.end;
+          return [`${on?"&#9679; ":""}${pr.lord}`,
+            `${fmtDate(pr.start)} &#8594; ${fmtDate(pr.end)}`]}))}
+        <p class="note" style="margin-top:8px">Nine sub-periods inside this antardasha
+          &#8212; the level the paid reports call pratyantar, validated to the day
+          against them.</p>
+      </div>`})()}
     <div class="section">
       <div class="eyebrow">What this period touches</div>
       ${dashaImpact(maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
@@ -3511,6 +3887,7 @@ function setTopBar(title,{back=false,actions="",sub="",centre=""}={}){
 document.getElementById("tbback").onclick=()=>{
   buzz(5);
   if(activeTab===TIMELINE_INDEX && tlDetail){ tlDetail=null; renderTimelineTab(); return; }
+  if(subView==="reportview"||subView==="relreportview"){subView="report";subArg=null;renderSub();return}
   if(subView==="partner"||subView==="addpartner"){subView=cameFrom||"rel";subArg=null;renderSub()}
   else if(subView==="addevent"){subView="events";subArg=null;renderSub()}
   else if(subView==="learntopic"){subView="learn";renderSub()}

@@ -1496,3 +1496,37 @@ body.guidefull #pg-guide{padding-bottom:26px}
   border:1px solid rgba(194,155,78,.5);background:rgba(30,34,66,.8);color:var(--brass);
   font-family:var(--ff);font-size:12.5px;font-weight:600;pointer-events:auto}
 .svchart:active,.svcardrow .svclear:active{opacity:.6}
+
+/* ---- choghadiya / hora rows ---- */
+.chogrow{display:flex;align-items:center;gap:9px;padding:7px 2px;
+  border-top:.5px solid var(--line);font-size:13px}
+.chogrow:first-of-type{border-top:0}
+.chogrow b{flex:0 0 64px;font-weight:620}
+.chogrow .chogt{margin-left:auto;font-family:var(--fm);font-size:11px;
+  color:var(--ink-2);font-variant-numeric:tabular-nums}
+.chogrow.good b{color:var(--brass)}
+.chogrow.avoid b{color:var(--ink-3)}
+.chogrow.on{background:rgba(194,155,78,.1);margin:0 -8px;padding:7px 8px;border-radius:9px}
+
+/* ---- in-app report pages ---- */
+.repbanner{font-family:var(--fm);font-size:10px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);border:1px dashed var(--edge);
+  border-radius:10px;padding:8px 12px;margin-bottom:14px}
+.tblwrap-x{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:12px;
+  background:#fff}
+.reptable{border-collapse:collapse;font-size:12px;min-width:100%;
+  font-variant-numeric:tabular-nums}
+.reptable th{font-family:var(--fm);font-size:9px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);padding:8px 9px;text-align:left;
+  border-bottom:1px solid var(--edge-soft)}
+.reptable td{padding:7px 9px;border-bottom:.5px solid var(--line);color:var(--ink-2)}
+.reptable tr:last-child td{border-bottom:0}
+.reptable td.hi{color:var(--brass);font-weight:700}
+.reptable td.lo{color:var(--ink-3)}
+.printbtn{margin-top:18px}
+@media print{
+  .topbar,.tabs,.datestrip,.printbtn,.repbanner,.wash,.ptr{display:none !important}
+  body,.app{background:#fff !important}
+  .page{padding:0 !important;overflow:visible !important}
+  .paper{box-shadow:none;margin:0;border-radius:0}
+}

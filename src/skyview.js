@@ -9,7 +9,7 @@
    =================================================================== */
 import { positions, retrograde } from "./ephemeris.js";
 import { raDecToAltAz, siderealPointAltAz } from "./sky.js";
-import { ASTERISMS } from "./asterisms.js?v=20260830d";
+import { ASTERISMS } from "./asterisms.js?v=20260831";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];

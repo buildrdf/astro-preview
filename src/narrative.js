@@ -86,3 +86,18 @@ export const ANTAR_FLAVOR={
   Saturn:"slows and tests it &#8212; patient work is favoured",
   Rahu:"amplifies it &#8212; ambition and unusual routes call",
   Ketu:"loosens it &#8212; endings, insight and simplification"};
+
+/* ---- MANTRAS -------------------------------------------------------
+   The classical navagraha namah mantras only - simple, universally
+   attested salutations (the constitution forbids invented Sanskrit).
+   Devanagari, transliteration, and plain meaning. */
+export const MANTRA={
+  Sun:{dev:"ॐ सूर्याय नमः",tr:"Om Suryaya Namah",en:"Salutations to Surya, the Sun"},
+  Moon:{dev:"ॐ चन्द्राय नमः",tr:"Om Chandraya Namah",en:"Salutations to Chandra, the Moon"},
+  Mars:{dev:"ॐ अङ्गारकाय नमः",tr:"Om Angarakaya Namah",en:"Salutations to Angaraka, Mars"},
+  Mercury:{dev:"ॐ बुधाय नमः",tr:"Om Budhaya Namah",en:"Salutations to Budha, Mercury"},
+  Jupiter:{dev:"ॐ बृहस्पतये नमः",tr:"Om Brihaspataye Namah",en:"Salutations to Brihaspati, Jupiter"},
+  Venus:{dev:"ॐ शुक्राय नमः",tr:"Om Shukraya Namah",en:"Salutations to Shukra, Venus"},
+  Saturn:{dev:"ॐ शनैश्चराय नमः",tr:"Om Shanaishcharaya Namah",en:"Salutations to Shanaishchara, Saturn"},
+  Rahu:{dev:"ॐ राहवे नमः",tr:"Om Rahave Namah",en:"Salutations to Rahu"},
+  Ketu:{dev:"ॐ केतवे नमः",tr:"Om Ketave Namah",en:"Salutations to Ketu"}};

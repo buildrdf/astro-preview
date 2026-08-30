@@ -9,7 +9,7 @@
    =================================================================== */
 import { positions, retrograde } from "./ephemeris.js";
 import { raDecToAltAz, siderealPointAltAz } from "./sky.js";
-import { ASTERISMS } from "./asterisms.js?v=20260830c";
+import { ASTERISMS } from "./asterisms.js?v=20260830d";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
@@ -77,9 +77,47 @@ let cache=null, cacheAt=0, target=null;
 /* "now" = the living sky here; "birth" = the remembered sky over the
    birthplace at the first breath. Always opens on Now - the living sky
    is the habit, the birth sky is the pilgrimage. */
-let mode="now", birthOpts=null;
-const skyDate=()=>mode==="birth"?new Date(birthOpts.date):new Date();
-const skySpot=()=>mode==="birth"?{lat:birthOpts.lat,lon:birthOpts.lon}:spot;
+let mode="now", birthOpts=null, proUser=false;
+/* custom = a chosen moment+place riding in the Now slot (Pro):
+   {iso, dateStr, timeStr, place, lat, lon} */
+let custom=null;
+const skyDate=()=>mode==="birth"?new Date(birthOpts.date)
+  :custom?new Date(custom.iso):new Date();
+const skySpot=()=>mode==="birth"?{lat:birthOpts.lat,lon:birthOpts.lon}
+  :custom?custom:spot;
+const cacheKey=()=>mode+"|"+(mode==="birth"?"b":custom?custom.iso+custom.lat:"live");
+
+/* places for the moment editor - standard-time UTC offsets (no DST),
+   coordinates to city precision, which the sky cannot tell apart */
+const CITIES=[
+["Kopargaon",19.88,74.48,5.5],["Mumbai",19.08,72.88,5.5],["Pune",18.52,73.86,5.5],
+["Delhi",28.61,77.21,5.5],["Bengaluru",12.97,77.59,5.5],["Hyderabad",17.39,78.49,5.5],
+["Chennai",13.08,80.27,5.5],["Kolkata",22.57,88.36,5.5],["Ahmedabad",23.02,72.57,5.5],
+["Jaipur",26.91,75.79,5.5],["Kota",25.18,75.84,5.5],["Nashik",20.00,73.79,5.5],
+["Nagpur",21.15,79.09,5.5],["Surat",21.17,72.83,5.5],["Lucknow",26.85,80.95,5.5],
+["Varanasi",25.32,82.99,5.5],["Indore",22.72,75.86,5.5],["Bhopal",23.26,77.41,5.5],
+["Panaji, Goa",15.49,73.83,5.5],["Kochi",9.93,76.27,5.5],["Thiruvananthapuram",8.52,76.94,5.5],
+["Chandigarh",30.73,76.78,5.5],["Amritsar",31.63,74.87,5.5],["Patna",25.59,85.14,5.5],
+["Guwahati",26.14,91.74,5.5],["Bhubaneswar",20.30,85.82,5.5],["Coimbatore",11.02,76.96,5.5],
+["Visakhapatnam",17.69,83.22,5.5],["Rishikesh",30.09,78.27,5.5],["Ujjain",23.18,75.78,5.5],
+["New York",40.71,-74.01,-5],["Los Angeles",34.05,-118.24,-8],["Chicago",41.88,-87.63,-6],
+["San Francisco",37.77,-122.42,-8],["Seattle",47.61,-122.33,-8],["Austin",30.27,-97.74,-6],
+["Houston",29.76,-95.37,-6],["Miami",25.76,-80.19,-5],["Boston",42.36,-71.06,-5],
+["Denver",39.74,-104.99,-7],["Phoenix",33.45,-112.07,-7],["Atlanta",33.75,-84.39,-5],
+["Dallas",32.78,-96.80,-6],["San Diego",32.72,-117.16,-8],["Washington DC",38.91,-77.04,-5],
+["London",51.51,-0.13,0],["Paris",48.86,2.35,1],["Berlin",52.52,13.40,1],
+["Amsterdam",52.37,4.90,1],["Zurich",47.38,8.54,1],["Rome",41.90,12.50,1],
+["Madrid",40.42,-3.70,1],["Lisbon",38.72,-9.14,0],["Dubai",25.20,55.27,4],
+["Abu Dhabi",24.45,54.38,4],["Doha",25.29,51.53,3],["Riyadh",24.71,46.68,3],
+["Singapore",1.35,103.82,8],["Hong Kong",22.32,114.17,8],["Tokyo",35.68,139.69,9],
+["Seoul",37.57,126.98,9],["Shanghai",31.23,121.47,8],["Beijing",39.90,116.41,8],
+["Bangkok",13.76,100.50,7],["Kathmandu",27.72,85.32,5.75],["Colombo",6.93,79.85,5.5],
+["Dhaka",23.81,90.41,6],["Karachi",24.86,67.01,5],["Lahore",31.55,74.34,5],
+["Sydney",-33.87,151.21,10],["Melbourne",-37.81,144.96,10],["Auckland",-36.85,174.76,12],
+["Toronto",43.65,-79.38,-5],["Vancouver",49.28,-123.12,-8],["Mexico City",19.43,-99.13,-6],
+["São Paulo",-23.55,-46.63,-3],["Johannesburg",-26.20,28.05,2],["Nairobi",-1.29,36.82,3],
+["Cairo",30.04,31.24,2],["Istanbul",41.01,28.98,3],["Moscow",55.76,37.62,3],
+["Mauritius",-20.16,57.50,4],["Denpasar, Bali",-8.65,115.22,8],["Kuala Lumpur",3.14,101.69,8]];
 const IMG={};
 for(const g of GRAHAS){ IMG[g]=new Image(); IMG[g].src=`assets/graha/${g.toLowerCase()}.png`; }
 
@@ -90,8 +128,8 @@ function computeSky(){
   const d=skyDate(), sp=skySpot();
   const pos=positions(d), ret=retrograde(d);
   cache={
-    mode,
-    grahas:GRAHAS.map(g=>({g, retro:ret[g],
+    mode, key:cacheKey(),
+    grahas:GRAHAS.map(g=>({g, retro:ret[g], L:pos[g],
       ...siderealPointAltAz(pos[g], d, sp.lat, sp.lon)})),
     stars:STARS.map((s,i)=>({...s, nak:NAKS[i],
       ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
@@ -149,6 +187,10 @@ function setFoot(){
       f.innerHTML=`The sky over ${birthOpts.place} at ${birthOpts.self?"your":birthOpts.name+"&#8217;s"}
         first breath${sunUp?` &#8212; born in daylight, so these stars stood overhead,
         hidden in the blue`:""}.`;
+    }else if(custom){
+      const sunUp=cache&&cache.grahas.find(x=>x.g==="Sun")?.up;
+      f.innerHTML=`The sky over ${custom.place}, ${custom.dateStr}${sunUp?`
+        &#8212; daylight then; the stars stood there, hidden in the blue`:""}.`;
     }else{
       f.innerHTML=`Computed for ${spot.from}. Rashi band, twenty-seven nakshatras and
         their yogatara stars; Rahu and Ketu are points, not lights.`;
@@ -158,8 +200,29 @@ function setFoot(){
   const p=targetPos(); if(!p) return;
   const dir=["N","NE","E","SE","S","SW","W","NW"][Math.round(((p.az%360)+360)%360/45)%8];
   const where=p.up?`up in the ${dir}`:`below the horizon to the ${dir} right now`;
-  f.innerHTML=`<b>${target.label}</b> &#8212; ${where}.
-    <button class="svclear" id="svclear">Clear</button>`;
+  if(target.t==="graha"){
+    /* the Star Walk move: the sky stays, a card rises (Sangram, 30 Aug) */
+    const L=p.L, sg=Math.floor(((L%360)+360)%360/30), nk=Math.floor(((L%360)+360)%360/(360/27));
+    const dg=`${Math.floor(L%30)}&#176;${String(Math.floor((L%1)*60)).padStart(2,"0")}&#8242;`;
+    const house=birthOpts&&birthOpts.lagna
+      ? ((sg+1-birthOpts.lagna+12)%12)+1 : null;
+    f.innerHTML=`<div class="svcardrow">
+        <img class="svcart" src="assets/graha/${p.g.toLowerCase()}.png" alt="">
+        <div class="svcmain">
+          <b>${p.g} &#183; ${GRAHA_SK[p.g]}${p.retro&&p.g!=="Rahu"&&p.g!=="Ketu"?" &#183; &#8478;":""}</b>
+          <span>${SIGNS_SK[sg]} ${dg} &#183; ${NAKS[nk]}${house?` &#183; house ${house} in your chart`:""}</span>
+          <span>${where} &#183; alt ${Math.round(p.alt)}&#176;</span>
+        </div>
+        <button class="svclear" id="svclear" aria-label="Close">&#10005;</button>
+      </div>
+      <button class="svchart" id="svchart">Open in chart &#8250;</button>`;
+    const oc=document.getElementById("svchart");
+    if(oc) oc.onclick=()=>{ const g=target.g; closeSkyView();
+      dispatchEvent(new CustomEvent("astra:openplanet",{detail:g})); };
+  }else{
+    f.innerHTML=`<b>${target.label}</b> &#8212; ${where}.
+      <button class="svclear" id="svclear">Clear</button>`;
+  }
   const cb=document.getElementById("svclear");
   if(cb) cb.onclick=()=>{ target=null; setFoot(); };
 }
@@ -169,7 +232,12 @@ function draw(){
   const W=el.canvas.width/devicePixelRatio, H=el.canvas.height/devicePixelRatio;
   const ppd=H/70;                        /* ~70 degree vertical field */
   viewAz+=wrap(wantAz-viewAz)*0.12; viewAlt+=(wantAlt-viewAlt)*0.12;
-  if(!cache||cache.mode!==mode||(mode==="now"&&Date.now()-cacheAt>2000)) computeSky();
+  if(!cache||cache.key!==cacheKey()
+     ||(mode==="now"&&!custom&&Date.now()-cacheAt>2000)) computeSky();
+  if(mode==="now"&&!custom){
+    const m2=new Date().getMinutes();
+    if(m2!==lastChipMin){ lastChipMin=m2; fmtWhenChip(); }
+  }
   const c=ctx, now=performance.now();
   const hy=H/2+viewAlt*ppd;
 
@@ -397,6 +465,9 @@ function setTitle(){
       :`The sky ${birthOpts.name} was born under`;
     if(h) h.textContent=`${new Date(birthOpts.date).toLocaleDateString("en-GB",
       {day:"numeric",month:"short",year:"numeric"})} · as seen from ${birthOpts.place}`;
+  }else if(custom){
+    t.textContent=`The sky over ${custom.place}`;
+    if(h) h.textContent=`${custom.dateStr}, ${custom.timeStr} · standard time`;
   }else{
     t.textContent="The sky right now";
     if(h&&!sensing) h.textContent="Drag to look around.";
@@ -422,7 +493,78 @@ function setSkyMode(m){
   }else if(target&&target.t==="asc"){
     target=null;
   }
-  setTitle(); setFoot();
+  setTitle(); setFoot(); fmtWhenChip();
+}
+
+/* ---- the moment editor: any date, any place (Pro) ---- */
+let editPlace=null, lastChipMin=-1;
+function fmtWhenChip(){
+  const w=el?.root.querySelector("#svwhen"); if(!w) return;
+  if(mode!=="now"){ w.hidden=true; return; }
+  w.hidden=false;
+  if(custom){
+    w.innerHTML=`${custom.timeStr} &#183; ${custom.dateStr} &#183; ${custom.place}
+      <i class="svreset" role="button" aria-label="Back to now">&#10005;</i>`;
+  }else{
+    const t=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    w.innerHTML=`${t} &#183; ${spot.from} <i class="svpen" aria-hidden="true">&#9998;</i>`;
+  }
+}
+function segLabel(){
+  const b=el?.root.querySelector("#svsegnow");
+  if(b) b.textContent=custom?custom.dateStr.replace(/ \d{4}$/,""):"Now";
+}
+function paintPlist(q){
+  const list=el.root.querySelector("#svplist"); if(!list) return;
+  const extra=[["Use my location",spot.lat,spot.lon,-new Date().getTimezoneOffset()/60]];
+  if(birthOpts) extra.push([`Birthplace &#183; ${birthOpts.place}`,birthOpts.lat,birthOpts.lon,birthOpts.off??5.5]);
+  const all=[...extra,...CITIES];
+  const hits=(q?all.filter(c=>c[0].toLowerCase().includes(q.toLowerCase())):all).slice(0,6);
+  list.innerHTML=hits.map((c,i)=>`<button class="svpitem${editPlace&&editPlace.n===c[0]?" on":""}"
+    data-i="${i}">${c[0]}</button>`).join("");
+  list.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
+    const c=hits[+b.dataset.i];
+    editPlace={n:c[0].replace(/&#183;.*$/,"").replace("Use my location","your location").trim()
+        .replace(/^Birthplace$/,birthOpts?birthOpts.place:"birthplace"),
+      lat:c[1],lon:c[2],off:c[3]};
+    el.root.querySelector("#svp").value=editPlace.n;
+    list.innerHTML="";
+  });
+}
+function openEditor(){
+  const ed=el.root.querySelector("#svedit"); if(!ed) return;
+  ed.hidden=false;
+  const now=new Date();
+  el.root.querySelector("#svd").value=custom?custom.iso.slice(0,10)
+    :`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  el.root.querySelector("#svt").value=custom?custom.rawTime
+    :`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  editPlace=custom?{n:custom.place,lat:custom.lat,lon:custom.lon,off:custom.off}
+    :{n:"your location",lat:spot.lat,lon:spot.lon,off:-now.getTimezoneOffset()/60};
+  el.root.querySelector("#svp").value=editPlace.n;
+  el.root.querySelector("#svplist").innerHTML="";
+}
+function applyMoment(){
+  if(!proUser){ dispatchEvent(new CustomEvent("astra:pro")); return; }
+  const dv=el.root.querySelector("#svd").value,
+        tv=el.root.querySelector("#svt").value||"12:00";
+  if(!dv||!editPlace) return;
+  const [y,mo,da]=dv.split("-").map(Number), [hh,mi]=tv.split(":").map(Number);
+  const when=new Date(Date.UTC(y,mo-1,da,0,Math.round(hh*60+mi-editPlace.off*60)));
+  custom={iso:when.toISOString(), lat:editPlace.lat, lon:editPlace.lon,
+    off:editPlace.off, place:editPlace.n, rawTime:tv,
+    dateStr:new Date(y,mo-1,da).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}),
+    timeStr:new Date(2000,0,1,hh,mi).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})};
+  el.root.querySelector("#svedit").hidden=true;
+  mode="now";
+  computeSky(); segLabel(); setTitle(); setFoot(); fmtWhenChip();
+  const up=cache.grahas.filter(x=>x.up&&x.g!=="Rahu"&&x.g!=="Ketu");
+  const aim=up.sort((a,b)=>b.alt-a.alt)[0];
+  if(aim&&!sensing){ wantAz=aim.az; wantAlt=clampAlt(Math.max(8,Math.min(65,aim.alt))); }
+}
+function resetCustom(){
+  custom=null;
+  computeSky(); segLabel(); setTitle(); setFoot(); fmtWhenChip();
 }
 
 function onOrient(ev){
@@ -433,25 +575,28 @@ function onOrient(ev){
         cg=Math.cos(g),sg=Math.sin(g);
   /* view = where the back camera points = -(3rd column of Rz(a)Rx(b)Ry(g)) */
   const vx=-(ca*sg+sa*sb*cg), vy=-(sa*sg-ca*sb*cg), vz=-(cb*cg);
-  /* device-top vector (2nd column), for anchoring to the compass */
-  const tx=-sa*cb, ty=ca*cb, tz=sb;
   const azm=Math.atan2(vx,vy)/D;
   const altm=Math.asin(Math.max(-1,Math.min(1,vz)))/D;
   if(ev.webkitCompassHeading!=null){
-    /* only trust the compass while the top vector has real horizontal
-       reach - near the zenith its heading is meaningless */
-    if(Math.hypot(tx,ty)>0.35){
-      const topAzm=Math.atan2(tx,ty)/D;
-      const off=wrap(ev.webkitCompassHeading-topAzm);
-      azOff=azOff==null?off:azOff+wrap(off-azOff)*0.06;
+    /* Anchor the matrix azimuth to the compass in the raised-phone
+       regime, where iOS's compass value empirically tracks the VIEW
+       direction (anchoring to the device-top heading instead read 180
+       degrees off past vertical - Sangram, 30 Aug, pointing south).
+       Near straight-down/straight-up the view heading degenerates, so
+       no anchoring there; the gyro matrix carries those attitudes. */
+    if(altm>-40 && altm<70){
+      const off=wrap(ev.webkitCompassHeading-azm);
+      azOff=azOff==null?off:azOff+wrap(off-azOff)*0.08;
     }
   } else if(ev.absolute===true && azOff==null){
     azOff=0;                     /* android absolute frame: alpha is true */
   }
   if(azOff==null) return;        /* no north reference yet - wait */
   sensing=true;
-  wantAz=((azm+azOff)%360+360)%360;
-  wantAlt=clampAlt(altm);
+  /* near straight up or down the view's compass direction degenerates -
+     hold the last heading there instead of snapping (Sangram, 30 Aug) */
+  if(Math.abs(altm)<78) wantAz=((azm+azOff)%360+360)%360;
+  wantAlt=Math.max(-88,Math.min(88,altm));
   if(mode==="now"){
     const hint=document.getElementById("svhint");
     if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
@@ -469,7 +614,8 @@ function armSensors(){
 export function openSkyView(opts={}){
   if(opts.lat!=null) spot={lat:opts.lat, lon:opts.lon, from:opts.from||"your location"};
   birthOpts=opts.birth||null;
-  mode="now";
+  proUser=!!opts.pro;
+  mode="now"; custom=null;
   if(!el){
     const n=document.createElement("div");
     n.className="skyview"; n.id="skyview";
@@ -477,8 +623,29 @@ export function openSkyView(opts={}){
       <button class="svclose" aria-label="Close">&#10005;</button>
       <div class="svtitle"><b id="svttl">The sky right now</b><span id="svhint">Drag to look around.</span></div>
       <div class="svseg" id="svseg" role="tablist" aria-label="Which sky" hidden>
-        <button data-m="now" class="on" role="tab">Now</button>
+        <button data-m="now" class="on" role="tab" id="svsegnow">Now</button>
         <button data-m="birth" role="tab">Birth</button>
+      </div>
+      <button class="svwhen" id="svwhen" hidden></button>
+      <div class="svedit" id="svedit" hidden>
+        <p class="svemote">Every sky is kept. The night you met, the morning it all
+          began &#8212; pick the moment and stand under it again.</p>
+        <div class="sverow">
+          <label class="fld"><span class="flabel">Date</span>
+            <input type="date" id="svd"></label>
+          <label class="fld"><span class="flabel">Local time</span>
+            <input type="time" id="svt"></label>
+        </div>
+        <label class="fld"><span class="flabel">Place</span>
+          <input type="search" id="svp" placeholder="Search a city"
+            autocomplete="off" autocorrect="off" spellcheck="false"></label>
+        <div class="svplist" id="svplist"></div>
+        <p class="svtznote">Times are the place&#8217;s standard clock time
+          (daylight saving not applied).</p>
+        <div class="sverow">
+          <button class="primary" id="svapply">See this sky</button>
+          <button class="proclose" id="svcancel" style="margin:0;width:auto;padding:13px 18px">Cancel</button>
+        </div>
       </div>
       <div class="svsearch">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg>
@@ -496,9 +663,16 @@ export function openSkyView(opts={}){
     q.oninput=()=>runSearch(q.value);
     q.onkeydown=e=>{ if(e.key==="Enter"){
       const first=n.querySelector(".svhit"); if(first) first.click(); }};
+    n.querySelector("#svwhen").onclick=e=>{
+      if(e.target.classList.contains("svreset")) resetCustom();
+      else openEditor();
+    };
+    n.querySelector("#svcancel").onclick=()=>{n.querySelector("#svedit").hidden=true;};
+    n.querySelector("#svapply").onclick=applyMoment;
+    n.querySelector("#svp").oninput=e=>paintPlist(e.target.value);
     let px=0,py=0,drag=false,moved=0;
     n.addEventListener("pointerdown",e=>{
-      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot,.svfollow")) return;
+      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot,.svfollow,.svseg,.svwhen,.svedit")) return;
       drag=true;moved=0;px=e.clientX;py=e.clientY;});
     n.addEventListener("pointermove",e=>{
       if(!drag) return;
@@ -521,8 +695,8 @@ export function openSkyView(opts={}){
         const d2=Math.hypot(x-cx,y-cy);
         if(d2<bd){bd=d2;best=p.g;}
       }
-      if(best){ closeSkyView();
-        dispatchEvent(new CustomEvent("astra:openplanet",{detail:best})); }
+      if(best){ target={t:"graha", g:best, label:best, kind:"graha"};
+        setFoot(); }
     });
   }
   const fit=()=>{
@@ -542,7 +716,8 @@ export function openSkyView(opts={}){
       b.onclick=()=>setSkyMode(b.dataset.m);
     });
   }
-  setTitle();
+  const ed=el.root.querySelector("#svedit"); if(ed) ed.hidden=true;
+  setTitle(); segLabel(); fmtWhenChip();
   computeSky();
   /* open aimed at something worth seeing: the requested graha, else the
      Sun by day, else the Moon, else whatever rides highest */

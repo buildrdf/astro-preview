@@ -4,9 +4,10 @@ import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
-         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js?v=20260830";
+         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260830d";
+import { sadeSatiWindows, saturnFromMoon } from "./sadesati.js?v=20260830d";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260830c";
+import { openSkyView } from "./skyview.js?v=20260830d";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -827,6 +828,20 @@ function renderToday(){
       <div class="mtbrow"><span class="mtbk do">Do</span><ul><li>${pickBy(DAY_DO[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
       <div class="mtbrow"><span class="mtbk hold">Hold</span><ul><li>${pickBy(DAY_AVOID[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
     </div>
+    ${(()=>{ /* mantra of the day: the weekday's lord leads; the running
+                mahadasha lord is named when it differs. Attested namah
+                forms only, with the why stated (constitution 62, 68). */
+      const vm=MANTRA[F.vara.lord], mm=MANTRA[now.maha.lord];
+      return `<div class="card mantracard">
+        <div class="eyebrow" style="margin-bottom:8px">Mantra for today</div>
+        <p class="mdev">${vm.dev}</p>
+        <p class="mtr">${vm.tr}</p>
+        <p class="mwhy">${vm.en}. ${F.vara.name} belongs to <b>${F.vara.lord}</b>${
+          now.maha.lord!==F.vara.lord
+            ?` &#8212; and your longer ${now.maha.lord} season answers to
+               <i>${mm.tr}</i> (${mm.dev})`:""}.
+          Traditionally repeated 11 or 108 times, unhurried.</p>
+      </div>`})()}
     <details class="adv soft">
       <summary>Traditional practice for ${F.vara.name}</summary>
       <p class="interp">${vp.practice}</p>
@@ -1190,7 +1205,8 @@ function setUniverseBar(){
     /* iOS grants motion access only inside the raw tap - ask BEFORE any
        await, or the permission window closes while geolocation resolves */
     const motion=askMotion();
-    getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m, birth:skyBirthOpts()})));
+    getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m,
+      pro:isPro(), birth:skyBirthOpts()})));
   };
 }
 
@@ -1607,11 +1623,11 @@ const skyBirthOpts=()=>ACTIVE.p
   ? {date:new Date(ACTIVE.p.born).toISOString(),
      lat:ACTIVE.p.lat??BIRTHPLACE.lat, lon:ACTIVE.p.lon??BIRTHPLACE.lon,
      place:(ACTIVE.p.place||BIRTHPLACE.name).split(",")[0],
-     name:ACTIVE.first, self:false,
-     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1]}
+     name:ACTIVE.first, self:false, off:5.5,
+     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna}
   : {date:BIRTH.toISOString(), lat:BIRTHPLACE.lat, lon:BIRTHPLACE.lon,
-     place:BIRTHPLACE.name.split(",")[0], name:"you", self:true,
-     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1]};
+     place:BIRTHPLACE.name.split(",")[0], name:"you", self:true, off:5.5,
+     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna};
 
 /* motion permission, synchronously inside a user gesture. Resolves true
    when sensors may be armed, false when iOS wants a fresh tap later. */
@@ -1661,7 +1677,8 @@ async function openSkyPanel(g){
       Open the sky &#8212; see ${g} among the rashis</button>`;
   document.getElementById("opensky").onclick=()=>{buzz(9);
     const motion=askMotion();
-    motion.then(m=>openSkyView({...spot, focus:g, motion:m, birth:skyBirthOpts()}));};
+    motion.then(m=>openSkyView({...spot, focus:g, motion:m,
+      pro:isPro(), birth:skyBirthOpts()}));};
   if(!w.up) return;
   /* iOS wants a user-gesture permission request; this tap was one */
   const arm=()=>{
@@ -2901,10 +2918,91 @@ function practiceFor(lord){
     invented, and no practice is offered as a guarantee of outcome.</p></div>`;
 }
 
+let tlLens="dasha";                 /* "dasha" | "sati" - two time systems */
+const lensSeg=()=>`
+  <div class="tbseg subseg" id="tlseg" role="tablist" aria-label="Time system">
+    <span class="thumb" aria-hidden="true"></span>
+    ${[["dasha","Dasha"],["sati","Sade Sati"]].map(([k,l])=>
+      `<button class="${tlLens===k?"on":""}" data-l="${k}" role="tab"
+        aria-selected="${tlLens===k}">${l}</button>`).join("")}
+  </div>`;
+function wireLens(){
+  const seg=document.getElementById("tlseg"); if(!seg) return;
+  requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
+  seg.onclick=e=>{ const b=e.target.closest("button[data-l]");
+    if(!b||b.dataset.l===tlLens) return;
+    tlLens=b.dataset.l; buzz(6); renderTimelineTab(); };
+}
+
 function renderTimelineTab(){
   if(tlDetail){ tlDetail.ev!=null ? renderEventDetail() : renderDashaDetail(); return; }
-  document.getElementById("pg-timeline").innerHTML=timelineBody();
+  if(tlLens==="sati"){ renderSadeSati(); return; }
+  document.getElementById("pg-timeline").innerHTML=lensSeg()+timelineBody();
+  wireLens();
   wireTimeline();
+}
+
+/* ---- SADE SATI LENS ---------------------------------------------
+   Not a dasha - Saturn's transit over the natal Moon's neighbourhood.
+   Feared in the bazaar; shown here with dates, phases and progress so
+   it reads as a season with edges, not a curse (constitution 56, 70). */
+function renderSadeSati(){
+  const moonSign=CHART.get("Moon").sign;
+  const wins=sadeSatiWindows(moonSign, CHART.birthDate);
+  const nowD=new Date();
+  const cur=saturnFromMoon(moonSign, nowD);
+  const inBand=[12,1,2].includes(cur);
+  setTopBar("Sade Sati",{sub:`${SIGNS[moonSign-1]} Moon`});
+  const PH_SENSE={Rising:"approach &#8212; loads shift, old supports thin",
+    Peak:"the pass itself &#8212; the audit of what is really solid",
+    Setting:"consolidation &#8212; what survived gets rebuilt stronger"};
+  const card=w=>{
+    const active=nowD>=w.start&&nowD<w.end;
+    const pos=active?Math.min(Math.max((nowD-w.start)/(w.end-w.start),0),1):null;
+    const past=w.end<nowD;
+    return `<div class="card saticard${active?" on":""}${past?" past":""}">
+      <div class="satihead">
+        <b>${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}</b>
+        <span class="satiage">age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${
+          w.atBirth?" &#183; running at your birth":""}${active?" &#183; now":""}</span>
+      </div>
+      ${active?`<div class="bar sm"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR("Saturn")}"></i></div>
+        <p class="poslabel">${Math.round(pos*100)}% through</p>`:""}
+      <div class="satiphases">
+        ${w.phases.map(p=>{
+          const pOn=nowD>=p.start&&nowD<p.end;
+          return `<div class="satiph${pOn?" on":""}">
+            <span class="sk">${p.phase}</span>
+            <b>${SIGNS[p.sign-1]}</b>
+            <span class="evmeta">${fmtDate(p.start)} &#8211; ${fmtDate(p.end)}</span>
+          </div>`}).join("")}
+      </div>
+    </div>`;
+  };
+  document.getElementById("pg-timeline").innerHTML=`
+    ${lensSeg()}
+    <div class="card special" style="margin-bottom:12px">
+      ${gIcon("Saturn",22)} <b>Saturn stands ${ordinal(cur)} from your Moon</b>
+      <p>${inBand
+        ?"You are inside a sade sati band right now."
+        :"You are outside the sade sati band."} Sade sati is the roughly
+        seven-and-a-half years Saturn spends crossing the 12th, 1st and 2nd signs
+        from your natal Moon. It is a <b>transit, not a dasha</b> &#8212; it comes from
+        the sky, not from your birth star &#8212; and the tradition reads it as
+        Saturn&#8217;s slow audit: pruning, consolidation, structure. It has edges,
+        it ends, and it builds.</p>
+    </div>
+    ${wins.map(card).join("")}
+    <div class="card" style="margin-top:4px">
+      ${Object.entries(PH_SENSE).map(([k,v])=>`<p class="interp" style="margin:6px 0">
+        <b>${k}</b> &#8212; ${v}.</p>`).join("")}
+    </div>
+    <p class="note">Windows computed from Saturn&#8217;s actual sign entries in the
+    ephemeris, retrograde re-entries included &#8212; which is why an ending can run
+    months past the date some almanacs print (they stop at Saturn&#8217;s first exit;
+    we count until it truly leaves). Traditional associations, not a forecast.</p>`;
+  wireLens();
+  document.getElementById("pg-timeline").scrollTop=0;
 }
 
 /* ---- LIFE EVENT DETAIL — the reflective page. Lays the person's own
@@ -3532,6 +3630,8 @@ addEventListener("astra:openplanet",e=>{
   go(CHART_INDEX); setMode("today");
   setTimeout(()=>openPlanet(e.detail),260);
 });
+/* the sky's moment editor knocks on the Pro door */
+addEventListener("astra:pro",()=>openProSheet());
 
 /* a Pro user who was viewing another person comes back to them */
 try{

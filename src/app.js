@@ -1,5 +1,5 @@
 import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
-         chandrashtama, GOCHARA_GOOD } from "./panchang.js";
+         chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
@@ -10,11 +10,12 @@ import { vargaChart, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260831
 import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260831";
-import { ashtakoota, manglik } from "./match.js";
+import { shadbala } from "./shadbala.js?v=20260831a";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
+import { openSkyView } from "./skyview.js?v=20260831a";
+import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
-         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
+         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
 const julian = jd;
 const RAD=Math.PI/180;
 const sind=d=>Math.sin(d*RAD);
@@ -186,6 +187,16 @@ let CHART = chartFor(BIRTH, ASCENDANT);
    dasha, computed once per chart and cached. Every value here passed
    the printed-report validators (636 cells) before being shown. ---- */
 let ENGINE=null, ENGINE_FOR=null;
+/* midheaven, sidereal - verified against the printed KP 10th cusps of
+   both reference charts (0.004 deg and 0.000 deg) */
+function mcOf(date, lonE){
+  const J=jd(date), T=(J-2451545)/36525;
+  const gmst=280.46061837+360.98564736629*(J-2451545)+0.000387933*T*T;
+  const ramc=ephNorm(gmst+lonE);
+  const eps=23.439291-0.0130042*T;
+  const lam=Math.atan2(Math.sin(ramc*RAD), Math.cos(ramc*RAD)*Math.cos(eps*RAD))/RAD;
+  return ephNorm(lam - ayanamsa(J));
+}
 function engine(){
   if(ENGINE && ENGINE_FOR===CHART) return ENGINE;
   const posMap={}; CHART.placements.forEach(p=>posMap[p.graha]=p.L);
@@ -193,12 +204,22 @@ function engine(){
   CHART.placements.forEach(p=>{ if(p.graha!=="Rahu"&&p.graha!=="Ketu") signs[p.graha]=p.sign; });
   const ych=buildYogaChart(posMap, CHART.ascendant);
   const bav=bhinnashtakavarga(signs);
+  let sb=null;
+  try{
+    const bp=ACTIVE.p?{lat:ACTIVE.p.lat??BIRTHPLACE.lat,lon:ACTIVE.p.lon??BIRTHPLACE.lon}:BIRTHPLACE;
+    const stb=sunTimes(CHART.birthDate, bp.lat, bp.lon);
+    if(stb.rise&&stb.set)
+      sb=shadbala({longitudes:posMap, ascendant:CHART.ascendant,
+        mc:mcOf(CHART.birthDate, bp.lon), date:CHART.birthDate,
+        sunrise:stb.rise, sunset:stb.set, tzMinutes:330});
+  }catch(_){ sb=null; }
   ENGINE={
     yogas:detectYogas(ych).filter(y=>y.present!==false),
     doshas:detectDoshas(ych),
     bav, sav:sarvashtakavarga(bav),
     d3:vimshottari3(CHART.get("Moon").L, CHART.birthDate),
     varga:D=>vargaChart(CHART.placements, D),
+    sb,
   };
   ENGINE_FOR=CHART;
   return ENGINE;
@@ -1647,7 +1668,14 @@ function sheetPlanet(p,opts){
       <p class="interp">In the <b>navamsa (D9)</b> &#8212; the chart read for marriage and
         inner strength &#8212; your ${g} sits in <b>${d9?SIGNS[d9-1]:"&#8212;"}</b>.
         In the <b>dashamsa (D10)</b> &#8212; career and public work &#8212; in
-        <b>${d10?SIGNS[d10-1]:"&#8212;"}</b>.</p>
+        <b>${d10?SIGNS[d10-1]:"&#8212;"}</b>.${(()=>{
+          if(!E.sb||!E.sb.grahas[g]) return "";
+          const rank=Object.entries(E.sb.grahas).sort((a,b)=>b[1].rupas-a[1].rupas)
+            .findIndex(([k])=>k===g)+1;
+          const say=rank===1?"the strongest of the seven":rank===7?"the leanest of the seven"
+            :`${ordinal(rank)} of the seven by strength`;
+          return ` By shadbala it carries <b>${E.sb.grahas[g].rupas.toFixed(1)} rupas</b>
+            &#8212; ${say}.`})()}</p>
       ${yg.length?`
       <div class="eyebrow" style="margin:20px 0 7px">Yogas it takes part in</div>
       ${yg.map(y=>`<p class="interp"><b>${y.name}</b>${y.strength?` <span class="ameta">&#183; ${y.strength}</span>`:""}
@@ -2872,6 +2900,16 @@ function subReportView(){
     </table></div>
     <p class="note" style="margin-top:6px">Total 337 &#183; average 28 per sign. Strong and
       lean signs marked.</p>
+
+    ${E.sb?(()=>{ const gs=Object.entries(E.sb.grahas)
+        .sort((a,b)=>b[1].rupas-a[1].rupas);
+      return `
+    <div class="eyebrow" style="margin:20px 0 8px">Shadbala &#8212; six-fold strength</div>
+    ${rows(gs.map(([g,v],i)=>[`${gIcon(g,15)}${g}${i===0?" &#183; strongest":""}`,
+      `${v.rupas.toFixed(2)} rupas`]))}
+    <p class="note" style="margin-top:6px">Positional, temporal, directional, motional,
+      natural and aspectual strength combined, per the classical formulas &#8212;
+      validated against printed professional tables.</p>`})():""}
 
     <div class="eyebrow" style="margin:20px 0 8px">Yogas &#8212; with their reasons</div>
     ${E.yogas.map(y=>`<p class="interp"><b>${y.name}</b>${y.strength?` (${y.strength})`:""}

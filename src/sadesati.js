@@ -7,7 +7,7 @@
    re-entries under 600 days merge into their window, matching how
    the tradition counts one continuous sade sati).
    =================================================================== */
-import { positions, norm } from "./ephemeris.js";
+import { positions, norm } from "./ephemeris.js?v=20260831a";
 import { houseFrom } from "./panchang.js";
 
 const signOf=L=>Math.floor(norm(L)/30)+1;

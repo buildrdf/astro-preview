@@ -7,8 +7,8 @@
    nakshatra, rashi or star, and an edge arrow walks you to it.
    No camera - passthrough AR is the native app's job.
    =================================================================== */
-import { positions, retrograde } from "./ephemeris.js";
-import { raDecToAltAz, siderealPointAltAz } from "./sky.js";
+import { positions, retrograde } from "./ephemeris.js?v=20260831a";
+import { raDecToAltAz, siderealPointAltAz } from "./sky.js?v=20260831a";
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",

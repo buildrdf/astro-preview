@@ -41,8 +41,10 @@ function raDec(lambda, J){
   return { ra, dec };
 }
 
-/* Greenwich mean sidereal time, degrees (IAU 1982, good to ~0.1s). */
-function gmst(J){
+/* Greenwich mean sidereal time, degrees (IAU 1982, good to ~0.1s).
+   Exported for the report generator's birth-sky block (local sidereal
+   time = gmst + east longitude). */
+export function gmst(J){
   const J0 = Math.floor(J - 0.5) + 0.5;      // previous 0h UT
   const D0 = J0 - 2451545;
   const UT = (J - J0) * 24;                   // hours since 0h UT

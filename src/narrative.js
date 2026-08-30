@@ -72,7 +72,7 @@ export const DASHA_THEME={
   Mercury:"Mercury periods are traditionally read as years of exchange &#8212; learning, trade, writing, networks and quick adaptation. Skills sharpen and doors open through conversation rather than force.",
   Jupiter:"Jupiter periods are traditionally read as expansive years &#8212; teachers, faith, children, growth and luck that arrives looking like good judgement. What you believe in tends to grow, so the tradition asks you to choose it carefully.",
   Venus:"Venus periods are traditionally read as years of relationship and refinement &#8212; partnership, beauty, comfort, art and the pleasures of a settled life. What you love takes the wheel.",
-  Saturn:"Saturn periods are traditionally read as the great structural years &#8212; discipline, duty, endurance and work that compounds slowly. They are demanding, and what they build tends to stay built.",
+  Saturn:"Saturn periods are traditionally read as the great structural years &#8212; discipline, duty, endurance and work that compounds slowly. The tradition regards them as demanding, and reads what they build as built to last.",
   Rahu:"Rahu periods are traditionally read as years of appetite &#8212; ambition, foreign ground, unconventional routes and a hunger for what is just out of reach. They can carry you far; the classical caution is to check the map while moving.",
   Ketu:"Ketu periods are traditionally read as years of release &#8212; insight, detachment, spiritual pull and the quiet dismantling of what no longer fits. Less is gained than clarified."};
 

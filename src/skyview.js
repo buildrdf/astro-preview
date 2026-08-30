@@ -9,7 +9,7 @@
    =================================================================== */
 import { positions, retrograde } from "./ephemeris.js";
 import { raDecToAltAz, siderealPointAltAz } from "./sky.js";
-import { ASTERISMS } from "./asterisms.js?v=20260830b";
+import { ASTERISMS } from "./asterisms.js?v=20260830c";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
@@ -74,6 +74,12 @@ let el=null, ctx=null, running=false, watch=null;
 let viewAz=180, viewAlt=25, wantAz=180, wantAlt=25, sensing=false;
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)"};
 let cache=null, cacheAt=0, target=null;
+/* "now" = the living sky here; "birth" = the remembered sky over the
+   birthplace at the first breath. Always opens on Now - the living sky
+   is the habit, the birth sky is the pilgrimage. */
+let mode="now", birthOpts=null;
+const skyDate=()=>mode==="birth"?new Date(birthOpts.date):new Date();
+const skySpot=()=>mode==="birth"?{lat:birthOpts.lat,lon:birthOpts.lon}:spot;
 const IMG={};
 for(const g of GRAHAS){ IMG[g]=new Image(); IMG[g].src=`assets/graha/${g.toLowerCase()}.png`; }
 
@@ -81,22 +87,25 @@ const wrap=a=>((a+180)%360+360)%360-180;
 const clampAlt=a=>Math.max(-30,Math.min(85,a));
 
 function computeSky(){
-  const d=new Date();
+  const d=skyDate(), sp=skySpot();
   const pos=positions(d), ret=retrograde(d);
   cache={
+    mode,
     grahas:GRAHAS.map(g=>({g, retro:ret[g],
-      ...siderealPointAltAz(pos[g], d, spot.lat, spot.lon)})),
+      ...siderealPointAltAz(pos[g], d, sp.lat, sp.lon)})),
     stars:STARS.map((s,i)=>({...s, nak:NAKS[i],
-      ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)})),
+      ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
     asts:ASTERISMS.map(A=>({lines:A.lines,
-      pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)}))})),
-    amb:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, spot.lat, spot.lon)})),
+      pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)}))})),
+    amb:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
     ecliptic:Array.from({length:121},(_,i)=>{
       const L=i*3;
-      return {L, ...siderealPointAltAz(L, d, spot.lat, spot.lon)};
+      return {L, ...siderealPointAltAz(L, d, sp.lat, sp.lon)};
     }),
-    nakMids:NAKS.map((n,i)=>({n, ...siderealPointAltAz(i*(360/27)+360/54, d, spot.lat, spot.lon)})),
-    nakEdges:Array.from({length:27},(_,i)=>siderealPointAltAz(i*(360/27), d, spot.lat, spot.lon)),
+    nakMids:NAKS.map((n,i)=>({n, ...siderealPointAltAz(i*(360/27)+360/54, d, sp.lat, sp.lon)})),
+    nakEdges:Array.from({length:27},(_,i)=>siderealPointAltAz(i*(360/27), d, sp.lat, sp.lon)),
+    asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)
+      ? siderealPointAltAz(birthOpts.asc, d, sp.lat, sp.lon) : null,
   };
   cacheAt=Date.now();
 }
@@ -129,13 +138,21 @@ function targetPos(){
   if(target.t==="graha") return cache.grahas.find(x=>x.g===target.g);
   if(target.t==="star"||target.t==="nakshatra") return cache.stars[target.i];
   if(target.t==="rashi") return cache.ecliptic[target.i*10+5];
+  if(target.t==="asc") return cache.asc;
   return null;
 }
 function setFoot(){
   const f=document.getElementById("svfoot"); if(!f) return;
   if(!target){
-    f.innerHTML=`Computed for ${spot.from}. Rashi band, twenty-seven nakshatras and
-      their yogatara stars; Rahu and Ketu are points, not lights.`;
+    if(mode==="birth"&&birthOpts){
+      const sunUp=cache&&cache.grahas.find(x=>x.g==="Sun")?.up;
+      f.innerHTML=`The sky over ${birthOpts.place} at ${birthOpts.self?"your":birthOpts.name+"&#8217;s"}
+        first breath${sunUp?` &#8212; born in daylight, so these stars stood overhead,
+        hidden in the blue`:""}.`;
+    }else{
+      f.innerHTML=`Computed for ${spot.from}. Rashi band, twenty-seven nakshatras and
+        their yogatara stars; Rahu and Ketu are points, not lights.`;
+    }
     return;
   }
   const p=targetPos(); if(!p) return;
@@ -152,17 +169,20 @@ function draw(){
   const W=el.canvas.width/devicePixelRatio, H=el.canvas.height/devicePixelRatio;
   const ppd=H/70;                        /* ~70 degree vertical field */
   viewAz+=wrap(wantAz-viewAz)*0.12; viewAlt+=(wantAlt-viewAlt)*0.12;
-  if(Date.now()-cacheAt>2000) computeSky();
+  if(!cache||cache.mode!==mode||(mode==="now"&&Date.now()-cacheAt>2000)) computeSky();
   const c=ctx, now=performance.now();
   const hy=H/2+viewAlt*ppd;
 
-  /* sky: darkest at the zenith, a breath of light toward the horizon */
+  /* sky: darkest at the zenith, a breath of light toward the horizon.
+     The remembered (birth) sky leans violet so the two can never be
+     mistaken for one another. */
   const sg=c.createLinearGradient(0,0,0,H);
   const hstop=Math.max(0.05,Math.min(0.95,hy/H));
-  sg.addColorStop(0,"#04050E");
-  sg.addColorStop(hstop,"#171B38");
-  sg.addColorStop(Math.min(1,hstop+0.02),"#0B0D1F");
-  sg.addColorStop(1,"#08091A");
+  const B=mode==="birth";
+  sg.addColorStop(0,B?"#0A0518":"#04050E");
+  sg.addColorStop(hstop,B?"#241640":"#171B38");
+  sg.addColorStop(Math.min(1,hstop+0.02),B?"#140C28":"#0B0D1F");
+  sg.addColorStop(1,B?"#0C0720":"#08091A");
   c.fillStyle=sg; c.fillRect(0,0,W,H);
   c.strokeStyle="rgba(170,180,235,.4)"; c.lineWidth=1;
   c.beginPath(); c.moveTo(0,hy); c.lineTo(W,hy); c.stroke();
@@ -369,6 +389,42 @@ function selectTarget(hit){
    and on iOS - where alpha has an arbitrary zero - anchor it to the
    compass with a slowly-settling offset. */
 let azOff=null;
+function setTitle(){
+  const t=document.getElementById("svttl"), h=document.getElementById("svhint");
+  if(!t) return;
+  if(mode==="birth"&&birthOpts){
+    t.textContent=birthOpts.self?"The sky you were born under"
+      :`The sky ${birthOpts.name} was born under`;
+    if(h) h.textContent=`${new Date(birthOpts.date).toLocaleDateString("en-GB",
+      {day:"numeric",month:"short",year:"numeric"})} · as seen from ${birthOpts.place}`;
+  }else{
+    t.textContent="The sky right now";
+    if(h&&!sensing) h.textContent="Drag to look around.";
+  }
+}
+
+function setSkyMode(m){
+  if(m===mode||(m==="birth"&&!birthOpts)) return;
+  mode=m;
+  el.root.classList.toggle("birthmode",m==="birth");
+  el.root.querySelectorAll("#svseg button").forEach(b=>
+    b.classList.toggle("on",b.dataset.m===m));
+  computeSky();
+  if(m==="birth"){
+    /* the pilgrimage: walk them to the rising point - the lagna, physically
+       on the eastern horizon. Unless they already chose a target, which now
+       re-resolves to its BIRTH position (focus Saturn, flip to Birth, and
+       the arrow walks you to where Saturn stood). */
+    if(!target && cache.asc)
+      target={t:"asc", label:`Rising point · ${birthOpts.sign} lagna`, kind:"lagna"};
+    const p=targetPos();
+    if(p&&!sensing){ wantAz=p.az; wantAlt=clampAlt(Math.max(4,Math.min(60,p.alt))); }
+  }else if(target&&target.t==="asc"){
+    target=null;
+  }
+  setTitle(); setFoot();
+}
+
 function onOrient(ev){
   if(ev.alpha==null && ev.webkitCompassHeading==null) return;
   const D=Math.PI/180;
@@ -396,8 +452,10 @@ function onOrient(ev){
   sensing=true;
   wantAz=((azm+azOff)%360+360)%360;
   wantAlt=clampAlt(altm);
-  const hint=document.getElementById("svhint");
-  if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
+  if(mode==="now"){
+    const hint=document.getElementById("svhint");
+    if(hint) hint.textContent="Move your phone — the sky follows. Drag to look around.";
+  }
   const fb=el?.root.querySelector(".svfollow");
   if(fb) fb.hidden=true;
 }
@@ -410,12 +468,18 @@ function armSensors(){
 
 export function openSkyView(opts={}){
   if(opts.lat!=null) spot={lat:opts.lat, lon:opts.lon, from:opts.from||"your location"};
+  birthOpts=opts.birth||null;
+  mode="now";
   if(!el){
     const n=document.createElement("div");
     n.className="skyview"; n.id="skyview";
     n.innerHTML=`<canvas id="svc"></canvas>
       <button class="svclose" aria-label="Close">&#10005;</button>
-      <div class="svtitle"><b>The sky right now</b><span id="svhint">Drag to look around.</span></div>
+      <div class="svtitle"><b id="svttl">The sky right now</b><span id="svhint">Drag to look around.</span></div>
+      <div class="svseg" id="svseg" role="tablist" aria-label="Which sky" hidden>
+        <button data-m="now" class="on" role="tab">Now</button>
+        <button data-m="birth" role="tab">Birth</button>
+      </div>
       <div class="svsearch">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg>
         <input id="svq" type="search" placeholder="Find a graha, nakshatra or star"
@@ -469,6 +533,16 @@ export function openSkyView(opts={}){
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); };
   fit(); addEventListener("resize",fit);
   el.root.classList.add("on");
+  el.root.classList.remove("birthmode");
+  const seg=el.root.querySelector("#svseg");
+  if(seg){
+    seg.hidden=!birthOpts;
+    seg.querySelectorAll("button").forEach(b=>{
+      b.classList.toggle("on",b.dataset.m==="now");
+      b.onclick=()=>setSkyMode(b.dataset.m);
+    });
+  }
+  setTitle();
   computeSky();
   /* open aimed at something worth seeing: the requested graha, else the
      Sun by day, else the Moon, else whatever rides highest */

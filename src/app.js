@@ -6,7 +6,7 @@ import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js?v=20260830";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js";
-import { openSkyView } from "./skyview.js?v=20260830b";
+import { openSkyView } from "./skyview.js?v=20260830c";
 import { ashtakoota, manglik } from "./match.js";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js";
@@ -1190,7 +1190,7 @@ function setUniverseBar(){
     /* iOS grants motion access only inside the raw tap - ask BEFORE any
        await, or the permission window closes while geolocation resolves */
     const motion=askMotion();
-    getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m})));
+    getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m, birth:skyBirthOpts()})));
   };
 }
 
@@ -1602,6 +1602,17 @@ sheet.addEventListener("click",e=>{
 
 /* ---- Find in sky: sensors point you at the graha (DDR 0003 §5) ---- */
 let skyWatch=null;
+/* the active user's birth moment, packaged for the sky view's Birth mode */
+const skyBirthOpts=()=>ACTIVE.p
+  ? {date:new Date(ACTIVE.p.born).toISOString(),
+     lat:ACTIVE.p.lat??BIRTHPLACE.lat, lon:ACTIVE.p.lon??BIRTHPLACE.lon,
+     place:(ACTIVE.p.place||BIRTHPLACE.name).split(",")[0],
+     name:ACTIVE.first, self:false,
+     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1]}
+  : {date:BIRTH.toISOString(), lat:BIRTHPLACE.lat, lon:BIRTHPLACE.lon,
+     place:BIRTHPLACE.name.split(",")[0], name:"you", self:true,
+     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1]};
+
 /* motion permission, synchronously inside a user gesture. Resolves true
    when sensors may be armed, false when iOS wants a fresh tap later. */
 function askMotion(){
@@ -1650,7 +1661,7 @@ async function openSkyPanel(g){
       Open the sky &#8212; see ${g} among the rashis</button>`;
   document.getElementById("opensky").onclick=()=>{buzz(9);
     const motion=askMotion();
-    motion.then(m=>openSkyView({...spot, focus:g, motion:m}));};
+    motion.then(m=>openSkyView({...spot, focus:g, motion:m, birth:skyBirthOpts()}));};
   if(!w.up) return;
   /* iOS wants a user-gesture permission request; this tap was one */
   const arm=()=>{

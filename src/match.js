@@ -122,6 +122,58 @@ const GANA=(ga,gb)=>{
   return 0;   /* manushya-rakshasa */
 };
 
+/* ---- per-koota derivation strings ---------------------------------
+   The full mechanic behind each score, written out so a report can
+   print the working instead of pointing at an unshown table
+   (COMPARISON.md §3 - "circular koota reasons" - fixed here). */
+const SIGN_NAME=["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra",
+  "Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const VARNA_NAME={1:"Brahmin",2:"Kshatriya",3:"Vaishya",4:"Shudra"};
+const VASHYA_NAME={chatush:"Chatushpada (quadruped)",manav:"Manava (human)",
+  jala:"Jalachara (water)",vana:"Vanachara (wild)",keeta:"Keeta (insect)"};
+const TARA_NAME=["Janma","Sampat","Vipat","Kshema","Pratyari","Sadhaka",
+  "Vadha","Mitra","Ati Mitra"];
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+function taraDetail(nA,nB){
+  const cnt=(from,to)=>((to-from+27)%27)+1;
+  const leg=(from,to,who)=>{
+    const c=cnt(from,to), t=(c-1)%9, bad=[2,4,6].includes(t);
+    return `counting ${who} gives ${c}, which is tara ${t+1} (${TARA_NAME[t]}) - `+
+      `${bad?"one of the testing taras (3/5/7 in the nine-cycle), 0":"a favourable tara, 1.5"} points`;
+  };
+  return `${cap(leg(nA,nB,"from the first star to the second"))}; `+
+    `${leg(nB,nA,"back the other way")}. The two directions add.`;
+}
+function maitriDetail(a,b){
+  const word=r=>r===1?"a friend":r===-1?"an enemy":"neutral";
+  if(a===b) return `Both Moon signs are ruled by ${a} - one lord cannot be at odds with itself, full 5.`;
+  return `${a} counts ${b} as ${word(rel(a,b))}, and ${b} counts ${a} as `+
+    `${word(rel(b,a))}; the classical grid scores that combination ${MAITRI(a,b)} of 5.`;
+}
+function yoniDetail(a,b){
+  if(a===b) return `Both stars carry the ${a} yoni - identical instinct-natures score the full 4.`;
+  if(YONI_ENEMY[a]===b||YONI_ENEMY[b]===a)
+    return `${cap(a)} and ${b} are one of the sworn-enemy pairs of the yoni table, which scores 0.`;
+  return `${cap(a)} and ${b} are neither identical nor sworn enemies; the graded `+
+    `friendliness table scores this pairing ${YONI_SCORE(a,b)} of 4.`;
+}
+function ganaDetail(a,b){
+  if(a===b) return `Both stars belong to the ${cap(a)} gana - same temperament group, full 6.`;
+  const pair=[a,b].sort().join("-");
+  const score=pair==="deva-manushya"?5:pair==="deva-rakshasa"?1:0;
+  return `${cap(a)} and ${cap(b)} differ; the classical pairing rule gives `+
+    `Deva-Manushya 5, Deva-Rakshasa 1 and Manushya-Rakshasa 0 - here, ${score}.`;
+}
+function bhakootDetail(sA,sB){
+  const d1=((sB-sA)%12+12)%12+1, d2=((sA-sB)%12+12)%12+1;
+  const bad=["2-12","12-2","5-9","9-5","6-8","8-6"].includes(d1+"-"+d2);
+  return `${SIGN_NAME[sB-1]} is the ${d1}${d1===2?"nd":d1===3?"rd":d1===1?"st":"th"} sign from `+
+    `${SIGN_NAME[sA-1]}, and ${SIGN_NAME[sA-1]} the ${d2}${d2===2?"nd":d2===3?"rd":d2===1?"st":"th"} back. `+
+    `The rule withholds all 7 only for the 2/12, 5/9 and 6/8 pairings; ${d1}/${d2} `+
+    `${bad?"is one of them, so 0":"is not among them, so the full 7"}.`;
+}
+
 /* boy = the user, girl = the partner, by classical convention; the app
    presents it as "you" and "them" without gendering the mathematics */
 export function ashtakoota(me,other){
@@ -129,21 +181,38 @@ export function ashtakoota(me,other){
   const nA=nakOf(me.moonL), nB=nakOf(other.moonL);
   const kootas=[
     {name:"Varna", max:1, got:VARNA[sA-1]<=VARNA[sB-1]?1:0,
-     why:"temperamental class of the two Moon signs"},
+     why:"temperamental class of the two Moon signs",
+     detail:`${SIGN_NAME[sA-1]} is a ${VARNA_NAME[VARNA[sA-1]]} sign and ${SIGN_NAME[sB-1]} `+
+       `a ${VARNA_NAME[VARNA[sB-1]]} sign; the point is granted when the first class `+
+       `ranks equal or senior to the second - here it ${VARNA[sA-1]<=VARNA[sB-1]?"does, 1 of 1":"does not, 0 of 1"}.`},
     {name:"Vashya", max:2, got:VASHYA_SCORE(VASHYA[sA-1],VASHYA[sB-1]),
-     why:"mutual sway between the sign natures"},
+     why:"mutual sway between the sign natures",
+     detail:`${SIGN_NAME[sA-1]} belongs to the ${VASHYA_NAME[VASHYA[sA-1]]} group and `+
+       `${SIGN_NAME[sB-1]} to the ${VASHYA_NAME[VASHYA[sB-1]]} group; the classical grid `+
+       `scores that pairing ${VASHYA_SCORE(VASHYA[sA-1],VASHYA[sB-1])} of 2 `+
+       `(same group 2, prey pairings 0, the rest graded between).`},
     {name:"Tara", max:3, got:TARA(nA,nB),
-     why:"birth stars counted against each other, both directions"},
+     why:"birth stars counted against each other, both directions",
+     detail:taraDetail(nA,nB)},
     {name:"Yoni", max:4, got:YONI_SCORE(YONI_OF[nA],YONI_OF[nB]),
-     why:`instinct natures - ${YONI_OF[nA]} and ${YONI_OF[nB]}`},
+     why:`instinct natures - ${YONI_OF[nA]} and ${YONI_OF[nB]}`,
+     detail:yoniDetail(YONI_OF[nA],YONI_OF[nB])},
     {name:"Graha Maitri", max:5, got:MAITRI(LORD[sA-1],LORD[sB-1]),
-     why:`friendship of the Moon-sign lords, ${LORD[sA-1]} and ${LORD[sB-1]}`},
+     why:`friendship of the Moon-sign lords, ${LORD[sA-1]} and ${LORD[sB-1]}`,
+     detail:maitriDetail(LORD[sA-1],LORD[sB-1])},
     {name:"Gana", max:6, got:GANA(GANA_OF[nA],GANA_OF[nB]),
-     why:`temperament groups - ${GANA_OF[nA]} and ${GANA_OF[nB]}`},
+     why:`temperament groups - ${GANA_OF[nA]} and ${GANA_OF[nB]}`,
+     detail:ganaDetail(GANA_OF[nA],GANA_OF[nB])},
     {name:"Bhakoot", max:7, got:BHAKOOT(sA,sB),
-     why:"the distance between the two Moon signs"},
+     why:"the distance between the two Moon signs",
+     detail:bhakootDetail(sA,sB)},
     {name:"Nadi", max:8, got:NADI_OF[nA]===NADI_OF[nB]?0:8,
-     why:`constitution - ${NADI_OF[nA]} and ${NADI_OF[nB]}`},
+     why:`constitution - ${NADI_OF[nA]} and ${NADI_OF[nB]}`,
+     detail:NADI_OF[nA]===NADI_OF[nB]
+       ?`Both stars fall in the ${cap(NADI_OF[nA])} nadi. Shared nadi is the one koota `+
+        `the tradition scores 0 outright - and, at 8 points, weighs heaviest of the eight.`
+       :`The stars fall in different nadis (${cap(NADI_OF[nA])} and ${cap(NADI_OF[nB])}), `+
+        `which earns the full 8 - the heaviest single koota in the system.`},
   ];
   const total=kootas.reduce((a,k)=>a+k.got,0);
   const verdict= total>=28?"an excellent match in this system"

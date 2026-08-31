@@ -12,7 +12,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260831l";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260831n";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260831e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
@@ -1432,8 +1432,14 @@ function wireRuler(){
 function setUniverseBar(){
   setTopBar("",{actions:`
     <button class="tb-btn" id="tbsky" aria-label="Open the sky view">
-      <svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 4v9.2l-7.2 4-7.2-4V7.4z"/>
-        <path d="M12 11.4l7.2-4M12 11.4L4.8 7.4M12 11.4v9.2"/></svg>
+      <!-- the AR badge form people know: viewfinder corners around a
+           cube (Sangram, 31 Aug: "use the icon Apple uses, not a
+           random cube") -->
+      <svg viewBox="0 0 24 24">
+        <path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/>
+        <path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/>
+        <path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/>
+      </svg>
     </button>`,centre:`
     <div class="tbseg" id="unimode" role="tablist" aria-label="Chart mode">
       <span class="thumb" aria-hidden="true"></span>

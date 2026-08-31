@@ -144,6 +144,11 @@ const CITIES=[
 ["Mauritius",-20.16,57.50,4],["Denpasar, Bali",-8.65,115.22,8],["Kuala Lumpur",3.14,101.69,8]];
 const IMG={};
 for(const g of GRAHAS){ IMG[g]=new Image(); IMG[g].src=`assets/graha/${g.toLowerCase()}.png`; }
+/* rashi figure art - Sky Guide-style engravings behind the star
+   lines (Sangram's reference shots, 31 Aug). Transparent-bg white
+   line art; a missing file simply never completes and is skipped. */
+const RASHI_ART={};
+for(let i=1;i<=12;i++){ RASHI_ART[i]=new Image(); RASHI_ART[i].src=`assets/rashi/${i}.svg`; }
 
 const wrap=a=>((a+180)%360+360)%360-180;
 const clampAlt=a=>Math.max(-30,Math.min(85,a));
@@ -165,6 +170,10 @@ function computeSky(){
       return {L, ...siderealPointAltAz(L, d, sp.lat, sp.lon)};
     }),
     nakMids:NAKS.map((n,i)=>({n, ...siderealPointAltAz(i*(360/27)+360/54, d, sp.lat, sp.lon)})),
+    rashiArt:Array.from({length:12},(_,i)=>({s:i+1,
+      mid:siderealPointAltAz(i*30+15, d, sp.lat, sp.lon),
+      e1:siderealPointAltAz(i*30+4, d, sp.lat, sp.lon),
+      e2:siderealPointAltAz(i*30+26, d, sp.lat, sp.lon)})),
     nakEdges:Array.from({length:27},(_,i)=>siderealPointAltAz(i*(360/27), d, sp.lat, sp.lon)),
     asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)
       ? siderealPointAltAz(birthOpts.asc, d, sp.lat, sp.lon) : null,
@@ -300,6 +309,25 @@ function draw(){
 
   /* the nakshatra figures - each mansion's own stars, joined the way the
      tradition sketches them. Vedic asterisms, not Greek constellations. */
+  /* the constellation figures, faint behind their stars - drawn
+     along the local ecliptic direction so the ram lies in Mesha's
+     30 degrees, not upright on the screen */
+  if(cache.rashiArt) for(const R2 of cache.rashiArt){
+    const img=RASHI_ART[R2.s];
+    if(!img||!img.complete||!img.naturalWidth) continue;
+    const [mx,my]=project(R2.mid,W,H,ppd);
+    if(mx<-300||mx>W+300||my<-300||my>H+300) continue;
+    const [x1,y1]=project(R2.e1,W,H,ppd);
+    const [x2,y2]=project(R2.e2,W,H,ppd);
+    const sz=Math.hypot(x2-x1,y2-y1)*1.35;
+    if(sz<50) continue;
+    c.save();
+    c.globalAlpha=R2.mid.alt>0?0.15:0.05;
+    c.translate(mx,my); c.rotate(Math.atan2(y2-y1,x2-x1));
+    c.drawImage(img,-sz/2,-sz/2,sz,sz);
+    c.restore();
+  }
+
   for(const A of cache.asts){
     const px=A.pts.map(p=>{
       const [x,y]=project(p,W,H,ppd);

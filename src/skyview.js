@@ -10,6 +10,7 @@
 import { positions, retrograde } from "./ephemeris.js?v=20260831a";
 import { raDecToAltAz, siderealPointAltAz } from "./sky.js?v=20260831a";
 import { ASTERISMS } from "./asterisms.js?v=20260831";
+import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
@@ -72,6 +73,11 @@ const GLOW={Sun:"255,196,110",Moon:"214,226,255",Mars:"255,128,96",
 
 let el=null, ctx=null, running=false, watch=null;
 let viewAz=180, viewAlt=25, wantAz=180, wantAlt=25, sensing=false;
+/* Dragging DETACHES the view from the sensors so a finger never
+   fights the compass (Sangram, 31 Aug); the Recenter button
+   reattaches. While detached the compass anchor keeps learning,
+   so recentering is accurate. */
+let followSky=true;
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)"};
 let cache=null, cacheAt=0, target=null;
 /* "now" = the living sky here; "birth" = the remembered sky over the
@@ -199,6 +205,8 @@ function targetPos(){
 }
 function setFoot(){
   const f=document.getElementById("svfoot"); if(!f) return;
+  /* a tall card and the search bar share the bottom - one at a time */
+  el?.root.classList.toggle("hascard", !!target);
   if(!target){
     if(mode==="birth"&&birthOpts){
       const sunUp=cache&&cache.grahas.find(x=>x.g==="Sun")?.up;
@@ -233,7 +241,10 @@ function setFoot(){
         </div>
         <button class="svclear" id="svclear" aria-label="Close">&#10005;</button>
       </div>
-      <button class="svchart" id="svchart">Open in chart &#8250;</button>`;
+      <button class="svchart" id="svchart">Open in chart &#8250;</button>
+      <button class="svchart" id="svmore">Details &#8250;</button>`;
+    const mb=document.getElementById("svmore");
+    if(mb) mb.onclick=()=>openSvDetail(p,{sg,nk,dg,house,dir,where});
     const oc=document.getElementById("svchart");
     if(oc) oc.onclick=()=>{ const g=target.g; closeSkyView();
       dispatchEvent(new CustomEvent("astra:openplanet",{detail:g})); };
@@ -630,6 +641,57 @@ function resetCustom(){
   computeSky(); segLabel(); setTitle(); setFoot(); fmtWhenChip();
 }
 
+function syncRecenter(){
+  const fb=el?.root.querySelector(".svfollow"); if(!fb||!sensing) return;
+  if(!followSky){
+    fb.hidden=false; fb.classList.add("recenter");
+    fb.innerHTML="&#8982;&nbsp; Recenter sky";
+    fb.onclick=()=>{ followSky=true; fb.hidden=true;
+      try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}
+    };
+  } else fb.hidden=true;
+}
+
+/* the Star Walk detail page, in Astra's register: where it stands in
+   this sky, where it sits in the zodiac and YOUR chart, and what the
+   tradition reads it as (Sangram, 31 Aug: planets clickable -> full
+   description) */
+function openSvDetail(p, x){
+  const d=el.root.querySelector("#svdetail"); if(!d) return;
+  const norm360=v=>((v%360)+360)%360;
+  const pada=Math.floor((norm360(p.L)%(360/27))/(360/108))+1;
+  /* natal prose belongs to the BIRTH sky; the living sky gets transit
+     language - the two must never blur (§104) */
+  const story=x.house
+    ? (mode==="birth"
+        ? (PLANET_STORY[p.g]?PLANET_STORY[p.g].inHouse[x.house]:null)
+        : `Right now it is passing through your ${x.house}th house &#8212; ${HOUSE_TRANSIT_SENSE[x.house]||""}.`)
+    : null;
+  const row=(k,v)=>`<div class="svdrow"><span>${k}</span><b>${v}</b></div>`;
+  d.innerHTML=`
+    <div class="svdhead">
+      <img class="svcart" src="assets/graha/${p.g.toLowerCase()}.png" alt="">
+      <div><div class="svdeye">${GRAHA_SK[p.g]} &#183; graha</div>
+        <h2>${p.g}</h2></div>
+      <button class="svclear" id="svdclose" aria-label="Close">&#10005;</button>
+    </div>
+    ${row("In this sky", `${x.where}, altitude ${Math.round(p.alt)}&#176;, azimuth ${Math.round(norm360(p.az))}&#176; ${x.dir}`)}
+    ${row("In the zodiac", `${SIGNS_SK[x.sg]} ${x.dg} (sidereal)`)}
+    ${row("Nakshatra", `${NAKS[x.nk]} &#183; pada ${pada}`)}
+    ${x.house?row("In your chart", `house ${x.house}`):""}
+    ${row("Motion", p.retro?(p.g==="Rahu"||p.g==="Ketu"?"Retrograde (always)":"Retrograde"):"Direct")}
+    <p class="svdp">${GRAHA_MEANING[p.g]?GRAHA_MEANING[p.g].body:""}</p>
+    ${story?`<p class="svdp">${story}</p>`:""}
+    <button class="svchart" id="svchart2">Open in your chart &#8250;</button>
+    <p class="svdnote">Positions computed for this place and moment; the reading is
+      what Vedic tradition associates with the seat &#8212; not a prediction.</p>`;
+  d.hidden=false;
+  d.querySelector("#svdclose").onclick=()=>{ d.hidden=true; };
+  d.querySelector("#svchart2").onclick=()=>{ const g=p.g;
+    d.hidden=true; closeSkyView();
+    dispatchEvent(new CustomEvent("astra:openplanet",{detail:g})); };
+}
+
 function onOrient(ev){
   if(ev.alpha==null && ev.webkitCompassHeading==null) return;
   const D=Math.PI/180;
@@ -656,6 +718,7 @@ function onOrient(ev){
   }
   if(azOff==null) return;        /* no north reference yet - wait */
   sensing=true;
+  if(!followSky){ syncRecenter(); return; }
   /* near straight up or down the view's compass direction degenerates -
      hold the last heading there instead of snapping (Sangram, 30 Aug) */
   if(Math.abs(altm)<78) wantAz=((azm+azOff)%360+360)%360;
@@ -678,7 +741,7 @@ export function openSkyView(opts={}){
   if(opts.lat!=null) spot={lat:opts.lat, lon:opts.lon, from:opts.from||"your location"};
   birthOpts=opts.birth||null;
   proUser=!!opts.pro;
-  mode="now"; custom=null;
+  mode="now"; custom=null; followSky=true;
   if(!el){
     const n=document.createElement("div");
     n.className="skyview"; n.id="skyview";
@@ -716,6 +779,7 @@ export function openSkyView(opts={}){
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </div>
       <button class="svfollow" hidden>Follow my phone</button>
+      <div class="svdetail" id="svdetail" hidden></div>
       <div class="svres" id="svres"></div>
       <div class="svfoot" id="svfoot"></div>`;
     document.body.appendChild(n);
@@ -735,12 +799,13 @@ export function openSkyView(opts={}){
     n.querySelector("#svp").oninput=e=>paintPlist(e.target.value);
     let px=0,py=0,drag=false,moved=0;
     n.addEventListener("pointerdown",e=>{
-      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot,.svfollow,.svseg,.svwhen,.svedit")) return;
+      if(e.target.closest(".svsearch,.svres,.svclose,.svfoot,.svfollow,.svseg,.svwhen,.svedit,.svdetail")) return;
       drag=true;moved=0;px=e.clientX;py=e.clientY;});
     n.addEventListener("pointermove",e=>{
       if(!drag) return;
       const ppd=(el.canvas.height/devicePixelRatio)/70;
       moved+=Math.abs(e.clientX-px)+Math.abs(e.clientY-py);
+      if(moved>10 && sensing && followSky){ followSky=false; syncRecenter(); }
       wantAz-= (e.clientX-px)/ppd; wantAlt+=(e.clientY-py)/ppd;
       wantAlt=clampAlt(wantAlt);
       px=e.clientX; py=e.clientY;
@@ -824,7 +889,8 @@ export function openSkyView(opts={}){
   }
 }
 export function closeSkyView(){
-  running=false; sensing=false; target=null;
+  running=false; sensing=false; target=null; followSky=true;
+  const dt=el?.root.querySelector("#svdetail"); if(dt){dt.hidden=true;}
   if(watch){ removeEventListener("deviceorientationabsolute",watch);
     removeEventListener("deviceorientation",watch); watch=null; }
   el?.root.classList.remove("on");

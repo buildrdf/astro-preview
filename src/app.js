@@ -12,7 +12,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260831j";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260831l";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260831e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,

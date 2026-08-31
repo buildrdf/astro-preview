@@ -22,7 +22,8 @@
    NOW-dependent gochara rows (or the change must be explained).
    =================================================================== */
 
-import { positions, retrograde, moonSidereal, sunSidereal, jd } from "./ephemeris.js";
+import { positions, retrograde, moonSidereal, sunSidereal, jd, ayanamsa } from "./ephemeris.js";
+import { shadbala, bhavabala, SHADBALA_GRAHAS } from "./shadbala.js";
 import { ascendant, altAz, gmst } from "./sky.js";
 import { limbs, GOCHARA_GOOD } from "./panchang.js";
 import { vimshottari, DASHA_ORDER } from "./dasha3.js";
@@ -375,6 +376,19 @@ function sadeSati(moonSign, fromDate, toDate) {
   }));
 }
 
+/* sidereal midheaven - same derivation the app's mcOf uses (verified
+   against printed KP cusps in the round-2 validation) */
+const RADm = Math.PI / 180;
+function mcOf(date, lonE) {
+  const J = jd(date), T = (J - 2451545) / 36525;
+  const g = 280.46061837 + 360.98564736629 * (J - 2451545) + 0.000387933 * T * T;
+  const ramc = norm(g + lonE);
+  const eps = 23.439291 - 0.0130042 * T;
+  const lam = Math.atan2(Math.sin(ramc * RADm),
+    Math.cos(ramc * RADm) * Math.cos(eps * RADm)) / RADm;
+  return norm(lam - ayanamsa(J));
+}
+
 /* ------------------------------------------------ compute --------- */
 
 function computeChart(p) {
@@ -474,8 +488,20 @@ function computeChart(p) {
     if (d < COMBUST_ORB[g]) combust[g] = d;
   }
 
+  /* --- shadbala + bhava bala (BPHS, validated round 2) -------------- */
+  let sb = null, bb = null;
+  try {
+    if (st.rise && st.set) {
+      const shChart = { longitudes: pos, ascendant: ascLon, mc: mcOf(p.date, p.lon),
+        date: p.date, sunrise: st.rise, sunset: st.set,
+        tzMinutes: Math.round(tzOffsetMs(p.date) / 6e4) };
+      sb = shadbala(shChart);
+      bb = bhavabala(shChart, {}, sb);
+    }
+  } catch (_) { sb = null; bb = null; }
+
   return { ...p, pos, rx, ascLon, lagna, moonL, points, houses, vargas,
-    dasha, nowStack, bav, sav, yogas, sati, mangal, karakas,
+    dasha, nowStack, bav, sav, yogas, sati, mangal, karakas, sb, bb,
     birthLimbs, vara: { name: VARA_NAMES[wd], lord: VARA_LORD[wd] },
     moonSign, marsSign,
     sunrise: st.rise, sunset: st.set, lmt, lst, ends, doshas, gochara,
@@ -775,7 +801,33 @@ function renderKundali(c) {
   const gRows = c.gochara.map(g =>
     `| ${g.graha} | ${SIGNS[g.sign - 1]} ${dm(g.lon)} | ${ord(g.fromMoon)} | ${ord(g.fromLagna)} | ${favWord(g)} | ${g.sav} | ${g.until ? "~" + fmtDate(g.until) : "—"} |`);
   const moonNow = c.gochara.find(g => g.graha === "Moon");
-  push(`## 10. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
+  /* --- 10 shadbala + bhava bala --------------------------------- */
+  if (c.sb) {
+    const gs = SHADBALA_GRAHAS.map(g => ({ g, ...c.sb.grahas[g] }))
+      .sort((a, b) => b.rupas - a.rupas);
+    push("## 10. Shadbala — Six-Fold Strength",
+      "",
+      "The classical strength computation (Brihat Parashara Hora Shastra): six sources of strength per graha — positional (sthana), temporal (kaala), directional (dig), motional (cheshta), natural (naisargika) and aspectual (drik) — summed in virupas, 60 virupas to a rupa. Ranked strongest first:",
+      "",
+      "| Rank | Graha | Sthana | Kaala | Dig | Cheshta | Naisargika | Drik | Total | Rupas |",
+      "|---|---|---|---|---|---|---|---|---|---|",
+      ...gs.map((r, i) =>
+        `| ${i + 1} | ${r.g} | ${r.sthana.toFixed(1)} | ${r.kaala.toFixed(1)} | ${r.dig.toFixed(1)} | ${r.cheshta.toFixed(1)} | ${r.naisargika.toFixed(1)} | ${r.drik.toFixed(1)} | ${r.total.toFixed(1)} | **${r.rupas.toFixed(2)}** |`),
+      "",
+      `**${gs[0].g} is your strongest graha** (${gs[0].rupas.toFixed(2)} rupas) and ${gs.at(-1).g} the least fortified (${gs.at(-1).rupas.toFixed(2)}). Strength here is traditionally read as a graha's capacity to deliver what it signifies — not as goodness or badness. Required-strength thresholds are printed by some vendors but differ between schools; Astra omits them until a rule reproduces printed ground truth.`);
+    if (Array.isArray(c.bb) && c.bb.length === 12) {
+      const hb = c.bb.map((r, i) => ({ h: i + 1, ...r })).sort((a, b) => b.rupas - a.rupas);
+      push("",
+        "**Bhava Bala** — the same discipline applied to the twelve houses, ranked:",
+        "",
+        "| Rank | House | Field | Total | Rupas |",
+        "|---|---|---|---|---|",
+        ...hb.map((r, i) =>
+          `| ${i + 1} | ${ord(r.h)} | ${HOUSE_SENSE[r.h]} | ${r.total.toFixed(1)} | **${r.rupas.toFixed(2)}** |`));
+    }
+  }
+
+  push(`## 11. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
     "",
     `Where every graha stands **today**, read against your natal Moon (${SIGNS[c.moonSign - 1]}) and lagna (${SIGNS[c.lagna - 1]}). The favourable/testing call uses the classical gochara table — each graha has a fixed set of houses from the natal Moon in which its transit is traditionally read as supportive (Sun 3/6/10/11, Moon 1/3/6/7/10/11, Mars 3/6/11, Mercury 2/4/6/8/10/11, Jupiter 2/5/7/9/11, Venus 1/2/3/4/5/8/9/11/12, Saturn 3/6/11, Rahu 3/6/10/11, Ketu 3/6/11). The bindu column joins this to §9: your own ashtakavarga score for the sign being transited.`,
     "",
@@ -788,7 +840,7 @@ function renderKundali(c) {
     "*This snapshot is the report-form of what the app computes live; the classical read describes the transit seat, and never overrides the running dasha context in §8.*");
 
   /* --- 8 yogas --------------------------------------------------- */
-  push("## 11. Yogas — With the Working Shown",
+  push("## 12. Yogas — With the Working Shown",
     "",
     `${c.yogas.length} classical combinations are present in this chart. Each one below states the rule as it applies to your actual placements — a yoga is never just a name here.`,
     "");
@@ -797,7 +849,7 @@ function renderKundali(c) {
   }
 
   /* --- 9 sade sati ------------------------------------------------ */
-  push("## 12. Sade Sati — Saturn's Pass Over Your Moon",
+  push("## 13. Sade Sati — Saturn's Pass Over Your Moon",
     "",
     `Sade sati is the roughly seven-and-a-half-year stretch when transiting Saturn crosses the 12th, 1st and 2nd signs counted from your natal Moon (${SIGNS[c.moonSign - 1]}). The tradition reads it as a season of consolidation and pruning — slow, structural, and finite — not as a verdict. The windows below are computed directly from the ephemeris; each window's internal phases show Saturn's actual sign entries, including retrograde re-entries.`,
     "");
@@ -813,7 +865,7 @@ function renderKundali(c) {
   /* --- 12 doshas --------------------------------------------------- */
   const mg = c.mangal;
   const second = mg.fromLagna.house === 2 || mg.fromMoon.house === 2;
-  push("## 13. Doshas — Verdicts With the Rule Shown",
+  push("## 14. Doshas — Verdicts With the Rule Shown",
     "",
     "Four classical afflictions, each checked against this chart with the rule written out. An absent dosha gets its reasoning too — a verdict you cannot audit is not a verdict.",
     "",
@@ -837,7 +889,7 @@ function renderKundali(c) {
   const dk8 = k.eight.find(x => x.karaka === "Darakaraka");
   const same = k.eight.filter(x => x.karaka !== "Pitrikaraka")
     .every(x => k.seven.find(y => y.karaka === x.karaka)?.graha === x.graha);
-  push("## 14. Chara Karakas — The Movable Significators",
+  push("## 15. Chara Karakas — The Movable Significators",
     "",
     "Jaimini's movable significators rank the grahas by how far each has travelled through its sign — the furthest-travelled becomes the Atmakaraka, the soul's own significator, down to the Darakaraka, the significator of the partner. Shown under the eight-karaka scheme (seven grahas plus Rahu, whose arc counts from the end of its sign); the seven-karaka variant follows.",
     "",

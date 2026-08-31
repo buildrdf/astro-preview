@@ -322,7 +322,24 @@ body.insub .page{padding-bottom:30px}
 .stagewrap{display:grid;place-items:center;padding:6px 0 4px;
   transition:transform .68s var(--ease)}
 .zoomed .stagewrap{transform:translateY(-8dvh)}
-.stage{position:relative;width:min(92vw,430px);aspect-ratio:1}
+.stage{position:relative;width:min(92vw,430px);aspect-ratio:1;
+  transition:width .55s var(--ease)}
+
+/* OPTION B - reading in page flow: the chart shrinks, pins to the
+   top of the page's own scroll, and stays alive while the reading
+   flows beneath it. No drawer, no nested scrolling. */
+#pg-universe.compact .stagewrap{position:sticky;top:-12px;z-index:40;
+  background:rgba(23,26,51,.88);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--edge-soft);
+  margin:0 -20px;padding:14px 0 8px}
+#pg-universe.compact .stage{width:min(46vw,195px)}
+#pg-universe.compact .unihint,#pg-universe.compact .scrubwrap{display:none}
+#pg-universe .reading{padding:14px 0 30px;animation:readin .4s var(--ease) both}
+@keyframes readin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  #pg-universe .reading{animation:none}
+}
 .orbit{position:absolute;inset:0;transform-origin:50% 50%;
   transition:transform .72s var(--ease),filter .5s var(--ease),opacity .5s var(--ease)}
 .stage.pmode .orbit{transform:scale(.94);filter:blur(1.1px);opacity:.62}
@@ -688,7 +705,7 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important}
-  .page,.orbit,.p,.sheet,.stagewrap{transition-duration:.001s!important}
+  .page,.orbit,.p,.sheet,.stagewrap,.stage{transition-duration:.001s!important}
   #sky{display:none}
 }
 

@@ -1389,6 +1389,7 @@ function renderUniverse(){
         <div class="plane" id="plane"></div>
       </div>
     </div>
+    <div class="reading" id="reading" hidden></div>
     <div class="scrubwrap" id="scrubwrap">
       <div class="scrubdatehead"><b id="scrubdate"></b>
         <button class="tb-btn txt" id="scrubnow">Now</button></div>
@@ -1439,6 +1440,7 @@ function renderUniverse(){
     plane.appendChild(b); PEL[g]=b;
   }
 
+  document.getElementById("reading").addEventListener("click",readingClicks);
   chart.onclick=e=>{const t=e.target.closest(".hs"); if(t)openHouse(+t.dataset.h)};
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
@@ -1669,8 +1671,47 @@ function clearMarks(){
   });
   document.getElementById("asp").innerHTML="";
 }
+/* ---- OPTION B (Sangram, 31 Aug): house/planet READINGS are page
+   content. The chart shrinks and pins to the top - alive, tappable -
+   while the reading flows beneath in the page's own scroll. One
+   scroll, no drawer physics. The sheet stays for pickers (vargas,
+   yogas, Pro) where a transient overlay is the right shape.
+   Amends DDR 0003's sheet ladder for readings - founder-approved. */
+function setReading(html){
+  const pg=document.getElementById("pg-universe");
+  const r=document.getElementById("reading");
+  if(!pg||!r) return;
+  r.innerHTML=html; r.hidden=false;
+  pg.classList.add("compact");
+  closeBtn.classList.add("on");
+  pg.scrollTop=0;
+}
+function clearReading(){
+  const pg=document.getElementById("pg-universe");
+  const r=document.getElementById("reading");
+  if(r){ r.hidden=true; r.innerHTML=""; }
+  pg?.classList.remove("compact");
+}
+/* the reading hosts the same interactive content the sheet carried -
+   mirror its delegated clicks */
+function readingClicks(e){
+  const sw=e.target.closest("#psheetseg button[data-w]");
+  if(sw){
+    const seg=sw.closest("#psheetseg");
+    seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===sw));
+    setThumb(seg,false); buzz(5);
+    document.querySelectorAll("#reading .modeblk").forEach(b=>
+      b.hidden = b.dataset.w!==sw.dataset.w);
+    return;
+  }
+  const a=e.target.closest(".askastra");
+  if(a){ buzz(9); askAstra(a.dataset.q); return; }
+  const f=e.target.closest(".findsky");
+  if(f){ buzz(8); openSkyPanel(f.dataset.g); }
+}
+
 function resetChart(){
-  mode=null;current=null;clearMarks();
+  mode=null;current=null;clearMarks();clearReading();
   const st=document.getElementById("stage"),ob=document.getElementById("orbit");
   if(st)st.classList.remove("pmode");
   if(ob){ob.style.transform="";ob.style.transformOrigin="50% 50%"}
@@ -1700,9 +1741,7 @@ function openHouse(h){
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   uniPlacements().forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
-  hideSheetKeepFocus();
   if(uniMode==="birth"&&uniVarga>1) sheetVargaHouse(h); else sheetHouse(h);
-  showSheetPeek();
 }
 
 /* Compact sheets for taps while a divisional chart is showing: the
@@ -1714,8 +1753,8 @@ function sheetVargaHouse(h){
   const v=vargaView(); if(!v||!vi) return sheetHouse(h);
   const sg=((v.lagna-1+h-1)%12)+1;
   const occ=uniPlacements().filter(p=>p.house===h).map(p=>p.graha);
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock(`House ${h} &#183; ${vi[1]} (D${uniVarga})`, SIGNS[sg-1])}
+  setReading(`
+    <div class="eyebrow">House ${h} &#183; ${vi[1]} (D${uniVarga}) &#183; ${SIGNS[sg-1]}</div>
     <div>
       ${rows([["Sign",SIGNS[sg-1]],["Lord",SIGN_LORD[sg]],
         ["Occupants",occ.length?occ.join(", "):"&#8212;"]])}
@@ -1725,14 +1764,14 @@ function sheetVargaHouse(h){
         particular weight in that field.`:""}</p>
       <p class="note">The full natal reading lives on the Rashi (D1) chart; divisional
         placements refine it, they don&#8217;t replace it.</p>
-    </div>`;
+    </div>`);
 }
 function sheetVargaPlanet(p){
   const vi=VARGA_INFO.find(v=>v[0]===uniVarga);
   const natal=CHART.get(p.graha);
   const votta=uniVarga===9&&p.sign===natal.sign;
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock(`${p.graha} in the ${vi[1]}`,`${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house`)}
+  setReading(`
+    <div class="eyebrow">${p.graha} in the ${vi[1]} &#183; ${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house</div>
     <div>
       ${rows([[`D${uniVarga} seat`,`${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house`],
         ["Natal (D1) seat",`${SIGNS[natal.sign-1]} &#183; ${ordinal(natal.house)} house`],
@@ -1741,14 +1780,14 @@ function sheetVargaPlanet(p){
         ${vi[2]}; a graha&#8217;s seat here is its footing in that field.${
         votta?" A vargottama seat &#8212; the same sign in both charts &#8212; is traditionally read as steadier and more fully itself.":""}</p>
       <p class="note">Tap ${p.graha} on the Rashi (D1) chart for its full reading.</p>
-    </div>`;
+    </div>`);
 }
 
 function openPlanet(g,opts={}){
   if(mode==="planet"&&current===g && !opts.sub)return;
   const list=uniPlacements();                  /* the placements ON SCREEN */
   const p=list.find(x=>x.graha===g)||CHART.get(g);
-  mode="planet";current=g;clearMarks();hideSheetKeepFocus();buzz(12);
+  mode="planet";current=g;clearMarks();buzz(12);
   document.getElementById("stage").classList.add("pmode");
   const b=PEL[g],[px,py]=b._pos,T=[.5,.26];
   b.classList.add("focus"); b.style.zIndex=40;
@@ -1762,7 +1801,6 @@ function openPlanet(g,opts={}){
      a varga would point at the wrong houses */
   if(!vargaLens) drawAspects(CHART.get(g)||p);
   if(vargaLens) sheetVargaPlanet(p); else sheetPlanet(p,opts);
-  showSheetPeek();
   requestAnimationFrame(()=>setThumb(document.getElementById("psheetseg"),true));
 }
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1)
@@ -1792,8 +1830,7 @@ function sheetHouse(h){
   const sg=CHART.signOfHouse(h), lord=SIGN_LORD[sg], lp=CHART.get(lord);
   const occ=CHART.occupants(h), inc=CHART.aspecting(h);
   const [sk,head,body]=BHAVA[h-1];
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock(`${ordinal(h)} house &#183; ${SIGNS[sg-1]}`, head)}
+  setReading(`
     <div class="eyebrow">${locator(h)}${ordinal(h)} house &#183; ${sk} Bhava &#183; ${SIGNS_SK[sg-1]} rashi</div>
     <h1 style="font-size:26px">${head}</h1>
     <p class="muted" style="margin:0 0 14px">${body}</p>
@@ -1824,7 +1861,7 @@ function sheetHouse(h){
     <button class="askastra" data-q="What should I know about my ${ordinal(h)} house?">
       <span class="orbdot" aria-hidden="true"></span>
       Ask Astra about your ${ordinal(h)} house</button>
-    <p class="note">Traditional readings for this configuration. Not a prediction.</p>`;
+    <p class="note">Traditional readings for this configuration. Not a prediction.</p>`);
 }
 
 function sheetPlanet(p,opts){
@@ -1832,9 +1869,7 @@ function sheetPlanet(p,opts){
   const ruled=CHART.housesRuled(g), conj=CHART.conjunct(g);
   const now=CHART.dasha.at(new Date());
   const transiting = uniMode==="today";
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock(`${g} &#183; ${ordinal(p.house)} house`,
-                (opts&&opts.sub) || cap(GRAHA_MEANING[g].is))}
+  setReading(`
     <div class="sheethead">
       <img class="sheetart" src="assets/graha/${g.toLowerCase()}.png" alt="" draggable="false">
       <div><div class="eyebrow" style="margin-bottom:3px">${SK[g]}${shadow(g)?" &#183; chhaya graha":""}</div>
@@ -1919,7 +1954,7 @@ function sheetPlanet(p,opts){
         ["Natural karaka",KARAKA[g]]
       ])}
     </details>
-    <p class="note">Traditional readings for this placement. Not a prediction.</p>`;
+    <p class="note">Traditional readings for this placement. Not a prediction.</p>`);
 }
 
 /* the transparent gap shows the chart; a tap there should reach it, but the

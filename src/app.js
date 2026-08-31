@@ -12,7 +12,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView } from "./skyview.js?v=20260831c";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260831j";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260831e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
@@ -232,8 +232,17 @@ function engine(){
 let ACTIVE={name:"Sangram", first:"Sangram", p:null};
 function setActiveUser(p){
   if(!p){
-    ACTIVE={name:"Sangram", first:"Sangram", p:null};
-    CHART=chartFor(BIRTH, ASCENDANT);
+    /* "back to me": the onboarded profile when one exists, the
+       built-in reference chart otherwise */
+    const me=meProfile();
+    if(me){
+      const d=new Date(me.born);
+      CHART=chartFor(d, ascendant(d, me.lat, me.lon));
+      ACTIVE={name:me.name, first:me.name.split(" ")[0], p:{...me}};
+    }else{
+      ACTIVE={name:"Sangram", first:"Sangram", p:null};
+      CHART=chartFor(BIRTH, ASCENDANT);
+    }
     localStorage.removeItem("astro.activeUser");
   }else{
     const d=new Date(p.born);
@@ -4310,6 +4319,15 @@ pagesEl.addEventListener("touchend",()=>{
   },520);
 },{passive:true});
 
+/* the onboarded person's own chart takes over from the built-in
+   reference chart before anything paints */
+const __me=meProfile();
+if(__me){ try{
+  const d=new Date(__me.born);
+  CHART=chartFor(d, ascendant(d, __me.lat, __me.lon));
+  ACTIVE={name:__me.name, first:__me.name.split(" ")[0], p:{...__me}};
+}catch(_){} }
+
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();
 
@@ -4326,3 +4344,182 @@ try{
   const an=localStorage.getItem("astro.activeUser");
   if(an && isPro()){ const p=partners().find(x=>x.name===an); if(p) setActiveUser(p); }
 }catch(_){}
+
+/* ==================================================================
+   ONBOARDING - the beginning of a personal universe (CLAUDE.md
+   §99-102). Three quiet steps: welcome -> keeping the chart -> the
+   birth moment; then the person's own sky arrives.
+
+   Google sign-in wires itself up when OB_GOOGLE_CLIENT_ID is set (the
+   origin must be authorized for it in Google Cloud Console); until
+   then the account step says, honestly, that the chart lives on this
+   device. No fake buttons.
+
+   First run (no stored profile, never onboarded) opens it; #onboard
+   in the URL reopens it any time for review.
+   ================================================================== */
+const OB_GOOGLE_CLIENT_ID="";
+let obEl=null, obStep=0, obPlace=null, obDraft={};
+
+/* the onboarded person; function declaration so the boot code and
+   setActiveUser (which run earlier in the module) can hoist-call it */
+function meProfile(){
+  try{ return JSON.parse(localStorage.getItem("astro.me")||"null"); }
+  catch(_){ return null; }
+}
+
+function openOnboarding(){
+  if(obEl) return;
+  obEl=document.createElement("div");
+  obEl.className="onb";
+  document.body.appendChild(obEl);
+  obStep=0; obPlace=null; obDraft={};
+  paintOnb();
+}
+function closeOnboarding(){ obEl?.remove(); obEl=null; }
+
+function paintOnb(){
+  if(!obEl) return;
+  const esc2=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  if(obStep===0){
+    obEl.innerHTML=`<div class="onbstep">
+      <p class="obword">Astra</p>
+      <p class="obline">Your birth chart, computed to the arc-minute &#8212;
+        and a sky you can touch.</p>
+      <button class="primary obwide" data-ob="begin">Begin</button>
+      <button class="obghost" data-ob="sample">Explore a sample chart first</button>
+    </div>`;
+  }else if(obStep===1){
+    obEl.innerHTML=`<div class="onbstep">
+      <h2 class="obh">Keeping your chart</h2>
+      ${OB_GOOGLE_CLIENT_ID
+        ?`<p class="obline">Sign in so your chart follows you.</p>
+          <div id="gbtn" style="display:flex;justify-content:center;margin:14px 0"></div>
+          <button class="obghost" data-ob="device">Continue without an account</button>`
+        :`<p class="obline">For now your chart is stored privately on this device
+            &#8212; nothing leaves it. Accounts and sync arrive with the App Store
+            release.</p>
+          <button class="primary obwide" data-ob="device">Continue</button>`}
+    </div>`;
+    obWireGoogle();
+  }else{
+    const d=obDraft;
+    obEl.innerHTML=`<div class="onbstep">
+      <h2 class="obh">The moment you arrived</h2>
+      <p class="obline sm">The sky is cast for one exact moment and place. Birth time
+        matters most &#8212; the ascendant changes sign about every two hours.</p>
+      <label class="fld"><span class="flabel">Name</span>
+        <input id="ob_name" type="text" autocomplete="name" value="${esc2(d.name||"")}" placeholder="Your name"></label>
+      <div class="sverow">
+        <label class="fld"><span class="flabel">Birth date</span>
+          <input id="ob_date" type="date" value="${d.date||""}"></label>
+        <label class="fld"><span class="flabel">Birth time</span>
+          <input id="ob_time" type="time" value="${d.time||""}" ${d.noTime?"disabled":""}></label>
+      </div>
+      <button class="obcheck${d.noTime?" on":""}" id="ob_notime" role="checkbox"
+        aria-checked="${!!d.noTime}"><i></i>I don&#8217;t know my birth time</button>
+      ${d.noTime?`<p class="obnote">We&#8217;ll assume midday. Your Moon sign, nakshatra and
+        dasha sequence stay close; the ascendant and houses can&#8217;t be trusted without
+        a time, and Astra will say so rather than guess.</p>`:""}
+      <label class="fld" style="position:relative"><span class="flabel">Birthplace</span>
+        <input id="ob_place" type="search" autocomplete="off" autocorrect="off"
+          spellcheck="false" value="${esc2(d.placeText||"")}" placeholder="Start typing a city&#8230;">
+      </label>
+      <div class="svplist" id="ob_plist"></div>
+      <button class="primary obwide" id="ob_go" disabled>Cast my chart</button>
+    </div>`;
+    obWireBirth();
+  }
+  obEl.querySelectorAll("[data-ob]").forEach(b=>b.onclick=()=>{
+    buzz(8);
+    const a=b.dataset.ob;
+    if(a==="begin"){ obStep=1; paintOnb(); }
+    else if(a==="device"){ obStep=2; paintOnb(); }
+    else if(a==="sample"){
+      localStorage.setItem("astro.onboarded","1");
+      closeOnboarding();
+    }
+  });
+}
+
+function obWireGoogle(){
+  if(!OB_GOOGLE_CLIENT_ID) return;
+  const s=document.createElement("script");
+  s.src="https://accounts.google.com/gsi/client"; s.async=true;
+  s.onload=()=>{ try{
+    google.accounts.id.initialize({client_id:OB_GOOGLE_CLIENT_ID, callback:r=>{
+      try{
+        const p=JSON.parse(atob(r.credential.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+        localStorage.setItem("astro.account",JSON.stringify({email:p.email,name:p.name}));
+        obDraft.name=p.name||"";
+        obStep=2; paintOnb();
+      }catch(_){}
+    }});
+    google.accounts.id.renderButton(obEl.querySelector("#gbtn"),
+      {theme:"filled_black",width:280,shape:"pill"});
+  }catch(_){} };
+  document.head.appendChild(s);
+}
+
+function obWireBirth(){
+  const $o=id=>obEl.querySelector(id);
+  const valid=()=>{
+    obDraft.name=$o("#ob_name").value; obDraft.date=$o("#ob_date").value;
+    obDraft.time=$o("#ob_time").value;
+    $o("#ob_go").disabled=!(obDraft.name.trim()&&obDraft.date&&
+      (obDraft.noTime||obDraft.time)&&obPlace);
+  };
+  ["#ob_name","#ob_date","#ob_time"].forEach(id=>$o(id).addEventListener("input",valid));
+  $o("#ob_notime").onclick=()=>{
+    obDraft.noTime=!obDraft.noTime; buzz(6); paintOnb();
+  };
+  let seq=0;
+  $o("#ob_place").addEventListener("input",()=>{
+    obPlace=null; obDraft.placeText=$o("#ob_place").value; valid();
+    const q=$o("#ob_place").value.trim(); const s=++seq;
+    const list=$o("#ob_plist");
+    if(q.length<2){ list.innerHTML=""; return; }
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`)
+      .then(r=>r.json()).then(j=>{
+        if(s!==seq||!obEl) return;
+        const esc2=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const hits=j.results||[];
+        list.innerHTML=hits.map((x,i)=>`<button class="svpitem" data-i="${i}">
+          ${esc2(x.name)} <span class="svpsub">${esc2([x.admin1,x.country].filter(Boolean).join(", "))}</span></button>`).join("");
+        list.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
+          const x=hits[+b.dataset.i];
+          obPlace={n:x.name, detail:[x.admin1,x.country].filter(Boolean).join(", "),
+            lat:x.latitude, lon:x.longitude, tz:x.timezone};
+          obDraft.placeText=`${x.name}${obPlace.detail?", "+obPlace.detail:""}`;
+          $o("#ob_place").value=obDraft.placeText;
+          list.innerHTML=""; buzz(6); valid();
+        });
+      }).catch(()=>{});
+  });
+  $o("#ob_go").onclick=()=>{
+    const [y,mo,da]=obDraft.date.split("-").map(Number);
+    const [hh,mi]=obDraft.noTime?[12,0]:obDraft.time.split(":").map(Number);
+    const born=obPlace.tz
+      ? utcFromLocalTz(y,mo,da,hh,mi,obPlace.tz)
+      : new Date(Date.UTC(y,mo-1,da,hh,mi));
+    const me={name:obDraft.name.trim(), born:born.toISOString(),
+      place:obDraft.placeText, lat:obPlace.lat, lon:obPlace.lon,
+      tz:obPlace.tz||null, approx:!!obDraft.noTime};
+    try{
+      localStorage.setItem("astro.me",JSON.stringify(me));
+      localStorage.setItem("astro.onboarded","1");
+    }catch(_){}
+    setActiveUser(null);                     /* boots the me profile */
+    closeOnboarding();
+    go(CHART_INDEX);
+    buzz(16);
+    /* the arrival: planets fade in one by one (§101 step 6);
+       Reduce Motion gets them all at once via CSS */
+    const pl=document.getElementById("plane");
+    if(pl){ pl.classList.add("reveal");
+      setTimeout(()=>pl.classList.remove("reveal"),2600); }
+  };
+}
+
+if((!meProfile() && !localStorage.getItem("astro.onboarded"))
+   || location.hash.includes("onboard")) openOnboarding();

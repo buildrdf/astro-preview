@@ -90,7 +90,7 @@ const cacheKey=()=>mode+"|"+(mode==="birth"?"b":custom?custom.iso+custom.lat:"li
 /* Timezone-true local time: offset computed per-instant from the IANA
    zone via Intl (same machinery report.html validated on the live
    site, 31 Aug), so DST-observing places get their real clock. */
-function offsetAtTz(tz, utcMs){
+export function offsetAtTz(tz, utcMs){
   const f=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,
     year:"numeric",month:"numeric",day:"numeric",
     hour:"numeric",minute:"numeric",second:"numeric"});
@@ -98,7 +98,7 @@ function offsetAtTz(tz, utcMs){
   return Date.UTC(m.year,m.month-1,m.day,m.hour%24,m.minute,m.second)
        - Math.floor(utcMs/1000)*1000;
 }
-function utcFromLocalTz(y,mo,da,hh,mi,tz){
+export function utcFromLocalTz(y,mo,da,hh,mi,tz){
   const wall=Date.UTC(y,mo-1,da,hh,mi);
   let guess=wall;
   for(let i=0;i<3;i++) guess=wall-offsetAtTz(tz,guess);

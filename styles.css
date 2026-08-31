@@ -786,6 +786,49 @@ body.glossary .page{padding-right:30px}
   color:var(--ink-3);opacity:.75}
 .agetick i{display:block;width:7px;height:1px;background:var(--ink-3);opacity:.6}
 
+/* ---- onboarding ---- */
+.onb{position:fixed;inset:0;z-index:220;overflow-y:auto;
+  display:flex;align-items:center;justify-content:center;
+  padding:28px 22px calc(env(safe-area-inset-bottom) + 28px);
+  background:radial-gradient(120% 90% at 50% 0%,#232748 0%,#171A33 55%,#111327 100%)}
+.onbstep{max-width:400px;width:100%;animation:obfade .5s var(--ease) both}
+@keyframes obfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.obword{font-size:42px;font-weight:750;letter-spacing:-.01em;text-align:center;
+  margin:0 0 10px;color:var(--ink)}
+.obh{font-size:24px;letter-spacing:-.02em;margin:0 0 10px;text-align:center}
+.obline{color:var(--ink-2);font-size:15px;line-height:1.6;text-align:center;
+  margin:0 auto 22px;max-width:34ch}
+.obline.sm{font-size:13.5px;margin-bottom:18px}
+.obwide{width:100%;margin-top:6px}
+.obghost{display:block;width:100%;background:none;border:0;cursor:pointer;
+  color:var(--ink-3);font-size:13.5px;font-family:var(--ff);min-height:44px;
+  margin-top:10px;text-decoration:underline;text-underline-offset:3px}
+.obcheck{display:flex;align-items:center;gap:9px;background:none;border:0;
+  cursor:pointer;color:var(--ink-2);font-size:13.5px;font-family:var(--ff);
+  min-height:44px;padding:0 2px;margin:-4px 0 2px}
+.obcheck i{width:17px;height:17px;border-radius:6px;border:1.5px solid var(--edge);
+  flex:0 0 auto;display:inline-block}
+.obcheck.on i{background:var(--brass);border-color:var(--brass)}
+.obnote{color:var(--ink-3);font-size:12px;line-height:1.55;margin:0 0 12px}
+.onb .svplist{margin-top:-6px;margin-bottom:10px}
+/* the arrival: planets fade in one by one; position stays untouched
+   (only opacity animates - transform belongs to the layout) */
+.plane.reveal .p{animation:preveal .6s var(--ease) both}
+.plane.reveal .p:nth-child(1){animation-delay:.15s}
+.plane.reveal .p:nth-child(2){animation-delay:.28s}
+.plane.reveal .p:nth-child(3){animation-delay:.41s}
+.plane.reveal .p:nth-child(4){animation-delay:.54s}
+.plane.reveal .p:nth-child(5){animation-delay:.67s}
+.plane.reveal .p:nth-child(6){animation-delay:.80s}
+.plane.reveal .p:nth-child(7){animation-delay:.93s}
+.plane.reveal .p:nth-child(8){animation-delay:1.06s}
+.plane.reveal .p:nth-child(9){animation-delay:1.19s}
+@keyframes preveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  .onbstep{animation:none}
+  .plane.reveal .p{animation:none}
+}
+
 /* planets glide between positions; a mode change or a scrub is the same
    objects moving, never a redraw */
 .p{transition:transform .72s var(--ease),opacity .5s var(--ease),

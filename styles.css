@@ -1643,3 +1643,23 @@ body.guidefull #pg-guide{padding-bottom:26px}
   .paper{box-shadow:none;margin:0;border-radius:0}
 }
 .skyview.hascard .svsearch,.skyview.hascard .svres{display:none}
+
+/* the shape of the day - draggable choghadiya band (Horoscope) */
+.dayband{position:relative;height:34px;border-radius:10px;overflow:visible;
+  background:rgba(255,255,255,.04);cursor:pointer;touch-action:none;
+  border:1px solid var(--edge-soft)}
+.dbseg{position:absolute;top:0;bottom:0}
+.dbseg.good{background:rgba(151,196,150,.32)}
+.dbseg.avoid{background:repeating-linear-gradient(135deg,
+  rgba(214,120,120,.30) 0 4px, rgba(214,120,120,.10) 4px 8px)}
+.dbseg.night{filter:brightness(.55)}
+.dbrahu{position:absolute;bottom:-4px;height:3px;border-radius:2px;
+  background:#D67878}
+.dbtick{position:absolute;top:-5px;width:2px;height:8px;background:var(--brass)}
+.dbnow{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);
+  box-shadow:0 0 7px rgba(255,255,255,.55)}
+.dbcur{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;
+  background:var(--brass);box-shadow:0 0 9px -1px var(--brass)}
+.dbscale{display:flex;justify-content:space-between;font-family:var(--fm);
+  font-size:9.5px;color:var(--ink-3);margin:8px 1px 8px}
+.dbread{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:0;min-height:1.4em}

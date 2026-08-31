@@ -762,7 +762,7 @@ function nextIngressMap(from){
   return map;
 }
 
-let todayTab="horo", todayBodies=null;
+let todayTab="horo", todayBodies=null, DAYBAND=null;
 function renderToday(){
   lastRenderAt=Date.now();
   const R=dayReading(viewDate), F=R.F, tr=F.tr;
@@ -823,6 +823,56 @@ function renderToday(){
       Abhijit muhurta${wednesday?" (*traditionally skipped on Wednesdays)":""} and Rahu Kalam
       run from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
 
+  /* ---- the shape of the day: choghadiya as a draggable band ------
+     "move the tracker and see what part of the day is good and bad"
+     (Sangram, 31 Aug - Horoscope is its home, his call). Favourable
+     stretches are solid, set-aside ones hatched (never colour alone,
+     §87); the red underline is Rahu Kalam, the gold tick Abhijit. */
+  let dayBand="";
+  DAYBAND=null;
+  if(st.rise&&st.set){
+    const HORA_ORDER=["Sun","Venus","Mercury","Moon","Saturn","Jupiter","Mars"];
+    const CHOG={Sun:["Udveg","avoid"],Venus:["Char","good"],Mercury:["Labh","good"],
+      Moon:["Amrit","good"],Saturn:["Kaal","avoid"],Jupiter:["Shubh","good"],
+      Mars:["Rog","avoid"]};
+    const st2=sunTimes(new Date(viewDate.getTime()+864e5),BIRTHPLACE.lat,BIRTHPLACE.lon);
+    if(st2.rise){
+      const t0=st.rise.getTime(), tSet=st.set.getTime(), t1=st2.rise.getTime();
+      const di=HORA_ORDER.indexOf(F.vara.lord);
+      const segs=[];
+      for(let i=0;i<8;i++){const lord=HORA_ORDER[(di+i)%7];
+        segs.push({a:t0+(tSet-t0)*i/8,b:t0+(tSet-t0)*(i+1)/8,
+          lord,name:CHOG[lord][0],cls:CHOG[lord][1],night:false});}
+      for(let i=0;i<8;i++){const lord=HORA_ORDER[(di+5+i)%7];
+        segs.push({a:tSet+(t1-tSet)*i/8,b:tSet+(t1-tSet)*(i+1)/8,
+          lord,name:CHOG[lord][0],cls:CHOG[lord][1],night:true});}
+      const span=t1-t0, pc=t=>((t-t0)/span*100).toFixed(2);
+      const rseg=RAHU_KALAM_SEGMENT[viewDate.getDay()];
+      const rk={a:t0+(tSet-t0)*(rseg-1)/8, b:t0+(tSet-t0)*rseg/8};
+      const noon=(t0+tSet)/2;
+      DAYBAND={segs,t0,t1,rk};
+      dayBand=`
+      <div class="card" style="margin-top:12px">
+        <div class="eyebrow" style="margin-bottom:8px">The shape of the day</div>
+        <div class="dayband" id="dayband" role="slider" tabindex="0"
+             aria-label="Quality of the day&#8217;s hours - drag to read" aria-valuetext="">
+          ${segs.map(sg2=>`<i class="dbseg ${sg2.cls}${sg2.night?" night":""}"
+             style="left:${pc(sg2.a)}%;width:${(pc(sg2.b)-pc(sg2.a)).toFixed(2)}%"></i>`).join("")}
+          <span class="dbrahu" style="left:${pc(rk.a)}%;width:${(pc(rk.b)-pc(rk.a)).toFixed(2)}%"></span>
+          <span class="dbtick" style="left:${pc(noon)}%"></span>
+          ${isToday(viewDate)&&Date.now()>t0&&Date.now()<t1
+            ?`<span class="dbnow" style="left:${pc(Date.now())}%"></span>`:""}
+          <span class="dbcur" id="dbcur" hidden></span>
+        </div>
+        <div class="dbscale"><span>&#9728; ${ft(st.rise)}</span><span>sunset ${ft(st.set)}</span><span>&#9728; ${ft(st2.rise)}</span></div>
+        <p class="dbread" id="dbread"></p>
+        <p class="note" style="margin-top:6px">Drag along the band &#8212; solid stretches are
+          traditionally favourable (Amrit, Shubh, Labh, Char), hatched ones set aside
+          (Udveg, Kaal, Rog). The red underline is Rahu Kalam; the gold tick, Abhijit.</p>
+      </div>`;
+    }
+  }
+
   /* ---- five areas, each with a Why? expansion and sky links ---- */
   const areaCards=R.areas.map((a,i)=>{
     const bits=a.evidence.filter(e=>!e.tara).slice(0,3).map(e=>e.occupies
@@ -861,6 +911,7 @@ function renderToday(){
     </div>`:`
     ${verdict}
     ${luckyRow}
+    ${dayBand}
     <div class="reading">
       <h2>${R.head}</h2>
       <p>${R.body}</p>
@@ -1052,6 +1103,7 @@ function renderToday(){
 
   const seg=document.getElementById("todayseg");
   requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
+  wireDayband();
 
   /* The strip: a chip tap keeps your place (the handler captured it);
      any other entry centres the selected day. Coming home to today
@@ -1102,6 +1154,7 @@ function renderToday(){
       });
       setThumb(seg2,false);
       document.getElementById("todaybody").innerHTML=todayBodies[todayTab];
+      wireDayband();
       return; }
     const w=e.target.closest(".whybtn");
     if(w){ const box=document.getElementById("why"+w.dataset.why);
@@ -1113,6 +1166,45 @@ function renderToday(){
     const c=e.target.closest(".skycell,.ingrow");
     if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
   };
+}
+
+/* the day-band tracker: pointer or arrow keys move a cursor along
+   the choghadiya band; the readout names the window, its quality,
+   its lord and its edges. Haptic tick on every boundary. */
+function wireDayband(){
+  const el2=document.getElementById("dayband"); if(!el2||!DAYBAND) return;
+  const read=document.getElementById("dbread"), cur=document.getElementById("dbcur");
+  const D=DAYBAND;
+  let lastIdx=-1;
+  const show=t=>{
+    const s=D.segs.find(x=>t>=x.a&&t<x.b)||D.segs[D.segs.length-1];
+    const idx=D.segs.indexOf(s);
+    const inRahu=t>=D.rk.a&&t<D.rk.b;
+    cur.hidden=false;
+    cur.style.left=(((t-D.t0)/(D.t1-D.t0))*100).toFixed(2)+"%";
+    read.innerHTML=`<b>${s.name}</b> &#183; ${s.cls==="good"?"favourable":"set aside"}
+      &#183; ${fmtClock(new Date(s.a))} &#8211; ${fmtClock(new Date(s.b))}
+      &#183; ruled by ${s.lord}${inRahu?" &#183; <b>Rahu Kalam</b>":""}`;
+    el2.setAttribute("aria-valuetext",
+      `${fmtClock(new Date(t))}. ${s.name}, ${s.cls==="good"?"favourable":"set aside"}, until ${fmtClock(new Date(s.b))}.`);
+    if(idx!==lastIdx){ if(lastIdx!==-1) buzz(5); lastIdx=idx; }
+    el2._t=t;
+  };
+  const tFromX=x=>{const r=el2.getBoundingClientRect();
+    return D.t0+Math.min(Math.max((x-r.left)/r.width,0),1)*(D.t1-D.t0)};
+  let drag=false;
+  el2.addEventListener("pointerdown",e=>{drag=true;
+    try{el2.setPointerCapture(e.pointerId)}catch(_){}
+    show(tFromX(e.clientX));});
+  el2.addEventListener("pointermove",e=>{if(drag)show(tFromX(e.clientX));});
+  el2.addEventListener("pointerup",()=>drag=false);
+  el2.addEventListener("keydown",e=>{
+    const step=15*6e4*(e.shiftKey?4:1);
+    if(e.key==="ArrowRight"){show(Math.min((el2._t??D.t0)+step,D.t1-1));e.preventDefault();}
+    if(e.key==="ArrowLeft"){show(Math.max((el2._t??D.t0)-step,D.t0));e.preventDefault();}
+  });
+  const now=Date.now();
+  show(now>D.t0&&now<D.t1?now:(D.t0+D.t1)/2);
 }
 
 const PEL={};

@@ -32,6 +32,8 @@ import { detectYogas, detectDoshas, buildYogaChart } from "./yogas.js";
 import { ashtakoota, manglik } from "./match.js";
 import { ASTERISMS } from "./asterisms.js";
 import { DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js";
+import { PLANET_STORY, GRAHA_MEANING } from "./interpret.js";
+import { HOUSE_STORY, GRAHA_IN_SIGN, LORD_IN_HOUSE, CONJUNCTION_BLEND, conjKey } from "./lore.js";
 
 /* "now" for the gochara/dasha-at-present sections - injectable */
 let NOW = new Date();
@@ -574,7 +576,43 @@ function renderKundali(c) {
       return `| ${h.n} | ${HOUSE_SENSE[h.n]} | ${SIGNS[h.sign - 1]} | ${h.lord} | ${ord(lordHouse)} house | ${h.occupants.join(", ") || "—"} |`;
     }));
 
-  /* --- 5 aspects and conjunctions -------------------------------- */
+  /* --- house-by-house reading: opener from the vetted lore library,
+     then the lord placement and each occupant - every sentence keyed
+     to the placement it prints (§61) ----------------------------- */
+  for (const h of c.houses) {
+    const lordSign = signOf(c.pos[h.lord]);
+    const lordHouse = houseFrom(c.lagna, lordSign);
+    push(`### House ${h.n} — ${HOUSE_SENSE[h.n]}`,
+      "",
+      HOUSE_STORY[h.n],
+      "",
+      `**${SIGNS[h.sign - 1]} rules your ${ord(h.n)} house, and its lord ${h.lord} sits in your ${ord(lordHouse)} house** (${SIGNS[lordSign - 1]} ${dm(c.pos[h.lord])}). ${LORD_IN_HOUSE[h.n][lordHouse]}`);
+    for (const g of h.occupants)
+      push(`**${g} occupies this house** (${SIGNS[h.sign - 1]} ${dm(c.pos[g])}${c.rx[g] ? ", retrograde" : ""}). ${dash(PLANET_STORY[g].inHouse[h.n])}`);
+  }
+
+  /* --- 5 planet-by-planet: opener + placement line + house/sign
+     lore + conjunction blends (each pair told once) --------------- */
+  push("## 5. Planet-by-Planet Readings",
+    "",
+    "Each graha read three ways — what it stands for, the sign it wears, and the house it works from. Every sentence keys off the placement shown in bold above it; nothing here is generic to a Sun sign.");
+  for (const g of GRAHAS) {
+    const s = signOf(c.pos[g]), h = houseFrom(c.lagna, s), dg = dignity(g, s);
+    const story = PLANET_STORY[g];
+    push(`### ${g} — ${GRAHA_MEANING[g].is}`,
+      "",
+      dash(story.opener),
+      "",
+      `**Your ${g}: ${SIGNS[s - 1]} ${dm(c.pos[g])}, ${ord(h)} house${c.rx[g] ? ", retrograde" : ""}${dg ? `, ${dg}` : ""}.**`,
+      "",
+      `${dash(story.inHouse[h])} ${GRAHA_IN_SIGN[g][SIGNS[s - 1]]}`);
+    for (const m of GRAHAS.filter(x => x !== g && signOf(c.pos[x]) === s)) {
+      if (GRAHAS.indexOf(m) < GRAHAS.indexOf(g)) continue;   /* each pair once */
+      push(`**Together with ${m} in ${SIGNS[s - 1]}.** ${CONJUNCTION_BLEND[conjKey(g, m)]}`);
+    }
+  }
+
+  /* --- 6 aspects and conjunctions -------------------------------- */
   const conjGroups = [];
   for (let s = 1; s <= 12; s++) {
     const here = GRAHAS.filter(g => signOf(c.pos[g]) === s);
@@ -589,7 +627,7 @@ function renderKundali(c) {
     });
     return `| ${g} | ${SIGNS[signOf(c.pos[g]) - 1]} | ${cells.join("; ")} |`;
   });
-  push("## 5. Aspects and Conjunctions",
+  push("## 6. Aspects and Conjunctions",
     "",
     "Every planet casts its full aspect (drishti) on the 7th sign from its seat; Mars additionally on the 4th and 8th, Jupiter on the 5th and 9th, Saturn on the 3rd and 10th. The table shows where each aspect lands in **your** chart and which planets receive it. (This engine follows the classical Parashari convention in which the nodes cast no aspects of their own; some schools give them Jupiter's set.)",
     "",
@@ -607,7 +645,7 @@ function renderKundali(c) {
   /* --- 6 vargas ------------------------------------------------- */
   const header = `| Point | ${SUPPORTED.map(D => "D" + D).join(" | ")} |`;
   const sep = `|---|${SUPPORTED.map(() => "---").join("|")}|`;
-  push("## 6. Divisional Charts (Vargas)",
+  push("## 7. Divisional Charts (Vargas)",
     "",
     `All ${SUPPORTED.length} divisional charts the engine supports, computed from the same sidereal longitudes. Each column shows the sign a point maps to when its sign is divided into D parts (D1 is the birth chart itself).`,
     "",
@@ -626,7 +664,7 @@ function renderKundali(c) {
 
   /* --- 7 vimshottari -------------------------------------------- */
   const d = c.dasha;
-  push("## 7. Vimshottari Dasha — All Three Levels",
+  push("## 8. Vimshottari Dasha — All Three Levels",
     "",
     `The 120-year Vimshottari cycle is seeded by the Moon's position inside its nakshatra at birth: your Moon sat at ${SIGNS[c.moonSign - 1]} ${dm(c.moonL)}, inside ${NAK_NAMES[moonNak]}, whose lord is **${d.birthLord}** — so life begins in a ${d.birthLord} mahadasha with ${d.balanceYears.toFixed(2)} years of it remaining.`,
     "",
@@ -691,7 +729,7 @@ function renderKundali(c) {
   const savLine = c.sav.map(String);
   const maxSav = Math.max(...c.sav), minSav = Math.min(...c.sav);
   const maxSign = c.sav.indexOf(maxSav) + 1, minSign = c.sav.indexOf(minSav) + 1;
-  push("## 8. Ashtakavarga — Transit Strength Map",
+  push("## 9. Ashtakavarga — Transit Strength Map",
     "",
     "Each of the seven grahas grants benefic points (bindus) to the twelve signs, judged from eight vantage points (the seven grahas and the lagna). A sign's total (Sarvashtakavarga) is traditionally read as how well transits through that sign tend to support you — more bindus, smoother passage.",
     "",
@@ -710,20 +748,20 @@ function renderKundali(c) {
   const gRows = c.gochara.map(g =>
     `| ${g.graha} | ${SIGNS[g.sign - 1]} ${dm(g.lon)} | ${ord(g.fromMoon)} | ${ord(g.fromLagna)} | ${favWord(g)} | ${g.sav} | ${g.until ? "~" + fmtDate(g.until) : "—"} |`);
   const moonNow = c.gochara.find(g => g.graha === "Moon");
-  push(`## 9. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
+  push(`## 10. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
     "",
-    `Where every graha stands **today**, read against your natal Moon (${SIGNS[c.moonSign - 1]}) and lagna (${SIGNS[c.lagna - 1]}). The favourable/testing call uses the classical gochara table — each graha has a fixed set of houses from the natal Moon in which its transit is traditionally read as supportive (Sun 3/6/10/11, Moon 1/3/6/7/10/11, Mars 3/6/11, Mercury 2/4/6/8/10/11, Jupiter 2/5/7/9/11, Venus 1/2/3/4/5/8/9/11/12, Saturn 3/6/11, Rahu 3/6/10/11, Ketu 3/6/11). The bindu column joins this to §8: your own ashtakavarga score for the sign being transited.`,
+    `Where every graha stands **today**, read against your natal Moon (${SIGNS[c.moonSign - 1]}) and lagna (${SIGNS[c.lagna - 1]}). The favourable/testing call uses the classical gochara table — each graha has a fixed set of houses from the natal Moon in which its transit is traditionally read as supportive (Sun 3/6/10/11, Moon 1/3/6/7/10/11, Mars 3/6/11, Mercury 2/4/6/8/10/11, Jupiter 2/5/7/9/11, Venus 1/2/3/4/5/8/9/11/12, Saturn 3/6/11, Rahu 3/6/10/11, Ketu 3/6/11). The bindu column joins this to §9: your own ashtakavarga score for the sign being transited.`,
     "",
-    "| Graha | Transiting | From Moon | From lagna | Classical read | Bindus (§8) | In this sign until |",
+    "| Graha | Transiting | From Moon | From lagna | Classical read | Bindus (§9) | In this sign until |",
     "|---|---|---|---|---|---|---|",
     ...gRows,
     "",
     `*The Moon crosses a sign in about two and a quarter days and the Sun in a month, so their rows date quickly; Jupiter, Saturn and the nodes set the season. ${moonNow && moonNow.fromMoon === 8 ? "Today the transiting Moon stands 8th from your natal Moon — chandrashtama, a named low-energy day in the tradition: a pacing note, not a warning." : "Sign-change dates are approximate near a station, when a planet crawls across the boundary."}*`,
     "",
-    "*This snapshot is the report-form of what the app computes live; the classical read describes the transit seat, and never overrides the running dasha context in §7.*");
+    "*This snapshot is the report-form of what the app computes live; the classical read describes the transit seat, and never overrides the running dasha context in §8.*");
 
   /* --- 8 yogas --------------------------------------------------- */
-  push("## 10. Yogas — With the Working Shown",
+  push("## 11. Yogas — With the Working Shown",
     "",
     `${c.yogas.length} classical combinations are present in this chart. Each one below states the rule as it applies to your actual placements — a yoga is never just a name here.`,
     "");
@@ -732,7 +770,7 @@ function renderKundali(c) {
   }
 
   /* --- 9 sade sati ------------------------------------------------ */
-  push("## 11. Sade Sati — Saturn's Pass Over Your Moon",
+  push("## 12. Sade Sati — Saturn's Pass Over Your Moon",
     "",
     `Sade sati is the roughly seven-and-a-half-year stretch when transiting Saturn crosses the 12th, 1st and 2nd signs counted from your natal Moon (${SIGNS[c.moonSign - 1]}). The tradition reads it as a season of consolidation and pruning — slow, structural, and finite — not as a verdict. The windows below are computed directly from the ephemeris; each window's internal phases show Saturn's actual sign entries, including retrograde re-entries.`,
     "");
@@ -748,7 +786,7 @@ function renderKundali(c) {
   /* --- 12 doshas --------------------------------------------------- */
   const mg = c.mangal;
   const second = mg.fromLagna.house === 2 || mg.fromMoon.house === 2;
-  push("## 12. Doshas — Verdicts With the Rule Shown",
+  push("## 13. Doshas — Verdicts With the Rule Shown",
     "",
     "Four classical afflictions, each checked against this chart with the rule written out. An absent dosha gets its reasoning too — a verdict you cannot audit is not a verdict.",
     "",
@@ -772,7 +810,7 @@ function renderKundali(c) {
   const dk8 = k.eight.find(x => x.karaka === "Darakaraka");
   const same = k.eight.filter(x => x.karaka !== "Pitrikaraka")
     .every(x => k.seven.find(y => y.karaka === x.karaka)?.graha === x.graha);
-  push("## 13. Chara Karakas — The Movable Significators",
+  push("## 14. Chara Karakas — The Movable Significators",
     "",
     "Jaimini's movable significators rank the grahas by how far each has travelled through its sign — the furthest-travelled becomes the Atmakaraka, the soul's own significator, down to the Darakaraka, the significator of the partner. Shown under the eight-karaka scheme (seven grahas plus Rahu, whose arc counts from the end of its sign); the seven-karaka variant follows.",
     "",

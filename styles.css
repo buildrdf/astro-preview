@@ -757,6 +757,22 @@ body.glossary .page{padding-right:30px}
 @media (prefers-reduced-motion: reduce){ .tbseg .thumb{transition:none} }
 .unihint{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin:0 0 4px;max-width:52ch}
 
+/* the divisional-chart chip and picker (Universe · Birth mode) */
+.vchip{display:inline-flex;align-items:center;gap:5px;margin:0 10px 4px 0;
+  padding:5px 11px;border-radius:99px;cursor:pointer;
+  border:1px solid var(--edge);background:rgba(255,255,255,.07);
+  color:var(--ink-2);font-family:var(--fm);font-size:11px;letter-spacing:.04em;
+  vertical-align:middle;min-height:28px}
+.vchip i{font-style:normal;color:var(--ink-3);font-size:9px}
+.vchip:active{opacity:.7}
+.vrow{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;
+  padding:11px 13px;margin-bottom:6px;border-radius:12px;cursor:pointer;
+  border:1px solid var(--edge-soft);background:rgba(255,255,255,.05);
+  color:var(--ink);font-family:var(--ff);min-height:44px}
+.vrow b{font-size:14.5px}
+.vrow span{color:var(--ink-3);font-size:12.5px;line-height:1.4}
+.vrow.on{border-color:rgba(194,155,78,.55);background:rgba(194,155,78,.10)}
+
 /* planets glide between positions; a mode change or a scrub is the same
    objects moving, never a redraw */
 .p{transition:transform .72s var(--ease),opacity .5s var(--ease),

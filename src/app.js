@@ -1108,9 +1108,47 @@ function renderToday(){
 
 const PEL={};
 let uniMode="birth";                 /* "birth" | "today" */
+let uniVarga=1;                      /* 1 = rashi; birth mode only */
 let uniDate=new Date();
+/* The famous divisional charts, each with the one-line reason a person
+   would open it - standard Parashari significations, hedged like all
+   Astra prose. The full 18 stay in the printed report. */
+const VARGA_INFO=[
+  [1,"Rashi","the birth chart itself &#8212; body, self and the whole of life"],
+  [2,"Hora","traditionally read for wealth and what you hold"],
+  [3,"Drekkana","siblings, courage and effort"],
+  [4,"Chaturthamsa","home, property and the foundations of fortune"],
+  [7,"Saptamsa","children and what you create"],
+  [9,"Navamsa","marriage, partnership and each graha&#8217;s inner strength"],
+  [10,"Dasamsa","career and the work the world sees"],
+  [12,"Dwadasamsa","parents and what is inherited"],
+  [30,"Trimsamsa","difficulties and how they are met"],
+];
+/* the same nine grahas re-seated by the D-fold division of each sign;
+   null when the plain rashi chart is showing */
+function vargaView(){
+  if(uniMode!=="birth"||uniVarga===1) return null;
+  const points={Asc:CHART.ascendant};
+  for(const p of CHART.placements) points[p.graha]=p.L;
+  const signs=vargaChart(points, uniVarga);
+  return {lagna:signs.Asc, signs};
+}
 const uniPlacements=()=>{
-  if(uniMode==="birth") return CHART.placements;
+  if(uniMode==="birth"){
+    const v=vargaView();
+    if(!v) return CHART.placements;
+    return CHART.placements.map(p=>{
+      const sg=v.signs[p.graha];
+      /* degree inside the varga sign: position within the division,
+         stretched to 30 degrees - the standard varga longitude */
+      const vL=(sg-1)*30 + (p.L%(30/uniVarga))*uniVarga;
+      /* dignity is re-judged in the varga sign (exaltation in navamsa
+         is its own tradition); the natal nakshatra doesn't map to a
+         varga longitude, so it is dropped rather than mislabelled */
+      return {...p, sign:sg, house:houseFrom(v.lagna,sg), L:vL, degf:fmtDeg(vL),
+        dig:dignity(p.graha,vL), nak:null, pada:null};
+    });
+  }
   const pos=positions(uniDate), retro=retrograde(uniDate);
   return GRAHA_ORDER.map(g=>{
     const L=pos[g], sg=signOf(L);
@@ -1424,11 +1462,65 @@ function paintUniverse(instant){
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
   });
   paintGhosts();
+  paintHouseSigns(list);
+  const vi=VARGA_INFO.find(v=>v[0]===uniVarga)||VARGA_INFO[0];
   document.getElementById("unihint").innerHTML = uniMode==="birth"
-    ? `The sky at your birth &#8212; 26 March 1992, 10:00.`
+    ? `<button class="vchip" id="vchip" aria-haspopup="dialog"
+         aria-label="Choose a divisional chart. Showing D${uniVarga}, ${vi[1]}">D${uniVarga} &#183; ${vi[1]} <i aria-hidden="true">&#9662;</i></button>`+
+      (uniVarga===1
+        ? `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
+        : `${cap(vi[2])} &#8212; house 1 is the ${vi[1]} lagna.`)
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
+  const vc=document.getElementById("vchip");
+  if(vc) vc.onclick=openVargaSheet;
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
+}
+
+/* House sign numbers follow the showing chart: rashi lagna normally,
+   the varga lagna when a divisional chart is up. (Also fixes the aria
+   labels, which described birth occupants even in Today mode.) */
+function paintHouseSigns(list){
+  const lag=vargaView()?.lagna ?? CHART.lagna;
+  for(let h=1;h<=12;h++){
+    const sg=((lag-1+h-1)%12)+1;
+    const t=document.querySelector(`.sn[data-h="${h}"]`);
+    if(t&&t.textContent!==String(sg)) t.textContent=String(sg);
+    const s=document.querySelector(`.hs[data-h="${h}"]`);
+    if(s){
+      const occ=list.filter(p=>p.house===h).map(p=>p.graha);
+      s.setAttribute("aria-label",
+        `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
+        (occ.length?`${occ.join(", ")} here.`:"No graha here."));
+    }
+  }
+}
+
+/* the varga picker rides the standard sheet, so close/reset behave
+   exactly like a house or planet sheet */
+function openVargaSheet(){
+  if(mode) resetChart();
+  mode="varga"; buzz(9);
+  document.getElementById("sheetbody").innerHTML=`
+    ${peekBlock("Divisional charts","the same sky, divided finer")}
+    <div>
+      <p class="muted" style="margin-bottom:14px">Every varga re-seats the nine grahas by
+        dividing each sign into finer parts &#8212; the tradition reads each division
+        for one field of life. The chart above becomes the one you choose.</p>
+      ${VARGA_INFO.map(([d,name,sense])=>`
+        <button class="vrow${d===uniVarga?" on":""}" data-d="${d}">
+          <b>D${d} &#183; ${name}</b><span>${sense}</span>
+        </button>`).join("")}
+      <p class="note" style="margin-top:12px">All 18 computed vargas are printed in the
+        detailed report; these nine are the ones tradition reaches for first.</p>
+    </div>`;
+  showSheetPeek(); expandSheet();
+  document.getElementById("sheetbody").onclick=e=>{
+    const b=e.target.closest(".vrow"); if(!b) return;
+    uniVarga=+b.dataset.d; buzz(12);
+    resetChart();
+    paintUniverse(false);
+  };
 }
 
 /* natal ghosts, shown only in Today mode so "then vs now" is legible */
@@ -1533,8 +1625,47 @@ function openHouse(h){
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   uniPlacements().forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
   hideSheetKeepFocus();
-  sheetHouse(h);
+  if(uniMode==="birth"&&uniVarga>1) sheetVargaHouse(h); else sheetHouse(h);
   showSheetPeek();
+}
+
+/* Compact sheets for taps while a divisional chart is showing: the
+   natal sheets describe the rashi chart and would contradict the
+   varga on screen, so the varga lens gets its own honest, smaller
+   reading (full prose stays with D1). */
+function sheetVargaHouse(h){
+  const vi=VARGA_INFO.find(v=>v[0]===uniVarga);
+  const v=vargaView(); if(!v||!vi) return sheetHouse(h);
+  const sg=((v.lagna-1+h-1)%12)+1;
+  const occ=uniPlacements().filter(p=>p.house===h).map(p=>p.graha);
+  document.getElementById("sheetbody").innerHTML=`
+    ${peekBlock(`House ${h} &#183; ${vi[1]} (D${uniVarga})`, SIGNS[sg-1])}
+    <div>
+      ${rows([["Sign",SIGNS[sg-1]],["Lord",SIGN_LORD[sg]],
+        ["Occupants",occ.length?occ.join(", "):"&#8212;"]])}
+      <p class="interp" style="margin-top:12px">The ${vi[1]} is traditionally read for
+        ${vi[2]}. This is its ${ordinal(h)} house, counted from the ${vi[1]} lagna.${
+        occ.length?` A graha seated here &#8212; ${occ.join(", ")} &#8212; is read with
+        particular weight in that field.`:""}</p>
+      <p class="note">The full natal reading lives on the Rashi (D1) chart; divisional
+        placements refine it, they don&#8217;t replace it.</p>
+    </div>`;
+}
+function sheetVargaPlanet(p){
+  const vi=VARGA_INFO.find(v=>v[0]===uniVarga);
+  const natal=CHART.get(p.graha);
+  const votta=uniVarga===9&&p.sign===natal.sign;
+  document.getElementById("sheetbody").innerHTML=`
+    ${peekBlock(`${p.graha} in the ${vi[1]}`,`${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house`)}
+    <div>
+      ${rows([[`D${uniVarga} seat`,`${SIGNS[p.sign-1]} &#183; ${ordinal(p.house)} house`],
+        ["Natal (D1) seat",`${SIGNS[natal.sign-1]} &#183; ${ordinal(natal.house)} house`],
+        ...(uniVarga===9?[["Vargottama",votta?"yes &#8212; same sign in D1 and D9":"no"]]:[])])}
+      <p class="interp" style="margin-top:12px">The ${vi[1]} is traditionally read for
+        ${vi[2]}; a graha&#8217;s seat here is its footing in that field.${
+        votta?" A vargottama seat &#8212; the same sign in both charts &#8212; is traditionally read as steadier and more fully itself.":""}</p>
+      <p class="note">Tap ${p.graha} on the Rashi (D1) chart for its full reading.</p>
+    </div>`;
 }
 
 function openPlanet(g,opts={}){
@@ -1550,8 +1681,11 @@ function openPlanet(g,opts={}){
   list.forEach(o=>{if(o.graha!==g)PEL[o.graha].classList.add("recede")});
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===p.house?"lit":"dim"));
   qa(".sn").forEach(e=>{if(+e.dataset.h!==p.house)e.classList.add("dim")});
-  drawAspects(CHART.get(g)||p);
-  sheetPlanet(p,opts);
+  const vargaLens=uniMode==="birth"&&uniVarga>1;
+  /* natal drishti lines belong to the rashi chart - drawing them over
+     a varga would point at the wrong houses */
+  if(!vargaLens) drawAspects(CHART.get(g)||p);
+  if(vargaLens) sheetVargaPlanet(p); else sheetPlanet(p,opts);
   showSheetPeek();
   requestAnimationFrame(()=>setThumb(document.getElementById("psheetseg"),true));
 }

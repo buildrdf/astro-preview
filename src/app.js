@@ -938,8 +938,12 @@ function renderToday(){
         <span class="rseek" id="rseek" hidden><b id="rseekt"></b></span>
       </div>
       <div class="rsunlabels">
-        <span style="left:${pc(+M.sunrise)}%">&#9728; ${ft(M.sunrise)}</span>
-        <span class="setl" style="left:${pc(+M.sunset)}%">sunset ${ft(M.sunset)}</span>
+        <span style="left:${pc(+M.sunrise)}%"><svg viewBox="0 0 24 24" class="sunico">
+          <circle cx="12" cy="14" r="4"/><path d="M12 7V3M8.5 4.5L12 1l3.5 3.5" class="arr"/>
+          <path d="M4 14H1.5M22.5 14H20M5.6 7.6L4 6M18.4 7.6L20 6"/></svg>${ft(M.sunrise)}</span>
+        <span class="setl" style="left:${pc(+M.sunset)}%"><svg viewBox="0 0 24 24" class="sunico">
+          <circle cx="12" cy="14" r="4"/><path d="M12 1v4M8.5 3.5L12 7l3.5-3.5" class="arr"/>
+          <path d="M4 14H1.5M22.5 14H20M5.6 7.6L4 6M18.4 7.6L20 6"/></svg>${ft(M.sunset)}</span>
       </div>
       <div class="rscale"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div>
       <div class="rread" id="rread" aria-live="polite"></div>
@@ -1252,7 +1256,7 @@ function renderToday(){
     if(tm){ const def=document.querySelector(`.termdef[data-def="${tm.dataset.term}"]`);
       if(def){ def.hidden=!def.hidden; buzz(4); } return; }
     const c=e.target.closest(".ingrow,.conjrow");
-    if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
+    if(c){ buzz(8); openTransitWhy(c.dataset.g, c); }
   };
 }
 
@@ -1360,6 +1364,78 @@ function openAreaWhy(i, card){
     else close(()=>openSkyFocused(g));
   };
 }
+/* ---- TRANSIT DETAIL (spec §36): same philosophy as See why - a
+   focused warm-paper page for one moving graha, then the two evidence
+   CTAs. Reuses the awpage environment. ---- */
+function openTransitWhy(g, card){
+  const F=dayFacts(viewDate);
+  const sk=F.sky.find(p=>p.graha===g); if(!sk) return;
+  const t=F.tr.all[g], natal=CHART.get(g);
+  const ing=nextIngressMap(viewDate)[g];
+  const gm=GRAHA_MEANING[g], feel=GOCHARA_FEEL[g];
+  const wrapd=x=>((x%360)+540)%360-180;
+  const COMBUST={Mercury:12,Venus:8,Mars:17,Jupiter:11,Saturn:15,Moon:12};
+  const comb=g!=="Sun"&&COMBUST[g]&&Math.abs(wrapd(t.L-F.tr.all.Sun.L))<=COMBUST[g];
+  const dig=dignity(g,t.L);
+  const areas=Object.entries(AREA_HOUSES)
+    .filter(([,hs])=>hs.includes(sk.house)).map(([a])=>a);
+  const nxWhen=!ing?"":ing.days<=1?"tomorrow":ing.days<=14?`in ${ing.days} days`
+    :ing.date.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back">&#8249;</button>
+      <span>${g}</span>
+    </header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 2px">
+        <img class="awart" style="width:56px;height:56px" src="assets/graha/${g.toLowerCase()}.png" alt="">
+        <div><b style="font-size:22px">${g}</b>
+          <span>${SIGNS[sk.sign-1]} &#183; your ${ordinal(sk.house)} house</span></div>
+      </div>
+      <p class="awlead" style="margin-top:10px">${cap(gm.is)}.</p>
+      <h2 class="awh2">Right now</h2>
+      <p class="awbody">${t.deg} ${SIGNS[sk.sign-1]} &#183; ${t.nak}${t.pada?` &#183; pada ${t.pada}`:""}
+        &#183; ${sk.retro?"retrograde":"direct"}${dig?` &#183; ${dig.toLowerCase()}`:""}${comb?" &#183; combust":""}.
+        ${ing?`It moves to ${SIGNS[ing.sign-1]} ${nxWhen}.`:""}</p>
+      <h2 class="awh2">Against your chart</h2>
+      <p class="awbody">At your birth it stood in <b>${SIGNS[natal.sign-1]}</b>, your
+        ${ordinal(natal.house)} house${sk.sign===natal.sign
+          ?` &#8212; it is crossing its own natal sign right now, a <b>return</b>`:""}. Today it moves through the house
+        of ${HOUSE_TRANSIT_SENSE[sk.house]}, counted ${ordinal(sk.houseFromMoon)} from
+        your natal Moon &#8212; ${sk.favourable?"a supportive count":"a slower count"}.</p>
+      <p class="awbody">${feel?(sk.favourable?feel.fav:feel.unfav):""}</p>
+      ${areas.length?`<p class="awbody">It is shaping today&#8217;s reading for
+        <b>${areas.join(", ")}</b>.</p>`:""}
+      <div class="awctas" style="margin-top:16px">
+        <button class="awcta" data-act="chart" data-g="${g}">See on today&#8217;s chart</button>
+        <button class="awcta" data-act="sky" data-g="${g}">See in today&#8217;s sky</button>
+      </div>
+      <p class="awfoot">Positions from the ephemeris; verdicts from the classical
+        gochara tables. Traditional associations, not a prediction.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px)
+      scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    void ov.offsetHeight;
+    ov.classList.add("in"); ov.style.transform="";
+  } else ov.classList.add("in","fade");
+  const close=(then)=>{ ov.classList.add("fadeout");
+    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(b.dataset.g); });
+    else close(()=>openSkyFocused(b.dataset.g));
+  };
+}
+
 function openSkyFocused(g){
   const motion=askMotion();
   getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m,

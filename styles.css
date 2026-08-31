@@ -1835,3 +1835,25 @@ body.guidefull #pg-guide{padding-bottom:26px}
 @media (prefers-reduced-motion: reduce){
   .awpage{transition:opacity .2s}
 }
+
+/* §3: content transitions, not reloads — the body of Today fades in on
+   every date/subtab change while the rail stays put */
+#todaybody{animation:tbfade .22s ease-out}
+@keyframes tbfade{from{opacity:.25}to{opacity:1}}
+
+/* §9: crafted sunrise/sunset marks */
+.sunico{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;vertical-align:-2px;margin-right:3px}
+.sunico circle{fill:currentColor;stroke:none}
+.sunico .arr{fill:none}
+
+/* §46: the Sun breathes — one subtle living treatment, nothing else moves */
+img[src$="sun.png"]{animation:sunbreathe 7s ease-in-out infinite}
+@keyframes sunbreathe{
+  0%,100%{filter:drop-shadow(0 0 5px rgba(255,196,110,.35))}
+  50%{filter:drop-shadow(0 0 11px rgba(255,196,110,.6))}
+}
+@media (prefers-reduced-motion: reduce){
+  #todaybody{animation:none}
+  img[src$="sun.png"]{animation:none}
+}

@@ -87,8 +87,26 @@ const skySpot=()=>mode==="birth"?{lat:birthOpts.lat,lon:birthOpts.lon}
   :custom?custom:spot;
 const cacheKey=()=>mode+"|"+(mode==="birth"?"b":custom?custom.iso+custom.lat:"live");
 
-/* places for the moment editor - standard-time UTC offsets (no DST),
-   coordinates to city precision, which the sky cannot tell apart */
+/* Timezone-true local time: offset computed per-instant from the IANA
+   zone via Intl (same machinery report.html validated on the live
+   site, 31 Aug), so DST-observing places get their real clock. */
+function offsetAtTz(tz, utcMs){
+  const f=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,
+    year:"numeric",month:"numeric",day:"numeric",
+    hour:"numeric",minute:"numeric",second:"numeric"});
+  const m={}; for(const p of f.formatToParts(new Date(utcMs))) m[p.type]=p.value;
+  return Date.UTC(m.year,m.month-1,m.day,m.hour%24,m.minute,m.second)
+       - Math.floor(utcMs/1000)*1000;
+}
+function utcFromLocalTz(y,mo,da,hh,mi,tz){
+  const wall=Date.UTC(y,mo-1,da,hh,mi);
+  let guess=wall;
+  for(let i=0;i<3;i++) guess=wall-offsetAtTz(tz,guess);
+  return new Date(guess);
+}
+
+/* OFFLINE FALLBACK places - standard-time UTC offsets (no DST); the
+   live geocoder below (worldwide, DST-true) is the primary path */
 const CITIES=[
 ["Kopargaon",19.88,74.48,5.5],["Mumbai",19.08,72.88,5.5],["Pune",18.52,73.86,5.5],
 ["Delhi",28.61,77.21,5.5],["Bengaluru",12.97,77.59,5.5],["Hyderabad",17.39,78.49,5.5],
@@ -502,34 +520,73 @@ function fmtWhenChip(){
   const w=el?.root.querySelector("#svwhen"); if(!w) return;
   if(mode!=="now"){ w.hidden=true; return; }
   w.hidden=false;
+  /* one legible line: primary place name only, no parentheticals -
+     the full place lives in the editor and the footer */
+  const short=s=>esc(String(s).split(",")[0].replace(/\s*\(.*\)$/,""));
   if(custom){
-    w.innerHTML=`${custom.timeStr} &#183; ${custom.dateStr} &#183; ${custom.place}
+    w.innerHTML=`${custom.timeStr} &#183; ${custom.dateStr} &#183; ${short(custom.place)}
       <i class="svreset" role="button" aria-label="Back to now">&#10005;</i>`;
   }else{
     const t=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
-    w.innerHTML=`${t} &#183; ${spot.from} <i class="svpen" aria-hidden="true">&#9998;</i>`;
+    w.innerHTML=`${t} &#183; ${short(spot.from)} <i class="svpen" aria-hidden="true">&#9998;</i>`;
   }
 }
 function segLabel(){
   const b=el?.root.querySelector("#svsegnow");
   if(b) b.textContent=custom?custom.dateStr.replace(/ \d{4}$/,""):"Now";
 }
-function paintPlist(q){
+let plistSeq=0;
+/* geocoder strings are external data - escape before any innerHTML */
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function tznoteFor(place){
+  const n=el.root.querySelector(".svtznote"); if(!n) return;
+  n.innerHTML=place&&place.tz
+    ?"Times follow the place&#8217;s own clock &#8212; daylight saving included."
+    :"Times are the place&#8217;s standard clock time (daylight saving not applied).";
+}
+function renderPlist(hits){
   const list=el.root.querySelector("#svplist"); if(!list) return;
-  const extra=[["Use my location",spot.lat,spot.lon,-new Date().getTimezoneOffset()/60]];
-  if(birthOpts) extra.push([`Birthplace &#183; ${birthOpts.place}`,birthOpts.lat,birthOpts.lon,birthOpts.off??5.5]);
-  const all=[...extra,...CITIES];
-  const hits=(q?all.filter(c=>c[0].toLowerCase().includes(q.toLowerCase())):all).slice(0,6);
-  list.innerHTML=hits.map((c,i)=>`<button class="svpitem${editPlace&&editPlace.n===c[0]?" on":""}"
-    data-i="${i}">${c[0]}</button>`).join("");
+  list.innerHTML=hits.map((c,i)=>`<button class="svpitem${editPlace&&editPlace.n===c.n?" on":""}"
+    data-i="${i}">${c.raw?esc(c.label):c.label}${c.detail?` <span class="svpsub">${esc(c.detail)}</span>`:""}</button>`).join("");
   list.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
     const c=hits[+b.dataset.i];
-    editPlace={n:c[0].replace(/&#183;.*$/,"").replace("Use my location","your location").trim()
-        .replace(/^Birthplace$/,birthOpts?birthOpts.place:"birthplace"),
-      lat:c[1],lon:c[2],off:c[3]};
-    el.root.querySelector("#svp").value=editPlace.n;
+    editPlace={n:c.n,lat:c.lat,lon:c.lon,off:c.off,tz:c.tz||null};
+    el.root.querySelector("#svp").value=c.n;
     list.innerHTML="";
+    tznoteFor(editPlace);
   });
+}
+function pinnedPlaces(){
+  const extra=[{label:"Use my location",n:"your location",lat:spot.lat,lon:spot.lon,
+    off:-new Date().getTimezoneOffset()/60,
+    tz:Intl.DateTimeFormat().resolvedOptions().timeZone}];
+  if(birthOpts) extra.push({label:`Birthplace &#183; ${birthOpts.place}`,n:birthOpts.place,
+    lat:birthOpts.lat,lon:birthOpts.lon,off:birthOpts.off??5.5,
+    tz:birthOpts.tz??((birthOpts.off??5.5)===5.5?"Asia/Kolkata":null)});
+  return extra;
+}
+const cityHit=c=>({label:c[0],n:c[0],lat:c[1],lon:c[2],off:c[3],tz:null});
+function paintPlist(q){
+  const list=el.root.querySelector("#svplist"); if(!list) return;
+  const seq=++plistSeq;
+  const pinned=pinnedPlaces();
+  if(!q){ renderPlist(pinned.concat(CITIES.slice(0,4).map(cityHit))); return; }
+  /* local matches paint instantly; the live geocoder (worldwide,
+     carries the IANA zone) replaces them when it answers */
+  const lq=q.toLowerCase();
+  renderPlist(pinned.filter(p=>p.label.toLowerCase().includes(lq))
+    .concat(CITIES.filter(c=>c[0].toLowerCase().includes(lq)).slice(0,5).map(cityHit)));
+  fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`)
+    .then(r=>r.json())
+    .then(j=>{
+      if(seq!==plistSeq) return;                 /* a newer keystroke won */
+      const hits=(j.results||[]).map(x=>({label:x.name,n:x.name,raw:true,
+        detail:[x.admin1,x.country].filter(Boolean).join(", "),
+        lat:x.latitude,lon:x.longitude,
+        off:offsetAtTz(x.timezone,Date.now())/36e5,tz:x.timezone}));
+      if(hits.length) renderPlist(pinned.filter(p=>p.label.toLowerCase().includes(lq)).concat(hits));
+    })
+    .catch(()=>{});                              /* offline: local list stands */
 }
 function openEditor(){
   const ed=el.root.querySelector("#svedit"); if(!ed) return;
@@ -539,10 +596,12 @@ function openEditor(){
     :`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
   el.root.querySelector("#svt").value=custom?custom.rawTime
     :`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-  editPlace=custom?{n:custom.place,lat:custom.lat,lon:custom.lon,off:custom.off}
-    :{n:"your location",lat:spot.lat,lon:spot.lon,off:-now.getTimezoneOffset()/60};
+  editPlace=custom?{n:custom.place,lat:custom.lat,lon:custom.lon,off:custom.off,tz:custom.tz||null}
+    :{n:"your location",lat:spot.lat,lon:spot.lon,off:-now.getTimezoneOffset()/60,
+      tz:Intl.DateTimeFormat().resolvedOptions().timeZone};
   el.root.querySelector("#svp").value=editPlace.n;
   el.root.querySelector("#svplist").innerHTML="";
+  tznoteFor(editPlace);
 }
 function applyMoment(){
   if(!proUser){ dispatchEvent(new CustomEvent("astra:pro")); return; }
@@ -550,9 +609,13 @@ function applyMoment(){
         tv=el.root.querySelector("#svt").value||"12:00";
   if(!dv||!editPlace) return;
   const [y,mo,da]=dv.split("-").map(Number), [hh,mi]=tv.split(":").map(Number);
-  const when=new Date(Date.UTC(y,mo-1,da,0,Math.round(hh*60+mi-editPlace.off*60)));
+  /* IANA zone when the place carries one (DST-true, any era);
+     fixed standard offset only as the offline fallback */
+  const when=editPlace.tz
+    ?utcFromLocalTz(y,mo,da,hh,mi,editPlace.tz)
+    :new Date(Date.UTC(y,mo-1,da,0,Math.round(hh*60+mi-editPlace.off*60)));
   custom={iso:when.toISOString(), lat:editPlace.lat, lon:editPlace.lon,
-    off:editPlace.off, place:editPlace.n, rawTime:tv,
+    off:editPlace.off, tz:editPlace.tz||null, place:editPlace.n, rawTime:tv,
     dateStr:new Date(y,mo-1,da).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}),
     timeStr:new Date(2000,0,1,hh,mi).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})};
   el.root.querySelector("#svedit").hidden=true;

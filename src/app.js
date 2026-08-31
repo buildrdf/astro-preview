@@ -12,8 +12,9 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView } from "./skyview.js?v=20260831a";
+import { openSkyView } from "./skyview.js?v=20260831c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
+import { avakhadaOf } from "./report.js?v=20260831d";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
 const julian = jd;
@@ -2101,8 +2102,8 @@ const PERSONAL={
  "Dasha":()=>{const n=CHART.dasha.at(new Date());
    return `Yours began with Ketu, because your Moon is in Mula. Right now: <b>${n.maha.lord}/${n.antar.lord}</b>.`},
  "Vimshottari":()=>`Yours started from <b>${CHART.get("Moon").nak}</b>, so Ketu ran first.`,
- "Gana":()=>`Yours is <b>${AVAKHADA.Gan}</b>.`,
- "Nadi":()=>`Yours is <b>${AVAKHADA.Nadi}</b>.`,
+ "Gana":()=>`Yours is <b>${avakhadaOf(CHART.get("Moon").L).Gana}</b>.`,
+ "Nadi":()=>`Yours is <b>${avakhadaOf(CHART.get("Moon").L).Nadi}</b>.`,
  "Manglik":()=>manglik(CHART)?"You are <b>Manglik</b>.":"You are <b>not</b> Manglik.",
  "Ayanamsa":()=>`Your chart uses <b>${PREFS().ayanamsa||"Lahiri"}</b>.`,
  "Kendra":()=>{const k=CHART.placements.filter(p=>[1,4,7,10].includes(p.house)).map(p=>p.graha);
@@ -3106,15 +3107,36 @@ function subBirth(){
       ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
       ["Lagna nakshatra","Rohini"],["Ayanamsa","Lahiri"]])}
     <div class="eyebrow" style="margin:22px 0 8px">Panchang at birth</div>
-    ${rows(Object.entries(PANCHANG))}
+    ${rows(Object.entries(birthPanchang()))}
     <div class="eyebrow" style="margin:22px 0 8px">Avakhada</div>
-    ${rows(Object.entries(AVAKHADA))}
+    ${rows(Object.entries(avakhadaOf(CHART.get("Moon").L)))}
     <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
     ${rows(CHART.placements.map(p=>[
       `${gIcon(p.graha)}${p.graha}`,
       `${SIGNS[p.sign-1]} ${p.degf}${p.retro?" R":""}`]))}
-    <p class="note">Panchang and Avakhada are carried from your Astrotalk report rather
-    than computed. Everything else on this screen is derived from the longitudes.</p>`;
+    <p class="note">Everything on this screen is computed from the birth longitudes
+    &#8212; the same engine the printed reports use.</p>`;
+}
+
+/* Birth panchang, COMPUTED. The old PANCHANG/AVAKHADA constants were
+   transcribed from the Astrotalk PDF and died in a refactor - the
+   Birth-details sheet crashed on a live tap (ReferenceError, caught
+   31 Aug). Deriving them from the engine means this sheet can never
+   again disagree with the reports. */
+function birthPanchang(){
+  const d=CHART.birthDate;
+  const L=limbs(sunSidereal(d), moonSidereal(d));
+  const m=CHART.get("Moon");
+  const wd=new Date(d.getTime()+5.5*36e5).getUTCDay();      /* IST weekday */
+  const dayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][wd];
+  const dayLord=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"][wd];
+  return {
+    "Vara":`${dayName} &#183; ruled by ${dayLord}`,
+    "Tithi":`${L.tithi.name} (${L.tithi.paksha}, day ${L.tithi.inPaksha})`,
+    "Nakshatra":`${m.nak} &#183; pada ${m.pada}`,
+    "Yoga":L.yoga.name,
+    "Karana":L.karana.name,
+  };
 }
 
 

@@ -100,6 +100,29 @@ const NAME_SYL = [
 ];
 const YUNJA_OF_NAK = i => i < 9 ? "Adi" : i < 18 ? "Madhya" : "Antya";
 
+/* The Avakhada identity block for a (sidereal) Moon longitude -
+   exported for the app's Birth-details sheet, which used to carry
+   these values transcribed from a vendor PDF (those constants died in
+   a refactor and the sheet crashed on a live tap, 31 Aug). Same
+   validated tables the printed reports use. */
+export function avakhadaOf(moonL) {
+  const s = signOf(moonL), n = nakOf(moonL), p = padaOf(moonL);
+  return {
+    "Rashi (Moon sign)": SIGNS[s - 1],
+    "Rashi lord": SIGN_LORD[s - 1],
+    "Nakshatra": `${NAK_NAMES[n]} · pada ${p}`,
+    "Nakshatra lord": nakLord(n),
+    "Varna": VARNA_OF_SIGN[s - 1],
+    "Vashya": VASHYA_OF_SIGN[s - 1],
+    "Yoni": YONI_OF[n],
+    "Gana": GANA_OF[n],
+    "Nadi": NADI_OF[n],
+    "Tatva": TATVA_OF_SIGN[(s - 1) % 4],
+    "Namakshara": NAME_SYL[n][p - 1],
+    "Yunja": YUNJA_OF_NAK(n),
+  };
+}
+
 const VARA_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const VARA_LORD  = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
 

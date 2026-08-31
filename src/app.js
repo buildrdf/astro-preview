@@ -3593,10 +3593,13 @@ function renderSadeSati(){
       <div class="satiphases">
         ${w.phases.map(p=>{
           const pOn=nowD>=p.start&&nowD<p.end;
+          const days=Math.round((p.end-p.start)/864e5);
           return `<div class="satiph${pOn?" on":""}">
             <span class="sk">${p.phase}</span>
             <b>${SIGNS[p.sign-1]}</b>
             <span class="evmeta">${fmtDate(p.start)} &#8211; ${fmtDate(p.end)}</span>
+            <span class="evmeta">${(days/365.25).toFixed(1)} yr &#183; ${days} days${
+              pOn?` &#183; ${Math.round((p.end-nowD)/864e5)} left`:""}</span>
           </div>`}).join("")}
       </div>
     </div>`;
@@ -3613,6 +3616,27 @@ function renderSadeSati(){
         the sky, not from your birth star &#8212; and the tradition reads it as
         Saturn&#8217;s slow audit: pruning, consolidation, structure. It has edges,
         it ends, and it builds.</p>
+      ${(()=>{ /* the BECAUSE, with the arithmetic and the countdown */
+        const band=[12,1,2].map(k=>SIGNS[((moonSign-1+(k===12?-1:k-1))%12+12)%12]);
+        const satNowSign=SIGNS[((moonSign-1+cur-1)%12+12)%12];
+        const nxt=wins.find(w=>w.start>nowD);
+        const curWin=wins.find(w=>nowD>=w.start&&nowD<w.end);
+        const dTo=d=>{const n=Math.round((d-nowD)/864e5);
+          return n>730?`${(n/365.25).toFixed(1)} years`:`${n} days`};
+        return `
+      <p class="interp"><b>The because:</b> your Moon is in <b>${SIGNS[moonSign-1]}</b>,
+        so the band is ${band[0]} (12th) &#8594; <b>${band[1]}</b> (your Moon sign)
+        &#8594; ${band[2]} (2nd). Saturn today is in <b>${satNowSign}</b> &#8212; the
+        ${ordinal(cur)} sign from your Moon, ${inBand?"inside":"outside"} that band.</p>
+      <p class="interp"><b>Why seven and a half years:</b> Saturn takes about
+        29&#189; years to circle the zodiac, so it spends roughly 2&#189; years in each
+        sign &#8212; three signs &#215; ~2&#189; years &#8776; 7&#189; years, which is what
+        &#8220;sade sati&#8221; (&#8220;seven and a half&#8221;) means. Retrogrades make each
+        crossing uneven, which is why the phase dates below are computed, not averaged.</p>
+      ${curWin?`<p class="interp"><b>This window ends ${fmtDate(curWin.end)}</b> &#8212;
+        ${dTo(curWin.end)} from today.</p>`
+        :nxt?`<p class="interp"><b>Your next window begins ${fmtDate(nxt.start)}</b> &#8212;
+        ${dTo(nxt.start)} from today, when Saturn enters ${band[0]}.</p>`:""}`})()}
     </div>
     ${wins.map(card).join("")}
     <div class="card" style="margin-top:4px">

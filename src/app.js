@@ -14,7 +14,7 @@ import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
 import { openSkyView } from "./skyview.js?v=20260831c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./report.js?v=20260831d";
+import { avakhadaOf } from "./report.js?v=20260831e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
 const julian = jd;

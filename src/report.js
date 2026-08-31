@@ -147,9 +147,13 @@ const nakLord = i => DASHA_ORDER[i % 9];
 const ord = h => h + (h === 1 ? "st" : h === 2 ? "nd" : h === 3 ? "rd" : "th");
 const dash = s => String(s).replace(/&#8212;/g, "—");
 
+/* Arc-minute display TRUNCATES (12°05'55" shows as 12°05') - the same
+   convention the app and both benchmark vendors use. Rounding here
+   made the report's lagna read 12°06' against the app's 12°05' for
+   the same longitude - caught by Sangram as a "mismatch", 31 Aug. */
 const dm = L => {
-  const d = Math.floor(degIn(L)), m = Math.round((degIn(L) - d) * 60);
-  return m === 60 ? `${d + 1}°00'` : `${d}°${String(m).padStart(2, "0")}'`;
+  const d = Math.floor(degIn(L)), m = Math.floor((degIn(L) - d) * 60);
+  return `${d}°${String(m).padStart(2, "0")}'`;
 };
 /* degrees-in-sign to d°mm'ss" - the display convention both benchmark
    vendors use. Seconds are display resolution, not a precision claim;

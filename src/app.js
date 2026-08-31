@@ -1468,11 +1468,15 @@ function paintUniverse(instant){
     ? `<button class="vchip" id="vchip" aria-haspopup="dialog"
          aria-label="Choose a divisional chart. Showing D${uniVarga}, ${vi[1]}">D${uniVarga} &#183; ${vi[1]} <i aria-hidden="true">&#9662;</i></button>`+
       (uniVarga===1
-        ? `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
+        ? `<button class="vchip" id="ychip" aria-haspopup="dialog"
+             aria-label="Show the yogas in your chart">Yogas &#183; ${engine().yogas.length}</button>`+
+          `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
         : `${cap(vi[2])} &#8212; house 1 is the ${vi[1]} lagna.`)
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
   const vc=document.getElementById("vchip");
   if(vc) vc.onclick=openVargaSheet;
+  const yc=document.getElementById("ychip");
+  if(yc) yc.onclick=openYogaSheet;
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
 }
@@ -1494,6 +1498,69 @@ function paintHouseSigns(list){
         (occ.length?`${occ.join(", ")} here.`:"No graha here."));
     }
   }
+}
+
+/* Yogas live ON the chart, not only in a buried list (Sangram, 31 Aug:
+   "show those two planets sitting together in that house"). Pick a
+   yoga and the grahas that make it light up, joined by a drawn line,
+   with the classical rule's working underneath. Rashi chart only - a
+   yoga is a D1 pattern, so the chip hides under a varga lens. */
+function openYogaSheet(){
+  if(mode) resetChart();
+  mode="yogas"; buzz(9);
+  const ys=engine().yogas;
+  document.getElementById("sheetbody").innerHTML=`
+    ${peekBlock("Yogas in your chart", `${ys.length} active &#183; tap one to see it`)}
+    <div>
+      ${ys.map((y,i)=>`
+        <button class="vrow" data-y="${i}">
+          <b>${y.name}${y.strength?` &#183; ${y.strength}`:""}</b>
+          <span>${y.planets?y.planets.join(" + "):""}</span>
+        </button>`).join("")}
+      <p class="note" style="margin-top:10px">Every yoga here fired from the classical
+        rule run against your actual placements &#8212; open one and the chart shows the
+        planets that make it. Doshas and the agree/disagree ledger stay in
+        You &#8594; Yogas &amp; doshas.</p>
+    </div>`;
+  showSheetPeek(); expandSheet();
+  document.getElementById("sheetbody").onclick=e=>{
+    const b=e.target.closest(".vrow"); if(!b) return;
+    focusYoga(engine().yogas[+b.dataset.y]);
+  };
+}
+function focusYoga(y){
+  clearMarks(); buzz(12);
+  const list=uniPlacements();
+  const inv=new Set(y.planets||[]);
+  const houses=new Set(list.filter(p=>inv.has(p.graha)).map(p=>p.house));
+  list.forEach(p=>{ if(!inv.has(p.graha)) PEL[p.graha].classList.add("recede"); });
+  qa(".hs").forEach(e2=>e2.classList.add(houses.has(+e2.dataset.h)?"lit":"dim"));
+  qa(".sn").forEach(e2=>{ if(!houses.has(+e2.dataset.h)) e2.classList.add("dim"); });
+  /* join the participants - the relationship drawn, not described */
+  const asp=document.getElementById("asp");
+  const ps=[...inv].map(g=>PEL[g]?._pos).filter(Boolean);
+  for(let i=0;i+1<ps.length;i++){
+    const [x1,y1]=[ps[i][0]*100,ps[i][1]*100], [x2,y2]=[ps[i+1][0]*100,ps[i+1][1]*100];
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    const path=el("path",{d:`M ${x1} ${y1} Q ${mx+(mx-50)*.25} ${my+(my-50)*.25} ${x2} ${y2}`,
+      class:"al",stroke:"var(--brass)"});
+    asp.appendChild(path);
+    const len=path.getTotalLength();
+    path.style.setProperty("--len",len);
+    path.style.strokeDasharray=len; path.style.strokeDashoffset=len;
+    requestAnimationFrame(()=>path.classList.add("on"));
+  }
+  document.getElementById("sheetbody").onclick=null;
+  document.getElementById("sheetbody").innerHTML=`
+    ${peekBlock(y.name, y.planets?y.planets.join(" + "):"")}
+    <div>
+      <div class="eyebrow">${y.sanskrit||""}${y.strength?` &#183; ${y.strength} strength`:""}</div>
+      <p class="interp" style="margin-top:8px">${y.because}</p>
+      <button class="tb-btn txt" id="ybk" style="margin-top:10px;min-height:44px">&#8249; All yogas</button>
+    </div>`;
+  collapseSheet();
+  const bk=document.getElementById("ybk");
+  if(bk) bk.onclick=e2=>{ e2.stopPropagation(); openYogaSheet(); };
 }
 
 /* the varga picker rides the standard sheet, so close/reset behave

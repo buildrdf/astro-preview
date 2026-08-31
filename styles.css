@@ -773,6 +773,19 @@ body.glossary .page{padding-right:30px}
 .vrow span{color:var(--ink-3);font-size:12.5px;line-height:1.4}
 .vrow.on{border-color:rgba(194,155,78,.55);background:rgba(194,155,78,.10)}
 
+/* dasha spine: antar sub-bands + rail age ticks */
+.band{position:relative}
+.band .bico{position:relative;z-index:1}
+.band .subs{position:absolute;inset:0;display:flex;flex-direction:column;
+  opacity:0;transition:opacity .35s var(--ease);pointer-events:none}
+.band.on .subs{opacity:1}
+.band .subs i{min-height:0}
+.agetick{position:absolute;right:2px;transform:translateY(-50%);z-index:2;
+  display:flex;flex-direction:row-reverse;align-items:center;gap:3px;
+  pointer-events:none;font-family:var(--fm);font-size:8.5px;
+  color:var(--ink-3);opacity:.75}
+.agetick i{display:block;width:7px;height:1px;background:var(--ink-3);opacity:.6}
+
 /* planets glide between positions; a mode change or a scrub is the same
    objects moving, never a redraw */
 .p{transition:transform .72s var(--ease),opacity .5s var(--ease),

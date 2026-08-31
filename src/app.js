@@ -3777,12 +3777,26 @@ function timelineBody(){
       <div class="spine" id="spine" role="slider" tabindex="0"
            aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
         <div class="spinecol" id="spinecol" style="height:${TL_H}px">
-          ${m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
-            background:linear-gradient(180deg, ${COLOUR(d.lord)}30, ${COLOUR(d.lord)}0c)">
-            <img class="bico" src="assets/graha/${d.lord.toLowerCase()}.png" alt="${d.lord}">
-          </div>`).join("")}
+          ${(()=>{ /* antar sub-bands ride inside each maha band, shown
+               when that maha is active - the 9-in-9 nesting of
+               Vimshottari drawn, not described */
+            const d3m=engine().d3.mahadashas;
+            return m.map((d,i)=>`<div class="band" data-i="${i}" style="flex:${d.years};
+              background:linear-gradient(180deg, ${COLOUR(d.lord)}30, ${COLOUR(d.lord)}0c)">
+              <div class="subs" aria-hidden="true">${(d3m[i]?.antardashas||[]).map(a=>
+                `<i style="flex:${a.end-a.start} 0 0;background:${COLOUR(a.lord)}1f;
+                   border-top:1px solid ${COLOUR(a.lord)}59"></i>`).join("")}</div>
+              <img class="bico" src="assets/graha/${d.lord.toLowerCase()}.png" alt="${d.lord}">
+            </div>`).join("");})()}
         </div>
         <span class="nowtick" id="nowtick" title="today"></span>
+        ${(()=>{ /* decade ticks on the rail - the whole-life map gets a scale */
+          const {t0,t1}=tlBounds(); const out=[];
+          for(let a=10;a<=110;a+=10){
+            const t=(CHART.birthDate.getTime()+a*365.2425*864e5-t0)/(t1-t0);
+            if(t>0.01&&t<0.99) out.push(`<span class="agetick" style="top:${(t*100).toFixed(2)}%"><i></i>${a}</span>`);
+          }
+          return out.join("");})()}
         ${subEventsMarkup()}
         <div class="spinemark"><i></i></div>
       </div>
@@ -3839,6 +3853,18 @@ function wireTimeline(){
           </div>
           <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(now.antar.lord)}"></i></div>
           <p class="poslabel">${Math.round(apos*100)}% through</p>
+          ${(()=>{ /* the third level, one size down again. The 3-level
+               engine's dates differ from this module's by a few days,
+               so only show its pratyantar when both agree on which
+               antardasha is running - at boundaries it stays quiet. */
+            const d3=engine().d3;
+            const m3=d3.mahadashas.find(x=>when>=x.start&&when<x.end);
+            const a3=m3?.antardashas.find(x=>when>=x.start&&when<x.end);
+            const p3=(m3?.lord===now.maha.lord && a3?.lord===now.antar.lord)
+              ? a3?.pratyantardashas?.find(x=>when>=x.start&&when<x.end) : null;
+            return p3?`<p class="poslabel" style="margin-top:8px">pratyantar:
+              <b style="color:${COLOUR(p3.lord)}">${p3.lord}</b>
+              &#183; ${fmtDate(p3.start)} &#8211; ${fmtDate(p3.end)}</p>`:"";})()}
         </div>`})()}
       <button class="item dashamore" id="dashamore">
         <svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>

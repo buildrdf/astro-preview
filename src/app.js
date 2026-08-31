@@ -2554,6 +2554,68 @@ function wireChips(scope){
   });
 }
 
+/* ---- LIVE GUIDE ---------------------------------------------------
+   The composer talks to Astra's own server (a Supabase edge function
+   in the app's project), which holds the API key and the daily
+   spending caps. The client sends the conversation plus facts computed
+   by the deterministic engine - the model explains, it never
+   calculates (constitution 57/60). The anon key below is public by
+   design: it only marks requests as coming from Astra's frontend. */
+const GUIDE_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/guide";
+const GUIDE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpqcmh0bWV5cW9ncml1Y3Frd2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMTgzNzEsImV4cCI6MjEwMzc5NDM3MX0.DLp2GtNvPnxv8De3cWwkuWN2yb2KQ5lmrtUP1wqy4S8";
+let GUIDE_LIVE=[];
+
+const escText=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function guideFacts(){
+  const F=dayFacts(new Date()), now=CHART.dasha.at(new Date());
+  const natal={};
+  for(const p of CHART.placements)
+    natal[p.graha]={sign:SIGNS[p.sign-1],house:p.house,deg:p.degf,nakshatra:p.nak,
+      pada:p.pada,retrograde:!!p.retro,dignity:p.dig||undefined};
+  return {
+    name:ACTIVE.first||ACTIVE.name||"the user",
+    lagna:SIGNS[CHART.lagna-1],
+    today:new Date().toDateString(),
+    natal,
+    dasha:now?{mahadasha:{lord:now.maha.lord,start:fmtDate(now.maha.start),end:fmtDate(now.maha.end)},
+      antardasha:{lord:now.antar.lord,start:fmtDate(now.antar.start),end:fmtDate(now.antar.end)}}:null,
+    transits:F.sky.map(s=>({graha:s.graha,sign:SIGNS[s.sign-1],house:s.house,
+      retrograde:!!s.retro,supportive:!!s.favourable}))
+  };
+}
+
+async function guideSend(q){
+  const chat=document.getElementById("chat"); if(!chat) return;
+  const me=document.createElement("div"); me.className="bubble me"; me.textContent=q;
+  chat.appendChild(me);
+  chat.insertAdjacentHTML("beforeend",
+    `<div class="astrareply"><div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
+     <div class="astratext gthink">&#183;&#160;&#183;&#160;&#183;</div></div>`);
+  const th=chat.lastElementChild.querySelector(".astratext");
+  chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
+  GUIDE_LIVE.push({role:"user",content:q});
+  buzz(6);
+  try{
+    const r=await fetch(GUIDE_URL,{method:"POST",
+      headers:{"content-type":"application/json","authorization":"Bearer "+GUIDE_ANON},
+      body:JSON.stringify({messages:GUIDE_LIVE.slice(-12),facts:guideFacts()})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.text) throw new Error(j.error||"err");
+    GUIDE_LIVE.push({role:"assistant",content:j.text});
+    th.classList.remove("gthink");
+    th.innerHTML=escText(j.text).split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
+    buzz(4);
+  }catch(e){
+    GUIDE_LIVE.pop();
+    th.classList.remove("gthink");
+    th.textContent=String(e.message)==="limit"
+      ? "The Guide has said a lot today and rests until tomorrow. Everything else in Astra keeps working."
+      : "The Guide can't reach the sky just now. Your chart still works - try again in a moment.";
+  }
+  chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
 function setGuideBar(){
   setTopBar("Guide",{actions:`<button class="tb-btn" id="gclose" aria-label="Close Guide">
     <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`});
@@ -2605,10 +2667,10 @@ function renderGuide(){
           : astraCard(typeof m.t==="function"?m.t():m.t, m.chips)).join("")}
       </div>
       <div class="asks" id="asks">${ASKS.map((a,i)=>`<button class="ask" data-i="${i}">${a.q}</button>`).join("")}</div>
-      <p class="note"><b>Placeholder.</b> This conversation is scripted and the composer below
-      is not connected. The mechanism being shown is real though: each reply carries a UI
-      command, so answering moves the chart rather than only describing it. A live model needs
-      a small server to hold the API key &#8212; a key in this page would be readable by anyone.</p>
+      <p class="note">The suggested questions are crafted demonstrations &#8212; their answers
+      move the chart. The message box below is <b>live</b>: it reads
+      ${ACTIVE.p?`${ACTIVE.first}&#8217;s`:"your"} real chart and answers in a moment.
+      Voice is on the way.</p>
     </div>
     <div class="composer">
       <input id="cmpin" placeholder="Ask your chart" aria-label="Message">
@@ -2632,6 +2694,12 @@ function renderGuide(){
   wireChips(document.getElementById("chat"));
   const mic=document.getElementById("cmpmic");
   mic.onclick=()=>{mic.classList.toggle("live");buzz(8)};
+  const inp=document.getElementById("cmpin");
+  inp.onkeydown=e=>{
+    if(e.key==="Enter"&&inp.value.trim()){
+      const q=inp.value.trim(); inp.value=""; inp.blur(); guideSend(q);
+    }
+  };
 }
 
 const ICONS={

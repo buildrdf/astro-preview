@@ -178,7 +178,7 @@ async function gSearch(q){
   const { predictions, status } = await Promise.race([
     new Promise(res => gAuto.getPlacePredictions({ input: q, types: ["(cities)"] },
       (predictions, status) => res({ predictions, status }))),
-    new Promise((_, rej) => setTimeout(() => rej(new Error("places:timeout")), 1500)),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("places:timeout")), 900)),
   ]);
   const S = google.maps.places.PlacesServiceStatus;
   if (status === S.OK || status === S.ZERO_RESULTS) {

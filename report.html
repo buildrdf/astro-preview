@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#171A33">
+<title>Astra — Detailed Kundali</title>
+<style>
+  /* Standalone page: celestial-dark shell around the paper report.
+     Tokens mirror styles.css so this reads as the same product. */
+  :root{
+    --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
+    --edge:rgba(255,255,255,.14); --edge-soft:rgba(255,255,255,.09);
+    --ff:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    --fm:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:radial-gradient(120% 90% at 50% 0%,#232748 0%,#171A33 55%,#111327 100%) fixed;
+    color:var(--ink);font-family:var(--ff);-webkit-font-smoothing:antialiased;
+    padding:max(20px,env(safe-area-inset-top)) 16px 40px}
+  .wrap{max-width:760px;margin:0 auto}
+  header.hero{text-align:center;margin:26px 0 22px}
+  header.hero h1{font-size:26px;letter-spacing:-.02em;margin:0 0 6px}
+  header.hero p{color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:0 auto;max-width:44ch}
+  .card{background:rgba(255,255,255,.055);border:1px solid var(--edge-soft);
+    border-radius:20px;padding:20px 18px;margin-bottom:22px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid .full{grid-column:1/-1}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-family:var(--fm);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-3);margin:0 0 6px 2px}
+  input{width:100%;min-height:44px;padding:10px 12px;border-radius:12px;
+    border:1px solid var(--edge);background:rgba(0,0,0,.25);color:var(--ink);
+    font-size:16px;font-family:var(--ff);outline:none}
+  input:focus{border-color:#5A5FB0}
+  input::-webkit-calendar-picker-indicator{filter:invert(.8)}
+  .placewrap{position:relative}
+  .sugs{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;
+    background:#20244100;backdrop-filter:blur(18px);
+    background:rgba(28,32,62,.97);border:1px solid var(--edge);
+    border-radius:14px;overflow:hidden;display:none;max-height:264px;overflow-y:auto}
+  .sugs.on{display:block}
+  .sug{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+    padding:12px 14px;color:var(--ink);font-size:15px;font-family:var(--ff);min-height:44px}
+  .sug small{display:block;color:var(--ink-3);font-size:12px;margin-top:1px}
+  .sug:hover,.sug:focus{background:rgba(255,255,255,.08)}
+  .sug+.sug{border-top:.5px solid var(--edge-soft)}
+  .actions{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap}
+  button.primary{min-height:48px;padding:12px 22px;border:0;border-radius:99px;
+    background:var(--ink);color:#141731;font-size:16px;font-weight:650;cursor:pointer}
+  button.primary:disabled{opacity:.45}
+  .tryref{background:none;border:0;color:var(--ink-3);font-size:13.5px;cursor:pointer;
+    text-decoration:underline;text-underline-offset:3px;min-height:44px;padding:0 6px}
+  .status{color:var(--ink-3);font-size:13px;min-height:1.2em;margin-top:10px}
+  .status.err{color:#E39A9A}
+
+  /* ---- the paper report ---- */
+  .paper{
+    --ink:#23263C; --ink-2:#4A4F6E; --ink-3:#7B809E;
+    --line:rgba(42,48,95,.14); --edge-soft:rgba(42,48,95,.16); --brass:#8F6B24;
+    background:#F5F3EC;color:var(--ink);border-radius:22px;
+    padding:26px 22px 30px;box-shadow:0 10px 40px -18px rgba(0,0,0,.55);
+    font-size:15px;line-height:1.62;display:none}
+  .paper.on{display:block}
+  .paper h1{font-size:24px;letter-spacing:-.02em;line-height:1.25;margin:0 0 14px}
+  .paper h2{font-size:19px;letter-spacing:-.015em;margin:30px 0 10px;
+    padding-top:18px;border-top:1px solid var(--line)}
+  .paper h3{font-size:16px;margin:20px 0 8px}
+  .paper p{margin:0 0 12px;color:var(--ink-2)}
+  .paper p b,.paper li b{color:var(--ink)}
+  .paper ul{margin:0 0 12px;padding-left:20px;color:var(--ink-2)}
+  .paper li{margin-bottom:5px}
+  .paper hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+  .tblwrap{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:12px;margin:0 0 14px}
+  .paper table{border-collapse:collapse;font-size:12.5px;min-width:100%}
+  .paper th{font-family:var(--fm);font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-3);text-align:left;padding:8px 9px;border-bottom:1px solid var(--edge-soft);
+    background:rgba(42,48,95,.045);white-space:nowrap}
+  .paper td{padding:7px 9px;border-bottom:.5px solid var(--line);color:var(--ink-2);
+    vertical-align:top}
+  .paper tr:last-child td{border-bottom:0}
+  .printrow{display:flex;justify-content:flex-end;margin:18px 0 0}
+
+  @media print{
+    body{background:#fff;padding:0}
+    header.hero,.card,.printrow,.status{display:none!important}
+    .paper{box-shadow:none;border-radius:0;padding:0}
+    .tblwrap{border-color:#ccc}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>Astra — Detailed Kundali</h1>
+    <p>Your full Vedic birth chart, computed deterministically — every reading
+       names the placement that produced it. Nothing here is a prediction.</p>
+  </header>
+
+  <div class="card" id="formcard">
+    <div class="grid">
+      <div class="full">
+        <label for="f-name">Name</label>
+        <input id="f-name" autocomplete="name" placeholder="Full name">
+      </div>
+      <div>
+        <label for="f-date">Birth date</label>
+        <input id="f-date" type="date">
+      </div>
+      <div>
+        <label for="f-time">Birth time</label>
+        <input id="f-time" type="time">
+      </div>
+      <div class="full placewrap">
+        <label for="f-place">Birthplace</label>
+        <input id="f-place" placeholder="Start typing a city…" autocomplete="off">
+        <div class="sugs" id="sugs"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="go" disabled>Cast the chart</button>
+      <button class="tryref" id="tryref" type="button">Fill a sample birth</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <article class="paper" id="paper"></article>
+  <div class="printrow"><button class="primary" id="doprint" style="display:none">Print / save as PDF</button></div>
+</div>
+
+<script type="module">
+import { computeChart, renderKundali, setReportZone, setNow }
+  from "./src/report.js?v=20260831b";
+
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+const say = (msg, err) => { statusEl.textContent = msg; statusEl.className = "status" + (err ? " err" : ""); };
+
+/* ---------- place search ------------------------------------------
+   Two providers behind one contract: {label, detail, lat, lon, tz?}.
+   Google Places loads if the injected key is valid for this referrer;
+   otherwise the keyless Open-Meteo geocoder serves the same dropdown.
+   Either way the subject's IANA zone is resolved before casting. */
+const GKEY = "AIzaSyCbZXLFs2mKDZdfBVmtmRRVRlSVeIvAR4s";
+let picked = null;          /* the chosen place */
+let googleMode = false;
+
+function pick(p){
+  picked = p;
+  $("f-place").value = p.label + (p.detail ? `, ${p.detail}` : "");
+  $("sugs").className = "sugs";
+  validate();
+}
+/* Any manual edit to the place text invalidates the picked coordinates
+   (both providers set the value programmatically, which fires no
+   "input" event, so a real selection survives this). */
+$("f-place").addEventListener("input", () => { picked = null; validate(); });
+
+/* Open-Meteo: suggestions + timezone in one call, no key. */
+async function omSearch(q){
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`);
+  const j = await r.json();
+  return (j.results || []).map(x => ({
+    label: x.name,
+    detail: [x.admin1, x.country].filter(Boolean).join(", "),
+    lat: x.latitude, lon: x.longitude, tz: x.timezone,
+  }));
+}
+
+/* Google: programmatic predictions so a dead key is DETECTABLE
+   (the drop-in widget fails silently); selection resolves the placeId
+   to coordinates through the Geocoder. */
+let gAuto = null, gGeocoder = null;
+async function gSearch(q){
+  /* an un-activated API never calls back - race a timeout so the same
+     keystroke still gets fallback suggestions */
+  const { predictions, status } = await Promise.race([
+    new Promise(res => gAuto.getPlacePredictions({ input: q, types: ["(cities)"] },
+      (predictions, status) => res({ predictions, status }))),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("places:timeout")), 1500)),
+  ]);
+  const S = google.maps.places.PlacesServiceStatus;
+  if (status === S.OK || status === S.ZERO_RESULTS) {
+    return (predictions || []).map(p => ({
+      label: p.structured_formatting?.main_text || p.description,
+      detail: p.structured_formatting?.secondary_text || "",
+      placeId: p.place_id,
+    }));
+  }
+  throw new Error(`places:${status}`);
+}
+async function gResolve(hit){
+  const { results } = await gGeocoder.geocode({ placeId: hit.placeId });
+  const loc = results[0].geometry.location;
+  return { ...hit, lat: loc.lat(), lon: loc.lng(), tz: null };
+}
+
+/* One dropdown, whichever provider is alive. A Google error demotes
+   to the keyless geocoder for the rest of the session. */
+let sugTimer = null;
+async function runSearch(q){
+  let hits;
+  if (googleMode) {
+    try { hits = await gSearch(q); }
+    catch (e) {
+      console.warn("[astra] Google Places unavailable, switching to fallback geocoder", e.message);
+      googleMode = false;
+    }
+  }
+  if (!googleMode) hits = await omSearch(q);
+  const box = $("sugs");
+  box.innerHTML = "";
+  for (const h of hits) {
+    const b = document.createElement("button");
+    b.className = "sug"; b.type = "button";
+    b.innerHTML = `${h.label}<small>${h.detail}</small>`;
+    b.onclick = async () => {
+      if (h.placeId && !h.lat) {
+        try { pick(await gResolve(h)); }
+        catch (e) { console.warn("[astra] place resolve failed", e); say("Couldn't resolve that place — try another suggestion.", true); }
+      } else pick(h);
+    };
+    box.appendChild(b);
+  }
+  box.className = "sugs" + (hits.length ? " on" : "");
+}
+$("f-place").addEventListener("input", () => {
+  clearTimeout(sugTimer);
+  const q = $("f-place").value.trim();
+  if (q.length < 2) { $("sugs").className = "sugs"; return; }
+  sugTimer = setTimeout(() => runSearch(q).catch(() => {}), 240);
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".placewrap")) $("sugs").className = "sugs";
+});
+
+window.__gmapsReady = () => {
+  try {
+    gAuto = new google.maps.places.AutocompleteService();
+    gGeocoder = new google.maps.Geocoder();
+    googleMode = true;
+    console.log("[astra] place search: Google Places (fallback armed)");
+  } catch (e) { console.warn("[astra] Places init failed, using fallback geocoder", e); }
+};
+window.gm_authFailure = () => {          /* bad key / referrer-blocked */
+  console.warn("[astra] Google Maps auth failed, using fallback geocoder");
+  googleMode = false;
+};
+if (GKEY && !GKEY.startsWith("__")) {
+  const s = document.createElement("script");
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${GKEY}&libraries=places&loading=async&callback=__gmapsReady`;
+  s.onerror = () => console.warn("[astra] Maps JS failed to load, using fallback geocoder");
+  document.head.appendChild(s);
+}
+
+/* IANA zone for arbitrary coordinates (Google path only; Open-Meteo
+   results carry their zone already). Keyless, CORS-enabled resolver
+   first; the same-name geocoder match is the backstop. */
+async function resolveZone(p){
+  if (p.tz) return p.tz;
+  try {
+    const r = await fetch(`https://timeapi.io/api/timezone/coordinate?latitude=${p.lat}&longitude=${p.lon}`);
+    if (r.ok) { const j = await r.json(); if (j.timeZone) return j.timeZone; }
+  } catch {}
+  try {
+    const hits = await omSearch(p.label);
+    if (hits[0]?.tz) return hits[0].tz;
+  } catch {}
+  return null;
+}
+
+/* ---------- time math --------------------------------------------- */
+function offsetAt(tz, utcMs){
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false,
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric" });
+  const m = {}; for (const part of f.formatToParts(new Date(utcMs))) m[part.type] = part.value;
+  return Date.UTC(m.year, m.month - 1, m.day, m.hour % 24, m.minute, m.second)
+       - Math.floor(utcMs / 1000) * 1000;
+}
+function utcFromLocal(y, mo, d, h, mi, tz){
+  const wall = Date.UTC(y, mo - 1, d, h, mi);
+  let guess = wall;
+  for (let i = 0; i < 3; i++) guess = wall - offsetAt(tz, guess);
+  return new Date(guess);
+}
+function zoneAbbr(tz, atMs){
+  /* Intl's "short" name for fixed-offset Asian zones is the unlovely
+     "GMT+5:30" form; prefer the abbreviation people actually write. */
+  const NICE = { "Asia/Kolkata": "IST", "Asia/Calcutta": "IST",
+    "Asia/Karachi": "PKT", "Asia/Dhaka": "BST", "Asia/Kathmandu": "NPT",
+    "Asia/Colombo": "SLST", "Asia/Dubai": "GST", "Asia/Singapore": "SGT" };
+  if (NICE[tz]) return NICE[tz];
+  const parts = new Intl.DateTimeFormat("en-US",
+    { timeZone: tz, timeZoneName: "short" }).formatToParts(new Date(atMs));
+  return (parts.find(p => p.type === "timeZoneName") || {}).value || tz;
+}
+
+/* ---------- markdown -> HTML (exactly the subset the engine emits:
+   headers, bold/italic, tables, hr, lists, paragraphs) -------------- */
+function inline(s){
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/\*([^*]+)\*/g, "<i>$1</i>");
+}
+function mdToHtml(md){
+  const lines = md.split("\n");
+  const out = [];
+  let i = 0, para = [], list = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${para.map(inline).join("<br>")}</p>`); para = []; } };
+  const flushList = () => { if (list.length) { out.push(`<ul>${list.map(l => `<li>${inline(l)}</li>`).join("")}</ul>`); list = []; } };
+  while (i < lines.length) {
+    const L = lines[i];
+    if (/^\|/.test(L) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
+      flushPara(); flushList();
+      const heads = L.split("|").slice(1, -1).map(c => c.trim());
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) {
+        rows.push(lines[i].split("|").slice(1, -1).map(c => c.trim())); i++;
+      }
+      out.push(`<div class="tblwrap"><table><thead><tr>${
+        heads.map(h => `<th>${inline(h)}</th>`).join("")}</tr></thead><tbody>${
+        rows.map(r => `<tr>${r.map(c => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if (/^### /.test(L)) { flushPara(); flushList(); out.push(`<h3>${inline(L.slice(4))}</h3>`); }
+    else if (/^## /.test(L)) { flushPara(); flushList(); out.push(`<h2>${inline(L.slice(3))}</h2>`); }
+    else if (/^# /.test(L)) { flushPara(); flushList(); out.push(`<h1>${inline(L.slice(2))}</h1>`); }
+    else if (/^---+$/.test(L.trim())) { flushPara(); flushList(); out.push("<hr>"); }
+    else if (/^- /.test(L)) { flushPara(); list.push(L.slice(2)); }
+    else if (L.trim() === "") { flushPara(); flushList(); }
+    else para.push(L);
+    i++;
+  }
+  flushPara(); flushList();
+  return out.join("\n");
+}
+
+/* ---------- form flow --------------------------------------------- */
+function validate(){
+  $("go").disabled = !($("f-name").value.trim() && $("f-date").value && $("f-time").value && picked);
+}
+for (const id of ["f-name", "f-date", "f-time"]) $(id).addEventListener("input", validate);
+
+$("tryref").onclick = () => {
+  $("f-name").value = "Sangram";
+  $("f-date").value = "1992-03-26";
+  $("f-time").value = "10:00";
+  pick({ label: "Kopargaon", detail: "Maharashtra, India",
+    lat: 19.885, lon: 74.4728, tz: "Asia/Kolkata" });
+};
+
+$("go").onclick = async () => {
+  $("go").disabled = true;
+  say("Resolving the birthplace's timezone…");
+  try {
+    const tz = await resolveZone(picked);
+    if (!tz) { say("Couldn't resolve the timezone for this place — try picking it from the suggestions again.", true); $("go").disabled = false; return; }
+
+    const [y, mo, d] = $("f-date").value.split("-").map(Number);
+    const [h, mi] = $("f-time").value.split(":").map(Number);
+    const birth = utcFromLocal(y, mo, d, h, mi, tz);
+    const abbr = zoneAbbr(tz, birth.getTime());
+    setReportZone(tz, abbr);
+    setNow(new Date());
+
+    say("Casting the chart — planetary positions, vargas, dashas, yogas…");
+    await new Promise(r => setTimeout(r, 30));   /* let the status paint */
+
+    const MONTH = ["January","February","March","April","May","June","July",
+      "August","September","October","November","December"];
+    const person = {
+      key: "web", name: $("f-name").value.trim(),
+      date: birth,
+      place: $("f-place").value,
+      lat: picked.lat, lon: picked.lon,
+      birthLocal: `${d} ${MONTH[mo - 1]} ${y}, ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")} ${abbr}`,
+    };
+    const md = renderKundali(computeChart(person));
+    $("paper").innerHTML = mdToHtml(md);
+    $("paper").className = "paper on";
+    $("doprint").style.display = "";
+    say("");
+    $("paper").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    console.error(e);
+    say("Something went wrong while casting the chart. " + (e.message || ""), true);
+  }
+  $("go").disabled = false;
+};
+$("doprint").onclick = () => print();
+</script>
+</body>
+</html>

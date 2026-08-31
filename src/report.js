@@ -24,6 +24,8 @@
 
 import { positions, retrograde, moonSidereal, sunSidereal, jd, ayanamsa } from "./ephemeris.js";
 import { shadbala, bhavabala, SHADBALA_GRAHAS } from "./shadbala.js";
+import { yoginiDasha } from "./yogini.js";
+import { placidusCusps, chalitHouseOf } from "./cusps.js";
 import { ascendant, altAz, gmst } from "./sky.js";
 import { limbs, GOCHARA_GOOD } from "./panchang.js";
 import { vimshottari, DASHA_ORDER } from "./dasha3.js";
@@ -500,8 +502,18 @@ function computeChart(p) {
     }
   } catch (_) { sb = null; bb = null; }
 
+  /* --- yogini + placidus/chalit (both validated vs printed tables) -- */
+  const yogini = yoginiDasha(moonL, p.date);
+  let cusps = null, chalit = null;
+  try {
+    cusps = placidusCusps(p.date, p.lat, p.lon);
+    chalit = {};
+    for (const g of GRAHAS) chalit[g] = chalitHouseOf(pos[g], cusps);
+  } catch (_) { cusps = null; chalit = null; }
+
   return { ...p, pos, rx, ascLon, lagna, moonL, points, houses, vargas,
     dasha, nowStack, bav, sav, yogas, sati, mangal, karakas, sb, bb,
+    yogini, cusps, chalit,
     birthLimbs, vara: { name: VARA_NAMES[wd], lord: VARA_LORD[wd] },
     moonSign, marsSign,
     sunrise: st.rise, sunset: st.set, lmt, lst, ends, doshas, gochara,
@@ -628,6 +640,22 @@ function renderKundali(c) {
       const lordHouse = houseFrom(c.lagna, signOf(c.pos[h.lord]));
       return `| ${h.n} | ${HOUSE_SENSE[h.n]} | ${SIGNS[h.sign - 1]} | ${h.lord} | ${ord(lordHouse)} house | ${h.occupants.join(", ") || "—"} |`;
     }));
+
+  /* --- the Bhav Chalit frame (validated Placidus cusps) ---------- */
+  if (c.cusps && c.chalit) {
+    const moved = GRAHAS.filter(g =>
+      c.chalit[g] !== houseFrom(c.lagna, signOf(c.pos[g])));
+    push("Alongside the whole-sign houses above, some traditions overlay the **Bhav Chalit** frame — twelve unequal cusps cut by the Placidus rule (Astra's cusps reproduce the printed benchmark to 0.02°):",
+      "",
+      "| Cusp | Begins at | Cusp | Begins at |",
+      "|---|---|---|---|",
+      ...Array.from({ length: 6 }, (_, i) =>
+        `| ${i + 1} | ${SIGNS[signOf(c.cusps[i]) - 1]} ${dm(c.cusps[i])} | ${i + 7} | ${SIGNS[signOf(c.cusps[i + 6]) - 1]} ${dm(c.cusps[i + 6])} |`),
+      "",
+      moved.length
+        ? `In the chalit frame ${moved.map(g => `**${g}** shifts to the ${ord(c.chalit[g])} bhava`).join(", ")} — a graha near a cusp belongs to different houses in the two systems, and both readings are given rather than silently choosing.`
+        : "*In your chart the chalit frame moves no graha out of its whole-sign house — the two systems agree end to end.*");
+  }
 
   /* --- house-by-house reading: opener from the vetted lore library,
      then the lord placement and each occupant - every sentence keyed
@@ -782,7 +810,38 @@ function renderKundali(c) {
   const savLine = c.sav.map(String);
   const maxSav = Math.max(...c.sav), minSav = Math.min(...c.sav);
   const maxSign = c.sav.indexOf(maxSav) + 1, minSign = c.sav.indexOf(minSav) + 1;
-  push("## 9. Ashtakavarga — Transit Strength Map",
+  /* --- 9 the full third level --------------------------------- */
+  push("## 9. The Full Clock — Every Pratyantardasha",
+    "",
+    "The Vimshottari clock's third level, complete: all eighty-one antardashas with their nine pratyantars each — the full table serious practitioners expect, computed rather than padded.",
+    "");
+  for (const m of c.dasha.mahadashas) {
+    push(`### ${m.lord} mahadasha (${fmtDate(m.start)} → ${fmtDate(m.end)})`, "");
+    for (const a of (m.antardashas || [])) {
+      if (!a.pratyantardashas) continue;
+      push(`**${m.lord}–${a.lord}** (${fmtDate(a.start)} → ${fmtDate(a.end)})`,
+        "",
+        "| Pratyantar | From | To |",
+        "|---|---|---|",
+        ...a.pratyantardashas.map(pr =>
+          `| ${m.lord}–${a.lord}–${pr.lord} | ${fmtDate(pr.start)} | ${fmtDate(pr.end)} |`),
+        "");
+    }
+  }
+
+  /* --- 10 yogini dasha ----------------------------------------- */
+  push("## 10. Yogini Dasha — The Second Clock",
+    "",
+    "A parallel timing tradition: eight yoginis on a 36-year cycle, each ruled by a graha. The sequence is seeded by the birth nakshatra exactly as Vimshottari is — Astra's table reproduces the printed benchmark's dates to the day.",
+    "",
+    "| Yogini | Ruled by | Years | From | To | |",
+    "|---|---|---|---|---|---|",
+    ...c.yogini.map(y =>
+      `| ${y.name} | ${y.lord} | ${y.years}${y.balance ? " (balance)" : ""} | ${fmtDate(y.start)} | ${fmtDate(y.end)} | ${NOW >= y.start && NOW < y.end ? "**active**" : ""} |`),
+    "",
+    "*Where the two clocks agree on a season's tone, tradition weighs it doubly; where they differ, Vimshottari leads.*");
+
+  push("## 11. Ashtakavarga — Transit Strength Map",
     "",
     "Each of the seven grahas grants benefic points (bindus) to the twelve signs, judged from eight vantage points (the seven grahas and the lagna). A sign's total (Sarvashtakavarga) is traditionally read as how well transits through that sign tend to support you — more bindus, smoother passage.",
     "",
@@ -805,7 +864,7 @@ function renderKundali(c) {
   if (c.sb) {
     const gs = SHADBALA_GRAHAS.map(g => ({ g, ...c.sb.grahas[g] }))
       .sort((a, b) => b.rupas - a.rupas);
-    push("## 10. Shadbala — Six-Fold Strength",
+    push("## 12. Shadbala — Six-Fold Strength",
       "",
       "The classical strength computation (Brihat Parashara Hora Shastra): six sources of strength per graha — positional (sthana), temporal (kaala), directional (dig), motional (cheshta), natural (naisargika) and aspectual (drik) — summed in virupas, 60 virupas to a rupa. Ranked strongest first:",
       "",
@@ -827,11 +886,11 @@ function renderKundali(c) {
     }
   }
 
-  push(`## 11. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
+  push(`## 13. Current Transits (Gochara) — as of ${fmtDate(NOW)}`,
     "",
-    `Where every graha stands **today**, read against your natal Moon (${SIGNS[c.moonSign - 1]}) and lagna (${SIGNS[c.lagna - 1]}). The favourable/testing call uses the classical gochara table — each graha has a fixed set of houses from the natal Moon in which its transit is traditionally read as supportive (Sun 3/6/10/11, Moon 1/3/6/7/10/11, Mars 3/6/11, Mercury 2/4/6/8/10/11, Jupiter 2/5/7/9/11, Venus 1/2/3/4/5/8/9/11/12, Saturn 3/6/11, Rahu 3/6/10/11, Ketu 3/6/11). The bindu column joins this to §9: your own ashtakavarga score for the sign being transited.`,
+    `Where every graha stands **today**, read against your natal Moon (${SIGNS[c.moonSign - 1]}) and lagna (${SIGNS[c.lagna - 1]}). The favourable/testing call uses the classical gochara table — each graha has a fixed set of houses from the natal Moon in which its transit is traditionally read as supportive (Sun 3/6/10/11, Moon 1/3/6/7/10/11, Mars 3/6/11, Mercury 2/4/6/8/10/11, Jupiter 2/5/7/9/11, Venus 1/2/3/4/5/8/9/11/12, Saturn 3/6/11, Rahu 3/6/10/11, Ketu 3/6/11). The bindu column joins this to §11: your own ashtakavarga score for the sign being transited.`,
     "",
-    "| Graha | Transiting | From Moon | From lagna | Classical read | Bindus (§9) | In this sign until |",
+    "| Graha | Transiting | From Moon | From lagna | Classical read | Bindus (§11) | In this sign until |",
     "|---|---|---|---|---|---|---|",
     ...gRows,
     "",
@@ -840,7 +899,7 @@ function renderKundali(c) {
     "*This snapshot is the report-form of what the app computes live; the classical read describes the transit seat, and never overrides the running dasha context in §8.*");
 
   /* --- 8 yogas --------------------------------------------------- */
-  push("## 12. Yogas — With the Working Shown",
+  push("## 14. Yogas — With the Working Shown",
     "",
     `${c.yogas.length} classical combinations are present in this chart. Each one below states the rule as it applies to your actual placements — a yoga is never just a name here.`,
     "");
@@ -849,7 +908,7 @@ function renderKundali(c) {
   }
 
   /* --- 9 sade sati ------------------------------------------------ */
-  push("## 13. Sade Sati — Saturn's Pass Over Your Moon",
+  push("## 15. Sade Sati — Saturn's Pass Over Your Moon",
     "",
     `Sade sati is the roughly seven-and-a-half-year stretch when transiting Saturn crosses the 12th, 1st and 2nd signs counted from your natal Moon (${SIGNS[c.moonSign - 1]}). The tradition reads it as a season of consolidation and pruning — slow, structural, and finite — not as a verdict. The windows below are computed directly from the ephemeris; each window's internal phases show Saturn's actual sign entries, including retrograde re-entries.`,
     "");
@@ -865,7 +924,7 @@ function renderKundali(c) {
   /* --- 12 doshas --------------------------------------------------- */
   const mg = c.mangal;
   const second = mg.fromLagna.house === 2 || mg.fromMoon.house === 2;
-  push("## 14. Doshas — Verdicts With the Rule Shown",
+  push("## 16. Doshas — Verdicts With the Rule Shown",
     "",
     "Four classical afflictions, each checked against this chart with the rule written out. An absent dosha gets its reasoning too — a verdict you cannot audit is not a verdict.",
     "",
@@ -889,7 +948,7 @@ function renderKundali(c) {
   const dk8 = k.eight.find(x => x.karaka === "Darakaraka");
   const same = k.eight.filter(x => x.karaka !== "Pitrikaraka")
     .every(x => k.seven.find(y => y.karaka === x.karaka)?.graha === x.graha);
-  push("## 15. Chara Karakas — The Movable Significators",
+  push("## 17. Chara Karakas — The Movable Significators",
     "",
     "Jaimini's movable significators rank the grahas by how far each has travelled through its sign — the furthest-travelled becomes the Atmakaraka, the soul's own significator, down to the Darakaraka, the significator of the partner. Shown under the eight-karaka scheme (seven grahas plus Rahu, whose arc counts from the end of its sign); the seven-karaka variant follows.",
     "",

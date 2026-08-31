@@ -142,7 +142,7 @@
 
 <script type="module">
 import { computeChart, renderKundali, setReportZone, setNow }
-  from "./src/report.js?v=20260831f";
+  from "./src/report.js?v=20260901a";
 
 const $ = id => document.getElementById(id);
 const statusEl = $("status");
@@ -361,7 +361,7 @@ const GRAHAS9 = Object.keys(AB);
 const signOf12 = L => Math.floor((((L % 360) + 360) % 360) / 30) + 1;
 const houseOf = (lagna, s) => ((s - lagna) % 12 + 12) % 12 + 1;
 
-function kundaliSVG(lagna, seatSign, caption){
+function kundaliSVG(lagna, seatSign, caption, byHouse){
   /* seatSign: graha -> sign number */
   /* numbers hug the outer corners; planets sit at the cell centroids
      so the two never collide, even with two-planet rows */
@@ -369,17 +369,17 @@ function kundaliSVG(lagna, seatSign, caption){
                7:[50,76],8:[75,90],9:[87,72],10:[72,50],11:[87,28],12:[75,14]};
   const NUM = {1:[50,13],2:[13,6],3:[5,15],4:[13,50],5:[5,87],6:[13,97],
                7:[50,65],8:[87,97],9:[96,87],10:[87,50],11:[96,15],12:[87,6]};
-  const byHouse = {};
+  const cells = {};
   for (const g of GRAHAS9) {
-    const h = houseOf(lagna, seatSign[g]);
-    (byHouse[h] = byHouse[h] || []).push(AB[g]);
+    const h = byHouse ? byHouse[g] : houseOf(lagna, seatSign[g]);
+    (cells[h] = cells[h] || []).push(AB[g]);
   }
   let marks = "";
   for (let h = 1; h <= 12; h++) {
     const sg = ((lagna - 1 + h - 1) % 12) + 1;
     const [nx, ny] = NUM[h];
     marks += `<text class="ksn" x="${nx}" y="${ny}">${sg}</text>`;
-    const occ = byHouse[h] || [];
+    const occ = cells[h] || [];
     const [cx, cy] = CEN[h];
     /* diamonds fit two abbreviations per row; the corner triangles
        are too narrow, so they stack one per row */
@@ -415,7 +415,8 @@ function injectChartDiagrams(c){
   };
   after("4.", `<div class="krow">${
     kundaliSVG(c.lagna, seatsD1, "Lagna chart (D1)")}${
-    kundaliSVG(moonSign, seatsD1, "Moon chart — houses from the Moon")}</div>`);
+    kundaliSVG(moonSign, seatsD1, "Moon chart — houses from the Moon")}${
+    c.chalit ? kundaliSVG(c.lagna, seatsD1, "Bhav Chalit — cusp frame", c.chalit) : ""}</div>`);
   after("7.", `<div class="krow">${
     kundaliSVG(c.vargas[9].Asc, seatsD9, "Navamsa (D9)")}</div>`);
 }

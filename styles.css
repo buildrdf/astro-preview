@@ -1663,3 +1663,175 @@ body.guidefull #pg-guide{padding-bottom:26px}
 .dbscale{display:flex;justify-content:space-between;font-family:var(--fm);
   font-size:9.5px;color:var(--ink-3);margin:8px 1px 8px}
 .dbread{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:0;min-height:1.4em}
+
+/* ================================================================
+   TAB 1 REDESIGN (spec, 1 Sep) — typography and space over borders.
+   ================================================================ */
+
+/* section grammar: a quiet title, no card chrome */
+.daysec{margin:26px 0 0}
+.secttl{font-size:13px;font-weight:650;letter-spacing:.02em;color:var(--ink-2);
+  margin:0 0 10px;text-transform:none}
+.secrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.daychip{font-size:12px;color:var(--ink-2);padding:3px 10px;border-radius:99px;
+  background:rgba(255,255,255,.07)}
+.daychip.tone-favourable{color:#8FCB9C}
+.daychip.tone-balanced{color:#DDB86A}
+.daychip.tone-slow{color:#E08E7C}
+
+/* 1 · daily essentials — three facts, zero boxes */
+.essentials{display:flex;margin:14px 0 2px}
+.ess{flex:1;text-align:center}
+.essv{display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:16px;font-weight:640;letter-spacing:-.01em;min-height:30px}
+.essnum{font-size:20px}
+.csw{width:14px;height:14px;border-radius:50%;display:inline-block;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.ess small{display:block;margin-top:4px;font-size:10.5px;color:var(--ink-3)}
+.ess .gico{width:26px;height:26px;filter:drop-shadow(0 0 6px rgba(255,255,255,.18))}
+
+/* 2 · today's rhythm — the canonical 24h track */
+.rhytrack{position:relative;height:34px;border-radius:10px;overflow:hidden;
+  background:rgba(255,255,255,.05);touch-action:none;cursor:ew-resize}
+.rhytrack:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.rw{position:absolute;top:0;bottom:0}
+.rw.excellent{background:#4E8F63}
+.rw.good{background:#3D6B52}
+.rw.steady{background:#4A4E66}
+.rw.caution{background:#7A5B38}
+.rw.avoid{background:#7E4238;
+  background-image:repeating-linear-gradient(135deg,transparent 0 5px,rgba(0,0,0,.22) 5px 8px)}
+.rsun{position:absolute;top:-2px;width:2px;height:8px;background:var(--brass);
+  border-radius:1px}
+.rsun.set{background:rgba(207,164,92,.55)}
+.rnow{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.85;
+  box-shadow:0 0 6px rgba(255,255,255,.6)}
+.rseek{position:absolute;top:-4px;bottom:-4px;width:2.5px;background:#fff;
+  border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.5)}
+.rseek b{position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+  font-size:11px;font-weight:640;color:var(--ink);white-space:nowrap;
+  background:rgba(26,30,58,.92);padding:2px 8px;border-radius:7px;
+  font-variant-numeric:tabular-nums}
+.rsunlabels{position:relative;height:16px;margin-top:5px}
+.rsunlabels span{position:absolute;transform:translateX(-50%);font-size:10px;
+  color:var(--brass);white-space:nowrap;font-variant-numeric:tabular-nums}
+.rsunlabels .setl{color:var(--ink-3)}
+.rscale{display:flex;justify-content:space-between;font-size:9.5px;
+  color:var(--ink-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.rread{margin-top:12px;min-height:74px}
+.rreadrow{display:flex;align-items:baseline;gap:10px}
+.rgrade{font-size:15px;font-weight:680}
+.g-excellent{color:#8FD8A5}.g-good{color:#8FCB9C}.g-steady{color:var(--ink-2)}
+.g-caution{color:#DDA96A}.g-avoid{color:#E08E7C}
+.rspan{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.rsense{font-size:13px;line-height:1.5;color:var(--ink-2);margin:5px 0 0}
+.rwhy{font-size:11.5px;line-height:1.5;color:var(--ink-3);margin:4px 0 0}
+.rsummary{display:flex;gap:22px;margin-top:12px;padding-top:10px;
+  border-top:.5px solid var(--line)}
+.rs small{display:block;font-size:10px;color:var(--ink-3);margin-bottom:2px}
+.rs b{font-size:13px;font-weight:640;font-variant-numeric:tabular-nums;color:#8FCB9C}
+.rs.care b{color:#DDA96A}
+
+/* 3 · daily summary */
+.dsum{font-size:15px;line-height:1.65;color:var(--ink-2);margin:2px 0 0;
+  max-width:64ch}
+.dsum b{color:var(--ink)}
+
+/* 4 · do / hold — two quiet rows */
+.dh{display:flex;gap:14px;align-items:baseline;padding:7px 0}
+.dhk{flex:0 0 44px;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase}
+.dhk.do{color:#8FCB9C}.dhk.hold{color:#DDA96A}
+.dh p{margin:0;font-size:14px;line-height:1.55;color:var(--ink-2)}
+
+/* 5 · life areas — moonlight cards in a peeking carousel (§19-20) */
+.lacarousel{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;
+  scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -20px;
+  padding-left:20px;padding-right:20px}
+.lacarousel::-webkit-scrollbar{display:none}
+.lacard{flex:0 0 80%;max-width:310px;scroll-snap-align:start;
+  background:#F2F1EC;color:#23263C;border-radius:20px;padding:17px 17px 14px;
+  display:flex;flex-direction:column;min-height:184px}
+.lacard.t-favourable{background:#EFF3EC}
+.lacard.t-slow{background:#F4EFE9}
+.lahead{display:flex;align-items:center;justify-content:space-between}
+.laname{font-size:16px;font-weight:700;letter-spacing:-.015em}
+.lastatus{font-size:11px;font-weight:650;padding:3px 10px;border-radius:99px}
+.lastatus.s-favourable{color:#2C6B44;background:rgba(62,142,92,.14)}
+.lastatus.s-balanced{color:#5A5F7A;background:rgba(74,78,102,.12)}
+.lastatus.s-slow{color:#8A5A2E;background:rgba(160,100,50,.13)}
+.lains{font-size:13.5px;line-height:1.5;color:#4A4F6C;margin:8px 0 0;flex:1}
+.laplanets{display:flex;gap:10px;margin:12px 0 10px}
+.laplanets .gico{width:36px;height:36px;
+  filter:drop-shadow(0 2px 5px rgba(20,25,60,.25))}
+.seewhy{align-self:flex-start;border:0;background:none;padding:0;cursor:pointer;
+  font-family:var(--ff);font-size:13.5px;font-weight:650;color:#8F6B24}
+.seewhy:active{opacity:.6}
+
+/* 6 · mantra — contemplative, centered, no chrome */
+.mantrasec{margin:30px 0 6px;text-align:center}
+.mantrasec .mdev{font-size:26px;margin:2px 0 4px}
+.mantrasec .mtr{margin-bottom:8px}
+.mline{font-size:12.5px;color:var(--ink-2);margin:0}
+.mline.quiet{color:var(--ink-3);margin-top:4px}
+
+/* panchang terms — tappable, definitions on demand (§41) */
+.term{border:0;background:none;padding:0;cursor:pointer;font-family:var(--ff);
+  font-size:inherit;color:var(--ink);text-decoration:underline dotted;
+  text-decoration-color:var(--ink-3);text-underline-offset:3px}
+.termdef{font-size:12px;line-height:1.5;color:var(--ink-3);
+  padding:4px 0 8px;border-bottom:.5px solid var(--line)}
+
+/* transits — conjunction rows */
+.conjrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  padding:11px 4px;border:0;border-top:.5px solid var(--line);background:none;
+  color:var(--ink);font-family:var(--ff);cursor:pointer}
+.conjrow:first-of-type{border-top:0}
+.conjrow:active{opacity:.6}
+.conjart{display:flex}
+.conjart .gico:last-child{margin-left:-8px}
+
+/* SEE WHY page — the warm reading environment (§22) */
+.awpage{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;
+  background:#F5F3EC;color:#23263C;
+  transition:transform .34s cubic-bezier(.22,1,.36,1),border-radius .34s,opacity .2s}
+.awpage.fade{opacity:0}
+.awpage.in.fade{opacity:1}
+.awpage.fadeout{opacity:0}
+.awtop{display:flex;align-items:center;gap:6px;
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
+  border-bottom:.5px solid rgba(42,48,95,.12)}
+.awback{width:40px;height:40px;border:0;background:none;cursor:pointer;
+  font-size:26px;color:#23263C;border-radius:50%}
+.awback:active{background:rgba(42,48,95,.08)}
+.awtop span{font-size:15px;font-weight:650}
+.awscroll{flex:1;overflow-y:auto;padding:18px 20px calc(env(safe-area-inset-bottom) + 30px);
+  -webkit-overflow-scrolling:touch}
+.awh1{font-size:28px;font-weight:750;letter-spacing:-.02em;margin:4px 0 2px}
+.awstatus{font-size:14px;font-weight:650;margin:0 0 12px}
+.awstatus.s-favourable{color:#2C6B44}.awstatus.s-balanced{color:#5A5F7A}
+.awstatus.s-slow{color:#8A5A2E}
+.awlead{font-size:16px;line-height:1.6;color:#3A3F5E;margin:0 0 6px;max-width:60ch}
+.awh2{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:#7B809E;margin:24px 0 10px}
+.awbody{font-size:14.5px;line-height:1.65;color:#3A3F5E;margin:0 0 8px;max-width:62ch}
+.awnote{font-size:12px;color:#8A5A2E;background:rgba(160,100,50,.08);
+  border-radius:10px;padding:9px 12px;margin:10px 0}
+.awinf{padding:14px 0;border-top:.5px solid rgba(42,48,95,.12)}
+.awinf:first-of-type{border-top:0}
+.awinfhead{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.awn{flex:0 0 22px;height:22px;border-radius:50%;background:rgba(42,48,95,.08);
+  display:grid;place-items:center;font-size:11px;font-weight:700;color:#5A5F7A}
+.awart{width:44px;height:44px;object-fit:contain;
+  filter:drop-shadow(0 3px 7px rgba(20,25,60,.25))}
+.awinfhead b{display:block;font-size:15.5px}
+.awinfhead span{display:block;font-size:12px;color:#7B809E;margin-top:1px}
+.awctas{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.awcta{border:1px solid rgba(143,107,36,.4);background:none;border-radius:99px;
+  padding:7px 14px;cursor:pointer;font-family:var(--ff);font-size:12.5px;
+  font-weight:600;color:#8F6B24}
+.awcta:active{opacity:.6}
+.awfoot{font-size:11.5px;line-height:1.55;color:#8B90A8;margin-top:20px}
+@media (prefers-reduced-motion: reduce){
+  .awpage{transition:opacity .2s}
+}

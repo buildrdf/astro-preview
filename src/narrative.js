@@ -8,19 +8,22 @@
    =================================================================== */
 
 /* which houses each life area is read from - standard significations */
+/* six areas (Tab-1 spec §18): classical house groupings per area */
 export const AREA_HOUSES={
-  Career:      [10,6,3,1],
-  Wealth:      [2,11,5],
-  Relationships:[7,5,11],
-  Wellbeing:   [1,6,8],
-  "Inner life":[4,9,12,5]};
+  Career:              [10,6,3,1],
+  Wealth:              [2,11,5],
+  Relationships:       [7,5,11],
+  "Health & Well-being":[1,6,8],
+  "Home & Family":     [4,2,12],
+  "Inner Growth":      [9,12,5]};
 
 export const AREA_LINE={
   Career:"work, standing and what people see you do",
   Wealth:"money, income and what you spend it on",
   Relationships:"partners, family and the people around you",
-  Wellbeing:"energy, rest and the body",
-  "Inner life":"reflection, learning and what settles you"};
+  "Health & Well-being":"energy, rest and the body",
+  "Home & Family":"home, roots and the people you live among",
+  "Inner Growth":"reflection, learning and what settles you"};
 
 export const TONE_WORD={favourable:"Good",balanced:"Steady",slow:"Slow"};
 
@@ -36,10 +39,13 @@ export const PLAIN_DAY={
   Relationships:{favourable:"People are receptive &#8212; reach out, say the thing.",
           balanced:"Company is easy today; nothing needs managing.",
           slow:"Give people room. Keep delicate talks for another day."},
-  Wellbeing:{favourable:"Energy is with you &#8212; move, start the habit.",
+  "Health & Well-being":{favourable:"Energy is with you &#8212; move, start the habit.",
           balanced:"Energy is even. Keep the routines that hold you.",
           slow:"A rest-first day. Go gently with yourself."},
-  "Inner life":{favourable:"A clear-headed day for learning and reflection.",
+  "Home & Family":{favourable:"Home matters flow &#8212; fix, host, settle the thing.",
+          balanced:"The house runs itself today. Be in it.",
+          slow:"Keep home decisions small; presence over projects."},
+  "Inner Growth":{favourable:"A clear-headed day for learning and reflection.",
           balanced:"A quiet-mind day &#8212; small readings, small notes.",
           slow:"Let the mind idle; conclusions can wait."}};
 

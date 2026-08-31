@@ -4,7 +4,7 @@ import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
 import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
-         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260831";
+         VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon } from "./sadesati.js?v=20260831";
 import { vargaChart, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260831";
 import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
@@ -660,7 +660,7 @@ function dayReading(date){
   const body = F.chandrashtama
     ? `The Moon is crossing the eighth sign from where it stood at your birth &#8212; <b>Chandrashtama</b> in the tradition. It is read as a low day rather than a dangerous one: rest is favoured over launching, and other people's judgement over your own.`
     : `The Moon crosses your ${ordinal(moon.house)} house today, so ${HOUSE_ADVICE[moon.house][1]} is where attention naturally sits. `+
-      `Across your five areas, <b>${best.area.toLowerCase()}</b> carries the most support today`+
+      `Across your life areas, <b>${best.area.toLowerCase()}</b> carries the most support today`+
       `${worst.tone==="slow" ? `, and <b>${worst.area.toLowerCase()}</b> the least` : ""}.`;
   return {F, areas, head, body};
 }
@@ -762,6 +762,110 @@ function nextIngressMap(from){
   return map;
 }
 
+/* ===================================================================
+   TODAY'S RHYTHM — the one canonical time-quality model (spec §11).
+   Every surface that talks about the quality of an hour - the track,
+   the seeker readout, Best window, Take care, VoiceOver - reads from
+   THIS, never from its own arithmetic. Personal, not just panchang
+   (§15): choghadiya is the base clock; Rahu Kalam and Abhijit force
+   their windows; the person's tara bala and the Moon's count from
+   their natal Moon shift the whole day; chandrashtama caps it.
+   =================================================================== */
+const RH_HORA=["Sun","Venus","Mercury","Moon","Saturn","Jupiter","Mars"];
+const RH_CHOG={Sun:["Udveg",-1],Venus:["Char",1],Mercury:["Labh",1],
+  Moon:["Amrit",2],Saturn:["Kaal",-2],Jupiter:["Shubh",2],Mars:["Rog",-1]};
+const RH_SENSE={Amrit:"nectar &#8212; broadly auspicious",
+  Shubh:"gentle and constructive",
+  Labh:"supportive for gains, negotiations and practical decisions",
+  Char:"movement &#8212; good for travel and setting out",
+  Udveg:"restless &#8212; routine over launches",
+  Kaal:"heavy &#8212; maintenance, not beginnings",
+  Rog:"friction-prone &#8212; keep the stakes low",
+  Abhijit:"the midday victor &#8212; traditionally the finest window",
+  Rahu:"traditionally set aside"};
+const RH_GRADE=[[3,"excellent","Excellent"],[1,"good","Good"],[0,"steady","Steady"],
+  [-2,"caution","Caution"],[-99,"avoid","Avoid"]];
+const rhGrade=s=>{for(const [min,cls,label] of RH_GRADE) if(s>=min) return {cls,label};
+  return {cls:"avoid",label:"Avoid"};};
+const VARA_LORD_BY_DAY=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+
+let RHYTHM={key:null,m:null};
+function rhythmModel(date){
+  const key=date.toDateString()+"|"+ACTIVE.name;
+  if(RHYTHM.key===key) return RHYTHM.m;
+  const F=dayFacts(date);
+  const d0=new Date(date); d0.setHours(0,0,0,0);
+  const d1t=d0.getTime()+864e5;
+  const bp=ACTIVE.p?{lat:ACTIVE.p.lat??BIRTHPLACE.lat,lon:ACTIVE.p.lon??BIRTHPLACE.lon}:BIRTHPLACE;
+  const st =sunTimes(date, bp.lat, bp.lon);
+  const stP=sunTimes(new Date(d0.getTime()-864e5), bp.lat, bp.lon);
+  const stN=sunTimes(new Date(d0.getTime()+864e5), bp.lat, bp.lon);
+  if(!st.rise||!st.set||!stP.set||!stN.rise){ RHYTHM={key,m:null}; return null; }
+
+  /* raw choghadiya segments spanning midnight to midnight: the tail of
+     the PREVIOUS night, this day's eight, this night's head */
+  const segs=[];
+  const eight=(t0,t1,lord0)=>{ const i0=RH_HORA.indexOf(lord0);
+    for(let i=0;i<8;i++){ const lord=RH_HORA[(i0+i)%7];
+      segs.push({a:t0+(t1-t0)*i/8, b:t0+(t1-t0)*(i+1)/8,
+        lord, name:RH_CHOG[lord][0], base:RH_CHOG[lord][1]}); } };
+  const prevLord=VARA_LORD_BY_DAY[new Date(d0.getTime()-864e5).getDay()];
+  eight(stP.set.getTime(), st.rise.getTime(), RH_HORA[(RH_HORA.indexOf(prevLord)+5)%7]);
+  eight(st.rise.getTime(), st.set.getTime(), F.vara.lord);
+  eight(st.set.getTime(), stN.rise.getTime(), RH_HORA[(RH_HORA.indexOf(F.vara.lord)+5)%7]);
+
+  /* forced overlays */
+  const dayMs=st.set-st.rise, noon=(st.rise.getTime()+st.set.getTime())/2;
+  const rseg=RAHU_KALAM_SEGMENT[date.getDay()];
+  const rahu={a:st.rise.getTime()+dayMs*(rseg-1)/8, b:st.rise.getTime()+dayMs*rseg/8};
+  const wednesday=date.getDay()===3;
+  const abhi=wednesday?null:{a:noon-24*6e4, b:noon+24*6e4};
+
+  /* the personal layer: one day-level shift from tara bala + the Moon's
+     count from the natal Moon; chandrashtama caps the whole day */
+  const moonT=F.sky.find(p=>p.graha==="Moon");
+  let mood=(F.tara.tone==="good"?1:F.tara.tone==="testing"?-1:0)
+          +(moonT.favourable?1:-1);
+  const shift=Math.max(-1,Math.min(1,Math.round(mood/2)));
+
+  /* slice at overlay edges and clamp to the civil day */
+  const cuts=new Set([d0.getTime(), d1t, rahu.a, rahu.b]);
+  if(abhi){ cuts.add(abhi.a); cuts.add(abhi.b); }
+  const sliced=[];
+  for(const s of segs){
+    let edges=[s.a, s.b, ...[...cuts].filter(c=>c>s.a&&c<s.b)].sort((x,y)=>x-y);
+    for(let i=0;i<edges.length-1;i++){
+      const a=Math.max(edges[i], d0.getTime()), b=Math.min(edges[i+1], d1t);
+      if(b<=a) continue;
+      let score=s.base+shift, name=s.name, lord=s.lord, forced=null;
+      const mid=(a+b)/2;
+      if(abhi && mid>=abhi.a && mid<abhi.b){ score=3; name="Abhijit"; forced="abhi"; }
+      if(mid>=rahu.a && mid<rahu.b){ score=-3; name="Rahu Kalam"; forced="rahu"; }
+      if(F.chandrashtama) score=Math.min(score,0);
+      sliced.push({a,b,score,name,lord,chog:s.name,forced,...rhGrade(score)});
+    }
+  }
+  sliced.sort((x,y)=>x.a-y.a);
+  /* merge equal neighbours */
+  const windows=[];
+  for(const s of sliced){
+    const last=windows[windows.length-1];
+    if(last && last.cls===s.cls && last.name===s.name && Math.abs(last.b-s.a)<1000)
+      last.b=s.b;
+    else windows.push({...s});
+  }
+  const daytime=windows.filter(w=>w.b>st.rise.getTime()&&w.a<st.set.getTime());
+  const best=[...daytime].sort((x,y)=>y.score-x.score||(y.b-y.a)-(x.b-x.a))[0]||null;
+  const care=[...windows].sort((x,y)=>x.score-y.score||(y.b-y.a)-(x.b-x.a))[0]||null;
+  const m={windows, d0:d0.getTime(), d1:d1t, sunrise:st.rise, sunset:st.set,
+    rahu, abhi, shift, tara:F.tara, moonFav:moonT.favourable,
+    chandrashtama:F.chandrashtama, best, care, wednesday};
+  RHYTHM={key,m};
+  return m;
+}
+/* the window containing an instant, from the same model - §11 */
+const rhythmAt=(m,t)=>m.windows.find(w=>t>=w.a&&t<w.b)||m.windows[m.windows.length-1];
+
 let todayTab="horo", todayBodies=null, DAYBAND=null;
 function renderToday(){
   lastRenderAt=Date.now();
@@ -777,119 +881,140 @@ function renderToday(){
       <b>${d.getDate()}</b>${moonImg(d,22)}${isToday(d)?`<i class="nowdot"></i>`:""}</button>`);
   }
 
+  /* the time basis is stated ONCE, here (spec §2) - nothing below
+     repeats "at Kopargaon, IST" again */
   setTopBar(`Hi ${ACTIVE.first}`,{sub:viewDate.toLocaleDateString("en-GB",
-      {weekday:"short",day:"numeric",month:"short"}).replace(",",""),
+      {weekday:"short",day:"numeric",month:"short"}).replace(",","")+" · IST",
     actions:`${isToday(viewDate)?"":`<button class="tb-btn txt" id="totoday">Today</button>`}
      <button class="tb-btn" id="calbtn" aria-label="Choose a date">
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
          <path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/></svg></button>`});
 
-  /* ---- day quality: the panchang's own verdict word, then English ---- */
+  /* ---- day tone (feeds the summary chip and Do/Hold pick) ---- */
   const favN=R.areas.filter(a=>a.tone==="favourable").length,
         slowN=R.areas.filter(a=>a.tone==="slow").length;
   const dayTone=favN>=2?"favourable":slowN>=2?"slow":"balanced";
-  const VERDICT={favourable:["Shubh","an auspicious day"],
+  const VERDICT={favourable:["Shubh","auspicious"],
                  balanced:["Sama","an even day"],
-                 slow:["Ashubh","traditionally inauspicious &#8212; go gently"]};
+                 slow:["Ashubh","go gently"]};
   const [vWord,vGloss]=VERDICT[dayTone];
-  const verdict=`<div class="dayverdict tone-${dayTone}"><b>${vWord}</b><span>${vGloss}</span></div>`;
   const vc=VARA_COLOUR[F.vara.lord], vp=VARA_PRACTICE[F.vara.lord];
-
   const st=sunTimes(viewDate, BIRTHPLACE.lat, BIRTHPLACE.lon);
   const ft=fmtClock;
-  let abhijit="", rahu="";
-  if(st.rise&&st.set){
-    const dayMs=st.set-st.rise, noon=new Date((st.rise.getTime()+st.set.getTime())/2);
-    abhijit=`${ft(new Date(noon-24*6e4))}&#8211;${ft(new Date(noon.getTime()+24*6e4))}`;
-    const seg=RAHU_KALAM_SEGMENT[viewDate.getDay()];
-    rahu=`${ft(new Date(st.rise.getTime()+dayMs*(seg-1)/8))}&#8211;${ft(new Date(st.rise.getTime()+dayMs*seg/8))}`;
-  }
-  const wednesday=viewDate.getDay()===3;
 
-  /* one horizontal card, not five loose boxes (Sangram, 29 Aug) */
-  const luckyRow=`
-    <div class="card luckycard">
-      <div class="lstats">
-        <div class="ls"><small>Lucky colour</small><b>${vc.c.split(" and ")[0]}</b></div>
-        <div class="ls"><small>Lucky number</small><b>${VARA_NUM[F.vara.lord]}</b></div>
-        <div class="ls"><small>Day lord</small><b>${F.vara.lord}</b></div>
-      </div>
-      <div class="lhours">
-        <div class="lh good"><small>Good hours${wednesday?"*":""} &#183; Abhijit</small><b>${abhijit||"&#8212;"}</b></div>
-        <div class="lh avoid"><small>Avoid &#183; Rahu Kalam</small><b>${rahu||"&#8212;"}</b></div>
-      </div>
-    </div>
-    <p class="luckynote">All times IST. Colour and number follow ${F.vara.name}&#8217;s lord ${F.vara.lord};
-      Abhijit muhurta${wednesday?" (*traditionally skipped on Wednesdays)":""} and Rahu Kalam
-      run from sunrise ${ft(st.rise)} and sunset ${ft(st.set)} at ${BIRTHPLACE.name.split(",")[0]}.</p>`;
+  /* ---- 1 · DAILY ESSENTIALS (spec §6): three facts, one quiet row ---- */
+  const SWATCH={Copper:"#B87333",White:"#ECEDF2",Red:"#C5482F",
+    Green:"#3E8E5C",Yellow:"#E0B84C",Deep:"#3552A8"};
+  const cword=vc.c.split(" ")[0];
+  const essentials=`
+    <div class="essentials">
+      <div class="ess"><span class="essv"><i class="csw"
+        style="background:${SWATCH[cword]||"#888"}"></i>${vc.c.split(" and ")[0]}</span>
+        <small>Lucky colour</small></div>
+      <div class="ess"><span class="essv essnum">${VARA_NUM[F.vara.lord]}</span>
+        <small>Lucky number</small></div>
+      <div class="ess"><span class="essv">${gIcon(F.vara.lord,26)}${F.vara.lord}</span>
+        <small>Day lord</small></div>
+    </div>`;
 
-  /* ---- the shape of the day: choghadiya as a draggable band ------
-     "move the tracker and see what part of the day is good and bad"
-     (Sangram, 31 Aug - Horoscope is its home, his call). Favourable
-     stretches are solid, set-aside ones hatched (never colour alone,
-     §87); the red underline is Rahu Kalam, the gold tick Abhijit. */
-  let dayBand="";
+  /* ---- 2 · TODAY'S RHYTHM (spec §7-14): one canonical model ---- */
+  const M=rhythmModel(viewDate);
   DAYBAND=null;
-  if(st.rise&&st.set){
-    const HORA_ORDER=["Sun","Venus","Mercury","Moon","Saturn","Jupiter","Mars"];
-    const CHOG={Sun:["Udveg","avoid"],Venus:["Char","good"],Mercury:["Labh","good"],
-      Moon:["Amrit","good"],Saturn:["Kaal","avoid"],Jupiter:["Shubh","good"],
-      Mars:["Rog","avoid"]};
-    const st2=sunTimes(new Date(viewDate.getTime()+864e5),BIRTHPLACE.lat,BIRTHPLACE.lon);
-    if(st2.rise){
-      const t0=st.rise.getTime(), tSet=st.set.getTime(), t1=st2.rise.getTime();
-      const di=HORA_ORDER.indexOf(F.vara.lord);
-      const segs=[];
-      for(let i=0;i<8;i++){const lord=HORA_ORDER[(di+i)%7];
-        segs.push({a:t0+(tSet-t0)*i/8,b:t0+(tSet-t0)*(i+1)/8,
-          lord,name:CHOG[lord][0],cls:CHOG[lord][1],night:false});}
-      for(let i=0;i<8;i++){const lord=HORA_ORDER[(di+5+i)%7];
-        segs.push({a:tSet+(t1-tSet)*i/8,b:tSet+(t1-tSet)*(i+1)/8,
-          lord,name:CHOG[lord][0],cls:CHOG[lord][1],night:true});}
-      const span=t1-t0, pc=t=>((t-t0)/span*100).toFixed(2);
-      const rseg=RAHU_KALAM_SEGMENT[viewDate.getDay()];
-      const rk={a:t0+(tSet-t0)*(rseg-1)/8, b:t0+(tSet-t0)*rseg/8};
-      const noon=(t0+tSet)/2;
-      DAYBAND={segs,t0,t1,rk};
-      dayBand=`
-      <div class="card" style="margin-top:12px">
-        <div class="eyebrow" style="margin-bottom:8px">The shape of the day</div>
-        <div class="dayband" id="dayband" role="slider" tabindex="0"
-             aria-label="Quality of the day&#8217;s hours - drag to read" aria-valuetext="">
-          ${segs.map(sg2=>`<i class="dbseg ${sg2.cls}${sg2.night?" night":""}"
-             style="left:${pc(sg2.a)}%;width:${(pc(sg2.b)-pc(sg2.a)).toFixed(2)}%"></i>`).join("")}
-          <span class="dbrahu" style="left:${pc(rk.a)}%;width:${(pc(rk.b)-pc(rk.a)).toFixed(2)}%"></span>
-          <span class="dbtick" style="left:${pc(noon)}%"></span>
-          ${isToday(viewDate)&&Date.now()>t0&&Date.now()<t1
-            ?`<span class="dbnow" style="left:${pc(Date.now())}%"></span>`:""}
-          <span class="dbcur" id="dbcur" hidden></span>
-        </div>
-        <div class="dbscale"><span>&#9728; ${ft(st.rise)}</span><span>sunset ${ft(st.set)}</span><span>&#9728; ${ft(st2.rise)}</span></div>
-        <p class="dbread" id="dbread"></p>
-        <p class="note" style="margin-top:6px">Drag along the band &#8212; solid stretches are
-          traditionally favourable (Amrit, Shubh, Labh, Char), hatched ones set aside
-          (Udveg, Kaal, Rog). The red underline is Rahu Kalam; the gold tick, Abhijit.</p>
-      </div>`;
-    }
+  let rhythm="";
+  if(M){
+    const span=M.d1-M.d0, pc=t=>((t-M.d0)/span*100).toFixed(2);
+    rhythm=`
+    <section class="daysec">
+      <h3 class="secttl">Today&#8217;s rhythm</h3>
+      <div class="rhytrack" id="rhytrack" role="slider" tabindex="0"
+        aria-label="Quality of the day&#8217;s hours &#8212; drag to inspect any time"
+        aria-valuetext="">
+        ${M.windows.map(w=>`<i class="rw ${w.cls}"
+          style="left:${pc(w.a)}%;width:${(pc(w.b)-pc(w.a)).toFixed(2)}%"></i>`).join("")}
+        <span class="rsun" style="left:${pc(+M.sunrise)}%"></span>
+        <span class="rsun set" style="left:${pc(+M.sunset)}%"></span>
+        ${isToday(viewDate)&&Date.now()>M.d0&&Date.now()<M.d1
+          ?`<span class="rnow" style="left:${pc(Date.now())}%"></span>`:""}
+        <span class="rseek" id="rseek" hidden><b id="rseekt"></b></span>
+      </div>
+      <div class="rsunlabels">
+        <span style="left:${pc(+M.sunrise)}%">&#9728; ${ft(M.sunrise)}</span>
+        <span class="setl" style="left:${pc(+M.sunset)}%">sunset ${ft(M.sunset)}</span>
+      </div>
+      <div class="rscale"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div>
+      <div class="rread" id="rread" aria-live="polite"></div>
+      <div class="rsummary">
+        ${M.best?`<div class="rs"><small>Best window</small>
+          <b>${ft(new Date(M.best.a))} &#8211; ${ft(new Date(M.best.b))}</b></div>`:""}
+        ${M.care?`<div class="rs care"><small>Take care</small>
+          <b>${ft(new Date(M.care.a))} &#8211; ${ft(new Date(M.care.b))}</b></div>`:""}
+      </div>
+    </section>`;
   }
 
-  /* ---- five areas, each with a Why? expansion and sky links ---- */
-  const areaCards=R.areas.map((a,i)=>{
-    const bits=a.evidence.filter(e=>!e.tara).slice(0,3).map(e=>e.occupies
-      ?`${e.graha} in your ${ordinal(e.house)}`
-      :`${e.graha} gazing your ${e.aspects.map(ordinal).join(" and ")}`);
+  /* ---- 3 · DAILY SUMMARY (spec §16): 2-4 lines, human, derived ---- */
+  const summary=(()=>{
+    const evAll=[...new Map(R.areas.flatMap(x=>x.evidence)
+      .filter(e=>!e.tara&&e.occupies&&e.graha!=="Moon")
+      .map(e=>[e.graha,e])).values()];
+    const sup=evAll.find(e=>e.favourable);
+    const extra=sup?` <b>${sup.graha}</b> in your ${ordinal(sup.house)} &#8212;
+      ${HOUSE_TRANSIT_SENSE[sup.house]} &#8212; is the current worth using.`:"";
     return `
-    <div class="areacard ${a.tone}">
-      <div class="areahead">
-        <span class="aname">${a.area}</span>
-        <span class="atone ${a.tone}">${TONE_WORD[a.tone]}</span>
-      </div>
-      <p class="asub">${PLAIN_DAY[a.area][a.tone]}</p>
-      ${bits.length?`<p class="aev">Shaped by ${bits.join(", ")}.</p>`:""}
-      <p class="ameta">${AREA_LINE[a.area]}</p>
-      <button class="whybtn" data-why="${i}" aria-expanded="false">Why?</button>
-      <div class="whybox" id="why${i}" hidden>${reasonLines(a,F)}</div>
-    </div>`}).join("");
+    <section class="daysec">
+      <div class="secrow"><h3 class="secttl">Your day</h3>
+        <span class="daychip tone-${dayTone}">${vWord} &#183; ${vGloss}</span></div>
+      <p class="dsum"><b>${R.head}.</b> ${R.body}${extra}</p>
+    </section>`})();
+
+  /* ---- 4 · DO / HOLD (spec §17): one section, two rows ---- */
+  const dhKey=dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed";
+  const doHold=`
+    <section class="daysec">
+      <h3 class="secttl">For today</h3>
+      <div class="dh"><span class="dhk do">Do</span><p>${pickBy(DAY_DO[dhKey],seed,1)[0]}</p></div>
+      <div class="dh"><span class="dhk hold">Hold</span><p>${pickBy(DAY_AVOID[dhKey],seed,1)[0]}</p></div>
+    </section>`;
+
+  /* ---- 5 · LIFE AREAS (spec §18-20): horizontal carousel, six cards,
+     light "moonlight" surfaces, See why -> full reading page ---- */
+  const STATUS={favourable:"Supportive",balanced:"Steady",slow:"Caution"};
+  const rankTop=[...R.areas].sort((a,b)=>b.score-a.score)[0];
+  const laCards=R.areas.map((a,i)=>{
+    const ev=a.evidence.filter(e=>!e.tara)
+      .sort((x,y)=>(y.occupies?1:0)-(x.occupies?1:0)).slice(0,3);
+    const status=(a===rankTop&&a.tone==="favourable")?"Strong":STATUS[a.tone];
+    return `<article class="lacard t-${a.tone}" data-area="${i}">
+      <header class="lahead"><span class="laname">${a.area}</span>
+        <span class="lastatus s-${a.tone}">${status}</span></header>
+      <p class="lains">${PLAIN_DAY[a.area][a.tone]}</p>
+      <div class="laplanets" aria-hidden="true">${ev.map(e=>gIcon(e.graha,36)).join("")}</div>
+      <button class="seewhy" data-why="${i}">See why <span aria-hidden="true">&#8594;</span></button>
+    </article>`}).join("");
+  const areasSec=`
+    <section class="daysec">
+      <h3 class="secttl">Life areas</h3>
+      <div class="lacarousel" id="lacar">${laCards}</div>
+    </section>`;
+
+  /* ---- 6 · MANTRA (spec §28): contemplative, not a card ---- */
+  const vm=MANTRA[F.vara.lord], mm=MANTRA[now.maha.lord];
+  const mantra=`
+    <section class="mantrasec">
+      <h3 class="secttl" style="text-align:center">Mantra for today</h3>
+      <p class="mdev">${vm.dev}</p>
+      <p class="mtr">${vm.tr}</p>
+      <p class="mline">${vm.en} &#8212; ${F.vara.name}&#8217;s mantra.</p>
+      ${now.maha.lord!==F.vara.lord
+        ?`<p class="mline quiet">For your ${now.maha.lord} season: <i>${mm.tr}</i></p>`:""}
+    </section>`;
+
+  /* ---- 7 · TRADITIONAL PRACTICE (spec §29): collapsed, concise ---- */
+  const practice=`
+    <details class="adv soft">
+      <summary>Traditional practice for ${F.vara.name}</summary>
+      <p class="interp">${vp.practice}</p>
+    </details>`;
 
   /* free window: yesterday, today, tomorrow. Farther readings ride with Pro. */
   const dayDiff=Math.round((new Date(viewDate).setHours(12,0,0,0)
@@ -897,8 +1022,7 @@ function renderToday(){
   const horoLocked=Math.abs(dayDiff)>1 && !isPro();
 
   const horo=horoLocked?`
-    ${verdict}
-    <div class="reading"><h2>${R.head}</h2></div>
+    ${essentials}
     <div class="procard">
       <div class="prolock" aria-hidden="true"><svg viewBox="0 0 24 24">
         <rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/>
@@ -908,59 +1032,8 @@ function renderToday(){
         &#8212; decades either way &#8212; comes with Pro, along with the Guide and
         charts for your people.</p>
       <button class="primary" id="prosee">See Astra Pro</button>
-    </div>`:`
-    ${verdict}
-    ${luckyRow}
-    ${dayBand}
-    <div class="reading">
-      <h2>${R.head}</h2>
-      <p>${R.body}</p>
-      ${(()=>{ /* the fuller sky story: the loudest supportive and slowest
-                  currents, told in sentences (Sangram, 30 Aug) */
-        const evAll=[...new Map(R.areas.flatMap(x=>x.evidence)
-          .filter(e=>!e.tara&&e.occupies&&e.graha!=="Moon")
-          .map(e=>[e.graha,e])).values()];
-        const sup=evAll.find(e=>e.favourable), sl=evAll.find(e=>!e.favourable);
-        const s=[];
-        if(sup) s.push(`<b>${sup.graha}</b> is moving through your ${ordinal(sup.house)}
-          house &#8212; ${HOUSE_TRANSIT_SENSE[sup.house]} &#8212; and it sits well from
-          your Moon: a current worth using${sup.retro?", even moving retrograde":""}.`);
-        if(sl) s.push(`<b>${sl.graha}</b> in your ${ordinal(sl.house)} runs slower;
-          around ${HOUSE_TRANSIT_SENSE[sl.house]}, let things take longer than
-          you&#8217;d like${sl.retro?" &#8212; retrograde, it favours revisiting over launching":""}.`);
-        return s.length?`<p>${s.join(" ")}</p>`:"";
-      })()}
-    </div>
-    <div class="areas">${areaCards}</div>
-    <div class="card mtb">
-      <div class="mtbrow"><span class="mtbk do">Do</span><ul><li>${pickBy(DAY_DO[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
-      <div class="mtbrow"><span class="mtbk hold">Hold</span><ul><li>${pickBy(DAY_AVOID[dayTone==="favourable"?"good":dayTone==="slow"?"slow":"mixed"],seed,1)[0]}</li></ul></div>
-    </div>
-    ${(()=>{ /* mantra of the day: the weekday's lord leads; the running
-                mahadasha lord is named when it differs. Attested namah
-                forms only, with the why stated (constitution 62, 68). */
-      const vm=MANTRA[F.vara.lord], mm=MANTRA[now.maha.lord];
-      return `<div class="card mantracard">
-        <div class="eyebrow" style="margin-bottom:8px">Mantra for today</div>
-        <p class="mdev">${vm.dev}</p>
-        <p class="mtr">${vm.tr}</p>
-        <p class="mwhy">${vm.en}. ${F.vara.name} belongs to <b>${F.vara.lord}</b>${
-          now.maha.lord!==F.vara.lord
-            ?` &#8212; and your longer ${now.maha.lord} season answers to
-               <i>${mm.tr}</i> (${mm.dev})`:""}.
-          Traditionally repeated 11 or 108 times, unhurried.</p>
-      </div>`})()}
-    <details class="adv soft">
-      <summary>Traditional practice for ${F.vara.name}</summary>
-      <p class="interp">${vp.practice}</p>
-      <div class="section" style="margin-top:8px">${practiceFor(now.maha.lord)}</div>
-    </details>
-    <p class="dashaline" style="margin-top:14px">The longer season: a <b>${now.maha.lord}</b>
-      period runs to ${fmtDate(now.maha.end)}. Days change; this does not.</p>
-    <button class="item repentry" id="torpts">
-      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Detailed reports
-      <span class="sub">kundali &#183; relationship</span><span class="chev">&#8250;</span>
-    </button>`;
+    </div>`
+  :essentials+rhythm+summary+doHold+areasSec+mantra+practice;
 
   /* ---- panchang ---- */
   const LIMB_MEANS={
@@ -969,24 +1042,25 @@ function renderToday(){
     Nakshatra:"the lunar mansion the Moon sits in",
     Yoga:"a Sun&#8211;Moon angle, one of twenty-seven",
     Karana:"half a tithi",
-    "Tara bala":"today&#8217;s Moon star counted from your birth star"};
+    "Tara bala":"today&#8217;s Moon star counted from your birth star",
+    "Colour of the day":`${vc.why} in this tradition`};
   const panch=`
-    <p class="skylead">The five limbs of ${isToday(viewDate)?"today":"this day"},
-      computed for this date.</p>
+    <p class="skylead">The five limbs of ${isToday(viewDate)?"today":"this day"}.
+      Tap any term for what it means.</p>
     <div class="rows panch">
       ${[["Vara",`${F.vara.name} &#183; ruled by ${F.vara.lord}`],
          ["Tithi",`${F.limbs.tithi.paksha} ${F.limbs.tithi.name}`],
          ["Nakshatra",`${NAK[F.todayMoonNak]} &#183; pada ${tr.Moon.pada}`],
          ["Yoga",F.limbs.yoga.name],
          ["Karana",F.limbs.karana.name],
-         ["Tara bala",F.tara.name]]
-        .map(([k,v])=>`<div class="row panchrow"><span class="k">${k}
-          <small>${LIMB_MEANS[k]}</small></span><span class="v">${v}</span></div>`).join("")}
-      <div class="row panchrow"><span class="k">Sunrise &#183; sunset
-        <small>at ${BIRTHPLACE.name.split(",")[0]}, IST</small></span>
+         ["Tara bala",F.tara.name],
+         ["Colour of the day",vc.c]]
+        .map(([k,v])=>`<div class="row panchrow">
+          <button class="term" data-term="${k}">${k}</button>
+          <span class="v">${v}</span></div>
+        <div class="termdef" data-def="${k}" hidden>${LIMB_MEANS[k]||""}</div>`).join("")}
+      <div class="row panchrow"><span class="k">Sunrise &#183; sunset</span>
         <span class="v">${ft(st.rise)} &#183; ${ft(st.set)}</span></div>
-      <div class="row panchrow"><span class="k">Colour of the day
-        <small>${vc.why} in this tradition</small></span><span class="v">${vc.c}</span></div>
     </div>
     <div class="moonline">
       ${moonImg(viewDate,30)}
@@ -1033,14 +1107,13 @@ function renderToday(){
         <b>Right now</b><p>${cur?`<b>${cur.name}</b> choghadiya (${cur.cls==="good"?"favourable":"set aside"}) until ${ft(new Date(cur.b))}`:""}${cur&&curH?" &#183; ":""}${curH?`the hour belongs to <b>${curH.lord}</b> until ${ft(new Date(curH.b))}`:""}.</p>
       </div>`:""}
       <details class="adv soft" style="margin-top:12px">
-        <summary>Choghadiya &#8212; the eight windows of day and night</summary>
+        <summary>Choghadiya &#8212; favourable and caution windows</summary>
         <div class="eyebrow" style="margin:10px 0 6px">Day</div>
         ${dayC.map(row).join("")}
         ${nightC.length?`<div class="eyebrow" style="margin:14px 0 6px">Night</div>
         ${nightC.map(row).join("")}`:""}
         <p class="note" style="margin-top:8px">Amrit, Shubh, Labh and Char are traditionally
-        favourable; Udveg, Kaal and Rog are set aside. All times IST at
-        ${BIRTHPLACE.name.split(",")[0]}.</p>
+        favourable; Udveg, Kaal and Rog are set aside.</p>
       </details>
       <details class="adv soft" style="margin-top:10px">
         <summary>Hora &#8212; the planetary hours</summary>
@@ -1052,50 +1125,67 @@ function renderToday(){
       </details>`;
     })()}`;
 
-  /* ---- placements ---- */
+  /* ---- TRANSITS (spec §32-37): one beautiful list, no duplicate grid.
+     Status badges only where they materially matter; conjunctions
+     surfaced when astronomically close (3.5 degree orb, same sign). */
   const specials=specialTransits(F);
   const ing=nextIngressMap(viewDate);
-  const skyRow=F.sky.map(p2=>`
-    <button class="skycell" data-g="${p2.graha}">
-      ${gIcon(p2.graha,26)}
-      <b>${ordinal(p2.house)}</b>
-      <small>${SIGNS[p2.sign-1]}</small>
-      <i class="dotm ${p2.favourable?"good":"testing"}" aria-hidden="true"></i>
-      ${p2.retro?`<span class="rtag">R</span>`:""}
-    </button>`).join("");
-  /* two lines per graha so nothing ever crops: where it is, then where it
-     goes next - the next-move detail gets its own line, free to breathe */
+  const wrapd=x=>((x%360)+540)%360-180;
+  const COMBUST={Mercury:12,Venus:8,Mars:17,Jupiter:11,Saturn:15,Moon:12};
+  const sunL=F.tr.all.Sun.L;
   const moves=F.sky.map(p2=>{
     const nx=ing[p2.graha];
+    const L=F.tr.all[p2.graha].L;
     const when=!nx?"" : nx.days<=1?"tomorrow" : nx.days<=14?`in ${nx.days} days`
       : nx.date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(nx.date.getFullYear()!==viewDate.getFullYear()?" "+nx.date.getFullYear():"");
+    /* one material status beyond retrograde, if any (spec §35) */
+    const dig=dignity(p2.graha,L);
+    const comb=p2.graha!=="Sun"&&COMBUST[p2.graha]
+      &&Math.abs(wrapd(L-sunL))<=COMBUST[p2.graha];
+    const badge=dig?dig.toLowerCase():comb?"combust":"";
     return `<button class="ingrow" data-g="${p2.graha}">
-      ${gIcon(p2.graha,24)}
+      ${gIcon(p2.graha,26)}
       <span class="ingbody">
-        <span class="ingmain"><b>${p2.graha}</b> in ${SIGNS[p2.sign-1]}, your ${ordinal(p2.house)}
-          ${p2.retro?`<i class="ingr">retrograde</i>`:""}</span>
-        ${nx?`<span class="ingnext">moves to ${SIGNS[nx.sign-1]} ${when}</span>`:""}
+        <span class="ingmain"><b>${p2.graha}</b> &#183; ${SIGNS[p2.sign-1]} &#183; your ${ordinal(p2.house)} house</span>
+        <span class="ingnext">${[p2.retro?"Retrograde":"",badge?cap(badge):"",
+          nx?`moves to ${SIGNS[nx.sign-1]} ${when}`:""].filter(Boolean).join(" &#183; ")}</span>
       </span>
       <span class="chev">&#8250;</span>
     </button>`}).join("");
+  /* notable conjunctions: within orb AND sharing a sign */
+  const conj=(()=>{
+    const GL=GRAHA_ORDER.map(g=>({g,L:F.tr.all[g].L,sign:F.tr.all[g].sign}));
+    const out=[];
+    for(let i=0;i<GL.length;i++) for(let j=i+1;j<GL.length;j++){
+      const d=Math.abs(wrapd(GL[i].L-GL[j].L));
+      if(d<=3.5 && GL[i].sign===GL[j].sign)
+        out.push({a:GL[i].g,b:GL[j].g,d,
+          house:F.sky.find(p=>p.graha===GL[i].g).house});
+    }
+    return out.sort((x,y)=>x.d-y.d).slice(0,3);
+  })();
   const sky=`
-    <p class="skylead">The nine grahas ${isToday(viewDate)?"today":"on this date"},
-      in <b>your</b> houses &#8212; and when each moves next.</p>
-    <div class="skyrow">${skyRow}</div>
-    <p class="skykey"><i class="dotm good"></i> supportive from your Moon &#183;
-      <i class="dotm testing"></i> slower going. Tap any graha to see it in your chart.</p>
+    <p class="skylead">What is moving in the sky ${isToday(viewDate)?"today":"on this date"},
+      where it stands in <b>your</b> houses, and when each moves next.</p>
     ${specials.length?specials.map(x=>`
       <div class="card special"><b>${x.name}</b><p>${x.body}${x.extra?" "+x.extra:""}</p></div>`).join(""):""}
     <div class="list ings">${moves}</div>
-    <p class="note">Positions computed from the ephemeris; houses counted from your
-      lagna, verdicts from your natal Moon. Traditional interpretation, not a prediction.</p>`;
+    ${conj.length?`
+    <h3 class="secttl" style="margin-top:20px">Notable today</h3>
+    ${conj.map(c=>`<button class="conjrow" data-g="${c.a}">
+      <span class="conjart">${gIcon(c.a,26)}${gIcon(c.b,26)}</span>
+      <span class="ingbody"><span class="ingmain"><b>${c.a}</b> and <b>${c.b}</b> are closely conjunct</span>
+      <span class="ingnext">${c.d.toFixed(1)}&#176; apart in your ${ordinal(c.house)} house</span></span>
+      <span class="chev">&#8250;</span></button>`).join("")}`:""}
+    <p class="note">Positions from the ephemeris; houses counted from your lagna,
+      verdicts from your natal Moon. Traditional interpretation, not a prediction.</p>`;
 
   todayBodies={horo,panch,sky};
   document.getElementById("pg-today").innerHTML=`
     <div class="datestrip" id="dates">${days.join("")}</div>
     <div class="tbseg subseg" id="todayseg" role="tablist">
       <span class="thumb" aria-hidden="true"></span>
-      ${[["horo","Horoscope"],["panch","Panchang"],["sky","Placements"]].map(([k,l])=>
+      ${[["horo","Horoscope"],["sky","Transits"],["panch","Panchang"]].map(([k,l])=>
         `<button class="${todayTab===k?"on":""}" data-t="${k}" role="tab"
            aria-selected="${todayTab===k}">${l}</button>`).join("")}
     </div>
@@ -1103,7 +1193,7 @@ function renderToday(){
 
   const seg=document.getElementById("todayseg");
   requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
-  wireDayband();
+  wireRhythm();
 
   /* The strip: a chip tap keeps your place (the handler captured it);
      any other entry centres the selected day. Coming home to today
@@ -1154,44 +1244,161 @@ function renderToday(){
       });
       setThumb(seg2,false);
       document.getElementById("todaybody").innerHTML=todayBodies[todayTab];
-      wireDayband();
+      wireRhythm();
       return; }
-    const w=e.target.closest(".whybtn");
-    if(w){ const box=document.getElementById("why"+w.dataset.why);
-      const open=box.hidden;
-      box.hidden=!open; w.setAttribute("aria-expanded",String(open));
-      w.textContent=open?"Hide":"Why?"; buzz(5); return; }
-    const sky2=e.target.closest(".seesky");
-    if(sky2){ buzz(9); go(CHART_INDEX); setMode("today"); openPlanet(sky2.dataset.g); return; }
-    const c=e.target.closest(".skycell,.ingrow");
+    const w=e.target.closest(".seewhy");
+    if(w){ buzz(8); openAreaWhy(+w.dataset.why, w.closest(".lacard")); return; }
+    const tm=e.target.closest(".term");
+    if(tm){ const def=document.querySelector(`.termdef[data-def="${tm.dataset.term}"]`);
+      if(def){ def.hidden=!def.hidden; buzz(4); } return; }
+    const c=e.target.closest(".ingrow,.conjrow");
     if(c){ buzz(8); go(CHART_INDEX); setMode("today"); openPlanet(c.dataset.g); }
   };
 }
 
-/* the day-band tracker: pointer or arrow keys move a cursor along
-   the choghadiya band; the readout names the window, its quality,
-   its lord and its edges. Haptic tick on every boundary. */
-function wireDayband(){
-  const el2=document.getElementById("dayband"); if(!el2||!DAYBAND) return;
-  const read=document.getElementById("dbread"), cur=document.getElementById("dbcur");
-  const D=DAYBAND;
-  let lastIdx=-1;
+/* ---- SEE WHY — the signature chain (spec §21-27). The card expands
+   into a full-screen warm-paper reading page; back reverses it and the
+   carousel keeps its place (the Today DOM is never torn down). ---- */
+let AWLAST=null;
+function openAreaWhy(i, card){
+  const R=dayReading(viewDate), a=R.areas[i], F=R.F;
+  if(!a) return;
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const STATUS={favourable:"Supportive",balanced:"Steady",slow:"Caution"};
+  const rankTop=[...R.areas].sort((x,y)=>y.score-x.score)[0];
+  const status=(a===rankTop&&a.tone==="favourable")?"Strong":STATUS[a.tone];
+  const noTime=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&meProfile()?.noTime);
+  const ev=a.evidence.filter(e=>!e.tara)
+    .sort((x,y)=>(y.occupies?1:0)-(x.occupies?1:0));
+  const tara=a.evidence.find(e=>e.tara);
+  const infl=(e,n)=>{
+    const gm=GRAHA_MEANING[e.graha], sk=F.sky.find(p=>p.graha===e.graha);
+    const feel=GOCHARA_FEEL[e.graha];
+    const where=e.occupies
+      ?`${SIGNS[sk.sign-1]} &#183; your ${ordinal(e.house)} house`
+      :`aspecting your ${e.aspects.map(ordinal).join(" & ")}`;
+    const body=e.occupies
+      ?`${cap(gm.is)}, it stands in the house of ${HOUSE_TRANSIT_SENSE[e.house]}.
+        Counted from your natal Moon it sits ${ordinal(e.houseFromMoon)} &#8212;
+        ${e.favourable?"a supportive count":"a slower count"}${
+        e.retro?", and it is retrograde: matters return rather than settle first time":""}.
+        ${feel?(e.favourable?feel.fav:feel.unfav):""}`
+      :`${cap(gm.is)}, its gaze falls on ${e.aspects.map(h=>`your ${ordinal(h)} (${HOUSE_TRANSIT_SENSE[h]})`).join(" and ")}.
+        From your natal Moon it counts ${ordinal(e.houseFromMoon)} &#8212;
+        ${e.favourable?"supportive":"slower going"}.`;
+    return `<div class="awinf">
+      <div class="awinfhead">
+        <span class="awn">${n}</span>
+        <img class="awart" src="assets/graha/${e.graha.toLowerCase()}.png" alt="">
+        <div><b>${e.graha}</b><span>${where}</span></div>
+      </div>
+      <p class="awbody">${body}</p>
+      <div class="awctas">
+        <button class="awcta" data-act="chart" data-g="${e.graha}">See on today&#8217;s chart</button>
+        <button class="awcta" data-act="sky" data-g="${e.graha}">See in today&#8217;s sky</button>
+      </div>
+    </div>`;
+  };
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back">&#8249;</button>
+      <span>${a.area}</span>
+    </header>
+    <div class="awscroll">
+      <h1 class="awh1">${a.area}</h1>
+      <p class="awstatus s-${a.tone}">${status} today</p>
+      <p class="awlead">${PLAIN_DAY[a.area][a.tone]}</p>
+      <h2 class="awh2">What this means</h2>
+      <p class="awbody">This reading covers ${AREA_LINE[a.area]} &#8212; houses
+        ${AREA_HOUSES[a.area].join(", ")} of your chart. ${
+        a.tone==="favourable"?"The currents touching those houses run supportive today, so initiative tends to be met."
+        :a.tone==="slow"?"The currents touching those houses run slower today &#8212; patience outperforms push."
+        :"The currents touching those houses balance out today &#8212; steady effort, no forcing."}</p>
+      ${noTime?`<p class="awnote">Birth time unknown &#8212; house-based reasons here are
+        approximate; the Moon-count reasons remain reliable.</p>`:""}
+      <h2 class="awh2">Why</h2>
+      ${ev.map((e,n)=>infl(e,n+1)).join("")}
+      ${tara?`<p class="awbody" style="margin-top:14px">And beneath all of it, today&#8217;s
+        Moon rides <b>${NAK[F.todayMoonNak]}</b> &#8212; the ${ordinal(F.tara.count)} star
+        from your birth star, <b>${F.tara.name}</b> in tara bala. ${F.tara.note}</p>`:""}
+      <p class="awfoot">Verdicts from the classical gochara tables, counted from your
+        natal Moon; schools differ over Rahu and Ketu. A compass for reflection,
+        not a prediction.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  /* shared-element expand: from the card's rectangle to full screen */
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px)
+      scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    ov.style.borderRadius="22px";
+    void ov.offsetHeight;
+    ov.classList.add("in");
+    ov.style.transform=""; ov.style.borderRadius="";
+    AWLAST={rect:r};
+  } else { ov.classList.add("in","fade"); AWLAST=null; }
+  const close=(then)=>{
+    const done=()=>{ ov.remove(); if(then) then(); };
+    if(AWLAST&&!reduced){
+      const r=AWLAST.rect;
+      ov.classList.add("out");
+      ov.style.transform=`translate(${r.left}px,${r.top}px)
+        scale(${r.width/innerWidth},${r.height/innerHeight})`;
+      ov.style.borderRadius="22px";
+      setTimeout(done,330);
+    } else { ov.classList.add("fadeout"); setTimeout(done,180); }
+    buzz(5);
+  };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    const g=b.dataset.g; buzz(9);
+    if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(g); });
+    else close(()=>openSkyFocused(g));
+  };
+}
+function openSkyFocused(g){
+  const motion=askMotion();
+  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m,
+    pro:isPro(), birth:skyBirthOpts()})));
+}
+
+/* the rhythm seeker (spec §12-13): continuous time inspection along the
+   civil day, floating time label, readout + reason from the ONE model,
+   subtle haptic only when crossing into a different window. */
+function wireRhythm(){
+  const el2=document.getElementById("rhytrack"); if(!el2) return;
+  const M=rhythmModel(viewDate); if(!M) return;
+  const read=document.getElementById("rread"),
+        seek=document.getElementById("rseek"),
+        seekT=document.getElementById("rseekt");
+  let lastWin=null;
   const show=t=>{
-    const s=D.segs.find(x=>t>=x.a&&t<x.b)||D.segs[D.segs.length-1];
-    const idx=D.segs.indexOf(s);
-    const inRahu=t>=D.rk.a&&t<D.rk.b;
-    cur.hidden=false;
-    cur.style.left=(((t-D.t0)/(D.t1-D.t0))*100).toFixed(2)+"%";
-    read.innerHTML=`<b>${s.name}</b> &#183; ${s.cls==="good"?"favourable":"set aside"}
-      &#183; ${fmtClock(new Date(s.a))} &#8211; ${fmtClock(new Date(s.b))}
-      &#183; ruled by ${s.lord}${inRahu?" &#183; <b>Rahu Kalam</b>":""}`;
+    const w=rhythmAt(M,t);
+    seek.hidden=false;
+    seek.style.left=(((t-M.d0)/(M.d1-M.d0))*100).toFixed(2)+"%";
+    seekT.textContent=fmtClock(new Date(t));
+    const sense=w.name==="Rahu Kalam"?RH_SENSE.Rahu
+      :w.name==="Abhijit"?RH_SENSE.Abhijit:RH_SENSE[w.chog]||"";
+    const why=M.chandrashtama
+      ?`chandrashtama caps the day &#8212; the Moon crosses your eighth from birth`
+      :`the ${w.name} window, shaded by your tara bala (${M.tara.name}) and the
+        Moon&#8217;s ${M.moonFav?"supportive":"slower"} count from your natal Moon`;
+    read.innerHTML=`
+      <div class="rreadrow"><b class="rgrade g-${w.cls}">${w.label}</b>
+        <span class="rspan">${fmtClock(new Date(w.a))} &#8211; ${fmtClock(new Date(w.b))}</span></div>
+      <p class="rsense"><b>${w.name}</b> &#183; ${sense}.</p>
+      <p class="rwhy">Why: ${why}.</p>`;
     el2.setAttribute("aria-valuetext",
-      `${fmtClock(new Date(t))}. ${s.name}, ${s.cls==="good"?"favourable":"set aside"}, until ${fmtClock(new Date(s.b))}.`);
-    if(idx!==lastIdx){ if(lastIdx!==-1) buzz(5); lastIdx=idx; }
-    el2._t=t;
+      `${fmtClock(new Date(t))}. ${w.label} period. ${w.name}. From ${fmtClock(new Date(w.a))} to ${fmtClock(new Date(w.b))}.`);
+    if(lastWin&&lastWin!==w) buzz(4);
+    lastWin=w; el2._t=t;
   };
   const tFromX=x=>{const r=el2.getBoundingClientRect();
-    return D.t0+Math.min(Math.max((x-r.left)/r.width,0),1)*(D.t1-D.t0)};
+    return M.d0+Math.min(Math.max((x-r.left)/r.width,0),1)*(M.d1-M.d0)};
   let drag=false;
   el2.addEventListener("pointerdown",e=>{drag=true;
     try{el2.setPointerCapture(e.pointerId)}catch(_){}
@@ -1200,11 +1407,11 @@ function wireDayband(){
   el2.addEventListener("pointerup",()=>drag=false);
   el2.addEventListener("keydown",e=>{
     const step=15*6e4*(e.shiftKey?4:1);
-    if(e.key==="ArrowRight"){show(Math.min((el2._t??D.t0)+step,D.t1-1));e.preventDefault();}
-    if(e.key==="ArrowLeft"){show(Math.max((el2._t??D.t0)-step,D.t0));e.preventDefault();}
+    if(e.key==="ArrowRight"){show(Math.min((el2._t??M.d0)+step,M.d1-1));e.preventDefault();}
+    if(e.key==="ArrowLeft"){show(Math.max((el2._t??M.d0)-step,M.d0));e.preventDefault();}
   });
   const now=Date.now();
-  show(now>D.t0&&now<D.t1?now:(D.t0+D.t1)/2);
+  show(now>M.d0&&now<M.d1?now:M.d0+13.5*36e5);
 }
 
 const PEL={};

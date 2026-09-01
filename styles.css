@@ -2244,3 +2244,43 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
 @media (prefers-reduced-motion: reduce){
   .awpage .awtop,.awpage .awscroll{transition:none;opacity:1}
 }
+
+/* ---- CTA ICONS (Sangram, 1 Sep): every "see on today's chart" wears
+   the kundali glyph, every "see in today's sky" wears the AR cube -
+   one CSS definition covers every present and future button. ---- */
+.awcta[data-act="chart"],.awcta[data-act="natal"],.awcta[data-act="sky"],
+.gact[data-k^="focus_planet"],.gact[data-k="focus_house"],.gact[data-k="open_sky"]{
+  display:inline-flex;align-items:center;gap:6px}
+.awcta[data-act="chart"]::before,.awcta[data-act="natal"]::before,
+.gact[data-k^="focus_planet"]::before,.gact[data-k="focus_house"]::before,
+.awcta[data-act="sky"]::before,.gact[data-k="open_sky"]::before{
+  content:"";flex:0 0 13px;width:13px;height:13px;background:currentColor;
+  -webkit-mask:var(--ctai) center/contain no-repeat;
+          mask:var(--ctai) center/contain no-repeat}
+.awcta[data-act="chart"],.awcta[data-act="natal"],
+.gact[data-k^="focus_planet"],.gact[data-k="focus_house"]{
+  --ctai:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.9" stroke-linejoin="round"><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/></svg>')}
+.awcta[data-act="sky"],.gact[data-k="open_sky"]{
+  --ctai:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/><path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/><path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/></svg>')}
+
+/* ---- interaction audit items 3-5 (Sangram, 1 Sep) ---- */
+/* 3: dasha names crossfade when the scrub crosses a boundary */
+#ro.swap .big,#ro.swap .abig,#ro.swap .pratrow{animation:namefade .28s ease}
+@keyframes namefade{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
+/* 4: Guide suggestion chips arrive softly under the Moon */
+.gchips .gchip{animation:chipin .38s cubic-bezier(.22,1,.36,1) backwards}
+.gchips .gchip:nth-child(1){animation-delay:.05s}
+.gchips .gchip:nth-child(2){animation-delay:.11s}
+.gchips .gchip:nth-child(3){animation-delay:.17s}
+.gchips .gchip:nth-child(4){animation-delay:.23s}
+.gchips .gchip:nth-child(5){animation-delay:.29s}
+.gchips .gchip:nth-child(6){animation-delay:.35s}
+@keyframes chipin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* 5: tab switches rise gently instead of hard-swapping */
+.page.on{animation:pagein .2s ease-out}
+@keyframes pagein{from{opacity:.55;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){
+  #ro.swap .big,#ro.swap .abig,#ro.swap .pratrow{animation:none}
+  .gchips .gchip{animation:none}
+  .page.on{animation:none}
+}

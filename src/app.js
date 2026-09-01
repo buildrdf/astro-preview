@@ -1512,7 +1512,27 @@ function wireRhythm(){
     try{el2.setPointerCapture(e.pointerId)}catch(_){}
     show(tFromX(e.clientX));});
   el2.addEventListener("pointermove",e=>{if(drag)show(tFromX(e.clientX));});
-  el2.addEventListener("pointerup",()=>drag=false);
+  /* magnetic release (audit item 2): let go near a window edge and the
+     seeker settles onto it - the boundary is the meaningful place */
+  const magnetSnap=()=>{
+    const t=el2._t; if(t==null) return;
+    const PULL=12*6e4;
+    let best=null;
+    for(const w of M.windows) for(const edge of [w.a,w.b]){
+      const d=Math.abs(edge-t);
+      if(d>0&&d<=PULL&&(!best||d<Math.abs(best-t))) best=edge;
+    }
+    if(best==null) return;
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches){ show(Math.min(best,M.d1-1)); buzz(4); return; }
+    const from=t, to=Math.min(best,M.d1-1), t0=performance.now();
+    const step=n=>{
+      const k=Math.min((n-t0)/180,1), e=1-Math.pow(1-k,3);
+      show(from+(to-from)*e);
+      if(k<1) requestAnimationFrame(step); else buzz(4);
+    };
+    requestAnimationFrame(step);
+  };
+  el2.addEventListener("pointerup",()=>{ if(drag){ drag=false; magnetSnap(); } });
   el2.addEventListener("keydown",e=>{
     const step=15*6e4*(e.shiftKey?4:1);
     if(e.key==="ArrowRight"){show(Math.min((el2._t??M.d0)+step,M.d1-1));e.preventDefault();}
@@ -2345,8 +2365,10 @@ function sheetPlanet(p,opts){
       :now.antar.lord===g?`<p class="interp brass">It rules the current antardasha &#8212; the sub-period inside your ${now.maha.lord} years.</p>`:""}
 
     ${shadow(g)?"":`<button class="findsky" data-g="${g}">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/>
-        <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg>
+      <svg viewBox="0 0 24 24">
+        <path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/>
+        <path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/>
+        <path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/></svg>
       Find ${g} in the sky
       <span class="fschev">&#8250;</span></button>
     <div class="skypanel" id="skypanel" hidden></div>`}
@@ -2465,7 +2487,10 @@ async function openSkyPanel(g){
       </div>
     </div>
     <button class="askastra" id="opensky">
-      <span class="orbdot" aria-hidden="true"></span>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round">
+        <path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/>
+        <path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/>
+        <path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/></svg>
       Open the sky &#8212; see ${g} among the rashis</button>`;
   document.getElementById("opensky").onclick=()=>{buzz(9);
     const motion=askMotion();
@@ -2708,7 +2733,7 @@ function actChips(actions,idx){
     open_sade_sati:"Explore sade sati",
     focus_house:`Open your ${ordinal(a.house)} house`})[a.action];
   return `${nav.length?`<div class="gacts">${nav.map((a,i)=>
-      `<button class="gact" data-mi="${idx}" data-ai="${actions.indexOf(a)}">${label(a)}</button>`).join("")}</div>`:""}
+      `<button class="gact" data-k="${a.action}${a.action==="focus_planet"?"-"+a.mode:""}" data-mi="${idx}" data-ai="${actions.indexOf(a)}">${label(a)}</button>`).join("")}</div>`:""}
     ${ev?`<div class="gevask">
       <p>Add &#8220;${escText(ev.title)}&#8221; (${fmtDate(new Date(ev.date+"T12:00:00"))}) to your Timeline?</p>
       <button class="gact solid" data-evadd="${idx}">Add to Timeline</button>
@@ -4523,7 +4548,7 @@ function openSatiCycle(ci,card){
     <div class="awscroll">
       <p class="awlead" style="margin:4px 0 2px"><b>${sub}.</b>
         ${fmtDate(w.start)} to ${fmtDate(w.end)} &#183; age ${ageAt(w.start)} to ${ageAt(w.end)}.</p>
-      ${satiJourney(moonSign,actIdx,{light:true})}
+      ${satiJourney(moonSign,actIdx||1,{light:true})}
       <div class="scyc" role="img" aria-label="${merged.map(m=>`Phase ${m.idx} ${m.phase}, ${fmtDate(m.start)} to ${fmtDate(m.end)}`).join(". ")}">
         ${merged.map(m=>`<i class="scseg p${m.idx}" style="width:${(((m.end-m.start)/total)*100).toFixed(1)}%">
           <span>${m.phase}</span></i>`).join("")}
@@ -4568,6 +4593,17 @@ function openSatiCycle(ci,card){
   ov.onclick=e=>{
     const p=e.target.closest("[data-ph]");
     if(p){ buzz(8); openSatiPhase(ci,+p.dataset.ph,p); return; }
+    /* audit item 1: touching a phase card slides Saturn along the three
+       signs - the movement itself is the lesson (spec 49) */
+    const pc=e.target.closest(".sphcard");
+    if(pc){
+      const idx=+pc.querySelector("[data-ph]").dataset.ph;
+      const s=ov.querySelector(".sjsat");
+      if(s){ s.classList.remove("p1","p2","p3"); s.classList.add("p"+idx); }
+      [...ov.querySelectorAll(".sjcell")].forEach((c,i)=>c.classList.toggle("on",i+1===idx));
+      buzz(6);
+      return;
+    }
     if(e.target.closest("[data-guide]")){
       buzz(9);
       close(()=>askGuide("How might this Sade Sati cycle affect me?",
@@ -5413,6 +5449,13 @@ function wireTimeline(){
       buzz(8); openEventWhy(+b.dataset.ev, b); });
     /* boundary haptics (spec 6): maha strongest, antar lighter, sati
        phase change distinct, saved events a soft tick */
+    /* audit item 3: period names crossfade as a boundary is crossed,
+       instead of hard-swapping mid-scrub */
+    const crossed=now.maha.lord!==lastLord||now.antar.lord!==lastAntar;
+    if(crossed&&lastLord!==null){
+      const ro2=document.getElementById("ro");
+      ro2.classList.remove("swap"); void ro2.offsetWidth; ro2.classList.add("swap");
+    }
     if(now.maha.lord!==lastLord){lastLord=now.maha.lord;lastAntar=now.antar.lord;buzz(11)}
     else if(now.antar.lord!==lastAntar){lastAntar=now.antar.lord;buzz(6)}
     const satiKey=sati?sati.ph.phase+sati.ph.start.getTime():null;

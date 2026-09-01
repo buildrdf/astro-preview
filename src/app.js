@@ -16,7 +16,7 @@ import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
 import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./report.js?v=20260902";
+import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
@@ -4342,6 +4342,17 @@ function wireReportView(){
   if(b) b.onclick=()=>{buzz(8); window.print();};
 }
 
+const repLang=()=>PREFS().reportLang||(PREFS().lang==="en"||!PREFS().lang?"en":"hi");
+/* the printed report renders on report.html; hand it the birth so it casts at once */
+function openReportPage(lang){
+  const born=ACTIVE.p?new Date(ACTIVE.p.born):BIRTH;
+  const bp=ACTIVE.p?{lat:ACTIVE.p.lat??BIRTHPLACE.lat,lon:ACTIVE.p.lon??BIRTHPLACE.lon,name:ACTIVE.p.place||BIRTHPLACE.name}:BIRTHPLACE;
+  const f=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(born);
+  const g=t=>f.find(p=>p.type===t).value;
+  const q=new URLSearchParams({name:ACTIVE.name,date:`${g("year")}-${g("month")}-${g("day")}`,time:`${g("hour")}:${g("minute")}`,
+    lat:bp.lat,lon:bp.lon,place:(bp.name||"").split(",")[0],tz:"Asia/Kolkata",lang});
+  window.open(`report.html?${q}`,"_blank");
+}
 function subReport(){
   const now=CHART.dasha.at(new Date());
   const tag="";
@@ -4358,6 +4369,13 @@ function subReport(){
               ["Current period",`${now.maha.lord}/${now.antar.lord}`],
               ["Price","&#8377;499 &#183; $14.99 &#183; one-time"],
               ["Delivery","in the app + by email"]])}
+      <div class="replang">
+        <span class="k">Report language</span>
+        <div class="feelseg" id="replang">
+          ${[["en","English"],["hi","हिन्दी"]].map(([k,v])=>`<button data-l="${k}" class="${repLang()===k?"on":""}">${v}</button>`).join("")}
+        </div>
+        ${repLang()==="hi"?`<p class="ameta" style="margin:6px 0 0">Hindi is a reviewed draft: tables and readings in Hindi, a few interpretive passages still in English.</p>`:""}
+      </div>
       <button class="primary" data-rep="self">Get for &#8377;499 &#183; $14.99</button>
       <button class="proclose" data-prev="self" style="margin:2px 0 0">Preview in app</button>
     </div>
@@ -4378,6 +4396,8 @@ function subReport(){
     behind payment.</p>`;
 }
 function wireReport(){
+  const rl=document.getElementById("replang");
+  if(rl) rl.onclick=e=>{ const b=e.target.closest("[data-l]"); if(!b) return; buzz(6); setPref("reportLang",b.dataset.l); renderSub(); };
   document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{
     buzz(8);
     b.textContent="Purchases arrive with the App Store build";
@@ -4386,7 +4406,7 @@ function wireReport(){
   document.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>{
     buzz(8);
     const v=b.dataset.prev;
-    if(v==="self"){ subView="reportview"; subArg=null; }
+    if(v==="self"){ if(repLang()==="hi"){ openReportPage("hi"); return; } subView="reportview"; subArg=null; }
     else { subView="relreportview"; subArg=+v.slice(3); }
     renderSub();
   });

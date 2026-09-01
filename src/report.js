@@ -38,9 +38,18 @@ import { DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js";
 import { PLANET_STORY, GRAHA_MEANING } from "./interpret.js";
 import { HOUSE_STORY, GRAHA_IN_SIGN, LORD_IN_HOUSE, CONJUNCTION_BLEND, conjKey } from "./lore.js";
 
+import { translateMd } from "./report-hi.js";
+
 /* "now" for the gochara/dasha-at-present sections - injectable */
 let NOW = new Date();
 export function setNow(d) { NOW = d; }
+
+/* Output language. "en" is the source of truth: the renderers always
+   build English markdown, and report-hi.js rewrites it line by line
+   when the reader asked for Hindi, so English output stays byte-
+   identical and the regression rule above still holds. */
+let LANG = "en";
+export function setReportLang(l) { LANG = l === "hi" ? "hi" : "en"; }
 
 /* ------------------------------------------------ vocabulary ------ */
 
@@ -976,7 +985,8 @@ function renderKundali(c) {
 
   push("---",
     "*Astra is a compass, not an oracle. These pages describe traditional associations so you can explore and reflect — the decisions remain yours.*");
-  return L.join("\n");
+  const md = L.join("\n");
+  return LANG === "hi" ? translateMd(md) : md;
 }
 
 /* ------------------------------------------------ render: love ---- */
@@ -1145,7 +1155,8 @@ function renderLove(a, b) {
 
   push("---",
     "*A match score is a structured comparison inside one traditional system — it measures pattern, not destiny. Astra shows the working so the two of you can explore it together.*");
-  return L.join("\n");
+  const md = L.join("\n");
+  return LANG === "hi" ? translateMd(md) : md;
 }
 
 /* ------------------------------------------------ api ------------- */

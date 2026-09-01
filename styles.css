@@ -2641,3 +2641,6 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .skkey b{color:#F5F6FC;font-weight:700}
 .skkey .dev{font-family:"Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",sans-serif;color:#F1E7C9;font-weight:600}
 .skkey .nk{color:#C4BCEC;letter-spacing:.12em;font-weight:600;font-size:10.5px}
+
+.replang{margin:10px 0 12px}
+.replang .k{display:block;font-size:12px;color:var(--ink-2);margin-bottom:6px}

@@ -57,7 +57,7 @@ const STARS=[
 ];
 const AMBIENT=(()=>{ let s=971;
   const rnd=()=>((s=(s*1664525+1013904223)|0)>>>0)/2**32;
-  return Array.from({length:190},()=>({
+  return Array.from({length:460},()=>({
     ra:rnd()*360, dec:Math.asin(rnd()*1.9-0.95)*180/Math.PI, m:3.4+rnd()*2.4}));
 })();
 const GLOW={Sun:"255,196,110",Moon:"214,226,255",Mars:"255,128,96",
@@ -159,7 +159,7 @@ function nearestCity(lat,lon){
 let el=null, ctx=null, running=false, watch=null, reduced=false;
 let viewAz=180, viewAlt=25, wantAz=180, wantAlt=25, sensing=false, followSky=true;
 let vFov=62;                            /* vertical field of view, degrees */
-const FOV_MIN=22, FOV_MAX=96;
+const FOV_MIN=10, FOV_MAX=112;
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
 let cache=null, cacheAt=0, target=null, focusK=0;
 let mode="now", birthOpts=null, proUser=false, custom=null;
@@ -347,26 +347,68 @@ function draw(){
   const mixc=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
   const dayTop=[54,86,150], dayMid=[120,150,205], dayBot=[176,196,228];
   const t0=mixc(top,dayTop,day), t1=mixc(mid,dayMid,day), t2=mixc(bot,dayBot,day);
-  const hp=project({alt:0,az:viewAz}); const hy=Number.isFinite(hp[1])?hp[1]:(viewAlt>0?H*1.2:-H*0.2);
-  const sg=c.createLinearGradient(0,0,0,H);
-  const hstop=Math.max(0.02,Math.min(0.98,hy/H));
-  sg.addColorStop(0,`rgb(${t0.join(",")})`); sg.addColorStop(hstop,`rgb(${t1.join(",")})`);
-  sg.addColorStop(Math.min(1,hstop+0.015),`rgb(${t2.join(",")})`); sg.addColorStop(1,`rgb(${mixc(bot,[12,12,22],0).join(",")})`);
-  c.fillStyle=sg; c.fillRect(0,0,W,H);
+  /* the horizon line on screen: two far-apart points and the unit normal toward the ground */
+  const hz=(()=>{
+    const pts=[]; for(let az=0;az<360;az+=3){ const p=project({alt:0,az}); if(Number.isFinite(p[0])) pts.push({x:p[0],y:p[1],az}); }
+    if(pts.length<2) return null;
+    let p1=pts[0], p2=pts[0], best=-1;
+    for(const p of pts){ const d=Math.hypot(p.x-p1.x,p.y-p1.y); if(d>best){best=d;p2=p;} }
+    for(const p of pts){ const d=Math.hypot(p.x-p2.x,p.y-p2.y); if(d>best){best=d;p1=p;} }
+    if(best<4) return null;
+    const dx=(p2.x-p1.x)/best, dy=(p2.y-p1.y)/best; let nx=-dy, ny=dx;
+    const g=project({alt:-6,az:p1.az});
+    const side=Number.isFinite(g[0])?Math.sign((g[0]-p1.x)*nx+(g[1]-p1.y)*ny)||1:(ny>0?1:-1);
+    nx*=side; ny*=side;
+    /* the point of the line nearest the screen centre anchors the gradients */
+    const t=((W/2-p1.x)*dx+(H/2-p1.y)*dy); const cx=p1.x+dx*t, cy=p1.y+dy*t;
+    return {p1,p2,dx,dy,nx,ny,cx,cy,pts};
+  })();
+  const rgb=v=>`rgb(${v.join(",")})`;
+  if(hz){
+    /* sky: haze at the horizon deepening toward the zenith, measured away from the line */
+    const D=Math.max(H,W)*1.1;
+    const sg=c.createLinearGradient(hz.cx,hz.cy,hz.cx-hz.nx*D,hz.cy-hz.ny*D);
+    sg.addColorStop(0,rgb(t2)); sg.addColorStop(0.06,rgb(mixc(t2,t1,0.55))); sg.addColorStop(0.32,rgb(t1)); sg.addColorStop(1,rgb(t0));
+    c.fillStyle=sg; c.fillRect(0,0,W,H);
+    /* dawn and dusk: warmth pooled where the Sun meets the horizon */
+    const sunG=cache.grahas.find(x=>x.g==="Sun");
+    if(sunG&&Math.abs(cache.sunAlt)<9){
+      const sp=project({alt:0,az:sunG.az});
+      if(Number.isFinite(sp[0])){ const k=1-Math.abs(cache.sunAlt)/9;
+        const rg=c.createRadialGradient(sp[0],sp[1],0,sp[0],sp[1],H*0.75);
+        rg.addColorStop(0,`rgba(255,168,92,${0.55*k})`); rg.addColorStop(0.35,`rgba(255,140,90,${0.22*k})`); rg.addColorStop(1,"rgba(255,140,90,0)");
+        c.fillStyle=rg; c.fillRect(0,0,W,H); }
+    }
+  } else {
+    const sg=c.createLinearGradient(0,0,0,H);
+    sg.addColorStop(0,rgb(viewAlt>0?t0:t2)); sg.addColorStop(1,rgb(viewAlt>0?t1:t2));
+    c.fillStyle=sg; c.fillRect(0,0,W,H);
+  }
 
   /* --- horizon: a cool material line with ground beneath it --- */
   if(layers.horizon){
-    const horizon=[]; for(let az=0;az<=360;az+=3){ const p=project({alt:0,az}); if(Number.isFinite(p[0])) horizon.push(p); }
-    /* ground fill: everything below the horizon curve */
-    c.save(); c.beginPath(); let pen=false;
-    for(const p of horizon){ if(!pen){c.moveTo(p[0],p[1]);pen=true;} else c.lineTo(p[0],p[1]); }
-    if(pen){ c.lineTo(W+400,H+400); c.lineTo(-400,H+400); c.closePath();
-      c.fillStyle=`rgba(6,8,22,${0.55})`; c.fill(); }
+    const horizon=hz?hz.pts:[];
+    /* ground: the half-plane on the nadir side of the horizon line (a great
+       circle is a straight line in this projection), shaded from horizon
+       haze into deep ground; objects below the horizon stay faintly visible */
+    c.save();
+    if(hz){
+      const {p1,p2,dx,dy,nx,ny,cx,cy}=hz, L=6000;
+      const gg=c.createLinearGradient(cx,cy,cx+nx*H*0.7,cy+ny*H*0.7);
+      const haze=mixc(t2,[10,12,26],0.45);
+      gg.addColorStop(0,`rgba(${haze.join(",")},0.82)`); gg.addColorStop(0.25,"rgba(8,10,24,0.86)"); gg.addColorStop(1,"rgba(4,5,14,0.94)");
+      c.fillStyle=gg;
+      c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
+      c.lineTo(p2.x+dx*L+nx*L,p2.y+dy*L+ny*L); c.lineTo(p1.x-dx*L+nx*L,p1.y-dy*L+ny*L); c.closePath(); c.fill();
+      /* a soft glow along the horizon, then the crisp line */
+      c.strokeStyle=`rgba(190,205,245,${0.10+0.18*day})`; c.lineWidth=9; c.lineCap="round";
+      c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L); c.stroke();
+    } else if(viewAlt<0){ c.fillStyle="rgba(4,5,14,0.94)"; c.fillRect(0,0,W,H); }
     c.restore();
-    c.strokeStyle="rgba(150,170,235,.55)"; c.lineWidth=1.5; c.beginPath(); pen=false;
+    c.strokeStyle="rgba(150,170,235,.55)"; c.lineWidth=1.5; c.beginPath(); let pen=false;
     let last=null;
-    for(const p of horizon){ if(last&&Math.hypot(p[0]-last[0],p[1]-last[1])>W) pen=false;
-      pen?c.lineTo(p[0],p[1]):(c.moveTo(p[0],p[1]),pen=true); last=p; }
+    for(const p of horizon){ if(last&&Math.hypot(p.x-last.x,p.y-last.y)>W) pen=false;
+      pen?c.lineTo(p.x,p.y):(c.moveTo(p.x,p.y),pen=true); last=p; }
     c.stroke();
     for(const [az,t] of [[0,"N"],[45,"NE"],[90,"E"],[135,"SE"],[180,"S"],[225,"SW"],[270,"W"],[315,"NW"]]){
       const p=project({alt:-1.6,az}); if(!onScreen(p[0],p[1],20)) continue;
@@ -378,7 +420,7 @@ function draw(){
   const starA=(1-day*0.92)*(layers.stars?1:0);
   if(starA>0.02){
     for(const s of cache.amb){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,6)) continue;
-      const a=(s.m>5?.09:s.m>4.4?.14:.2)*starA;
+      const a=(s.m>5?.15:s.m>4.4?.22:.32)*starA;
       c.fillStyle=`rgba(225,232,255,${a})`; c.beginPath(); c.arc(x,y,s.m>4.6?0.7:1.05,0,7); c.fill(); }
     for(const A of cache.asts){
       const px=A.pts.map(p=>{ const [x,y]=project(p); return {x,y,up:p.up,m:p.m,on:onScreen(x,y,80)}; });
@@ -397,7 +439,7 @@ function draw(){
 
   /* --- the CELESTIAL RIBBON --- */
   const eclPts=cache.ecl.map(p=>{ const [x,y,z]=project(p); return {L:p.L,x,y,z,up:p.up}; });
-  const bandW=Math.max(14,Math.min(46,3.4*ppd));         /* the rashi band, a region on the sphere */
+  const bandW=Math.max(24,Math.min(76,5.4*ppd));         /* the rashi band: an engraved tape on the sphere */
   const ribbon=(lw,style,upOnly)=>{
     c.strokeStyle=style; c.lineWidth=lw; c.lineCap="butt"; c.lineJoin="round";
     c.beginPath(); let pen=false,last=null;
@@ -486,39 +528,60 @@ function draw(){
     const pos=L.place(g.x,g.y,w,15,[[0,g.R+13],[0,-g.R-12],[g.R+w/2+4,0],[-g.R-w/2-4,0]]);
     if(pos) drawnLabels.push({...g,font,pos,w});
   }
-  /* 3. rashi captions (Devanagari), LOD by sector width */
+  /* 3 + 4. the tape is engraved: rashi glyph + name set into the upper
+     lane, nakshatra names into the lower lane, both running along the
+     band. Letterpress = a dark offset copy beneath a light copy. A
+     sector too narrow for its text shows only the glyph, then nothing;
+     the focused item always falls back to a floating caption. */
+  const engrave=(txt,x,y,ang,font,light,alpha)=>{
+    c.save(); c.translate(x,y); c.rotate(ang); c.font=font; c.textAlign="center"; c.textBaseline="middle";
+    c.fillStyle=`rgba(18,14,8,${0.55*alpha})`; c.fillText(txt,0.7,0.9);
+    c.fillStyle=light.replace(/[\d.]+\)$/,`${alpha})`); c.fillText(txt,0,0); c.restore();
+  };
+  const laneAt=(mid,e1,e2)=>{               /* screen frame of a sector: centre, tangent angle, up-normal */
+    const [x,y]=project(mid); const a=project(e1), b=project(e2);
+    if(!onScreen(x,y,40)||!Number.isFinite(a[0])||!Number.isFinite(b[0])) return null;
+    const wid=Math.hypot(b[0]-a[0],b[1]-a[1]); if(wid<1) return null;
+    let ang=Math.atan2(b[1]-a[1],b[0]-a[0]); if(ang>Math.PI/2) ang-=Math.PI; else if(ang<-Math.PI/2) ang+=Math.PI;
+    const nx=-Math.sin(ang), ny=Math.cos(ang);       /* perpendicular; ny>0 means screen-down */
+    const ux=ny>0?-nx:nx, uy=ny>0?-ny:ny;            /* unit vector toward screen-up */
+    return {x,y,wid,ang,ux,uy};
+  };
+  const RASHI_GLYPH=["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u2650","\u264F","\u2650","\u2651","\u2652","\u2653"].map(g=>g+"\uFE0E");
+  RASHI_GLYPH[6]="\u264E\uFE0E";
   if(layers.rashis) for(let s=0;s<12;s++){
     const m=cache.rashiMid[s]; if(!m.up&&mode!=="birth"&&s!==focusSign) continue;
-    const [x,y]=project(m); if(!onScreen(x,y,40)) continue;
-    const a=project(cache.ecl[s*15]), b=project(cache.ecl[s*15+15]);
-    const wid=(Number.isFinite(a[0])&&Number.isFinite(b[0]))?Math.hypot(b[0]-a[0],b[1]-a[1]):0;
-    if(wid<52&&s!==focusSign) continue;
-    const on=s===focusSign;
-    const dev=SIGNS_DEV[s];
-    const alpha=(on?1:0.8)*(on?1:dim);
-    c.font=devF(on?17:14); const w=c.measureText(dev).width+6;
-    const pos=L.place(x,y,w,20,[[0,-bandW/2-14],[0,bandW/2+16]]);
-    if(!pos) continue;
-    haloText(c,dev,pos[0],pos[1],`rgba(241,231,201,${alpha})`,devF(on?17:14));
-    if(on||wid>150){
-      const sub=on?`${SIGNS_SK[s]} · ${SIGNS_EN[s]}`:SIGNS_SK[s];
-      c.font=sysF(10.5,500); const w2=c.measureText(sub).width+4;
-      const p2=L.place(pos[0],pos[1],w2,12,[[0,pos[1]<y?-14:14]]);
-      if(p2) haloText(c,sub,p2[0],p2[1],`rgba(214,190,140,${alpha*0.9})`,sysF(10.5,500));
+    const f=laneAt(m,cache.ecl[s*15],cache.ecl[s*15+15]); if(!f) continue;
+    const on=s===focusSign, alpha=(on?1:0.82)*(on?1:dim);
+    const px=f.x+f.ux*bandW*0.25, py=f.y+f.uy*bandW*0.25;
+    const big=on?15:Math.min(15,Math.max(11.5,bandW*0.3));
+    const full=`${RASHI_GLYPH[s]}  ${SIGNS_DEV[s]}  ${SIGNS_SK[s]}`, mid=`${RASHI_GLYPH[s]} ${SIGNS_DEV[s]}`;
+    c.font=devF(big);
+    const wFull=c.measureText(full).width, wMid=c.measureText(mid).width;
+    const txt=f.wid>wFull+22?full:f.wid>wMid+16?mid:f.wid>34?RASHI_GLYPH[s]:null;
+    if(txt&&L.place(px,py,Math.min(f.wid-8,c.measureText(txt).width),big+4,[[0,0]])){
+      engrave(txt,px,py,f.ang,devF(big),"rgba(241,231,201,1)",alpha);
+    } else if(on){                                        /* focused but cramped: floating caption */
+      c.font=devF(17); const w=c.measureText(SIGNS_DEV[s]).width+6;
+      const pos=L.place(f.x,f.y,w,20,[[0,-bandW/2-14],[0,bandW/2+16]]);
+      if(pos) haloText(c,SIGNS_DEV[s],pos[0],pos[1],"rgba(241,231,201,1)",devF(17));
     }
   }
-  /* 4. nakshatra captions: only when their sector is wide enough or focused */
+  const track=t=>t.toUpperCase().split("").join("\u2009");   /* letter-spaced small caps look */
   if(layers.naks) for(let i=0;i<27;i++){
     const m=cache.nakMid[i]; if(!m.up&&mode!=="birth") continue;
-    const [x,y]=project(m); if(!onScreen(x,y,40)) continue;
-    const a=project(cache.nakEdge[i]), b=project(cache.nakEdge[(i+1)%27]);
-    const wid=(Number.isFinite(a[0])&&Number.isFinite(b[0]))?Math.hypot(b[0]-a[0],b[1]-a[1]):0;
-    const on=i===focusNak;
-    if(wid<58&&!on) continue;
-    c.font=sysF(on?11:9.5,on?600:500); const w=c.measureText(NAKS[i]).width+4;
-    const anchors=on?[[0,bandW/2+14],[0,bandW/2+28],[0,bandW/2+42],[0,-(bandW/2+14)],[w/2+30,bandW/2+14],[-(w/2+30),bandW/2+14]]:[[0,bandW/2+14],[0,bandW/2+26]];
-    const pos=L.place(x,y,w,12,anchors);
-    if(pos) haloText(c,NAKS[i],pos[0],pos[1],`rgba(190,182,230,${(on?1:0.72)*(on?1:dim)})`,sysF(on?11:9.5,on?600:500));
+    const f=laneAt(m,cache.nakEdge[i],cache.nakEdge[(i+1)%27]); if(!f) continue;
+    const on=i===focusNak, txt=track(NAKS[i]);
+    const px=f.x-f.ux*bandW*0.27, py=f.y-f.uy*bandW*0.27;
+    const size=on?10.5:Math.min(10,Math.max(8,bandW*0.19));
+    c.font=sysF(size,on?700:600); const w=c.measureText(txt).width;
+    if(f.wid>w+12&&L.place(px,py,Math.min(f.wid-6,w),size+3,[[0,0]])){
+      engrave(txt,px,py,f.ang,sysF(size,on?700:600),"rgba(196,188,236,1)",(on?1:0.8)*(on?1:dim));
+    } else if(on){
+      const anchors=[[0,bandW/2+14],[0,bandW/2+28],[0,-(bandW/2+14)],[w/2+30,bandW/2+14],[-(w/2+30),bandW/2+14]];
+      const pos=L.place(f.x,f.y,w+4,12,anchors);
+      if(pos) haloText(c,txt,pos[0],pos[1],"rgba(196,188,236,1)",sysF(10.5,700));
+    }
   }
   /* 5. star names only when asked for, and only the bright ones */
   if(layers.starNames&&starA>0.2) for(const s of cache.stars){ if(!s.up||s.m>2.2) continue;
@@ -841,11 +904,11 @@ function paintSeeker(){
   const localMs=d.getTime()+off; const dayStart=localMs-((localMs%864e5)+864e5)%864e5; /* local midnight */
   const frac=(localMs-dayStart)/864e5;
   const chip=s.querySelector(".skseekchip"); if(chip) chip.textContent=fmtLocal(d,tz,{hour:"numeric",minute:"2-digit"});
-  const knob=s.querySelector(".skseekknob"); if(knob) knob.style.top=((1-frac)*100).toFixed(2)+"%";
+  const knob=s.querySelector(".skseekknob"); if(knob) knob.style.top=(frac*100).toFixed(2)+"%";
   const rl=s.querySelector(".skseekrule"); if(!rl) return;
   const mark=(dd,cls,txt)=>{ if(!dd) return ""; const f=((dd.getTime()+off)-dayStart)/864e5; if(f<0||f>1) return "";
-    return `<i class="${cls}" style="top:${((1-f)*100).toFixed(2)}%">${txt||""}</i>`; };
-  rl.innerHTML=[0,3,6,9,12,15,18,21,24].map(h=>`<span style="top:${((1-h/24)*100).toFixed(2)}%">${h===0?"12 AM":h===12?"12 PM":h===24?"12 AM":h<12?h+" AM":(h-12)+" PM"}</span>`).join("")
+    return `<i class="${cls}" style="top:${(f*100).toFixed(2)}%">${txt||""}</i>`; };
+  rl.innerHTML=[0,3,6,9,12,15,18,21,24].map(h=>`<span style="top:${(h/24*100).toFixed(2)}%">${h===0?"12 AM":h===12?"12 PM":h===24?"12 AM":h<12?h+" AM":(h-12)+" PM"}</span>`).join("")
     +mark(seekEvents?.rise,"sksun","☀")+mark(seekEvents?.set,"sksun","☀")
     +(mode==="birth"?mark(new Date(birthOpts.date),"skbirth"):mark(new Date(),"sknow"));
   s.dataset.day=fmtLocal(d,tz,{day:"numeric",month:"short"});
@@ -881,12 +944,12 @@ function wireSeeker(){
   s.addEventListener("pointermove",e=>{ if(!dragging) return; e.stopPropagation();
     const dy=e.clientY-startY; if(Math.abs(dy)>4&&!seekActive){ clearTimeout(holdT); expand(true); }
     if(!seekActive) return;
-    const ms=startMs-(dy/H())*864e5;     /* up = later */
+    const ms=startMs+(dy/H())*864e5;     /* down = later, like reading a day top to bottom */
     seekTo(Math.round(ms/60000)*60000); });
   const end=e=>{ if(!dragging) return; dragging=false; clearTimeout(holdT); setTimeout(()=>expand(false),900); };
   s.addEventListener("pointerup",end); s.addEventListener("pointercancel",end);
   s.addEventListener("keydown",e=>{ const step=e.shiftKey?60:15; let ms=skyDate().getTime();
-    if(e.key==="ArrowUp"){ ms+=step*60000; } else if(e.key==="ArrowDown"){ ms-=step*60000; } else return;
+    if(e.key==="ArrowDown"){ ms+=step*60000; } else if(e.key==="ArrowUp"){ ms-=step*60000; } else return;
     e.preventDefault(); prevSeekMs=skyDate().getTime(); seekTo(ms); });
 }
 function returnToAnchor(){ if(mode==="birth") birthSeek=null; else { seek=null; custom=custom&&custom.fromLink?null:custom; }
@@ -905,6 +968,7 @@ function paintLayers(){
   const preset=Object.entries(PRESETS).find(([,v])=>Object.keys(v).every(k=>v[k]===layers[k]))?.[0]||"";
   sh.innerHTML=`<div class="sklhead"><b>Layers</b><button class="skx" id="svlclose" aria-label="Close">✕</button></div>
     <div class="sklpre">${[["clean","Clean"],["jyotish","Jyotish"],["astronomy","Astronomy"]].map(([k,l])=>`<button data-p="${k}" class="${preset===k?"on":""}">${l}</button>`).join("")}</div>
+    <div class="skkey"><span><b>Saturn</b> planet</span><span><span class="dev">मेष</span> rashi</span><span><span class="nk">P U S H Y A</span> nakshatra</span></div>
     ${row("planets","Planets")}${row("rashis","Rashis","the twelve regions of the ribbon")}${row("naks","Nakshatras","twenty-seven finer sectors")}
     ${row("art","Rashi artwork","zodiac art — not constellation boundaries")}${row("horizon","Horizon")}${row("stars","Stars","atmosphere, unlabelled")}
     ${row("starNames","Star names","the bright yogataras")}`;
@@ -1150,7 +1214,7 @@ function hitTest(cx,cy){
     /* the ribbon: nearest ecliptic sample within the band; upper half = rashi, lower = nakshatra */
     let bi=-1,bdd=1e9,by=0;
     cache.ecl.forEach((p,i)=>{ const [x,y]=project(p); if(!Number.isFinite(x)) return; const d=Math.hypot(x-cx,y-cy); if(d<bdd){bdd=d;bi=i;by=y;} });
-    const bandW=Math.max(14,Math.min(46,3.4*ppdCenter()));
+    const bandW=Math.max(24,Math.min(76,5.4*ppdCenter()));
     if(bi>=0&&bdd<bandW/2+16){ const L=cache.ecl[bi].L;
       if(cy<=by&&layers.rashis) best={t:"rashi",i:sgOf(L),label:`${SIGNS_SK[sgOf(L)]} · ${SIGNS_EN[sgOf(L)]}`,kind:"rashi"};
       else if(layers.naks) best={t:"nakshatra",i:nkOf(L),label:NAKS[nkOf(L)],kind:"nakshatra"};

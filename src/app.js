@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902c";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
@@ -2979,6 +2979,7 @@ function renderGuide(){
         <div class="gvorb idle" id="gvorb"><img src="assets/moon/phase_15_full_moon.png" alt=""></div>
         <div class="gvstate" id="gvstate" aria-live="polite">Listening</div>
         <div class="gvtranscript" id="gvtranscript"></div>
+        <div class="gvreply" id="gvreply"></div>
       </div>
       <div class="gvbar">
         <input id="gvin" class="gvpill" placeholder="Ask Astra" aria-label="Type instead" autocomplete="off">
@@ -3077,7 +3078,7 @@ async function guideSend(q,opts={}){
     facts:guideFacts()
   };
   GUIDE_SEED=null;
-  let reply=null, errText=null;
+  let reply=null, errText=null, e_plain=null;
   try{
     const r=await fetch(GUIDE_URL,{method:"POST",
       headers:{"content-type":"application/json","authorization":"Bearer "+GUIDE_ANON},
@@ -3089,6 +3090,9 @@ async function guideSend(q,opts={}){
     errText=String(e.message)==="limit"
       ? "The Guide has said a lot today and rests until tomorrow. Everything else in Astra keeps working."
       : "The Guide can&#8217;t reach the sky just now. Your chart still works &#8212; try again in a moment.";
+    e_plain=String(e.message)==="limit"
+      ? "The Guide has said a lot today and rests until tomorrow."
+      : "The Guide can\u2019t reach the sky just now. Your chart still works \u2014 try again in a moment.";
   }
   GUIDE.busy=false;
   const pend=document.getElementById("gpending");
@@ -3099,14 +3103,18 @@ async function guideSend(q,opts={}){
     if(pend) pend.outerHTML=guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],
       GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]);
     buzz(4);
-    if(VOICE.on) voiceSpeak(reply.text); else gMoonState("idle");
+    if(VOICE.on){ voiceNote(reply.text.replace(/@@ACTIONS[\s\S]*?@@/,"").trim()); voiceSpeak(reply.text); }
+    else gMoonState("idle");
   }else{
     GUIDE.msgs.pop();          /* the question stays visible but not in context */
     if(pend){ pend.removeAttribute("id");
       pend.querySelector(".astratext").innerHTML=errText;
       pend.querySelector(".astratext").classList.remove("gthink"); }
     gMoonState("idle");
-    if(VOICE.on) gMoonState("listening");
+    if(VOICE.on){
+      const plain=String(e_plain||"");
+      voiceNote(plain); voiceSpeak(plain);
+    }
   }
   const pg2=document.getElementById("pg-guide"), c2=document.getElementById("chat");
   const nearBottom=pg2 && pg2.scrollHeight-pg2.scrollTop-pg2.clientHeight<320;
@@ -3127,6 +3135,8 @@ async function guideSend(q,opts={}){
    actually playing, barge-in cancels speech immediately (spec 24). */
 let VOICE={on:false,muted:false,rec:null,utter:null,state:"idle",
   amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null};
+const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function voiceNote(t){ const r=document.getElementById("gvreply"); if(r) r.textContent=t||""; }
 function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
 function voiceUI(on){
   const c=document.getElementById("gcomposer"), v=document.getElementById("gvoice");
@@ -3145,7 +3155,10 @@ function voiceStart(){
   const mb=document.getElementById("gvmute");
   if(mb){ mb.classList.remove("muted"); mb.setAttribute("aria-pressed","false"); }
   voiceUI(true);
+  voiceNote("");
   gMoonState("listening");
+  /* Safari only speaks if synthesis was first touched inside a tap */
+  try{ const u0=new SpeechSynthesisUtterance("\u00a0"); u0.volume=0; speechSynthesis.speak(u0); }catch(_){}
   voiceMeterStart();
   voiceListen();
   voiceLoop();
@@ -3154,6 +3167,7 @@ function voiceStart(){
    word beats while Astra talks. AudioContext is created inside the tap
    (iOS needs the gesture); the mic stream attaches when it arrives. */
 function voiceMeterStart(){
+  if(IS_IOS) return;      /* a second capture session stops Safari's recogniser; beats come from it instead */
   try{
     const AC=window.AudioContext||window.webkitAudioContext;
     if(!AC||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
@@ -3200,6 +3214,8 @@ function voiceListen(){
   rec.lang=(PREFS().lang==="hi")?"hi-IN":"en-IN";
   rec.continuous=true; rec.interimResults=true;
   rec.onstart=()=>{ if(!speechSynthesis.speaking) gMoonState("listening"); };
+  rec.onsoundstart=()=>{ if(!VOICE.an) VOICE.bump=Math.min(1,VOICE.bump+0.6); };
+  rec.onspeechstart=()=>{ if(!VOICE.an) VOICE.bump=Math.min(1,VOICE.bump+0.6); };
   rec.onresult=e=>{
     let interim="", final="";
     for(let i=e.resultIndex;i<e.results.length;i++){
@@ -3221,11 +3237,19 @@ function voiceListen(){
   };
   rec.onend=()=>{ if(VOICE.on&&!VOICE.muted) try{rec.start()}catch(_){} };
   rec.onerror=ev=>{
-    if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){
-      voiceStop();
+    const err=ev.error||"";
+    if(err==="not-allowed"||err==="service-not-allowed"){
+      voiceNote("Microphone blocked \u2014 allow it for this site in Settings \u203a Safari \u203a Microphone");
       const inp=document.getElementById("cmpin");
       if(inp) inp.placeholder="Microphone permission needed for voice";
+      setTimeout(()=>voiceStop(true),2800);
+    } else if(err==="audio-capture"){
+      voiceNote("No microphone found on this device");
+      setTimeout(()=>voiceStop(true),2200);
+    } else if(err==="network"){
+      voiceNote("Speech service unreachable \u2014 check the connection and try again");
     }
+    /* no-speech / aborted: onend restarts the recogniser */
   };
   VOICE.rec=rec;
   try{rec.start()}catch(_){}
@@ -3270,6 +3294,7 @@ function voiceStop(silent){
   VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
   const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
   const t=document.getElementById("gvtranscript"); if(t) t.textContent="";
+  voiceNote("");
   VOICE.muted=false;
   voiceUI(false);
   gMoonState("idle");

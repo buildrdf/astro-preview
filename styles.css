@@ -2608,3 +2608,25 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .gevid small{display:block;font-size:12px;color:#6B6E85;margin-top:1px}
 .gevid i{font-style:normal;color:#8A8DA3;font-size:18px}
 .gasr .astratext b{color:#171A33;font-weight:650}
+
+/* Festivals & vrats */
+.festlink{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:10px;
+  padding:11px 14px;border-radius:13px;border:1px solid var(--edge);background:rgba(255,255,255,.05);
+  color:var(--ink);font-size:14px;font-weight:600;cursor:pointer}
+.festlink .chev{color:var(--ink-2)}
+.hiname{font-weight:500;color:var(--ink-2);margin-left:4px;font-size:.92em}
+.festmonth{margin:16px 0 8px}
+.festcard{padding:2px 0}
+.festrow{display:flex;gap:14px;padding:12px 14px;border-bottom:1px solid var(--edge)}
+.festrow:last-child{border-bottom:0}
+.festrow.today{background:rgba(194,155,78,.09)}
+.festday{flex:0 0 40px;text-align:center;line-height:1.05}
+.festday b{display:block;font-size:20px;font-weight:600}
+.festday span{font-size:11px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+.festbody{flex:1;min-width:0}
+.festname{font-size:15px;font-weight:600;color:var(--ink)}
+.festkind{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600;
+  vertical-align:2px;background:rgba(255,255,255,.08);color:var(--ink-2)}
+.festkind.festival,.festkind.solar{background:rgba(194,155,78,.18);color:#E0B84C}
+.festmeta{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+.festnote{font-size:12px;color:var(--ink-2);opacity:.85;margin-top:4px;font-style:italic}

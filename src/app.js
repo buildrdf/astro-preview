@@ -17,6 +17,7 @@ import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a"
 import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902";
+import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
 const julian = jd;
@@ -1062,8 +1063,10 @@ function renderToday(){
     Nakshatra:"the lunar mansion the Moon sits in",
     Yoga:"a Sun&#8211;Moon angle, one of twenty-seven",
     Karana:"half a tithi",
+    Observance:"the festival or vrat this day carries, fixed by its month, paksha and tithi at the traditional hour",
     "Tara bala":"today&#8217;s Moon star counted from your birth star",
     "Colour of the day":`${vc.why} in this tradition`};
+  const obs=(()=>{ try{ return todayObservance(viewDate, sp0.lat, sp0.lon); }catch(_){ return null; } })();
   const panch=`
     <p class="skylead">The five limbs of ${isToday(viewDate)?"today":"this day"}.
       Tap any term for what it means.</p>
@@ -1073,6 +1076,7 @@ function renderToday(){
          ["Nakshatra",`${NAK[F.todayMoonNak]} &#183; pada ${tr.Moon.pada}`],
          ["Yoga",F.limbs.yoga.name],
          ["Karana",F.limbs.karana.name],
+         ...(obs?[["Observance",`${obs.name}${PREFS().lang!=="en"&&obs.hi?` <small class="hiname">${obs.hi}</small>`:""}`]]:[]),
          ["Tara bala",F.tara.name],
          ["Colour of the day",vc.c]]
         .map(([k,v])=>`<div class="row panchrow">
@@ -1082,6 +1086,7 @@ function renderToday(){
       <div class="row panchrow"><span class="k">Sunrise &#183; sunset</span>
         <span class="v">${ft(st.rise)} &#183; ${ft(st.set)}</span></div>
     </div>
+    <button class="festlink" id="festlink">Festivals &amp; vrats ahead <span class="chev">&#8250;</span></button>
     <div class="moonline">
       ${moonImg(viewDate,30)}
       <span><b>${tr.phase.name}</b> ${Math.round(tr.phase.illum*100)}% &#183;
@@ -3271,6 +3276,7 @@ function voiceStop(silent){
   if(!silent) buzz(6);
 }
 const ICONS={
+  cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/>',
   chart:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   people:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3.2 3.2 0 010 5.6"/>',
@@ -3289,6 +3295,9 @@ const SUBS=[
   {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>"three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
   {id:"muhurta", label:"Find a good time", icon:ICONS.clock, sub:()=>"muhurta"},
+  {id:"festivals", label:"Festivals & vrats", icon:ICONS.cal, sub:()=>{
+    const n=festivalsBetween(new Date(),new Date(Date.now()+14*864e5),BIRTHPLACE.lat,BIRTHPLACE.lon)
+      .filter(x=>!x.minor&&x.kind!=="observance").length; return n?`${n} in two weeks`:"calendar"; }},
   {id:"report", label:"Reports", icon:ICONS.doc, sub:()=>"kundali &#183; relationship"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
 ];
@@ -3586,7 +3595,7 @@ function renderSub(){
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",plans:"Plans",
-    yogas:"Yogas & doshas",muhurta:"Find a good time",signs:"Signs & Nakshatras",reportview:"Your kundali report",
+    yogas:"Yogas & doshas",muhurta:"Find a good time",festivals:"Festivals & vrats",signs:"Signs & Nakshatras",reportview:"Your kundali report",
     relreportview:"Relationship report",
     learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
@@ -3597,7 +3606,7 @@ function renderSub(){
   document.getElementById("topbar").classList.toggle("searching",searching);
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
-              settings:subSettings,plans:subPlans,yogas:subYogas,muhurta:subMuhurta,signs:subSigns,
+              settings:subSettings,plans:subPlans,yogas:subYogas,muhurta:subMuhurta,festivals:subFestivals,signs:subSigns,
               reportview:subReportView,relreportview:subRelReportView}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -3622,6 +3631,7 @@ function renderSub(){
   if(subView==="plans") wirePlans();
   if(subView==="report") wireReport();
   if(subView==="muhurta") wireMuhurta();
+  if(subView==="festivals") wireFestivals();
   if(subView==="reportview"||subView==="relreportview") wireReportView();
   if(subView==="addpartner") wireAddPartner();
   if(subView==="addevent") wireAddEvent();
@@ -4050,6 +4060,63 @@ function muhurtaScore(d){
   if(F.limbs.karana.vishti){s-=1;reasons.push(`Vishti karana runs &#8212; set aside for launches.`)}
   return {s, reasons, F};
 }
+/* ---- FESTIVALS & VRATS (src/festivals.js) — the luni-solar calendar the
+   engine derives from its own ephemeris; nothing here is looked up ---- */
+let festFilter="all", festDays=90;
+function subFestivals(){
+  const sp=liveSpot()||BIRTHPLACE;
+  const from=new Date(); from.setHours(0,0,0,0);
+  const to=new Date(from.getTime()+festDays*864e5);
+  let list=festivalsBetween(from,to,sp.lat,sp.lon).filter(x=>!x.minor);
+  if(festFilter==="festival") list=list.filter(x=>x.kind==="festival"||x.kind==="solar");
+  if(festFilter==="vrat") list=list.filter(x=>x.kind==="vrat");
+  if(festFilter==="all") list=list.filter(x=>x.kind!=="observance");
+  const hi=PREFS().lang!=="en";
+  const months=[];
+  for(const x of list){
+    const key=x.date.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+    let m=months.find(y=>y.key===key); if(!m){ m={key,items:[]}; months.push(m); }
+    m.items.push(x);
+  }
+  const KIND={festival:"festival",solar:"sankranti",vrat:"vrat",observance:"observance"};
+  const RULE={sunrise:"tithi at sunrise",noon:"tithi at midday",afternoon:"tithi in the afternoon",
+    evening:"tithi at pradosh",night:"tithi at moonrise",midnight:"tithi at midnight",sankranti:"the Sun enters the sign"};
+  return `
+    <p class="skylead">The next ${festDays} days at ${sp.name?sp.name.split(",")[0]:"your place"},
+      derived from the same ephemeris as your chart &#8212; each date says which rule fixed it.</p>
+    <div class="feelseg" style="margin-bottom:10px" id="festkind">
+      ${[["all","Festivals & vrats"],["festival","Festivals"],["vrat","Vrats"]].map(([k,v])=>
+        `<button data-k="${k}" class="${festFilter===k?"on":""}">${v}</button>`).join("")}
+    </div>
+    <div class="feelseg" style="margin-bottom:16px" id="festrange">
+      ${[30,90,365].map(n=>`<button data-n="${n}" class="${festDays===n?"on":""}">${n===365?"Year":n+" days"}</button>`).join("")}
+    </div>
+    ${months.map(m=>`
+      <div class="eyebrow festmonth">${m.key}</div>
+      <div class="card festcard">
+        ${m.items.map(x=>{
+          const today=isToday(x.date);
+          return `<div class="festrow${today?" today":""}">
+            <div class="festday"><b>${x.date.getDate()}</b><span>${x.date.toLocaleDateString("en-GB",{weekday:"short"})}</span></div>
+            <div class="festbody">
+              <div class="festname">${x.name}${hi&&x.hi?` <small class="hiname">${x.hi}</small>`:""}
+                <span class="festkind ${x.kind}">${KIND[x.kind]}</span></div>
+              <div class="festmeta">${x.masa?`${hi?x.masaHi:x.masa}${x.paksha?` &#183; ${x.paksha==="S"?"Shukla":"Krishna"} ${x.tithi===15?(x.paksha==="S"?"Purnima":"Amavasya"):x.tithi}`:""}`:""}
+                &#183; ${RULE[x.rule]||x.rule}</div>
+              ${x.note?`<div class="festnote">${x.note}</div>`:""}
+            </div></div>`;}).join("")}
+      </div>`).join("")}
+    <p class="note">Dates follow the amanta month reckoning used across Maharashtra, Gujarat and the
+      south; the north names the same days by purnimanta months, so an Ekadashi&#8217;s name here
+      follows that wider convention. Regional almanacs can still differ by a day where a tithi
+      straddles two sunrises or where moonrise, bhadra or local sunrise is judged differently.</p>`;
+}
+function wireFestivals(){
+  const k=document.getElementById("festkind"), r=document.getElementById("festrange");
+  if(k) k.onclick=e=>{ const b=e.target.closest("[data-k]"); if(!b)return; festFilter=b.dataset.k; buzz(6); renderSub(); };
+  if(r) r.onclick=e=>{ const b=e.target.closest("[data-n]"); if(!b)return; festDays=+b.dataset.n; buzz(6); renderSub(); };
+}
+
 function subMuhurta(){
   if(!isPro()) return `
     <div class="procard" style="margin-top:8px">
@@ -6861,3 +6928,9 @@ function obWireBirth(){
 
 if((!meProfile() && !localStorage.getItem("astro.onboarded"))
    || location.hash.includes("onboard")) openOnboarding();
+
+/* Today's panchang card → the festival calendar under You */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("#festlink"); if(!b) return;
+  buzz(7); go(YOU_INDEX); subView="festivals"; subArg=null; renderSub();
+});

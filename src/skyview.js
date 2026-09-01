@@ -604,7 +604,32 @@ function pinnedPlaces(){
     tz:birthOpts.tz??((birthOpts.off??5.5)===5.5?"Asia/Kolkata":null)});
   return extra;
 }
-const cityHit=c=>({label:c[0],n:c[0],lat:c[1],lon:c[2],off:c[3],tz:null});
+/* IANA zones for the offline fallback list, so DST-observing places
+   get their real clock even without the geocoder. Intl's zone table
+   ships with the browser and works offline; the fixed offset stays
+   as the last-resort value only. All-India collapses to Asia/Kolkata. */
+const CITY_TZ={"New York":"America/New_York","Boston":"America/New_York",
+  "Miami":"America/New_York","Atlanta":"America/New_York","Washington DC":"America/New_York",
+  "Toronto":"America/Toronto","Chicago":"America/Chicago","Austin":"America/Chicago",
+  "Houston":"America/Chicago","Dallas":"America/Chicago","Mexico City":"America/Mexico_City",
+  "Denver":"America/Denver","Phoenix":"America/Phoenix",
+  "Los Angeles":"America/Los_Angeles","San Francisco":"America/Los_Angeles",
+  "Seattle":"America/Los_Angeles","San Diego":"America/Los_Angeles","Vancouver":"America/Vancouver",
+  "London":"Europe/London","Paris":"Europe/Paris","Berlin":"Europe/Berlin",
+  "Amsterdam":"Europe/Amsterdam","Zurich":"Europe/Zurich","Rome":"Europe/Rome",
+  "Madrid":"Europe/Madrid","Lisbon":"Europe/Lisbon","Istanbul":"Europe/Istanbul",
+  "Moscow":"Europe/Moscow","Dubai":"Asia/Dubai","Abu Dhabi":"Asia/Dubai",
+  "Doha":"Asia/Qatar","Riyadh":"Asia/Riyadh","Singapore":"Asia/Singapore",
+  "Hong Kong":"Asia/Hong_Kong","Tokyo":"Asia/Tokyo","Seoul":"Asia/Seoul",
+  "Shanghai":"Asia/Shanghai","Beijing":"Asia/Shanghai","Bangkok":"Asia/Bangkok",
+  "Kathmandu":"Asia/Kathmandu","Colombo":"Asia/Colombo","Dhaka":"Asia/Dhaka",
+  "Karachi":"Asia/Karachi","Lahore":"Asia/Karachi","Sydney":"Australia/Sydney",
+  "Melbourne":"Australia/Melbourne","Auckland":"Pacific/Auckland",
+  "São Paulo":"America/Sao_Paulo","Johannesburg":"Africa/Johannesburg",
+  "Nairobi":"Africa/Nairobi","Cairo":"Africa/Cairo","Mauritius":"Indian/Mauritius",
+  "Denpasar, Bali":"Asia/Makassar","Kuala Lumpur":"Asia/Kuala_Lumpur"};
+const cityHit=c=>({label:c[0],n:c[0],lat:c[1],lon:c[2],off:c[3],
+  tz:CITY_TZ[c[0]]||(c[3]===5.5?"Asia/Kolkata":null)});
 function paintPlist(q){
   const list=el.root.querySelector("#svplist"); if(!list) return;
   const seq=++plistSeq;

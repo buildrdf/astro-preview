@@ -66,7 +66,12 @@ const GLOW={Sun:"255,196,110",Moon:"214,226,255",Mars:"255,128,96",
 const IMG={};
 for(const g of GRAHAS){ IMG[g]=new Image(); IMG[g].src=`assets/graha/${g.toLowerCase()}.png`; }
 const RASHI_ART={};
-for(let i=1;i<=12;i++){ RASHI_ART[i]=new Image(); RASHI_ART[i].src=`assets/rashi/${i}.svg`; }
+/* the rashi art layer is optional until the assets land: probe one file
+   and only fetch the rest if it exists (no twelve 404s per open) */
+{ const probe=new Image();
+  probe.onload=()=>{ RASHI_ART[1]=probe;
+    for(let i=2;i<=12;i++){ RASHI_ART[i]=new Image(); RASHI_ART[i].src=`assets/rashi/${i}.svg`; } };
+  probe.src="assets/rashi/1.svg"; }
 
 /* ---- timezone-true local time (kept; validated 31 Aug) ---- */
 export function offsetAtTz(tz, utcMs){

@@ -2052,13 +2052,27 @@ body.guidefull .wash{opacity:0}
   background:#FFFFFF;color:#23263E;font-size:13.5px;cursor:pointer;text-align:left}
 .gchip:active{transform:scale(.97)}
 
-/* light composer: mic when empty, send when typed (spec 19-20) */
-body.guidefull .composer.glight{background:#FFFFFF;border:1px solid rgba(23,26,51,.13);
+/* light composer: one pill; the round button is voice while the field is
+   empty and morphs into send as you type (Sangram, 2 Sep) */
+body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
+  background:linear-gradient(180deg,rgba(247,245,239,0),#F7F5EF 45%)}
+.cmp-pill{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#FFFFFF;
+  border:1px solid rgba(23,26,51,.13);border-radius:99px;padding:5px 5px 5px 18px;
   box-shadow:0 4px 22px rgba(23,26,51,.08)}
-body.guidefull .composer.glight input{color:#171A33}
-body.guidefull .composer.glight input::placeholder{color:#9A9DB0}
-body.guidefull .composer.glight .cmp-btn{color:#171A33;background:rgba(23,26,51,.06)}
-body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
+.composer .cmp-pill input{flex:1;min-width:0;background:none;border:0;border-radius:0;
+  padding:9px 4px 9px 0;font-size:16px;color:#171A33}
+.composer .cmp-pill input:focus{outline:none;background:none;border:0}
+.composer .cmp-pill input::placeholder{color:#9A9DB0}
+.cmp-go{position:relative;width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;
+  background:#171A33;color:#F7F5EF;cursor:pointer;display:grid;place-items:center;
+  transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.cmp-go:active{transform:scale(.9)}
+.cmp-go svg{position:absolute;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;
+  transition:opacity .16s ease,transform .24s cubic-bezier(.2,.8,.2,1)}
+.cmp-go .ico-send{opacity:0;transform:translateY(7px) scale(.6)}
+.cmp-go.has .ico-voice{opacity:0;transform:scale(.5)}
+.cmp-go.has .ico-send{opacity:1;transform:none}
 
 /* three-dot menu + confirm dialogs (spec 4, 9, 58) */
 .gmenusheet{position:fixed;top:calc(env(safe-area-inset-top) + 52px);right:14px;z-index:60;
@@ -2080,23 +2094,51 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
   background:#FFFFFF;font-size:14px;font-weight:600;color:#171A33;cursor:pointer}
 .gconfirmcard button.solid{background:#171A33;color:#F7F5EF;border-color:#171A33}
 
-/* voice mode (spec 21-22, 66) */
-.gvtranscript{min-height:22px;text-align:center;font-size:14px;color:#6B6E85;
-  font-style:italic;margin:8px auto 0;max-width:40ch}
-.gvoicebar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:12px;
-  align-items:center;justify-content:center;
-  padding:14px 20px calc(env(safe-area-inset-bottom) + 16px)}
-.gvbtn{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;
-  border:1px solid rgba(23,26,51,.16);background:#FFFFFF;color:#171A33;cursor:pointer}
-.gvbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
+/* voice mode (spec 21-22, 66): the full Moon is the voice - it swells with
+   whoever is speaking (--amp is written every frame by voiceLoop) */
+.gvoice{position:fixed;inset:0;z-index:58;background:#F7F5EF;display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top)}
+.gvoice[hidden]{display:none!important}
+.gvstage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:0 24px}
+.gvorb{--amp:0;position:relative;width:min(66vw,300px);aspect-ratio:1;
+  transform:scale(calc(1 + var(--amp)*.22));will-change:transform}
+/* the PNG carries its own soft limb, so the glow follows its alpha
+   (drop-shadow), never the square box - no hard ring around the Moon */
+.gvorb img{display:block;width:100%;height:100%;
+  filter:drop-shadow(0 0 calc(16px + var(--amp)*34px) rgba(150,172,232,calc(.42 + var(--amp)*.45)))
+         drop-shadow(0 18px 70px rgba(90,110,170,calc(.14 + var(--amp)*.3)))
+         brightness(calc(1.02 + var(--amp)*.1))}
+.gvorb.thinking img{animation:gvthink 3.2s ease-in-out infinite}
+@keyframes gvthink{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+.gvstate{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8A8DA3;
+  min-height:15px}
+.gvtranscript{min-height:22px;text-align:center;font-size:15px;color:#4A4E66;
+  font-style:italic;margin:-6px auto 0;max-width:36ch;line-height:1.5}
+.gvbar{display:flex;align-items:center;gap:10px;
+  padding:10px 16px calc(env(safe-area-inset-bottom) + 18px)}
+.gvpill{flex:1;min-width:0;height:52px;border-radius:99px;border:1px solid rgba(23,26,51,.12);
+  background:#FFFFFF;padding:0 20px;font-family:var(--ff);font-size:16px;color:#171A33;
+  box-shadow:0 4px 18px rgba(23,26,51,.06);-webkit-appearance:none}
+.gvpill::placeholder{color:#9A9DB0}
+.gvpill:focus{outline:none;border-color:rgba(23,26,51,.32)}
+.gvround{width:52px;height:52px;flex:0 0 auto;border-radius:50%;border:1px solid rgba(23,26,51,.12);
+  background:#FFFFFF;color:#171A33;display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 4px 18px rgba(23,26,51,.06);
+  transition:transform .15s cubic-bezier(.2,.8,.2,1),background .2s,color .2s,border-color .2s}
+.gvround:active{transform:scale(.9)}
+.gvround svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round}
-.gvbtn.end{width:auto;border-radius:26px;padding:0 22px;height:52px;background:#171A33;
-  color:#F7F5EF;font-size:14.5px;font-weight:600;border-color:#171A33}
-.gvbtn.muted{background:rgba(23,26,51,.85);color:#F7F5EF;position:relative}
-.gvbtn.muted::after{content:"";position:absolute;left:12px;right:12px;top:50%;height:2px;
-  background:currentColor;transform:rotate(-38deg);border-radius:2px}
+.gvround .slash{opacity:0;transition:opacity .15s}
+.gvround.muted{background:#D8543F;border-color:#D8543F;color:#FFFFFF}
+.gvround.muted .slash{opacity:1}
+.gvround.end{background:#171A33;border-color:#171A33;color:#F7F5EF}
+@media (prefers-reduced-motion: reduce){
+  .gvorb{transform:none!important}
+  .gvorb.thinking img{animation:none}
+}
 /* the hidden attribute must beat authored display values */
-.cmp-btn[hidden],.gvoicebar[hidden],.gvtranscript[hidden],.composer[hidden]{display:none!important}
+.cmp-btn[hidden],.composer[hidden]{display:none!important}
 
 /* ============ SADE SATI TEACHING PAGE ============ */
 .satihero b{font-size:16.5px}
@@ -2549,3 +2591,20 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
 .sky2.hascard .sktoast{bottom:auto;top:46%}
 .sksearch,.sklayers{top:calc(env(safe-area-inset-top) + 122px)}
 .sky2.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 340px)}
+
+/* Guide: long answers fold; evidence cards inside the thread */
+.gasr .astratext.clamp{max-height:168px;overflow:hidden;position:relative}
+.gasr .astratext.clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:56px;
+  background:linear-gradient(180deg,rgba(247,245,239,0),#F7F5EF)}
+.gshowmore{display:block;margin:2px 0 6px;padding:4px 0;border:0;background:none;color:#8F6B24;
+  font-size:13px;font-weight:600;cursor:pointer}
+.gshowmore::after{content:" \25BE";font-size:11px}
+.gevids{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.gevid{display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:14px;
+  border:1px solid rgba(23,26,51,.12);background:#FFFFFF;text-align:left;cursor:pointer;color:#171A33}
+.gevid img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(23,26,51,.25))}
+.gevid span{flex:1;min-width:0}
+.gevid b{display:block;font-size:14px}
+.gevid small{display:block;font-size:12px;color:#6B6E85;margin-top:1px}
+.gevid i{font-style:normal;color:#8A8DA3;font-size:18px}
+.gasr .astratext b{color:#171A33;font-weight:650}

@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902b";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
@@ -2737,9 +2737,20 @@ function parseActions(text){
   }).filter(Boolean).slice(0,3);
   return {text:text.replace(m[0],"").trim(),actions:acts};
 }
+function evidLine(g,modeK){
+  try{
+    if(modeK==="birth"){ const p=CHART.get(g); return `${SIGNS[p.sign-1]} · your ${ordinal(p.house)} house at birth`; }
+    const s=dayFacts(new Date()).sky.find(x=>x.graha===g);
+    return s?`${SIGNS[s.sign-1]} · your ${ordinal(s.house)} house now${s.retro?" · retrograde":""}`:"";
+  }catch(_){ return ""; }
+}
 function actChips(actions,idx){
   if(!actions||!actions.length) return "";
-  const nav=actions.filter(a=>a.action!=="suggest_life_event");
+  const planetActs=actions.filter(a=>a.action==="focus_planet");
+  const evids=planetActs.map(a=>`<button class="gevid" data-mi="${idx}" data-ai="${actions.indexOf(a)}">
+      <img src="assets/graha/${a.planet.toLowerCase()}.png" alt="">
+      <span><b>${a.planet}</b><small>${evidLine(a.planet,a.mode)}</small></span><i>&#8250;</i></button>`).join("");
+  const nav=actions.filter(a=>a.action!=="suggest_life_event"&&a.action!=="focus_planet");
   const ev=actions.find(a=>a.action==="suggest_life_event");
   const label=a=>({
     focus_planet:a.mode==="birth"?`See ${a.planet} in birth chart`:`See ${a.planet} on today&#8217;s chart`,
@@ -2747,7 +2758,7 @@ function actChips(actions,idx){
     open_timeline:"See on Timeline",
     open_sade_sati:"Explore sade sati",
     focus_house:`Open your ${ordinal(a.house)} house`})[a.action];
-  return `${nav.length?`<div class="gacts">${nav.map((a,i)=>
+  return `${evids?`<div class="gevids">${evids}</div>`:""}${nav.length?`<div class="gacts">${nav.map((a,i)=>
       `<button class="gact" data-k="${a.action}${a.action==="focus_planet"?"-"+a.mode:""}" data-mi="${idx}" data-ai="${actions.indexOf(a)}">${label(a)}</button>`).join("")}</div>`:""}
     ${ev?`<div class="gevask">
       <p>Add &#8220;${escText(ev.title)}&#8221; (${fmtDate(new Date(ev.date+"T12:00:00"))}) to your Timeline?</p>
@@ -2769,9 +2780,13 @@ function runAct(a){
 /* ---- the living Moon (spec 15-18): real phase art, and its state
    always mirrors actual system state - motion teaches. ---- */
 function gMoonState(s){
-  const m=document.getElementById("gmoon");
-  if(m){ m.classList.remove("idle","listening","thinking","speaking");
-    m.classList.add(s); }
+  VOICE.state=s;
+  for(const id of ["gmoon","gvorb"]){
+    const m=document.getElementById(id);
+    if(m){ m.classList.remove("idle","listening","thinking","speaking"); m.classList.add(s); }
+  }
+  const cap=document.getElementById("gvstate");
+  if(cap) cap.textContent=s==="listening"?"Listening":s==="thinking"?"Thinking":s==="speaking"?"Speaking":(VOICE.muted?"Muted":"");
 }
 
 /* adaptive suggestions (spec 11-12) - drawn from the person's actual
@@ -2795,16 +2810,26 @@ const daySepLabel=t=>{
   return diff===0?"Today":diff===1?"Yesterday"
     :d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
 };
+/* the model writes light markdown; render bold/italic safely after
+   escaping, and fold long answers behind "Show more" so the thread
+   stays scannable (Sangram's UX reference, 2 Sep) */
+function fmtGuide(text){
+  return escText(text).split(/\n{2,}/).map(p=>{
+    let h=p.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,;:!?]|$)/g,"$1<i>$2</i>");
+    h=h.split("\n").map(l=>/^\s*[-•]\s+/.test(l)?"• "+l.replace(/^\s*[-•]\s+/,""):l).join("<br>");
+    return `<p>${h}</p>`;
+  }).join("");
+}
 function guideMsgHTML(m,i,prev){
   const sep=(!prev||daySepLabel(prev.t||Date.now())!==daySepLabel(m.t||Date.now()))
     ?`<div class="gsep">${daySepLabel(m.t||Date.now())}</div>`:"";
   if(m.role==="user")
     return `${sep}<div class="bubble me">${escText(m.content)}</div>`;
-  const body=escText(m.content).split(/\n{2,}/)
-    .map(p=>`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
+  const long=m.content.length>520;
   return `${sep}<div class="gasr">
     <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
-    <div class="astratext">${body}</div>
+    <div class="astratext${long?" clamp":""}">${fmtGuide(m.content)}</div>
+    ${long?`<button class="gshowmore">Show more</button>`:""}
     ${m.actions?actChips(m.actions,i):""}
   </div>`;
 }
@@ -2931,28 +2956,33 @@ function renderGuide(){
       <div class="chat gchat" id="chat">
         ${GUIDE.msgs.map((m,i)=>guideMsgHTML(m,i,GUIDE.msgs[i-1])).join("")}
       </div>
-      <div class="gvtranscript" id="gvtranscript" hidden></div>
       <button class="gjump" id="gjump" hidden>Jump to latest</button>
       ${empty?`<div class="gchips" id="gasks">${guideChips().map(q=>
         `<button class="gchip">${q}</button>`).join("")}</div>`:""}
     </div>
     <div class="composer glight" id="gcomposer">
-      <input id="cmpin" placeholder="Ask about your chart&#8230;" aria-label="Message"
-        autocomplete="off">
-      <button class="cmp-btn mic" id="cmpmic" aria-label="Talk to Guide">
-        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
-          <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg></button>
-      <button class="cmp-btn send" id="cmpsend" aria-label="Send" hidden>
-        <svg viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></svg></button>
+      <div class="cmp-pill">
+        <input id="cmpin" placeholder="Ask Astra" aria-label="Message" autocomplete="off">
+        <button class="cmp-go" id="cmpgo" aria-label="Talk to Astra">
+          <svg class="ico-voice" viewBox="0 0 24 24"><path d="M4.5 10v4M8.25 7v10M12 4.5v15M15.75 8v8M19.5 10.5v3"/></svg>
+          <svg class="ico-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+        </button>
+      </div>
     </div>
-    <div class="gvoicebar" id="gvoicebar" hidden>
-      <button class="gvbtn" id="gvmute" aria-label="Mute microphone">
-        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
-          <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg></button>
-      <button class="gvbtn end" id="gvend" aria-label="End voice">End voice</button>
-      <button class="gvbtn" id="gvkbd" aria-label="Switch to typing">
-        <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="11" rx="2"/>
-          <path d="M7 11h.01M11 11h.01M15 11h.01M7 14.5h10"/></svg></button>
+    <div class="gvoice" id="gvoice" hidden>
+      <div class="gvstage">
+        <div class="gvorb idle" id="gvorb"><img src="assets/moon/phase_15_full_moon.png" alt=""></div>
+        <div class="gvstate" id="gvstate" aria-live="polite">Listening</div>
+        <div class="gvtranscript" id="gvtranscript"></div>
+      </div>
+      <div class="gvbar">
+        <input id="gvin" class="gvpill" placeholder="Ask Astra" aria-label="Type instead" autocomplete="off">
+        <button class="gvround" id="gvmute" aria-label="Mute microphone" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
+            <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/><path class="slash" d="M4.5 4.5l15 15"/></svg></button>
+        <button class="gvround end" id="gvend" aria-label="End voice">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
     </div>`;
   try{localStorage.setItem("astro.guide.seen","1")}catch(_){}
   const pg=document.getElementById("pg-guide");
@@ -2966,6 +2996,10 @@ function renderGuide(){
     pg.scrollTo({top:pg.scrollHeight,behavior:"smooth"}); };
   const chat=document.getElementById("chat");
   chat.onclick=e=>{
+    const sm=e.target.closest(".gshowmore");
+    if(sm){ const t=sm.previousElementSibling; t.classList.toggle("clamp"); sm.textContent=t.classList.contains("clamp")?"Show more":"Show less"; buzz(4); return; }
+    const ev0=e.target.closest(".gevid[data-ai]");
+    if(ev0){ const m=GUIDE.msgs[+ev0.dataset.mi]; const act=m&&m.actions&&m.actions[+ev0.dataset.ai]; if(act) runAct(act); return; }
     const a=e.target.closest(".gact[data-ai]");
     if(a){ const m=GUIDE.msgs[+a.dataset.mi];
       const act=m&&m.actions&&m.actions[+a.dataset.ai];
@@ -2985,30 +3019,30 @@ function renderGuide(){
     const b=e.target.closest(".gchip"); if(!b) return;
     buzz(6); guideSend(b.textContent);
   };
-  const inp=document.getElementById("cmpin"),
-        mic=document.getElementById("cmpmic"),
-        snd=document.getElementById("cmpsend");
+  const inp=document.getElementById("cmpin"), goB=document.getElementById("cmpgo");
+  /* one round button: voice when the field is empty, send once you type */
   const swap=()=>{ const has=!!inp.value.trim();
-    mic.hidden=has; snd.hidden=!has; };
+    goB.classList.toggle("has",has);
+    goB.setAttribute("aria-label",has?"Send":"Talk to Astra"); };
   inp.oninput=swap;
   inp.onkeydown=e=>{
     if(e.key==="Enter"&&inp.value.trim()){
       const q=inp.value.trim(); inp.value=""; swap(); guideSend(q);
     }
   };
-  snd.onclick=()=>{ if(!inp.value.trim())return;
-    const q=inp.value.trim(); inp.value=""; swap(); buzz(6); guideSend(q); };
-  mic.onclick=()=>voiceStart();
+  goB.onclick=()=>{
+    if(inp.value.trim()){ const q=inp.value.trim(); inp.value=""; swap(); buzz(6); guideSend(q); }
+    else voiceStart();
+  };
   document.getElementById("gvmute").onclick=voiceMuteToggle;
   document.getElementById("gvend").onclick=()=>voiceStop();
-  document.getElementById("gvkbd").onclick=()=>{ voiceStop();
-    setTimeout(()=>document.getElementById("cmpin")?.focus(),60); };
-  if(VOICE.on){
-    document.getElementById("gcomposer").hidden=true;
-    document.getElementById("gvoicebar").hidden=false;
-    document.getElementById("gvtranscript").hidden=false;
-    document.querySelector(".gmoonwrap")?.classList.remove("mini");
-  }
+  const gvin=document.getElementById("gvin");
+  gvin.onkeydown=e=>{
+    if(e.key==="Enter"&&gvin.value.trim()){
+      const q=gvin.value.trim(); gvin.value=""; buzz(6); guideSend(q,{voice:true});
+    }
+  };
+  if(VOICE.on){ voiceUI(true); gMoonState(VOICE.state); }
   if(GUIDE_SEED&&GUIDE_SEED.q){
     const q=GUIDE_SEED.q; GUIDE_SEED.q=null;   /* ctx stays for the send */
     setTimeout(()=>{ guideSend(q); },320);
@@ -3086,22 +3120,73 @@ async function guideSend(q,opts={}){
    queued task. Moon states mirror REAL system state only (spec 17):
    listening = recogniser running and unmuted, speaking = synthesis
    actually playing, barge-in cancels speech immediately (spec 24). */
-let VOICE={on:false,muted:false,rec:null,utter:null};
+let VOICE={on:false,muted:false,rec:null,utter:null,state:"idle",
+  amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null};
 function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
+function voiceUI(on){
+  const c=document.getElementById("gcomposer"), v=document.getElementById("gvoice");
+  if(c) c.hidden=on;
+  if(v) v.hidden=!on;
+  document.body.classList.toggle("gvoicemode",on);
+}
 function voiceStart(){
   buzz(8);
   if(!voiceSupported()){
     const inp=document.getElementById("cmpin");
-    if(inp){ inp.placeholder="Voice isn&#8217;t available in this browser &#8212; type instead"; }
+    if(inp){ inp.placeholder="Voice isn\u2019t available in this browser \u2014 type instead"; }
     return;
   }
-  VOICE.on=true; VOICE.muted=false;
-  document.body.classList.add("gvoicemode");
-  document.getElementById("gcomposer").hidden=true;
-  document.getElementById("gvoicebar").hidden=false;
-  document.getElementById("gvtranscript").hidden=false;
-  document.querySelector(".gmoonwrap")?.classList.remove("mini");
+  VOICE.on=true; VOICE.muted=false; VOICE.amp=0; VOICE.bump=0;
+  const mb=document.getElementById("gvmute");
+  if(mb){ mb.classList.remove("muted"); mb.setAttribute("aria-pressed","false"); }
+  voiceUI(true);
+  gMoonState("listening");
+  voiceMeterStart();
   voiceListen();
+  voiceLoop();
+}
+/* The Moon swells with the voice in the room: mic RMS while you talk,
+   word beats while Astra talks. AudioContext is created inside the tap
+   (iOS needs the gesture); the mic stream attaches when it arrives. */
+function voiceMeterStart(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
+    const ac=new AC(); VOICE.ac=ac; try{ac.resume()}catch(_){}
+    navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+      if(!VOICE.on){ stream.getTracks().forEach(t=>t.stop()); return; }
+      const an=ac.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.55;
+      ac.createMediaStreamSource(stream).connect(an);
+      VOICE.an=an; VOICE.buf=new Uint8Array(an.fftSize); VOICE.stream=stream;
+    }).catch(()=>{});
+  }catch(_){}
+}
+function micLevel(){
+  if(!VOICE.an) return null;
+  VOICE.an.getByteTimeDomainData(VOICE.buf);
+  let s=0; for(let i=0;i<VOICE.buf.length;i++){ const d=(VOICE.buf[i]-128)/128; s+=d*d; }
+  const rms=Math.sqrt(s/VOICE.buf.length);
+  return Math.min(1,Math.max(0,(rms-0.015)*7));
+}
+function voiceLoop(){
+  cancelAnimationFrame(VOICE.raf);
+  const orb=()=>document.getElementById("gvorb");
+  const step=t=>{
+    if(!VOICE.on) return;
+    let target=0;
+    if(VOICE.state==="listening"&&!VOICE.muted){
+      const lv=micLevel(); target=lv==null?VOICE.bump:Math.max(lv,VOICE.bump);
+    } else if(VOICE.state==="speaking"){
+      target=0.16+0.10*Math.sin(t/150)+VOICE.bump;
+    } else if(VOICE.state==="thinking"){
+      target=0.05+0.04*Math.sin(t/650);
+    }
+    VOICE.bump*=0.88;
+    VOICE.amp+=(target-VOICE.amp)*(target>VOICE.amp?0.32:0.10);
+    const o=orb(); if(o) o.style.setProperty("--amp",Math.min(1,VOICE.amp).toFixed(3));
+    VOICE.raf=requestAnimationFrame(step);
+  };
+  VOICE.raf=requestAnimationFrame(step);
 }
 function voiceListen(){
   if(!VOICE.on||VOICE.muted) return;
@@ -3117,6 +3202,7 @@ function voiceListen(){
       if(r.isFinal) final+=r[0].transcript; else interim+=r[0].transcript;
     }
     if(interim||final){
+      if(!VOICE.an) VOICE.bump=Math.min(1,VOICE.bump+0.5);   /* no meter: beat per phrase */
       /* barge-in: the user talking cancels Astra instantly */
       if(speechSynthesis.speaking){ speechSynthesis.cancel(); gMoonState("listening"); }
       const t=document.getElementById("gvtranscript");
@@ -3150,6 +3236,7 @@ function voiceSpeak(text){
       : vs.find(v=>/en[-_]IN/i.test(v.lang)))||vs.find(v=>/en/i.test(v.lang))||null;
     u.rate=1;
     u.onstart=()=>gMoonState("speaking");
+    u.onboundary=()=>{ VOICE.bump=Math.min(1,VOICE.bump+0.3); };
     u.onend=()=>{ if(VOICE.on) gMoonState(VOICE.muted?"idle":"listening"); };
     VOICE.utter=u;
     speechSynthesis.speak(u);
@@ -3160,10 +3247,11 @@ function voiceMuteToggle(){
   buzz(7);
   VOICE.muted=!VOICE.muted;
   const b=document.getElementById("gvmute");
-  if(b) b.classList.toggle("muted",VOICE.muted);
+  if(b){ b.classList.toggle("muted",VOICE.muted); b.setAttribute("aria-pressed",String(VOICE.muted));
+    b.setAttribute("aria-label",VOICE.muted?"Unmute microphone":"Mute microphone"); }
   if(VOICE.muted){ try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
     if(!speechSynthesis.speaking) gMoonState("idle"); }
-  else voiceListen();
+  else { voiceListen(); if(!speechSynthesis.speaking) gMoonState("listening"); }
 }
 function voiceStop(silent){
   if(!VOICE.on){ return; }
@@ -3171,13 +3259,14 @@ function voiceStop(silent){
   try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
   try{speechSynthesis.cancel()}catch(_){}
   VOICE.rec=null;
-  document.body.classList.remove("gvoicemode");
-  const c=document.getElementById("gcomposer"), v=document.getElementById("gvoicebar"),
-        t=document.getElementById("gvtranscript");
-  if(c) c.hidden=false;
-  if(v) v.hidden=true;
-  if(t){ t.hidden=true; t.textContent=""; }
-  if(GUIDE.msgs.length) document.querySelector(".gmoonwrap")?.classList.add("mini");
+  cancelAnimationFrame(VOICE.raf);
+  try{VOICE.stream&&VOICE.stream.getTracks().forEach(x=>x.stop())}catch(_){}
+  try{VOICE.ac&&VOICE.ac.close()}catch(_){}
+  VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
+  const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
+  const t=document.getElementById("gvtranscript"); if(t) t.textContent="";
+  VOICE.muted=false;
+  voiceUI(false);
   gMoonState("idle");
   if(!silent) buzz(6);
 }

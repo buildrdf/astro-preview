@@ -2720,7 +2720,6 @@ const SUBS=[
   {id:"rel", label:"Relationships", icon:ICONS.people, sub:()=>{const p=partners();return p.length?p.length+"":"none yet"}},
   {id:"learn", label:"Learn astrology", icon:ICONS.learn, sub:()=>"three levels"},
   {id:"glossary", label:"Glossary", icon:ICONS.az, sub:()=>GLOSSARY.reduce((a,g)=>a+g[1].length,0)+" terms"},
-  {id:"yogas", label:"Yogas & doshas", icon:ICONS.star, sub:()=>engine().yogas.length+" active"},
   {id:"muhurta", label:"Find a good time", icon:ICONS.clock, sub:()=>"muhurta"},
   {id:"report", label:"Reports", icon:ICONS.doc, sub:()=>"kundali &#183; relationship"},
   {id:"settings", label:"Settings", icon:ICONS.gear, sub:()=>PREFS().ayanamsa||"Lahiri"}
@@ -3041,6 +3040,7 @@ function renderSub(){
   if(ted) ted.onclick=()=>{subView="addpartner";buzz(7);renderSub()};
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
+  if(subView==="birth") wireBirth();
   document.body.classList.toggle("glossary",subView==="glossary");
   if(subView!=="glossary"){ glossSearching=false;
     document.getElementById("topbar").classList.remove("searching"); }
@@ -3779,37 +3779,204 @@ function wireSettings(){
     pp.setAttribute("aria-checked",v);setPref("pro",v);buzz(8)};
 }
 
+/* ---- BIRTH DETAILS: the complete reference file for a natal chart
+   (Tab-2 spec part B). One parent destination, six subtabs. Birth
+   Details is structured reference; Universe stays the place for
+   immersive exploration - every row here deep-links there. ---- */
+let bdTab="overview";
+const BD_TABS=[["overview","Overview"],["planets","Planets"],["houses","Houses"],
+  ["yogas","Yogas"],["dashas","Dashas"],["sati","Sade Sati"]];
+
 function subBirth(){
-  if(ACTIVE.p){
-    const p=ACTIVE.p, d=new Date(p.born);
-    return `
-      ${rows([["Date",fmtDate(d)],["Time",p.approx?"not given (noon assumed)":`${fmtClock(d)} IST`],
-        ["Place",p.place||"&#8212;"],
-        ["Lagna",`${SIGNS_SK[CHART.lagna-1]} &#183; ${fmtDeg(CHART.ascendant)}`],
-        ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
-        ["Ayanamsa","Lahiri"]])}
-      <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
-      ${rows(CHART.placements.map(q=>[
-        `${gIcon(q.graha)}${q.graha}`,
-        `${SIGNS[q.sign-1]} ${q.degf}${q.retro?" R":""}`]))}
-      <p class="note">Computed from the birth details you entered for ${ACTIVE.first}.
-      Edit them from the profile header.</p>`;
-  }
+  const body={overview:bdOverview,planets:bdPlanets,houses:bdHouses,
+    yogas:subYogas,dashas:bdDashas,sati:bdSati}[bdTab]();
   return `
-    ${rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
-      ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
-      ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
-      ["Lagna nakshatra","Rohini"],["Ayanamsa","Lahiri"]])}
+    <div class="bdrail" id="bdrail" role="tablist" aria-label="Birth details section">
+      ${BD_TABS.map(([k,l])=>`<button class="${bdTab===k?"on":""}" data-b="${k}"
+        role="tab" aria-selected="${bdTab===k}">${l}</button>`).join("")}
+    </div>
+    <div id="bdbody">${body}</div>`;
+}
+
+function bdOverview(){
+  const idRows=ACTIVE.p
+    ? (()=>{const p=ACTIVE.p, d=new Date(p.born);
+        return rows([["Name",ACTIVE.name],["Date",fmtDate(d)],
+          ["Time",p.approx?"not given (noon assumed)":`${fmtClock(d)} IST`],
+          ["Place",p.place||"&#8212;"],
+          ["Lagna",`${SIGNS_SK[CHART.lagna-1]} &#183; ${fmtDeg(CHART.ascendant)}`],
+          ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
+          ["Ayanamsa","Lahiri"]])})()
+    : rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
+        ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
+        ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
+        ["Lagna nakshatra","Rohini"],
+        ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
+        ["Ayanamsa","Lahiri"]]);
+  return `
+    ${idRows}
+    ${!ACTIVE.p?`
     <div class="eyebrow" style="margin:22px 0 8px">Panchang at birth</div>
     ${rows(Object.entries(birthPanchang()))}
     <div class="eyebrow" style="margin:22px 0 8px">Avakhada</div>
-    ${rows(Object.entries(avakhadaOf(CHART.get("Moon").L)))}
-    <div class="eyebrow" style="margin:22px 0 8px">Grahas</div>
-    ${rows(CHART.placements.map(p=>[
-      `${gIcon(p.graha)}${p.graha}`,
-      `${SIGNS[p.sign-1]} ${p.degf}${p.retro?" R":""}`]))}
+    ${rows(Object.entries(avakhadaOf(CHART.get("Moon").L)))}`:""}
+    <button class="item" id="bd2chart" style="margin-top:18px">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.chart}</svg>
+      View birth chart<span class="chev">&#8250;</span></button>
+    <button class="item" id="bd2rep">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>
+      Detailed birth report<span class="sub">complete natal chart, planets, houses,
+      yogas, dashas and interpretation</span><span class="chev">&#8250;</span></button>
     <p class="note">Everything on this screen is computed from the birth longitudes
     &#8212; the same engine the printed reports use.</p>`;
+}
+
+function bdPlanets(){
+  return `
+    <p class="skylead">All nine grahas as they stood at birth. Tap one to explore
+      it in Universe.</p>
+    ${CHART.placements.map(p=>`
+      <button class="bdrow" data-planet="${p.graha}">
+        <img src="assets/graha/${p.graha.toLowerCase()}.png" alt="" width="34" height="34">
+        <span><b>${p.graha}${p.retro?` <i class="rflag">R</i>`:""}</b>
+          <span class="evmeta">${SIGNS[p.sign-1]} ${p.degf} &#183; ${ordinal(p.house)} house
+          &#183; ${p.nak}${p.pada?` ${p.pada}`:""}${p.dig?` &#183; ${p.dig.toLowerCase()}`:""}</span></span>
+        <span class="chev">&#8250;</span>
+      </button>`).join("")}`;
+}
+
+function bdHouses(){
+  return `
+    <p class="skylead">The twelve houses of your chart. Tap one to open it in
+      Universe.</p>
+    ${Array.from({length:12},(_,i)=>{
+      const h=i+1, s=CHART.signOfHouse(h), lord=SIGN_LORD[s];
+      const seat=CHART.get(lord), occ=CHART.occupants(h);
+      return `<button class="bdrow" data-house="${h}">
+        <span class="bdh">${h}</span>
+        <span><b>${BHAVA[i][1]}</b>
+          <span class="evmeta">${SIGNS[s-1]} &#183; lord ${lord}, in your
+          ${ordinal(seat.house)}${occ.length?` &#183; holds ${occ.map(o=>o.graha).join(", ")}`:""}</span></span>
+        <span class="chev">&#8250;</span>
+      </button>`}).join("")}`;
+}
+
+function bdDashas(){
+  const D=CHART.dasha, nowD=new Date(), now=D.at(nowD);
+  const p3=now?pratAt(nowD,now):null;
+  return `
+    <p class="skylead">The Vimshottari sequence as reference &#8212; the interactive
+      way to move through it is the Timeline.</p>
+    ${rows([["Starting lord",`${D.birthLord} &#8212; from your Moon in ${CHART.get("Moon").nak}`],
+      ["Balance at birth",`${D.balance.toFixed(1)} years of ${D.birthLord} remained`]])}
+    <div class="eyebrow" style="margin:20px 0 8px">Running now</div>
+    ${now?rows([["Mahadasha",`${now.maha.lord} &#183; ${fmtDate(now.maha.start)} &#8594; ${fmtDate(now.maha.end)}`],
+      ["Antardasha",`${now.antar.lord} &#183; ${fmtDate(now.antar.start)} &#8594; ${fmtDate(now.antar.end)}`],
+      ...(p3?[["Pratyantardasha",`${p3.lord} &#183; ${fmtDate(p3.start)} &#8594; ${fmtDate(p3.end)}`]]:[])]):""}
+    <div class="eyebrow" style="margin:20px 0 8px">The full sequence</div>
+    ${D.mahas.slice(0,9).map(m=>{
+      const on=now&&m.lord===now.maha.lord&&m.start.getTime()===now.maha.start.getTime();
+      return `<div class="bdseq${on?" on":""}">${gIcon(m.lord,16)}
+        <b>${m.lord}</b><span class="evmeta">${fmtDate(m.start)} &#8594; ${fmtDate(m.end)}
+        &#183; age ${ageAt(m.start)}&#8211;${ageAt(m.end)}</span></div>`}).join("")}
+    <button class="item" id="bd2tl" style="margin-top:16px">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.clock}</svg>
+      Open interactive Timeline<span class="chev">&#8250;</span></button>`;
+}
+
+function bdSati(){
+  const moonSign=CHART.get("Moon").sign;
+  const wins=satiWindows();
+  const nowD=new Date();
+  const cur=saturnFromMoon(moonSign, nowD);
+  const inBand=[12,1,2].includes(cur);
+  const band=[12,1,2].map(k=>SIGNS[((moonSign-1+(k===12?-1:k-1))%12+12)%12]);
+  const satNowSign=SIGNS[((moonSign-1+cur-1)%12+12)%12];
+  const curWin=wins.find(w=>nowD>=w.start&&nowD<w.end);
+  const prevWin=[...wins].reverse().find(w=>w.end<nowD);
+  const nxt=wins.find(w=>w.start>nowD);
+  const dTo=d=>{const n=Math.round((d-nowD)/864e5);
+    return n>730?`${(n/365.25).toFixed(1)} years`:`${n} days`};
+  const PH_SENSE={Rising:"approach &#8212; loads shift, old supports thin",
+    Peak:"the pass itself &#8212; the audit of what is really solid",
+    Setting:"consolidation &#8212; what survived gets rebuilt stronger"};
+  const winCard=w=>{
+    const active=nowD>=w.start&&nowD<w.end;
+    const pos=active?Math.min(Math.max((nowD-w.start)/(w.end-w.start),0),1):null;
+    return `<div class="card saticard${active?" on":""}${w.end<nowD?" past":""}" style="margin-top:10px">
+      <div class="satihead">
+        <b>${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}</b>
+        <span class="satiage">age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${
+          w.atBirth?" &#183; running at your birth":""}${active?" &#183; now":""}</span>
+      </div>
+      ${active?`<div class="bar sm"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR("Saturn")}"></i></div>
+        <p class="poslabel">${Math.round(pos*100)}% through</p>`:""}
+      <div class="satiphases">
+        ${w.phases.map(p=>{
+          const pOn=nowD>=p.start&&nowD<p.end;
+          const days=Math.round((p.end-p.start)/864e5);
+          return `<div class="satiph${pOn?" on":""}">
+            <span class="sk">${p.phase}</span>
+            <b>${SIGNS[p.sign-1]}</b>
+            <span class="evmeta">${fmtDate(p.start)} &#8211; ${fmtDate(p.end)}</span>
+            <span class="evmeta">${(days/365.25).toFixed(1)} yr &#183; ${days} days${
+              pOn?` &#183; ${Math.round((p.end-nowD)/864e5)} left`:""}</span>
+          </div>`}).join("")}
+      </div>
+    </div>`;
+  };
+  return `
+    <div class="card special">
+      ${gIcon("Saturn",22)} <b>${inBand?"Yes &#8212; you are in sade sati now":"No &#8212; not in sade sati"}</b>
+      <p>Saturn currently stands <b>${ordinal(cur)}</b> from your natal Moon, in
+        ${satNowSign}. Sade sati is the roughly seven-and-a-half years Saturn spends
+        crossing the 12th, 1st and 2nd signs from your natal Moon &#8212; a
+        <b>transit, not a dasha</b>. It has edges, it ends, and it builds.</p>
+      <div class="satiband" aria-label="The sade sati band for your Moon">
+        ${band.map((s,i)=>`<span class="sb${i===1?" moonseat":""}${satNowSign===s&&inBand?" saturnhere":""}">
+          <i>${["Rising","Peak","Setting"][i]}</i>${s}</span>`).join(`<span class="sbarrow">&#8594;</span>`)}
+      </div>
+      ${curWin?`<p class="interp"><b>This window ends ${fmtDate(curWin.end)}</b> &#8212;
+        ${dTo(curWin.end)} from today.</p>`:""}
+      ${!curWin&&prevWin?`<p class="interp"><b>Last sade sati:</b> ${fmtDate(prevWin.start)}
+        &#8594; ${fmtDate(prevWin.end)} (age ${ageAt(prevWin.start)}&#8211;${ageAt(prevWin.end)}).</p>`:""}
+      ${!curWin&&nxt?`<p class="interp"><b>Next begins ${fmtDate(nxt.start)}</b> &#8212;
+        ${dTo(nxt.start)} from today, when Saturn enters ${band[0]}.</p>`:""}
+      <p class="interp"><b>Why seven and a half years:</b> Saturn takes about
+        29&#189; years to circle the zodiac &#8212; roughly 2&#189; years in each sign,
+        three signs, &#8776; 7&#189; years: &#8220;sade sati&#8221;. Retrogrades make
+        each crossing uneven, so the dates below are computed, not averaged.</p>
+    </div>
+    <div class="card" style="margin-top:12px">
+      ${Object.entries(PH_SENSE).map(([k,v])=>`<p class="interp" style="margin:6px 0">
+        <b>${k}</b> &#8212; ${v}.</p>`).join("")}
+    </div>
+    <details class="advd dark"><summary>View exact windows and crossings</summary>
+      ${wins.map(winCard).join("")}
+      <p class="note" style="margin-top:10px">Windows computed from Saturn&#8217;s actual
+      sign entries in the ephemeris, retrograde re-entries included &#8212; which is why
+      an ending can run months past the date some almanacs print. Traditional
+      associations, not a forecast.</p>
+    </details>`;
+}
+
+function wireBirth(){
+  const r=document.getElementById("bdrail");
+  if(r) r.onclick=e=>{
+    const b=e.target.closest("button[data-b]");
+    if(!b||b.dataset.b===bdTab) return;
+    bdTab=b.dataset.b; buzz(6); renderSub();
+  };
+  const bb=document.getElementById("bdbody");
+  if(bb) bb.onclick=e=>{
+    const pl=e.target.closest("[data-planet]");
+    if(pl){ buzz(8); go(CHART_INDEX); setMode("birth"); openPlanet(pl.dataset.planet); return; }
+    const ho=e.target.closest("[data-house]");
+    if(ho){ buzz(8); go(CHART_INDEX); setMode("birth"); openHouse(+ho.dataset.house); return; }
+    if(e.target.closest("#bd2chart")){ buzz(8); go(CHART_INDEX); setMode("birth"); return; }
+    if(e.target.closest("#bd2tl")){ buzz(8); go(TIMELINE_INDEX); return; }
+    if(e.target.closest("#bd2rep")){ buzz(8); subView="report"; renderSub(); return; }
+  };
 }
 
 /* Birth panchang, COMPUTED. The old PANCHANG/AVAKHADA constants were
@@ -4000,7 +4167,8 @@ function subEventsMarkup(){
   return events().map(e=>{
     const t=(new Date(e.d+"T12:00:00").getTime()-t0)/(t1-t0);
     if(t<0||t>1) return "";
-    return `<span class="evdot" style="top:${t*100}%;background:${KIND_COLOUR[e.k]||"var(--hot)"}"
+    return `<span class="evdot" data-t="${t.toFixed(4)}"
+             style="top:${t*100}%;background:${KIND_COLOUR[e.k]||"var(--hot)"}"
              title="${e.t}"></span>`;
   }).join("");
 }
@@ -4033,115 +4201,36 @@ function practiceFor(lord){
     invented, and no practice is offered as a guarantee of outcome.</p></div>`;
 }
 
-let tlLens="dasha";                 /* "dasha" | "sati" - two time systems */
-const lensSeg=()=>`
-  <div class="tbseg subseg" id="tlseg" role="tablist" aria-label="Time system">
-    <span class="thumb" aria-hidden="true"></span>
-    ${[["dasha","Dasha"],["sati","Sade Sati"]].map(([k,l])=>
-      `<button class="${tlLens===k?"on":""}" data-l="${k}" role="tab"
-        aria-selected="${tlLens===k}">${l}</button>`).join("")}
-  </div>`;
-function wireLens(){
-  const seg=document.getElementById("tlseg"); if(!seg) return;
-  requestAnimationFrame(()=>setThumb(seg,true)); setTimeout(()=>setThumb(seg,true),80);
-  seg.onclick=e=>{ const b=e.target.closest("button[data-l]");
-    if(!b||b.dataset.l===tlLens) return;
-    tlLens=b.dataset.l; buzz(6); renderTimelineTab(); };
+/* Timeline is the dasha interface, full stop - the old Dasha|Sade Sati
+   segmented control is gone (Tab-2 spec 2). Sade sati now lives in
+   Birth Details as reference, and appears here only contextually, as a
+   strip when the scrubbed date actually falls inside a window. */
+let SATI_CACHE=null, SATI_KEY="";
+function satiWindows(){
+  const k=ACTIVE.name+"|"+CHART.get("Moon").sign;
+  if(SATI_KEY!==k){ SATI_CACHE=sadeSatiWindows(CHART.get("Moon").sign, CHART.birthDate); SATI_KEY=k; }
+  return SATI_CACHE;
+}
+function satiAt(d){
+  const w=satiWindows().find(x=>d>=x.start&&d<x.end);
+  if(!w) return null;
+  const ph=w.phases.find(p=>d>=p.start&&d<p.end);
+  return ph?{win:w,ph}:null;
+}
+function pratAt(when,now){
+  /* third level from the validated 3-level engine; quiet at boundaries
+     where the two modules disagree by a few days */
+  const d3=engine().d3;
+  const m3=d3.mahadashas.find(x=>when>=x.start&&when<x.end);
+  const a3=m3?.antardashas.find(x=>when>=x.start&&when<x.end);
+  return (m3?.lord===now.maha.lord && a3?.lord===now.antar.lord)
+    ? (a3?.pratyantardashas?.find(x=>when>=x.start&&when<x.end)||null) : null;
 }
 
 function renderTimelineTab(){
   if(tlDetail){ tlDetail.ev!=null ? renderEventDetail() : renderDashaDetail(); return; }
-  if(tlLens==="sati"){ renderSadeSati(); return; }
-  document.getElementById("pg-timeline").innerHTML=lensSeg()+timelineBody();
-  wireLens();
+  document.getElementById("pg-timeline").innerHTML=timelineBody();
   wireTimeline();
-}
-
-/* ---- SADE SATI LENS ---------------------------------------------
-   Not a dasha - Saturn's transit over the natal Moon's neighbourhood.
-   Feared in the bazaar; shown here with dates, phases and progress so
-   it reads as a season with edges, not a curse (constitution 56, 70). */
-function renderSadeSati(){
-  const moonSign=CHART.get("Moon").sign;
-  const wins=sadeSatiWindows(moonSign, CHART.birthDate);
-  const nowD=new Date();
-  const cur=saturnFromMoon(moonSign, nowD);
-  const inBand=[12,1,2].includes(cur);
-  setTopBar("Sade Sati",{sub:`${SIGNS[moonSign-1]} Moon`});
-  const PH_SENSE={Rising:"approach &#8212; loads shift, old supports thin",
-    Peak:"the pass itself &#8212; the audit of what is really solid",
-    Setting:"consolidation &#8212; what survived gets rebuilt stronger"};
-  const card=w=>{
-    const active=nowD>=w.start&&nowD<w.end;
-    const pos=active?Math.min(Math.max((nowD-w.start)/(w.end-w.start),0),1):null;
-    const past=w.end<nowD;
-    return `<div class="card saticard${active?" on":""}${past?" past":""}">
-      <div class="satihead">
-        <b>${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}</b>
-        <span class="satiage">age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${
-          w.atBirth?" &#183; running at your birth":""}${active?" &#183; now":""}</span>
-      </div>
-      ${active?`<div class="bar sm"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR("Saturn")}"></i></div>
-        <p class="poslabel">${Math.round(pos*100)}% through</p>`:""}
-      <div class="satiphases">
-        ${w.phases.map(p=>{
-          const pOn=nowD>=p.start&&nowD<p.end;
-          const days=Math.round((p.end-p.start)/864e5);
-          return `<div class="satiph${pOn?" on":""}">
-            <span class="sk">${p.phase}</span>
-            <b>${SIGNS[p.sign-1]}</b>
-            <span class="evmeta">${fmtDate(p.start)} &#8211; ${fmtDate(p.end)}</span>
-            <span class="evmeta">${(days/365.25).toFixed(1)} yr &#183; ${days} days${
-              pOn?` &#183; ${Math.round((p.end-nowD)/864e5)} left`:""}</span>
-          </div>`}).join("")}
-      </div>
-    </div>`;
-  };
-  document.getElementById("pg-timeline").innerHTML=`
-    ${lensSeg()}
-    <div class="card special" style="margin-bottom:12px">
-      ${gIcon("Saturn",22)} <b>Saturn stands ${ordinal(cur)} from your Moon</b>
-      <p>${inBand
-        ?"You are inside a sade sati band right now."
-        :"You are outside the sade sati band."} Sade sati is the roughly
-        seven-and-a-half years Saturn spends crossing the 12th, 1st and 2nd signs
-        from your natal Moon. It is a <b>transit, not a dasha</b> &#8212; it comes from
-        the sky, not from your birth star &#8212; and the tradition reads it as
-        Saturn&#8217;s slow audit: pruning, consolidation, structure. It has edges,
-        it ends, and it builds.</p>
-      ${(()=>{ /* the BECAUSE, with the arithmetic and the countdown */
-        const band=[12,1,2].map(k=>SIGNS[((moonSign-1+(k===12?-1:k-1))%12+12)%12]);
-        const satNowSign=SIGNS[((moonSign-1+cur-1)%12+12)%12];
-        const nxt=wins.find(w=>w.start>nowD);
-        const curWin=wins.find(w=>nowD>=w.start&&nowD<w.end);
-        const dTo=d=>{const n=Math.round((d-nowD)/864e5);
-          return n>730?`${(n/365.25).toFixed(1)} years`:`${n} days`};
-        return `
-      <p class="interp"><b>The because:</b> your Moon is in <b>${SIGNS[moonSign-1]}</b>,
-        so the band is ${band[0]} (12th) &#8594; <b>${band[1]}</b> (your Moon sign)
-        &#8594; ${band[2]} (2nd). Saturn today is in <b>${satNowSign}</b> &#8212; the
-        ${ordinal(cur)} sign from your Moon, ${inBand?"inside":"outside"} that band.</p>
-      <p class="interp"><b>Why seven and a half years:</b> Saturn takes about
-        29&#189; years to circle the zodiac, so it spends roughly 2&#189; years in each
-        sign &#8212; three signs &#215; ~2&#189; years &#8776; 7&#189; years, which is what
-        &#8220;sade sati&#8221; (&#8220;seven and a half&#8221;) means. Retrogrades make each
-        crossing uneven, which is why the phase dates below are computed, not averaged.</p>
-      ${curWin?`<p class="interp"><b>This window ends ${fmtDate(curWin.end)}</b> &#8212;
-        ${dTo(curWin.end)} from today.</p>`
-        :nxt?`<p class="interp"><b>Your next window begins ${fmtDate(nxt.start)}</b> &#8212;
-        ${dTo(nxt.start)} from today, when Saturn enters ${band[0]}.</p>`:""}`})()}
-    </div>
-    ${wins.map(card).join("")}
-    <div class="card" style="margin-top:4px">
-      ${Object.entries(PH_SENSE).map(([k,v])=>`<p class="interp" style="margin:6px 0">
-        <b>${k}</b> &#8212; ${v}.</p>`).join("")}
-    </div>
-    <p class="note">Windows computed from Saturn&#8217;s actual sign entries in the
-    ephemeris, retrograde re-entries included &#8212; which is why an ending can run
-    months past the date some almanacs print (they stop at Saturn&#8217;s first exit;
-    we count until it truly leaves). Traditional associations, not a forecast.</p>`;
-  wireLens();
-  document.getElementById("pg-timeline").scrollTop=0;
 }
 
 /* ---- LIFE EVENT DETAIL — the reflective page. Lays the person's own
@@ -4260,13 +4349,182 @@ function renderDashaDetail(){
   </div>`;
   document.getElementById("pg-timeline").scrollTop=0;
 }
+/* ---- UNDERSTAND THIS PERIOD (Tab-2 spec 13, 20-35) ----------------
+   One reading page for the whole configuration at the selected date -
+   maha + antar + pratyantar + sade sati if running - on the same
+   warm-light surface as every other deep reading. Beginners get the
+   season in plain words first; the astrology arrives in layers under
+   it, ending in the pratyantar table the professionals want. */
+const HOUSE_THEME=["Self & vitality","Family & money","Communication & courage",
+  "Home & inner ground","Creativity & children","Work & health","Partnership",
+  "Transformation & shared resources","Belief & fortune","Career & standing",
+  "Gains & friendship","Rest & release"];
+
+function periodThemeRows(lord){
+  const p=CHART.get(lord), out=[];
+  for(const h of CHART.housesRuled(lord)) out.push({h,why:`${lord} rules your ${ordinal(h)}`});
+  out.push({h:p.house,why:`${lord} occupies your ${ordinal(p.house)}`});
+  for(const h of CHART.aspectedBy(lord)) out.push({h,why:`${lord} casts drishti on the ${ordinal(h)}`});
+  const seen=new Set();
+  return out.filter(r=>!seen.has(r.h)&&seen.add(r.h)).slice(0,4);
+}
+
+function periodEvidence(g,role,extra=""){
+  const p=CHART.get(g), conj=CHART.conjunct(g), ruled=CHART.housesRuled(g);
+  return `<div class="awinfblock">
+    <div class="awinfhead">
+      <img class="awart" src="assets/graha/${g.toLowerCase()}.png" alt="">
+      <div><b>${g}</b><span>${role}</span></div>
+    </div>
+    <p class="awbody">In your chart ${g} sits in <b>${SIGNS[p.sign-1]}</b>, your
+      <b>${ordinal(p.house)} house</b> &#8212; ${BHAVA[p.house-1][1].toLowerCase()} &#8212;
+      in ${p.nak}${p.pada?`, pada ${p.pada}`:""}${p.dig?`, ${p.dig.toLowerCase()}`:""}.
+      ${conj.length?`It shares that sign with ${conj.join(" and ")}.`:""}
+      ${ruled.length?`It rules your ${ruled.map(ordinal).join(" and ")}.`:""}
+      It casts drishti on the ${CHART.aspectedBy(g).map(ordinal).join(", ")}.</p>
+    <div class="awctas">
+      <button class="awcta" data-act="natal" data-g="${g}">See in birth chart</button>${extra}
+    </div>
+  </div>`;
+}
+
+function openPeriodWhy(maha,antar,when,p3,sati,card){
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mp=CHART.get(maha.lord), apn=CHART.get(antar.lord);
+  const pos=Math.min(Math.max((when-maha.start)/(maha.end-maha.start),0),1);
+  const apos=Math.min(Math.max((when-antar.start)/(antar.end-antar.start),0),1);
+  const snap=(g,title,range,pct)=>`
+    <div class="psrow">
+      <img class="awart" src="assets/graha/${g.toLowerCase()}.png" alt="">
+      <div><b>${title}</b><span>${range}</span></div>
+      ${pct!=null?`<span class="pspct">${Math.round(pct*100)}%</span>`:""}
+    </div>`;
+  /* life areas the active lords actually touch (spec 33) */
+  const touched=new Set();
+  for(const g of [maha.lord,antar.lord]){
+    CHART.housesRuled(g).forEach(h=>touched.add(h));
+    touched.add(CHART.get(g).house);
+    CHART.aspectedBy(g).forEach(h=>touched.add(h));
+  }
+  const areaRows=Object.entries(AREA_HOUSES).map(([a,hs])=>{
+    const hits=hs.filter(h=>touched.has(h));
+    return hits.length?`<div class="awrow"><b>${a}</b>
+      <span>through your ${hits.map(ordinal).join(" and ")}</span></div>`:"";
+  }).join("");
+  /* the fine-grain table (spec 35) */
+  const E=engine();
+  const m3=E.d3.mahadashas.find(x=>Math.abs(x.start-maha.start)<3*864e5);
+  const a3=m3?.antardashas.find(x=>Math.abs(x.start-antar.start)<3*864e5);
+  const futureNote=when>new Date()
+    ?`<p class="awbody" style="font-style:italic">This period lies ahead. What follows are the
+      themes tradition associates with it &#8212; a season forecast, never a script.</p>`:"";
+
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to Timeline">&#8249;</button>
+      <span>${maha.lord} Mahadasha &#183; ${antar.lord} Antardasha</span>
+    </header>
+    <div class="awscroll">
+      <div class="psnap">
+        ${snap(maha.lord,`${maha.lord} Mahadasha`,
+          `${fmtDate(maha.start)} &#8594; ${fmtDate(maha.end)} &#183; Age ${ageAt(maha.start)} &#8594; ${ageAt(maha.end)}`,pos)}
+        ${snap(antar.lord,`${antar.lord} Antardasha`,
+          `${fmtDate(antar.start)} &#8594; ${fmtDate(antar.end)}`,apos)}
+        ${p3?snap(p3.lord,`${p3.lord} Pratyantardasha`,
+          `${fmtDate(p3.start)} &#8594; ${fmtDate(p3.end)}`,null):""}
+        ${sati?snap("Saturn",`Sade Sati &#183; ${sati.ph.phase}`,
+          `${fmtDate(sati.ph.start)} &#8594; ${fmtDate(sati.ph.end)}`,null):""}
+      </div>
+      ${futureNote}
+      <h2 class="awh2">The season you&#8217;re in</h2>
+      <p class="awbody">${DASHA_THEME[maha.lord]}</p>
+      <p class="awbody">Because your ${maha.lord} sits in <b>${SIGNS[mp.sign-1]}</b> in your
+        <b>${ordinal(mp.house)} house</b>, the period is read through
+        ${HOUSE_TRANSIT_SENSE[mp.house]}.</p>
+      <h2 class="awh2">This stretch within it</h2>
+      <p class="awbody">Inside the larger ${maha.lord} season, a ${antar.lord} antardasha
+        traditionally ${ANTAR_FLAVOR[antar.lord]}. In your chart ${antar.lord} sits in
+        ${SIGNS[apn.sign-1]} in your ${ordinal(apn.house)} house, so these themes tend to
+        express through ${BHAVA[apn.house-1][1].toLowerCase()}.</p>
+      <h2 class="awh2">Right now</h2>
+      ${p3?`<p class="awbody">The finest dial: a <b>${p3.lord} pratyantardasha</b> runs
+        ${fmtDate(p3.start)} to ${fmtDate(p3.end)}. ${p3.lord===maha.lord
+          ?`It briefly brings the mahadasha&#8217;s own themes closer to the surface.`
+          :`For these few weeks it ${ANTAR_FLAVOR[p3.lord]}.`}</p>`
+        :`<p class="awbody">At this exact date the micro-period is changing hands &#8212;
+          the two calculation layers disagree by a day or two, so Astra stays quiet
+          rather than guessing.</p>`}
+      ${sati?`<p class="awbody">Underneath all of it, <b>sade sati</b> is in its
+        ${sati.ph.phase.toLowerCase()} phase &#8212; Saturn
+        ${sati.ph.phase==="Peak"?"is crossing your natal Moon sign":`stands in ${SIGNS[sati.ph.sign-1]}, beside your Moon sign`} until
+        ${fmtDate(sati.ph.end)}. The tradition reads it as a slow audit of structure and
+        responsibility, colouring the dasha themes above.</p>`:""}
+      <h2 class="awh2">Likely themes</h2>
+      ${periodThemeRows(maha.lord).map(r=>`<div class="awrow">
+        <b>${HOUSE_THEME[r.h-1]}</b><span>${r.why}</span></div>`).join("")}
+      <h2 class="awh2">Where it may show up</h2>
+      ${areaRows}
+      <h2 class="awh2">The planets behind this</h2>
+      ${periodEvidence(maha.lord,"Mahadasha lord")}
+      ${antar.lord!==maha.lord?periodEvidence(antar.lord,"Antardasha lord"):""}
+      ${sati?periodEvidence("Saturn","Sade sati &#183; transit",
+        `<button class="awcta" data-act="chart" data-g="Saturn">See on today&#8217;s chart</button>
+         <button class="awcta" data-act="sky" data-g="Saturn">See in today&#8217;s sky</button>`):""}
+      ${a3?.pratyantardashas?`
+      <details class="advd"><summary>Advanced timing &#8212; all nine pratyantardashas</summary>
+        ${a3.pratyantardashas.map(pr=>{
+          const on=when>=pr.start&&when<pr.end;
+          return `<div class="awrow${on?" cur":""}"><b>${pr.lord}</b>
+            <span>${fmtDate(pr.start)} &#8594; ${fmtDate(pr.end)}</span></div>`}).join("")}
+      </details>`:""}
+      <details class="advd"><summary>Traditional practice &#183; ${maha.lord}</summary>
+        <p class="awbody">Within Vedic tradition, periods governed by ${maha.lord} are
+        associated with observances directed to that graha &#8212; recitation, giving on
+        ${WEEKDAY[maha.lord]}, and reflective discipline. No practice is offered as a
+        guarantee of outcome.</p>
+      </details>
+      <p class="awfoot">Dates from the Vimshottari engine, validated against the printed
+      reports. Traditional associations within Vedic astrology &#8212; a lens for
+      reflection, not a forecast.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px)
+      scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    void ov.offsetHeight;
+    ov.classList.add("in"); ov.style.transform="";
+  } else ov.classList.add("in","fade");
+  const close=(then)=>{ ov.classList.add("fadeout");
+    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9); const g=b.dataset.g;
+    if(b.dataset.act==="natal") close(()=>{ go(CHART_INDEX); setMode("birth"); openPlanet(g); });
+    else if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(g); });
+    else close(()=>openSkyFocused(g));
+  };
+}
+
 function timelineBody(){
   const {m}=tlBounds();
   if(tlT===null) tlT=tlNowT();
+  /* No standing instructional copy (spec 4) - a one-time gesture hint
+     plays on first visit, then never again. */
+  let hint="";
+  try{
+    if(!localStorage.getItem("astro.tlhint")){
+      hint=`<div class="tlhint" aria-hidden="true"><svg viewBox="0 0 24 24">
+        <path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/></svg></div>`;
+      localStorage.setItem("astro.tlhint","1");
+    }
+  }catch(_){}
   return `
-    <p class="muted" style="font-size:12.5px;margin:0 0 12px;color:var(--ink-3)">
-      Drag the spine. 120 years, set by your Moon in Mula.</p>
-    <div class="tl2">
+    <div class="tl2">${hint}
       <div class="spine" id="spine" role="slider" tabindex="0"
            aria-label="Move through time" aria-valuemin="0" aria-valuemax="100">
         <div class="spinecol" id="spinecol" style="height:${TL_H}px">
@@ -4304,7 +4562,7 @@ function wireTimeline(){
   const {m,t0,t1}=tlBounds();
   const spine=document.getElementById("spine");
   const col=document.getElementById("spinecol");
-  let lastLord=null;
+  let lastLord=null, lastAntar=null, lastSati=null, prevWhen=null;
   document.getElementById("nowtick").style.top=(tlNowT()*100)+"%";
 
   const paint=()=>{
@@ -4316,14 +4574,21 @@ function wireTimeline(){
     const now=CHART.dasha.at(when); if(!now) return;
     document.querySelectorAll(".band").forEach((b,i)=>
       b.classList.toggle("on", when>=m[i].start && when<m[i].end));
+    document.querySelectorAll(".evdot").forEach(d=>
+      d.classList.toggle("on", Math.abs(+d.dataset.t - tlT)<0.012));
 
     const pos=(when-now.maha.start)/(now.maha.end-now.maha.start);
+    const apos=Math.min(Math.max((when-now.antar.start)/(now.antar.end-now.antar.start),0),1);
+    const p3=pratAt(when,now);
+    const sati=satiAt(when);
     const inPeriod=events().map((e,i)=>({...e,_i:i})).filter(e=>{
       const d=new Date(e.d+"T12:00:00");
       return d>=now.maha.start && d<now.maha.end});
 
+    /* landing order per spec 19: maha, antar, pratyantar, contextual
+       sade sati, one CTA, life events. Interpretation lives behind the
+       CTA, not on the landing. */
     document.getElementById("ro").innerHTML=`
-
       <p class="big" style="color:${COLOUR(now.maha.lord)}">${gIcon(now.maha.lord,30)}${now.maha.lord} mahadasha</p>
       <div class="spanrow">
         <div><span class="sk">from</span><b>${fmtDate(now.maha.start)}</b>
@@ -4335,60 +4600,66 @@ function wireTimeline(){
       <div class="bar"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i>
         <span class="barnow" style="left:${(pos*100).toFixed(1)}%"></span></div>
       <p class="poslabel">${Math.round(pos*100)}% through</p>
-      ${(()=>{ /* the antardasha in the same language, one size down */
-        const apos=Math.min(Math.max((when-now.antar.start)/(now.antar.end-now.antar.start),0),1);
-        return `<div class="antarcard">
-          <p class="abig" style="color:${COLOUR(now.antar.lord)}">${gIcon(now.antar.lord,22)}${now.antar.lord} antardasha</p>
-          <div class="spanrow sm">
-            <div><span class="sk">from</span><b>${fmtDate(now.antar.start)}</b></div>
-            <span class="sarrow">&#8594;</span>
-            <div><span class="sk">to</span><b>${fmtDate(now.antar.end)}</b></div>
-          </div>
-          <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(now.antar.lord)}"></i></div>
-          <p class="poslabel">${Math.round(apos*100)}% through</p>
-          ${(()=>{ /* the third level, one size down again. The 3-level
-               engine's dates differ from this module's by a few days,
-               so only show its pratyantar when both agree on which
-               antardasha is running - at boundaries it stays quiet. */
-            const d3=engine().d3;
-            const m3=d3.mahadashas.find(x=>when>=x.start&&when<x.end);
-            const a3=m3?.antardashas.find(x=>when>=x.start&&when<x.end);
-            const p3=(m3?.lord===now.maha.lord && a3?.lord===now.antar.lord)
-              ? a3?.pratyantardashas?.find(x=>when>=x.start&&when<x.end) : null;
-            return p3?`<p class="poslabel" style="margin-top:8px">pratyantar:
-              <b style="color:${COLOUR(p3.lord)}">${p3.lord}</b>
-              &#183; ${fmtDate(p3.start)} &#8211; ${fmtDate(p3.end)}</p>`:"";})()}
-        </div>`})()}
-      <button class="item dashamore" id="dashamore">
-        <svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>
-        What this period means<span class="sub">${now.maha.lord} / ${now.antar.lord}</span>
-        <span class="chev">&#8250;</span></button>
-      ${inPeriod.length?`
-        <div class="eyebrow" style="margin:20px 0 8px">Your life in this period</div>
-        ${inPeriod.map(e=>{const ed=eventDasha(e.d);
-          return `<button class="evrow tap" data-ev="${e._i}">
-            <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
-            <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
-            &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span>
-            <span class="chev">&#8250;</span></button>`}).join("")}
-        <p class="muted" style="font-size:11px;color:var(--ink-3);margin:2px 0 0">
-          Shown alongside the period, not caused by it.</p>`:``}
-      <div class="eyebrow" style="margin:20px 0 8px">What this period touches</div>
-      ${dashaImpact(now.maha.lord).map(t=>`<p class="impact">${t}</p>`).join("")}
-      ${practiceFor(now.maha.lord)}
-      <p class="note">Traditional associations &#8212; not a forecast.</p>`;
+      <div class="antarcard">
+        <p class="abig" style="color:${COLOUR(now.antar.lord)}">${gIcon(now.antar.lord,22)}${now.antar.lord} antardasha</p>
+        <div class="spanrow sm">
+          <div><span class="sk">from</span><b>${fmtDate(now.antar.start)}</b></div>
+          <span class="sarrow">&#8594;</span>
+          <div><span class="sk">to</span><b>${fmtDate(now.antar.end)}</b></div>
+        </div>
+        <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(now.antar.lord)}"></i></div>
+        <p class="poslabel">${Math.round(apos*100)}% through</p>
+      </div>
+      ${p3?`<div class="pratstrip">
+        <span class="eyebrow">Current micro-period</span>
+        <div class="pratrow">${gIcon(p3.lord,17)}
+          <b style="color:${COLOUR(p3.lord)}">${p3.lord} pratyantardasha</b>
+          <span class="evmeta">${fmtDate(p3.start)} &#8211; ${fmtDate(p3.end)}</span></div>
+      </div>`:""}
+      ${sati?(()=>{const sp=Math.min(Math.max((when-sati.ph.start)/(sati.ph.end-sati.ph.start),0),1);
+        return `<div class="satistrip" id="satistrip" role="button" tabindex="0">
+        ${gIcon("Saturn",18)}
+        <div><b>Sade Sati &#183; ${sati.ph.phase}</b>
+          <span class="evmeta">${fmtDate(sati.ph.start)} &#8211; ${fmtDate(sati.ph.end)} &#183;
+          Saturn ${sati.ph.phase==="Peak"?"crossing your natal Moon sign":`in ${SIGNS[sati.ph.sign-1]}`}</span>
+          <span class="satibar"><i style="width:${(sp*100).toFixed(0)}%"></i></span></div>
+      </div>`})():""}
+      <button class="understand" id="understand">Understand this period<span class="chev">&#8250;</span></button>
+      <div class="eyebrow" style="margin:20px 0 8px">Your life around this time</div>
+      ${inPeriod.map(e=>{const ed=eventDasha(e.d);
+        return `<button class="evrow tap" data-ev="${e._i}">
+          <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
+          <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
+          &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span>
+          <span class="chev">&#8250;</span></button>`}).join("")}
+      <button class="addev" id="tladdev">+ Add event</button>`;
     setTopBar(when.toLocaleDateString("en-GB",{month:"long",year:"numeric"}),
-      {sub:`age ${ageAt(when)}`,
+      {sub:`Age ${ageAt(when)}`,
        actions:isToday(when)?`<span class="nowbadge">today</span>`
          :`<button class="tb-btn txt" id="tlnow">Today</button>`});
     const tn=document.getElementById("tlnow");
     if(tn) tn.onclick=()=>{tlT=tlNowT();buzz(10);paint()};
-    const dm=document.getElementById("dashamore");
-    if(dm) dm.onclick=()=>{ tlDetail={maha:now.maha, antar:now.antar, when};
-      buzz(8); renderTimelineTab(); };
+    const un=document.getElementById("understand");
+    if(un) un.onclick=()=>openPeriodWhy(now.maha, now.antar, when, p3, sati, un);
+    const ae=document.getElementById("tladdev");
+    if(ae) ae.onclick=()=>{ buzz(7); go(YOU_INDEX); subArg=null; subView="addevent"; renderSub(); };
+    const ss=document.getElementById("satistrip");
+    if(ss) ss.onclick=()=>{ buzz(8); go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); };
     document.querySelectorAll(".evrow.tap").forEach(b=>b.onclick=()=>{
       tlDetail={ev:+b.dataset.ev}; buzz(8); renderTimelineTab(); });
-    if(now.maha.lord!==lastLord){lastLord=now.maha.lord;buzz(11)}
+    /* boundary haptics (spec 6): maha strongest, antar lighter, sati
+       phase change distinct, saved events a soft tick */
+    if(now.maha.lord!==lastLord){lastLord=now.maha.lord;lastAntar=now.antar.lord;buzz(11)}
+    else if(now.antar.lord!==lastAntar){lastAntar=now.antar.lord;buzz(6)}
+    const satiKey=sati?sati.ph.phase+sati.ph.start.getTime():null;
+    if(lastSati!==null&&satiKey!==lastSati) buzz(8);
+    lastSati=satiKey;
+    if(prevWhen!==null){
+      const lo=Math.min(prevWhen,when), hi=Math.max(prevWhen,when);
+      if(hi-lo<86400e3*400 && events().some(e=>{
+        const d=new Date(e.d+"T12:00:00"); return d>=lo&&d<hi;})) buzz(5);
+    }
+    prevWhen=when;
   };
 
   const setFromY=cy=>{const r=spine.getBoundingClientRect();

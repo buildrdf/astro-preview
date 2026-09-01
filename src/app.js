@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260901f";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902b";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
@@ -1473,8 +1473,15 @@ function openTransitWhy(g, card){
 
 function openSkyFocused(g){
   const motion=askMotion();
-  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m,
+  const at=isToday(viewDate)?null:new Date(viewDate.getTime());
+  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m, at,
     pro:isPro(), birth:skyBirthOpts()})));
+}
+/* the sky at a specific moment (Sade Sati phases, Guide dates) */
+function openSkyAt(g,date,opts={}){
+  const motion=askMotion();
+  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m, at:date,
+    mode:opts.mode, pro:isPro(), birth:skyBirthOpts()})));
 }
 
 /* the rhythm seeker (spec §12-13): continuous time inspection along the
@@ -1783,7 +1790,7 @@ function setUniverseBar(){
        await, or the permission window closes while geolocation resolves */
     const motion=askMotion();
     getSpot().then(spot=>motion.then(m=>openSkyView({...spot, motion:m,
-      pro:isPro(), birth:skyBirthOpts()})));
+      mode:uniMode==="birth"?"birth":"now", pro:isPro(), birth:skyBirthOpts()})));
   };
 }
 
@@ -2427,15 +2434,27 @@ sheet.addEventListener("click",e=>{
 /* ---- Find in sky: sensors point you at the graha (DDR 0003 §5) ---- */
 let skyWatch=null;
 /* the active user's birth moment, packaged for the sky view's Birth mode */
-const skyBirthOpts=()=>ACTIVE.p
-  ? {date:new Date(ACTIVE.p.born).toISOString(),
-     lat:ACTIVE.p.lat??BIRTHPLACE.lat, lon:ACTIVE.p.lon??BIRTHPLACE.lon,
-     place:(ACTIVE.p.place||BIRTHPLACE.name).split(",")[0],
-     name:ACTIVE.first, self:false, off:5.5,
-     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna}
-  : {date:BIRTH.toISOString(), lat:BIRTHPLACE.lat, lon:BIRTHPLACE.lon,
-     place:BIRTHPLACE.name.split(",")[0], name:"you", self:true, off:5.5,
-     asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna};
+const skyBirthOpts=()=>{
+  const natal=Object.fromEntries(CHART.placements.map(p=>[p.graha,p.L]));
+  const tz=(ACTIVE.p&&ACTIVE.p.tz)||"Asia/Kolkata";
+  const date=ACTIVE.p?new Date(ACTIVE.p.born):BIRTH;
+  let off=5.5; try{ off=utcFromLocalTzOffset(tz,date.getTime()); }catch(_){}
+  return ACTIVE.p
+    ? {date:date.toISOString(), tz, off,
+       lat:ACTIVE.p.lat??BIRTHPLACE.lat, lon:ACTIVE.p.lon??BIRTHPLACE.lon,
+       place:(ACTIVE.p.place||BIRTHPLACE.name).split(",")[0],
+       name:ACTIVE.first, self:!!ACTIVE.p.me, natal,
+       asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna}
+    : {date:date.toISOString(), tz, off, lat:BIRTHPLACE.lat, lon:BIRTHPLACE.lon,
+       place:BIRTHPLACE.name.split(",")[0], name:"you", self:true, natal,
+       asc:CHART.ascendant, sign:SIGNS_SK[CHART.lagna-1], lagna:CHART.lagna};
+};
+/* hours offset of a zone at an instant, via Intl */
+function utcFromLocalTzOffset(tz,ms){
+  const f=new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"});
+  const m={}; for(const p of f.formatToParts(new Date(ms))) m[p.type]=p.value;
+  return (Date.UTC(m.year,m.month-1,m.day,m.hour%24,m.minute,m.second)-Math.floor(ms/1000)*1000)/36e5;
+}
 
 /* motion permission, synchronously inside a user gesture. Resolves true
    when sensors may be armed, false when iOS wants a fresh tap later. */
@@ -4086,7 +4105,7 @@ function subReportView(){
 
     <div class="eyebrow" style="margin:20px 0 8px">Sade sati windows</div>
     ${rows(sati.map(w=>[`${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}`,
-      `age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${w.atBirth?" &#183; at birth":""}`]))}
+      `${ageSpan(w.start,w.end)}${w.atBirth?" &#183; running at birth":""}`]))}
 
     <div class="eyebrow" style="margin:20px 0 8px">Chara karakas</div>
     ${rows(karakas)}
@@ -4353,7 +4372,7 @@ function bdDashas(){
       const on=now&&m.lord===now.maha.lord&&m.start.getTime()===now.maha.start.getTime();
       return `<div class="bdseq${on?" on":""}">${gIcon(m.lord,16)}
         <b>${m.lord}</b><span class="evmeta">${fmtDate(m.start)} &#8594; ${fmtDate(m.end)}
-        &#183; age ${ageAt(m.start)}&#8211;${ageAt(m.end)}</span></div>`}).join("")}
+        &#183; ${ageSpan(m.start,m.end)}</span></div>`}).join("")}
     <button class="item" id="bd2tl" style="margin-top:16px">
       <svg class="ico" viewBox="0 0 24 24">${ICONS.clock}</svg>
       Open interactive Timeline<span class="chev">&#8250;</span></button>`;
@@ -4479,7 +4498,7 @@ function bdSati(){
         ${wins.map((w,i)=>{const on=nowD>=w.start&&nowD<w.end;
           return `<button class="slifeseg${w.end<=nowD?" past":""}${on?" on":""}" role="listitem"
             data-cyc="${i}" style="left:${pct(w.start).toFixed(2)}%;width:${(pct(w.end)-pct(w.start)).toFixed(2)}%"
-            aria-label="Sade sati ${w.start.getFullYear()} to ${w.end.getFullYear()}, age ${ageAt(w.start)} to ${ageAt(w.end)}${on?", running now":w.end<=nowD?", completed":", ahead"}"></button>`}).join("")}
+            aria-label="Sade sati ${w.start.getFullYear()} to ${w.end.getFullYear()}, ${w.start<CHART.birthDate?"from birth":"age "+ageAt(w.start)} to age ${ageAt(w.end)}${on?", running now":w.end<=nowD?", completed":", ahead"}"></button>`}).join("")}
         ${nowD>born?`<span class="slifenow" style="left:${pct(nowD).toFixed(2)}%" title="today"></span>`:""}
       </div>
       <div class="slifescale"><span>birth</span><span>age 30</span><span>age 60</span><span>age 90</span></div>
@@ -4488,7 +4507,7 @@ function bdSati(){
       return `<button class="bdrow" data-cyc="${i}">
         <span class="bdh">${i+1}</span>
         <span><b>${w.start.getFullYear()} &#8594; ${w.end.getFullYear()}${w.atBirth?" &#183; running at your birth":on?" &#183; now":""}</b>
-          <span class="evmeta">${fmtDate(w.start)} &#8211; ${fmtDate(w.end)} &#183; age ${ageAt(w.start)}&#8211;${ageAt(w.end)}</span></span>
+          <span class="evmeta">${fmtDate(w.start)} &#8211; ${fmtDate(w.end)} &#183; ${ageSpan(w.start,w.end)}</span></span>
         <span class="chev">&#8250;</span>
       </button>`}).join("")}
 
@@ -4550,7 +4569,7 @@ function openSatiCycle(ci,card){
     </header>
     <div class="awscroll">
       <p class="awlead" style="margin:4px 0 2px"><b>${sub}.</b>
-        ${fmtDate(w.start)} to ${fmtDate(w.end)} &#183; age ${ageAt(w.start)} to ${ageAt(w.end)}.</p>
+        ${fmtDate(w.start)} to ${fmtDate(w.end)} &#183; ${w.start<CHART.birthDate?"from birth":"age "+ageAt(w.start)} to age ${ageAt(w.end)}.</p>
       ${satiJourney(moonSign,actIdx||1,{light:true})}
       <div class="scyc" role="img" aria-label="${merged.map(m=>`Phase ${m.idx} ${m.phase}, ${fmtDate(m.start)} to ${fmtDate(m.end)}`).join(". ")}">
         ${merged.map(m=>`<i class="scseg p${m.idx}" style="width:${(((m.end-m.start)/total)*100).toFixed(1)}%">
@@ -4767,7 +4786,7 @@ function openSatiPhase(ci,idx,card){
       <div class="awctas" style="margin-top:14px">
         <button class="awcta" data-act="natal" data-g="Moon">See Moon in birth chart</button>
         <button class="awcta" data-act="natal" data-g="Saturn">See Saturn in birth chart</button>
-        ${pOn?`<button class="awcta" data-act="sky" data-g="Saturn">See Saturn in today&#8217;s sky</button>`:""}
+        <button class="awcta" data-act="skyat" data-g="Saturn">See Saturn during this phase</button>
         <button class="awcta" data-act="tl">See on Timeline</button>
         <button class="awcta" data-act="guide">Ask Guide about this phase</button>
       </div>
@@ -4792,7 +4811,7 @@ function openSatiPhase(ci,idx,card){
     const b=e.target.closest(".awcta"); if(!b) return;
     buzz(9);
     if(b.dataset.act==="natal") close(()=>{ go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
-    else if(b.dataset.act==="sky") close(()=>openSkyFocused("Saturn"));
+    else if(b.dataset.act==="skyat") close(()=>openSkyAt("Saturn",new Date(pOn?Date.now():(+m.start + +m.end)/2)));
     else if(b.dataset.act==="tl") close(()=>{ tlSeek(new Date((+m.start + +m.end)/2)); });
     else if(b.dataset.act==="guide"){
       const now=M.now;
@@ -6026,7 +6045,10 @@ function timelineBody(){
     `;
 }
 
-const ageAt=d=>Math.floor((d-CHART.birthDate)/(365.2425*864e5));
+/* Age never reads below zero (Sangram, 2 Sep): a period that was already
+   running at birth is shown from birth, not from a negative age. */
+const ageAt=d=>Math.max(0,Math.floor((d-CHART.birthDate)/(365.2425*864e5)));
+const ageSpan=(a,b)=>(a<CHART.birthDate?"birth":`age ${ageAt(a)}`)+`&#8211;${ageAt(b)}`;
 
 function wireTimeline(){
   const {m,t0,t1}=tlBounds();
@@ -6541,10 +6563,18 @@ document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();
 
 /* a planet tapped inside the sky view lands on its chart page */
-addEventListener("astra:openplanet",e=>{
-  go(CHART_INDEX); setMode("today");
+addEventListener("astra:openplanet",e=>{           /* birth placement */
+  go(CHART_INDEX); setMode("birth");
   setTimeout(()=>openPlanet(e.detail),260);
 });
+addEventListener("astra:opentransit",e=>{          /* current influence, warm-light reading */
+  go(0); setTimeout(()=>openTransitWhy(e.detail,null),200);
+});
+addEventListener("astra:askguide",e=>{ const {q,ctx}=e.detail||{}; if(q) askGuide(q,ctx); });
+addEventListener("astra:opensign",e=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openSignPage(+e.detail,null),200); });
+addEventListener("astra:opennak",e=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openNakPage(+e.detail,null),200); });
+addEventListener("astra:openhouse",e=>{ go(CHART_INDEX); setMode("birth"); setTimeout(()=>openHouse(+e.detail),260); });
+addEventListener("astra:openbirth",()=>{ go(YOU_INDEX); bdTab="overview"; subView="birth"; renderSub(); });
 /* the sky's moment editor knocks on the Pro door */
 addEventListener("astra:pro",()=>openProSheet());
 

@@ -2097,3 +2097,111 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
   background:currentColor;transform:rotate(-38deg);border-radius:2px}
 /* the hidden attribute must beat authored display values */
 .cmp-btn[hidden],.gvoicebar[hidden],.gvtranscript[hidden],.composer[hidden]{display:none!important}
+
+/* ============ SADE SATI TEACHING PAGE ============ */
+.satihero b{font-size:16.5px}
+.satiherop{margin:6px 0 10px;color:var(--ink-2);font-size:14px;line-height:1.5}
+.satinext{margin-top:10px;padding-top:10px;border-top:1px solid var(--edge-soft)}
+.satinext>span:first-child{display:block;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+.satinext b{font-size:17px}
+.satinext .evmeta{margin-top:2px}
+
+/* the core journey graphic: Moon fixed above the middle sign, Saturn
+   over the active phase (its move IS the lesson) */
+.sjour{position:relative;padding:44px 0 4px;margin:6px 0}
+.sjmoon{position:absolute;top:0;left:50%;transform:translateX(-50%);text-align:center}
+.sjmoon img{display:block;margin:0 auto;filter:drop-shadow(0 1px 8px rgba(150,170,220,.45))}
+.sjmoon span{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.sjsat{position:absolute;top:34px;transform:translateX(-50%);z-index:2;
+  filter:drop-shadow(0 1px 8px rgba(138,127,191,.55));
+  transition:left .7s cubic-bezier(.4,0,.2,1)}
+.sjsat.p1{left:16.5%}.sjsat.p2{left:50%}.sjsat.p3{left:83.5%}
+.sjcells{display:flex;align-items:stretch;gap:4px}
+.sjcell{flex:1;text-align:center;padding:12px 4px 10px;border-radius:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.sjcell.moonseat{border-color:rgba(195,206,228,.45)}
+.sjcell.on{background:rgba(138,127,191,.14);border-color:#8A7FBF}
+.sjcell b{display:block;font-size:13.5px}
+.sjcell .sjp{display:block;font-size:10.5px;color:var(--ink-2);margin-top:3px}
+.sjcell .sjt{display:block;font-size:10px;color:var(--ink-3);margin-top:1px}
+.sjcell .sjy{display:block;font-size:10px;color:var(--ink-3);margin-top:1px}
+.sjarrow{align-self:center;color:var(--ink-3);font-size:13px}
+@media (prefers-reduced-motion: reduce){.sjsat{transition:none}}
+/* light variant for the warm reading pages */
+.sjour.light .sjcell{background:#FFFFFF;border-color:rgba(23,26,51,.12)}
+.sjour.light .sjcell b{color:#171A33}
+.sjour.light .sjcell .sjp{color:#4A4E66}
+.sjour.light .sjcell .sjt,.sjour.light .sjcell .sjy{color:#8A8DA3}
+.sjour.light .sjcell.on{background:rgba(138,127,191,.12);border-color:#8A7FBF}
+.sjour.light .sjmoon span,.sjour.light .sjarrow{color:#8A8DA3}
+
+/* the 7.5-year arithmetic, visual not verbal */
+.satimath{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.satimath span{flex:1;min-width:82px;text-align:center;padding:11px 6px;border-radius:12px;
+  background:rgba(255,255,255,.05);border:1px solid var(--edge-soft);font-size:10.5px;
+  color:var(--ink-3);line-height:1.45}
+.satimath span b{display:block;font-size:15px;color:var(--ink);margin-bottom:1px}
+.satimath i{font-style:normal;color:var(--ink-3);font-size:13px}
+
+/* lifetime cycles */
+.slife{margin:12px 0 6px}
+.slifetrack{position:relative;height:26px;border-radius:13px;
+  background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.slifeseg{position:absolute;top:4px;bottom:4px;border-radius:9px;border:none;
+  background:rgba(138,127,191,.4);cursor:pointer;min-width:10px}
+.slifeseg.past{background:rgba(138,127,191,.22)}
+.slifeseg.on{background:#8A7FBF;box-shadow:0 0 10px rgba(138,127,191,.5)}
+.slifenow{position:absolute;top:-3px;bottom:-3px;width:2px;background:#ECEDF2;
+  border-radius:1px;transform:translateX(-50%)}
+.slifescale{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3);
+  margin-top:5px;padding:0 2px}
+
+/* same sky, different chart */
+.satidiffcols{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 4px}
+.satidiffcols>div{padding:12px 14px;border-radius:13px;background:rgba(255,255,255,.05);
+  border:1px solid var(--edge-soft)}
+.satidiffcols .sk{display:block;margin-bottom:5px}
+.satidiffcols p{margin:0;font-size:13px;color:var(--ink-2);line-height:1.55}
+
+/* cycle page: the 7.5y bar with proportional phases */
+.scyc{position:relative;display:flex;height:34px;border-radius:11px;overflow:hidden;
+  margin-top:14px;border:1px solid rgba(23,26,51,.14)}
+.scseg{display:grid;place-items:center;font-style:normal}
+.scseg span{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:#FFFFFF;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.scseg.p1{background:#7C86A8}.scseg.p2{background:#8A7FBF}.scseg.p3{background:#9AA3BE}
+.scnow{position:absolute;top:0;bottom:0;transform:translateX(-50%);pointer-events:none;
+  font-size:9px;color:#171A33;white-space:nowrap;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;padding-bottom:1px;font-weight:700}
+.scnow i{flex:1;width:2px;background:#171A33;border-radius:1px;margin-bottom:1px}
+.scycscale{display:flex;justify-content:space-between;font-size:11px;color:#8A8DA3;
+  margin:5px 2px 0}
+.sphcard{margin-top:16px;padding:14px 15px;border-radius:15px;background:#FFFFFF;
+  border:1px solid rgba(23,26,51,.1)}
+.sphcard.on{border-color:#8A7FBF;box-shadow:0 3px 16px rgba(138,127,191,.18)}
+.sphhead b{font-size:15px;color:#171A33;display:block}
+.sphhead .evmeta{margin-top:2px}
+.sphcompare{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.sphcompare>div{padding:11px 9px;border-radius:12px;background:#FFFFFF;
+  border:1px solid rgba(23,26,51,.1);text-align:center}
+.sphcompare b{display:block;font-size:12px;color:#171A33;line-height:1.35}
+.sphcompare span{display:block;font-size:10px;color:#8A8DA3;margin-top:4px}
+
+/* phase page bits */
+.satiarea{align-items:flex-start}
+.satiarea>div{flex:1}
+.satiarea span{font-size:12.5px;color:#4A4E66}
+.satiwhy{font-size:11.5px!important;color:#8A8DA3!important}
+.satilev{flex:0 0 auto;font-size:11px;font-weight:700;color:#4A4E66;
+  background:rgba(23,26,51,.06);padding:3px 9px;border-radius:10px;margin-top:2px}
+.antstrip{display:flex;gap:8px;overflow-x:auto;padding:4px 0 6px;scrollbar-width:none}
+.antstrip::-webkit-scrollbar{display:none}
+.antchip{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 12px;
+  border-radius:14px;border:1px solid rgba(23,26,51,.14);background:#FFFFFF;
+  font-size:12.5px;font-weight:600;color:#171A33;cursor:pointer}
+.antchip span{font-weight:400;color:#8A8DA3;font-size:11px}
+.antchip.now{border-color:#8A7FBF}
+.antchip.sel{background:#171A33;color:#F7F5EF}
+.antchip.sel span{color:#B9BCCB}
+.termdef[hidden]{display:none!important}

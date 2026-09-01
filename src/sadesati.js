@@ -22,7 +22,9 @@ export function saturnFromMoon(moonSign, date=new Date()){
 export function sadeSatiWindows(moonSign, birthDate){
   const key=moonSign+":"+Math.floor(birthDate.getTime()/864e5);
   if(cacheMap.has(key)) return cacheMap.get(key);
-  const from=birthDate.getTime()-2*365.25*864e5;
+  /* start ten years back so a cycle already running at birth is seen
+     whole, not clipped at the scan edge (caught by the unit tests) */
+  const from=birthDate.getTime()-10*365.25*864e5;
   const to=birthDate.getTime()+95*365.25*864e5;
   const STEP=20*864e5;
   const refine=(t0,t1)=>{ let a=t0,b=t1; const sa=satSign(a);
@@ -45,7 +47,7 @@ export function sadeSatiWindows(moonSign, birthDate){
     else windows.push({start:seg.start,end:seg.end,segs:[seg]});
   }
   const PHASE={12:"Rising",1:"Peak",2:"Setting"};
-  const out=windows.map(w=>({
+  const out=windows.filter(w=>w.end>birthDate.getTime()).map(w=>({
     start:new Date(w.start), end:new Date(w.end),
     years:(w.end-w.start)/(365.25*864e5),
     atBirth:birthDate.getTime()>=w.start&&birthDate.getTime()<w.end,
@@ -56,4 +58,30 @@ export function sadeSatiWindows(moonSign, birthDate){
   }));
   cacheMap.set(key,out);
   return out;
+}
+
+export const SATI_PHASE={12:"Rising",1:"Peak",2:"Setting"};
+
+/* Every exact boundary event inside a window - the professional layer.
+   A retrograde dip shows up naturally as exit -> later re-entry of the
+   same sign; motion is sampled from Saturn's actual longitude change. */
+export function satiCrossings(win){
+  const motion=t=>{
+    const a=norm(positions(new Date(t-2*864e5)).Saturn),
+          b=norm(positions(new Date(t+2*864e5)).Saturn);
+    let d=b-a; if(d>180)d-=360; if(d<-180)d+=360;
+    return d>=0?"Direct":"Retrograde";
+  };
+  const evts=[];
+  win.phases.forEach((p,i)=>{
+    evts.push({date:p.start,sign:p.sign,fromMoon:p.fromMoon,phase:SATI_PHASE[p.fromMoon],
+      kind:"Entry",motion:motion(p.start.getTime())});
+    const last=i===win.phases.length-1;
+    const next=win.phases[i+1];
+    const gap=next && next.start-p.end>36e5;
+    evts.push({date:p.end,sign:p.sign,fromMoon:p.fromMoon,phase:SATI_PHASE[p.fromMoon],
+      kind:last?"Final exit":gap?"Temporary exit":"Moves on",
+      motion:motion(p.end.getTime())});
+  });
+  return evts.sort((a,b)=>a.date-b.date);
 }

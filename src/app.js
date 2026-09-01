@@ -5,7 +5,7 @@ import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
 import { LEARN_LEVELS } from "./learn.js";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
-import { sadeSatiWindows, saturnFromMoon } from "./sadesati.js?v=20260831";
+import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260831";
 import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
@@ -4274,80 +4274,460 @@ function bdDashas(){
       Open interactive Timeline<span class="chev">&#8250;</span></button>`;
 }
 
+/* ---- SADE SATI (Birth Details) — the teaching experience -----------
+   Understand -> locate yourself -> interpret -> see why -> inspect.
+   Rising/Peak/Setting are friendly English labels; the astronomy
+   (12th from Moon -> over Moon -> 2nd from Moon) is always shown
+   beneath them. No fear language, no red, no severity scores. ---- */
+const SATI_IDX={12:1,1:2,2:3};
+const SATI_STORY={
+  Rising:{t:"What begins to shift",
+    s:"Preparation and release &#8212; loads shift and old supports thin before Saturn reaches your Moon sign."},
+  Peak:{t:"What comes into focus",
+    s:"Saturn crosses your natal Moon sign &#8212; traditionally considered especially significant: the audit of what is really solid."},
+  Setting:{t:"What gets rebuilt",
+    s:"Integration &#8212; what survived the pass is rebuilt stronger as Saturn moves beyond your Moon."}};
+const SATI_REL={12:"the 12th sign from your Moon",1:"your Moon sign itself",2:"the 2nd sign from your Moon"};
+
+function satiMerged(w){
+  const by={};
+  for(const p of w.phases){
+    const k=p.fromMoon;
+    if(!by[k]) by[k]={idx:SATI_IDX[k],phase:p.phase,fromMoon:k,sign:p.sign,
+      start:p.start,end:p.end,spans:[p]};
+    else { by[k].end=p.end; by[k].spans.push(p); }
+  }
+  return Object.values(by).sort((a,b)=>a.idx-b.idx);
+}
+const satiBand=moonSign=>[12,1,2].map(k=>((moonSign-1+(k===12?-1:k-1))%12+12)%12+1);
+const durTxt=(a,b)=>{const m=Math.round((b-a)/(30.44*864e5));
+  return m>=12?`${Math.floor(m/12)} yr ${m%12?`${m%12} mo`:""}`.trim():`${m} mo`};
+
+/* the core teaching graphic: Moon fixed over the middle sign, Saturn
+   positioned over the active phase. aria text carries the whole story. */
+function satiJourney(moonSign,activeIdx,opts={}){
+  const band=satiBand(moonSign);
+  const aria=`Sade sati band for your ${SIGNS[moonSign-1]} Moon: phase 1 ${SIGNS[band[0]-1]}, the 12th sign from your Moon; phase 2 ${SIGNS[band[1]-1]}, your Moon sign; phase 3 ${SIGNS[band[2]-1]}, the 2nd sign from your Moon. Each lasts about two and a half years.`;
+  return `<div class="sjour${opts.light?" light":""}" role="img" aria-label="${aria}">
+    <div class="sjmoon"><img src="assets/graha/moon.png" alt="" width="30" height="30">
+      <span>your Moon</span></div>
+    ${activeIdx?`<img class="sjsat p${activeIdx}" src="assets/graha/saturn.png" alt="" width="34" height="34">`:""}
+    <div class="sjcells">
+      ${band.map((s,i)=>`<div class="sjcell${i===1?" moonseat":""}${activeIdx===i+1?" on":""}">
+        <b>${SIGNS[s-1]}</b>
+        <span class="sjp">Phase ${i+1} &#183; ${["Rising","Peak","Setting"][i]}</span>
+        <span class="sjt">${["12th from Moon","Over your Moon","2nd from Moon"][i]}</span>
+        <span class="sjy">~2&#189; yrs</span>
+      </div>`).join(`<span class="sjarrow" aria-hidden="true">&#8594;</span>`)}
+    </div>
+  </div>`;
+}
+
 function bdSati(){
   const moonSign=CHART.get("Moon").sign;
   const wins=satiWindows();
   const nowD=new Date();
-  const cur=saturnFromMoon(moonSign, nowD);
-  const inBand=[12,1,2].includes(cur);
-  const band=[12,1,2].map(k=>SIGNS[((moonSign-1+(k===12?-1:k-1))%12+12)%12]);
-  const satNowSign=SIGNS[((moonSign-1+cur-1)%12+12)%12];
+  const cur=saturnFromMoon(moonSign,nowD);
+  const act=satiAt(nowD);
+  const band=satiBand(moonSign);
   const curWin=wins.find(w=>nowD>=w.start&&nowD<w.end);
-  const prevWin=[...wins].reverse().find(w=>w.end<nowD);
+  const prevWin=[...wins].reverse().find(w=>w.end<=nowD);
   const nxt=wins.find(w=>w.start>nowD);
+  const approx=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime);
+  const mdeg=CHART.get("Moon").L%30;
+  if(approx&&(mdeg<2||mdeg>28)) return `
+    <div class="card special">
+      ${gIcon("Saturn",22)} <b>Your Moon sign needs a birth time first</b>
+      <p>The Moon stood within ${mdeg<2?mdeg.toFixed(1):(30-mdeg).toFixed(1)}&#176; of a
+      sign boundary on your birth day, so an approximate birth time could change which
+      Moon sign applies &#8212; and sade sati is defined entirely by that sign. Add a
+      birth time in your profile and this page unlocks with confident dates.</p>
+    </div>`;
   const dTo=d=>{const n=Math.round((d-nowD)/864e5);
     return n>730?`${(n/365.25).toFixed(1)} years`:`${n} days`};
-  const PH_SENSE={Rising:"approach &#8212; loads shift, old supports thin",
-    Peak:"the pass itself &#8212; the audit of what is really solid",
-    Setting:"consolidation &#8212; what survived gets rebuilt stronger"};
-  const winCard=w=>{
-    const active=nowD>=w.start&&nowD<w.end;
-    const pos=active?Math.min(Math.max((nowD-w.start)/(w.end-w.start),0),1):null;
-    return `<div class="card saticard${active?" on":""}${w.end<nowD?" past":""}" style="margin-top:10px">
-      <div class="satihead">
-        <b>${fmtDate(w.start)} &#8594; ${fmtDate(w.end)}</b>
-        <span class="satiage">age ${ageAt(w.start)}&#8211;${ageAt(w.end)}${
-          w.atBirth?" &#183; running at your birth":""}${active?" &#183; now":""}</span>
-      </div>
-      ${active?`<div class="bar sm"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR("Saturn")}"></i></div>
-        <p class="poslabel">${Math.round(pos*100)}% through</p>`:""}
-      <div class="satiphases">
-        ${w.phases.map(p=>{
-          const pOn=nowD>=p.start&&nowD<p.end;
-          const days=Math.round((p.end-p.start)/864e5);
-          return `<div class="satiph${pOn?" on":""}">
-            <span class="sk">${p.phase}</span>
-            <b>${SIGNS[p.sign-1]}</b>
-            <span class="evmeta">${fmtDate(p.start)} &#8211; ${fmtDate(p.end)}</span>
-            <span class="evmeta">${(days/365.25).toFixed(1)} yr &#183; ${days} days${
-              pOn?` &#183; ${Math.round((p.end-nowD)/864e5)} left`:""}</span>
-          </div>`}).join("")}
-      </div>
-    </div>`;
-  };
+  const born=CHART.birthDate;
+  const spanY0=born.getFullYear(), spanY1=spanY0+92;
+  const pct=d=>Math.min(Math.max((d-born)/((spanY1-spanY0)*365.25*864e5),0),1)*100;
   return `
-    <div class="card special">
-      ${gIcon("Saturn",22)} <b>${inBand?"Yes &#8212; you are in sade sati now":"No &#8212; not in sade sati"}</b>
-      <p>Saturn currently stands <b>${ordinal(cur)}</b> from your natal Moon, in
-        ${satNowSign}. Sade sati is the roughly seven-and-a-half years Saturn spends
-        crossing the 12th, 1st and 2nd signs from your natal Moon &#8212; a
-        <b>transit, not a dasha</b>. It has edges, it ends, and it builds.</p>
-      <div class="satiband" aria-label="The sade sati band for your Moon">
-        ${band.map((s,i)=>`<span class="sb${i===1?" moonseat":""}${satNowSign===s&&inBand?" saturnhere":""}">
-          <i>${["Rising","Peak","Setting"][i]}</i>${s}</span>`).join(`<span class="sbarrow">&#8594;</span>`)}
+    <p class="skylead">Saturn&#8217;s 7&#189;-year journey around your natal Moon.</p>
+
+    <div class="card special satihero">
+      ${act?`
+        <b>You are in Sade Sati</b>
+        <p class="satiherop">Phase ${SATI_IDX[act.ph.fromMoon]} of 3 &#183;
+          ${act.ph.phase==="Peak"?"Saturn over your Moon sign":`Saturn in ${SIGNS[act.ph.sign-1]}`}
+          &#183; until ${fmtDate(curWin.end)}</p>
+        <div class="bar sm"><i style="width:${(((nowD-curWin.start)/(curWin.end-curWin.start))*100).toFixed(1)}%;background:#8A7FBF"></i></div>`
+      :`
+        <b>You are not currently in Sade Sati</b>
+        <p class="satiherop">Saturn stands ${ordinal(cur)} from your natal Moon &#8212;
+          outside the three signs that surround it.</p>
+        ${nxt?`<div class="satinext"><span>Next cycle begins</span><b>${fmtDate(nxt.start)}</b>
+          <span class="evmeta">${dTo(nxt.start)} from today &#183; age ${ageAt(nxt.start)}</span></div>`:""}`}
+    </div>
+
+    <h3 class="secttl" style="margin-top:22px">Your Moon</h3>
+    <p class="interp">&#8220;Your Moon&#8221; means the sign the Moon occupied at the
+      minute you were born &#8212; the <button class="term" data-bdterm="natal">natal
+      Moon</button><span class="termdef" hidden>Not today&#8217;s Moon, not your
+      Ascendant, not the moving monthly Moon &#8212; the fixed reference point your
+      whole sade sati is measured from.</span>. Yours was in
+      <b>${SIGNS[moonSign-1]}</b>, so sade sati begins when Saturn enters
+      <b>${SIGNS[band[0]-1]}</b>, continues through <b>${SIGNS[moonSign-1]}</b>, and ends
+      when Saturn leaves <b>${SIGNS[band[2]-1]}</b>.</p>
+
+    <h3 class="secttl" style="margin-top:20px">How Sade Sati works</h3>
+    ${satiJourney(moonSign, act?SATI_IDX[act.ph.fromMoon]:null)}
+
+    <h3 class="secttl" style="margin-top:20px">Why 7&#189; years?</h3>
+    <div class="satimath" aria-label="Saturn takes about 29 and a half years around the zodiac, about two and a half years per sign, three signs make about seven and a half years">
+      <span><b>29&#189; yrs</b>around the zodiac</span><i>&#247; 12</i>
+      <span><b>~2&#189; yrs</b>per sign</span><i>&#215; 3</i>
+      <span><b>~7&#189; yrs</b>sade sati</span>
+    </div>
+
+    <h3 class="secttl" style="margin-top:20px">Your Sade Sati cycles</h3>
+    <p class="interp" style="margin-top:2px">Saturn returns to the same region of the sky
+      roughly every 29&#189; years, so a lifetime usually holds two or three cycles.</p>
+    <div class="slife" role="list">
+      <div class="slifetrack">
+        ${wins.map((w,i)=>{const on=nowD>=w.start&&nowD<w.end;
+          return `<button class="slifeseg${w.end<=nowD?" past":""}${on?" on":""}" role="listitem"
+            data-cyc="${i}" style="left:${pct(w.start).toFixed(2)}%;width:${(pct(w.end)-pct(w.start)).toFixed(2)}%"
+            aria-label="Sade sati ${w.start.getFullYear()} to ${w.end.getFullYear()}, age ${ageAt(w.start)} to ${ageAt(w.end)}${on?", running now":w.end<=nowD?", completed":", ahead"}"></button>`}).join("")}
+        ${nowD>born?`<span class="slifenow" style="left:${pct(nowD).toFixed(2)}%" title="today"></span>`:""}
       </div>
-      ${curWin?`<p class="interp"><b>This window ends ${fmtDate(curWin.end)}</b> &#8212;
-        ${dTo(curWin.end)} from today.</p>`:""}
-      ${!curWin&&prevWin?`<p class="interp"><b>Last sade sati:</b> ${fmtDate(prevWin.start)}
-        &#8594; ${fmtDate(prevWin.end)} (age ${ageAt(prevWin.start)}&#8211;${ageAt(prevWin.end)}).</p>`:""}
-      ${!curWin&&nxt?`<p class="interp"><b>Next begins ${fmtDate(nxt.start)}</b> &#8212;
-        ${dTo(nxt.start)} from today, when Saturn enters ${band[0]}.</p>`:""}
-      <p class="interp"><b>Why seven and a half years:</b> Saturn takes about
-        29&#189; years to circle the zodiac &#8212; roughly 2&#189; years in each sign,
-        three signs, &#8776; 7&#189; years: &#8220;sade sati&#8221;. Retrogrades make
-        each crossing uneven, so the dates below are computed, not averaged.</p>
+      <div class="slifescale"><span>birth</span><span>age 30</span><span>age 60</span><span>age 90</span></div>
     </div>
-    <div class="card" style="margin-top:12px">
-      ${Object.entries(PH_SENSE).map(([k,v])=>`<p class="interp" style="margin:6px 0">
-        <b>${k}</b> &#8212; ${v}.</p>`).join("")}
+    ${wins.map((w,i)=>{const on=nowD>=w.start&&nowD<w.end;
+      return `<button class="bdrow" data-cyc="${i}">
+        <span class="bdh">${i+1}</span>
+        <span><b>${w.start.getFullYear()} &#8594; ${w.end.getFullYear()}${w.atBirth?" &#183; running at your birth":on?" &#183; now":""}</b>
+          <span class="evmeta">${fmtDate(w.start)} &#8211; ${fmtDate(w.end)} &#183; age ${ageAt(w.start)}&#8211;${ageAt(w.end)}</span></span>
+        <span class="chev">&#8250;</span>
+      </button>`}).join("")}
+
+    <h3 class="secttl" style="margin-top:22px">Same Sade Sati. Different life.</h3>
+    <p class="interp">Everyone with a ${SIGNS[moonSign-1]} Moon enters these broad Saturn
+      phases at roughly the same time. The experience differs because the rest of the
+      chart differs &#8212; Ascendant, houses, what Saturn rules, your natal Saturn,
+      and the dasha running underneath.</p>
+    <button class="item" id="satiwhydiff">
+      <svg class="ico" viewBox="0 0 24 24">${ICONS.book}</svg>
+      Why is my Sade Sati different?<span class="chev">&#8250;</span></button>
+    <div id="satidiff" hidden>
+      <div class="satidiffcols">
+        <div><span class="sk">Same sky</span>
+          <p>Saturn crossing ${SIGNS[band[0]-1]} &#8594; ${SIGNS[moonSign-1]} &#8594; ${SIGNS[band[2]-1]}
+          &#8212; identical for every ${SIGNS[moonSign-1]}-Moon chart.</p></div>
+        <div><span class="sk">Different chart</span>
+          <p>Your ${SIGNS_SK[CHART.lagna-1]} Ascendant makes ${SIGNS[moonSign-1]} your
+          ${ordinal(CHART.houseOfSign(moonSign))} house; for a different Ascendant those same
+          signs are different houses. Saturn rules your
+          ${CHART.housesRuled("Saturn").map(ordinal).join(" and ")}; your natal Saturn sits in
+          ${SIGNS[CHART.get("Saturn").sign-1]}${CHART.get("Saturn").dig?`, ${CHART.get("Saturn").dig.toLowerCase()}`:""};
+          and your own dashas run on their own clock. Same weather &#8212; different house it
+          falls on.</p></div>
+      </div>
     </div>
-    <details class="advd dark"><summary>View exact windows and crossings</summary>
-      ${wins.map(winCard).join("")}
-      <p class="note" style="margin-top:10px">Windows computed from Saturn&#8217;s actual
-      sign entries in the ephemeris, retrograde re-entries included &#8212; which is why
-      an ending can run months past the date some almanacs print. Traditional
-      associations, not a forecast.</p>
+
+    <details class="advd dark"><summary>How Astra calculates this</summary>
+      <p class="interp">Sidereal zodiac with the Lahiri ayanamsa &#8212; the same settings
+      as the rest of your chart. Your natal Moon sign is taken from the birth longitudes;
+      Saturn&#8217;s sign entries come from the ephemeris, retrograde re-entries included,
+      each boundary refined to the hour. The three-sign definition is classical: 12th
+      from the Moon, the Moon sign, 2nd from the Moon. Personalisation layers use the
+      Vimshottari dasha system and Parashari drishti, consistently with the rest of
+      Astra.</p>
     </details>`;
+}
+
+/* ---- cycle page (spec 65): one window, its arc and its phases ---- */
+function openSatiCycle(ci,card){
+  const wins=satiWindows(), w=wins[ci]; if(!w) return;
+  const moonSign=CHART.get("Moon").sign;
+  const nowD=new Date();
+  const on=nowD>=w.start&&nowD<w.end;
+  const merged=satiMerged(w);
+  const sub=w.atBirth?"Running at your birth"
+    :on?"Your current Sade Sati"
+    :w.end<=nowD?"Your previous Sade Sati":"Your next Sade Sati";
+  const total=w.end-w.start;
+  const crossings=satiCrossings(w);
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const actIdx=on?SATI_IDX[satiAt(nowD)?.ph.fromMoon]:null;
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to Sade Sati">&#8249;</button>
+      <span>Sade Sati &#183; ${w.start.getFullYear()}&#8211;${w.end.getFullYear()}</span>
+    </header>
+    <div class="awscroll">
+      <p class="awlead" style="margin:4px 0 2px"><b>${sub}.</b>
+        ${fmtDate(w.start)} to ${fmtDate(w.end)} &#183; age ${ageAt(w.start)} to ${ageAt(w.end)}.</p>
+      ${satiJourney(moonSign,actIdx,{light:true})}
+      <div class="scyc" role="img" aria-label="${merged.map(m=>`Phase ${m.idx} ${m.phase}, ${fmtDate(m.start)} to ${fmtDate(m.end)}`).join(". ")}">
+        ${merged.map(m=>`<i class="scseg p${m.idx}" style="width:${(((m.end-m.start)/total)*100).toFixed(1)}%">
+          <span>${m.phase}</span></i>`).join("")}
+        ${on?`<span class="scnow" style="left:${(((nowD-w.start)/total)*100).toFixed(1)}%"><i></i>you are here</span>`:""}
+      </div>
+      <div class="scycscale"><span>${w.start.getFullYear()}</span><span>${w.end.getFullYear()}</span></div>
+      ${merged.map(m=>{
+        const pOn=nowD>=m.start&&nowD<m.end;
+        return `<div class="sphcard${pOn?" on":""}">
+        <div class="sphhead">
+          <b>Phase ${m.idx} &#183; ${m.phase}</b>
+          <span class="evmeta">Saturn in ${SIGNS[m.sign-1]} &#183; ${SATI_REL[m.fromMoon]}</span>
+        </div>
+        <p class="awbody" style="margin:6px 0 8px">${SATI_STORY[m.phase].s}</p>
+        <p class="evmeta">${fmtDate(m.start)} &#8211; ${fmtDate(m.end)} &#183; ${durTxt(m.start,m.end)}${
+          m.spans.length>1?` &#183; ${m.spans.length} crossings (retrograde)`:""}${pOn?" &#183; now":""}</p>
+        <button class="awcta" data-ph="${m.idx}" style="margin-top:9px">Understand this phase</button>
+      </div>`}).join("")}
+      <h2 class="awh2">The arc of the seven and a half years</h2>
+      <div class="sphcompare">
+        ${merged.map(m=>`<div><b>${SATI_STORY[m.phase].t}</b><span>Phase ${m.idx} &#183; ${m.phase}</span></div>`).join("")}
+      </div>
+      <details class="advd"><summary>Advanced timing &#8212; exact Saturn crossings</summary>
+        <div class="awrow" style="font-weight:600"><b>Date</b><span>Sign &#183; motion &#183; event</span></div>
+        ${crossings.map(e=>`<div class="awrow"><b>${fmtDate(e.date)}</b>
+          <span>${SIGNS[e.sign-1]} &#183; ${e.motion} &#183; ${e.kind}${e.kind==="Entry"?` (${e.phase})`:""}</span></div>`).join("")}
+        <p class="awfoot" style="margin-top:8px">From the ephemeris, refined to the hour.
+        A retrograde &#8220;temporary exit&#8221; means Saturn slipped back over the
+        boundary before crossing for good &#8212; which is why phases are rarely one
+        clean block.</p>
+      </details>
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-guide="1">Ask Guide about this cycle</button>
+      </div>
+      <p class="awfoot">Within traditional Jyotish these phases are read as one long
+      Saturn season with edges &#8212; not a verdict. Astra&#8217;s dates come from
+      Saturn&#8217;s real motion, retrogrades included.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    void ov.offsetHeight; ov.classList.add("in"); ov.style.transform="";
+  } else ov.classList.add("in","fade");
+  const close=(then)=>{ ov.classList.add("fadeout");
+    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const p=e.target.closest("[data-ph]");
+    if(p){ buzz(8); openSatiPhase(ci,+p.dataset.ph,p); return; }
+    if(e.target.closest("[data-guide]")){
+      buzz(9);
+      close(()=>askGuide("How might this Sade Sati cycle affect me?",
+        {source:"sadesati",cycle:`${w.start.getFullYear()}-${w.end.getFullYear()}`,
+         active:on,phases:merged.map(m=>({phase:m.phase,sign:SIGNS[m.sign-1],
+           start:fmtDate(m.start),end:fmtDate(m.end)}))}));
+    }
+  };
+}
+
+/* ---- phase page (spec 66): the personalized reading -------------- */
+function satiAreaModel(m){
+  const hAsc=CHART.houseOfSign(m.sign);
+  const dr=[3,7,10].map(o=>adv(hAsc,o));
+  const ruled=CHART.housesRuled("Saturn");
+  const w={}; const add=(h,pts,why)=>{(w[h]=w[h]||{pts:0,why:[]}); w[h].pts+=pts; w[h].why.push(why);};
+  add(hAsc,3,`Saturn moves through your ${ordinal(hAsc)} house in this phase`);
+  dr.forEach(h=>add(h,2,`Saturn&#8217;s drishti falls on your ${ordinal(h)}`));
+  ruled.forEach(h=>add(h,2,`Saturn rules your ${ordinal(h)}`));
+  add(CHART.get("Moon").house,1,`your natal Moon lives in your ${ordinal(CHART.get("Moon").house)}`);
+  const mid=new Date((+m.start + +m.end)/2);
+  const now=CHART.dasha.at(mid);
+  if(now){ const anp=CHART.get(now.antar.lord);
+    if(anp) add(anp.house,1,`the ${now.antar.lord} antardasha lord sits in your ${ordinal(anp.house)}`); }
+  const areas=Object.entries(AREA_HOUSES).map(([a,hs])=>{
+    let pts=0; const why=[];
+    hs.forEach(h=>{ if(w[h]){ pts+=w[h].pts;
+      w[h].why.forEach(x=>{ if(!why.some(y=>y.x===x)) why.push({x,p:w[h].pts}); }); } });
+    return {area:a,pts,why:why.sort((q,r)=>r.p-q.p).map(q=>q.x).slice(0,3)};
+  }).sort((a,b)=>b.pts-a.pts);
+  return {hAsc,dr,ruled,mid,now,areas};
+}
+const SATI_EMPH=p=>p>=5?"Strong emphasis":p>=3?"Moderate emphasis":p>=1?"In the background":"Quiet";
+const SATI_GUIDANCE={
+  Career:"Keep commitments realistic and let progress be slow and cumulative.",
+  Wealth:"Build a buffer; avoid stacking new heavy obligations mid-phase.",
+  Relationships:"Say things plainly and early &#8212; patience over pressure.",
+  "Home & Family":"Steady the base before extending it.",
+  "Health & Well-being":"Protect sleep and routine &#8212; Saturn rewards rhythm.",
+  "Inner Growth":"Keep a reflective practice; write the season down."};
+
+function openSatiPhase(ci,idx,card){
+  const wins=satiWindows(), w=wins[ci]; if(!w) return;
+  const m=satiMerged(w).find(x=>x.idx===idx); if(!m) return;
+  const moonSign=CHART.get("Moon").sign;
+  const nowD=new Date();
+  const pOn=nowD>=m.start&&nowD<m.end;
+  const prog=pOn?Math.min(Math.max((nowD-m.start)/(m.end-m.start),0),1):null;
+  const M=satiAreaModel(m);
+  const moon=CHART.get("Moon"), sat=CHART.get("Saturn");
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const approx=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime);
+  /* antardashas overlapping this ~2.5y phase (spec 24) */
+  const antars=[];
+  for(const mh of CHART.dasha.mahas){
+    if(mh.end<=m.start||mh.start>=m.end) continue;
+    for(const a of CHART.dasha.antars(mh)){
+      if(a.end<=m.start||a.start>=m.end) continue;
+      antars.push({maha:mh.lord,lord:a.lord,
+        start:new Date(Math.max(+a.start,+m.start)),
+        end:new Date(Math.min(+a.end,+m.end)),
+        full:a});
+    }
+  }
+  const midSat=positions(M.mid).Saturn;
+  const synth=sel=>{
+    const now=sel?CHART.dasha.at(new Date((+sel.start + +sel.end)/2)):M.now;
+    if(!now) return "";
+    const mp=CHART.get(now.maha.lord);
+    return `Saturn supplies the structural pressure of this phase &#8212; crossing
+      ${SATI_REL[m.fromMoon]} while moving through your ${ordinal(M.hAsc)} house. The
+      <b>${now.maha.lord} mahadasha</b> sets the wider environment
+      (${now.maha.lord} sits in your ${ordinal(mp.house)}), and the
+      <b>${now.antar.lord} antardasha</b> ${ANTAR_FLAVOR[now.antar.lord]}. Read
+      together, the phase&#8217;s Saturn themes tend to land where those currents
+      already point.`;
+  };
+  const topAreas=M.areas.filter(a=>a.pts>0).slice(0,5);
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to cycle">&#8249;</button>
+      <span>Phase ${idx} &#183; ${m.phase}</span>
+    </header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 2px">
+        <img class="awart" style="width:52px;height:52px" src="assets/graha/saturn.png" alt="">
+        <div><b style="font-size:20px">${m.phase==="Peak"?"Saturn over your Moon":`Saturn in ${SIGNS[m.sign-1]}`}</b>
+          <span>${SATI_REL[m.fromMoon]} &#183; ${fmtDate(m.start)} &#8211; ${fmtDate(m.end)}</span></div>
+      </div>
+      ${pOn?`<div class="bar sm" style="margin-top:8px"><i style="width:${(prog*100).toFixed(1)}%;background:#8A7FBF"></i></div>
+        <p class="awbody" style="font-size:12.5px;color:#6B6E85">${Math.round(prog*100)}% through &#183; ends ${fmtDate(m.end)}</p>`:""}
+      <h2 class="awh2">${SATI_STORY[m.phase].t}</h2>
+      <p class="awbody">${SATI_STORY[m.phase].s}</p>
+      <p class="awbody">${m.phase==="Peak"
+        ?`The middle phase is traditionally considered especially significant because Saturn
+          crosses the natal Moon sign &#8212; but &#8220;significant&#8221; is not
+          &#8220;worst&#8221;. Which stretch asks most of you depends on your whole chart,
+          not the phase number.`:""}
+        In your chart this pass runs through your <b>${ordinal(M.hAsc)} house</b>
+        (${BHAVA[M.hAsc-1][1].toLowerCase()}), so that is where the Saturn work is done.</p>
+      ${approx?`<p class="awnote">Birth time is approximate &#8212; the house-based parts of
+        this reading carry lower confidence; the Moon-sign timing itself is unaffected.</p>`:""}
+      <h2 class="awh2">What may be emphasised</h2>
+      ${topAreas.map(a=>`<div class="awrow satiarea"><div>
+          <b>${a.area}</b><span style="display:block;text-align:left;margin-top:2px">${SATI_GUIDANCE[a.area]||""}</span>
+          <span class="satiwhy" style="display:block;text-align:left;margin-top:3px">Why: ${a.why.join("; ")}.</span>
+        </div><span class="satilev">${SATI_EMPH(a.pts)}</span></div>`).join("")}
+      <h2 class="awh2">Why Astra reads it this way</h2>
+      ${periodEvidence("Moon","Your natal Moon &#8212; the reference point")}
+      <div class="awinfblock">
+        <div class="awinfhead">
+          <img class="awart" src="assets/graha/saturn.png" alt="">
+          <div><b>Transit Saturn</b><span>during this phase</span></div>
+        </div>
+        <p class="awbody">Saturn crosses <b>${SIGNS[m.sign-1]}</b> &#8212;
+          ${SATI_REL[m.fromMoon]} (this is what defines the phase), and separately your
+          <b>${ordinal(M.hAsc)} house</b> counted from your ${SIGNS_SK[CHART.lagna-1]}
+          Ascendant (this is what colours the life areas). Two different measures; the
+          interface keeps them apart on purpose. From there its
+          <button class="term" data-bdterm="drishti">drishti</button><span class="termdef" hidden>
+          Saturn&#8217;s classical aspects: it &#8220;looks at&#8221; the 3rd, 7th and 10th
+          houses from wherever it stands.</span> falls on your
+          ${M.dr.map(ordinal).join(", ")} houses.</p>
+      </div>
+      ${periodEvidence("Saturn","Your natal Saturn &#8212; how you carry Saturn seasons")}
+      <p class="awbody">${sat.dig?`A ${sat.dig.toLowerCase()} natal Saturn can change how
+        Saturn themes &#8212; responsibility, structure, endurance &#8212; are expressed.
+        It sets the tone; the whole chart still matters.`:""}</p>
+      <h2 class="awh2">The dasha running underneath</h2>
+      ${antars.length?`<div class="antstrip" id="antstrip">${antars.map((a,i)=>
+        `<button class="antchip${nowD>=a.start&&nowD<a.end?" now":""}" data-ai="${i}">
+          ${gIcon(a.lord,13)}${a.lord}<span>${a.start.getFullYear()}</span></button>`).join("")}</div>
+      <p class="awbody" style="font-size:12.5px;color:#6B6E85">A 2&#189;-year phase spans
+        several antardashas &#8212; tap one to read that stretch.</p>`:""}
+      <p class="awbody" id="satisynth">${synth(antars.find(a=>nowD>=a.start&&nowD<a.end)||antars[0])}</p>
+      <h2 class="awh2">How to work with this period</h2>
+      ${topAreas.slice(0,3).map(a=>`<p class="awbody" style="margin-bottom:6px">&#8226; ${SATI_GUIDANCE[a.area]}</p>`).join("")}
+      <p class="awbody" style="margin-bottom:6px">&#8226; Let the fear stories pass &#8212;
+        this is a season with edges, not a verdict.</p>
+      <details class="advd"><summary>Traditional Vedic practices</summary>
+        <p class="awbody">Within Vedic tradition, Saturn periods are associated with
+        observances directed to Shani &#8212; recitation, giving and service on
+        Saturdays, and steady reflective discipline. Astra doesn&#8217;t promise any
+        practice removes a transit; the tradition itself frames them as ways of
+        meeting Saturn, not escaping it.</p>
+      </details>
+      <details class="advd"><summary>Advanced astrology</summary>
+        ${rows([["Natal Moon",`${fmtDeg(moon.L)} &#183; ${SIGNS[moon.sign-1]} &#183; ${moon.nak}${moon.pada?` ${moon.pada}`:""}`],
+          ["Natal Saturn",`${fmtDeg(sat.L)} &#183; ${SIGNS[sat.sign-1]}${sat.dig?` &#183; ${sat.dig}`:""}${sat.retro?" &#183; R":""}`],
+          ["Saturn mid-phase",`${fmtDeg(midSat)} &#183; ${NAK[nakOf(midSat)]}`],
+          ["Saturn rules",CHART.housesRuled("Saturn").map(ordinal).join(", ")],
+          ["Transit house",`${ordinal(M.hAsc)} from Ascendant`],
+          ["Drishti on",M.dr.map(ordinal).join(", ")],
+          ["Crossings",`${m.spans.length} exact ${m.spans.length>1?"entries":"entry"} for this phase`]])}
+      </details>
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="natal" data-g="Moon">See Moon in birth chart</button>
+        <button class="awcta" data-act="natal" data-g="Saturn">See Saturn in birth chart</button>
+        ${pOn?`<button class="awcta" data-act="sky" data-g="Saturn">See Saturn in today&#8217;s sky</button>`:""}
+        <button class="awcta" data-act="tl">See on Timeline</button>
+        <button class="awcta" data-act="guide">Ask Guide about this phase</button>
+      </div>
+      <p class="awfoot">In traditional Jyotish this configuration is read as above &#8212;
+      themes, not certainties. Dates from Saturn&#8217;s real motion; dasha overlap from
+      the Vimshottari engine.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    void ov.offsetHeight; ov.classList.add("in"); ov.style.transform="";
+  } else ov.classList.add("in","fade");
+  const close=(then)=>{ ov.classList.add("fadeout");
+    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const term=e.target.closest(".term");
+    if(term){ const d=term.nextElementSibling;
+      if(d&&d.classList.contains("termdef")) d.hidden=!d.hidden; return; }
+    const ac=e.target.closest(".antchip");
+    if(ac){ buzz(6);
+      ov.querySelectorAll(".antchip").forEach(x=>x.classList.remove("sel"));
+      ac.classList.add("sel");
+      const s=document.getElementById("satisynth");
+      if(s) s.innerHTML=synth(antars[+ac.dataset.ai]);
+      return; }
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="natal") close(()=>{ go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
+    else if(b.dataset.act==="sky") close(()=>openSkyFocused("Saturn"));
+    else if(b.dataset.act==="tl") close(()=>{ tlSeek(new Date((+m.start + +m.end)/2)); });
+    else if(b.dataset.act==="guide"){
+      const now=M.now;
+      close(()=>askGuide("How might this Sade Sati phase affect me?",
+        {source:"sadesati",phase:`${idx} ${m.phase}`,saturnIn:SIGNS[m.sign-1],
+         relationToMoon:SATI_REL[m.fromMoon],dates:`${fmtDate(m.start)} - ${fmtDate(m.end)}`,
+         transitHouse:M.hAsc,drishtiOn:M.dr,
+         mahadasha:now?now.maha.lord:undefined,antardasha:now?now.antar.lord:undefined}));
+    }
+  };
+}
+
+function tlSeek(date){
+  const {t0,t1}=tlBounds();
+  tlT=Math.min(Math.max((date.getTime()-t0)/(t1-t0),0),1);
+  tlDetail=null;
+  go(TIMELINE_INDEX);
 }
 
 function wireBirth(){
@@ -4359,6 +4739,13 @@ function wireBirth(){
   };
   const bb=document.getElementById("bdbody");
   if(bb) bb.onclick=e=>{
+    const cy=e.target.closest("[data-cyc]");
+    if(cy){ buzz(8); openSatiCycle(+cy.dataset.cyc, cy); return; }
+    if(e.target.closest("#satiwhydiff")){ buzz(6);
+      const d=document.getElementById("satidiff"); if(d) d.hidden=!d.hidden; return; }
+    const tm=e.target.closest(".term");
+    if(tm){ const d=tm.nextElementSibling;
+      if(d&&d.classList.contains("termdef")) d.hidden=!d.hidden; return; }
     const pl=e.target.closest("[data-planet]");
     if(pl){ buzz(8); go(CHART_INDEX); setMode("birth"); openPlanet(pl.dataset.planet); return; }
     const ho=e.target.closest("[data-house]");

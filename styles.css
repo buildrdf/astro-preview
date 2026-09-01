@@ -2211,3 +2211,12 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
   border:1px solid rgba(23,26,51,.16);background:#171A33;color:#F7F5EF;
   font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(23,26,51,.25)}
 .gjump[hidden]{display:none!important}
+
+/* ---- TWO-VOICE READING RULE (Sangram, 1 Sep) ----------------------
+   Every interpretation speaks twice: the guidance in the primary dark
+   reading style, the technical basis beneath it in muted small type.
+   Skimmers read the dark text; the astrology is always one glance
+   deeper. Applied across all warm-light reading pages. */
+.tellme{font-size:15px;line-height:1.62;color:#23263E;margin:0 0 6px}
+.because{font-size:12.5px;line-height:1.58;color:#8A8DA3;margin:0 0 12px}
+.because b{color:#6B6E85;font-weight:600}

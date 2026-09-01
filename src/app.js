@@ -1294,22 +1294,26 @@ function openAreaWhy(i, card){
     const where=e.occupies
       ?`${SIGNS[sk.sign-1]} &#183; your ${ordinal(e.house)} house`
       :`aspecting your ${e.aspects.map(ordinal).join(" & ")}`;
-    const body=e.occupies
-      ?`${cap(gm.is)}, it stands in the house of ${HOUSE_TRANSIT_SENSE[e.house]}.
-        Counted from your natal Moon it sits ${ordinal(e.houseFromMoon)} &#8212;
-        ${e.favourable?"a supportive count":"a slower count"}${
-        e.retro?", and it is retrograde: matters return rather than settle first time":""}.
-        ${feel?(e.favourable?feel.fav:feel.unfav):""}`
-      :`${cap(gm.is)}, its gaze falls on ${e.aspects.map(h=>`your ${ordinal(h)} (${HOUSE_TRANSIT_SENSE[h]})`).join(" and ")}.
-        From your natal Moon it counts ${ordinal(e.houseFromMoon)} &#8212;
-        ${e.favourable?"supportive":"slower going"}.`;
+    /* two voices (Sangram, 1 Sep): the guidance leads in the primary
+       reading style; the technical basis follows muted and smaller, so
+       a skimmer reads the dark text and glides past the grey */
+    const tell=feel?(e.favourable?feel.fav:feel.unfav)
+      :(e.favourable?"Lean on what this touches today."
+        :"Give what this touches a little more patience today.");
+    const because=e.occupies
+      ?`${cap(gm.is)} &#8212; in the house of ${HOUSE_TRANSIT_SENSE[e.house]};
+        counted ${ordinal(e.houseFromMoon)} from your natal Moon, ${e.favourable?"a supportive count":"a slower count"}${
+        e.retro?"; retrograde &#8212; matters return rather than settle first time":""}.`
+      :`${cap(gm.is)} &#8212; its gaze falls on ${e.aspects.map(h=>`your ${ordinal(h)} (${HOUSE_TRANSIT_SENSE[h]})`).join(" and ")};
+        counted ${ordinal(e.houseFromMoon)} from your natal Moon, ${e.favourable?"supportive":"slower going"}.`;
     return `<div class="awinf">
       <div class="awinfhead">
         <span class="awn">${n}</span>
         <img class="awart" src="assets/graha/${e.graha.toLowerCase()}.png" alt="">
         <div><b>${e.graha}</b><span>${where}</span></div>
       </div>
-      <p class="awbody">${body}</p>
+      <p class="tellme">${tell}</p>
+      <p class="because">${because}</p>
       <div class="awctas">
         <button class="awcta" data-act="chart" data-g="${e.graha}">See on today&#8217;s chart</button>
         <button class="awcta" data-act="sky" data-g="${e.graha}">See in today&#8217;s sky</button>
@@ -1415,17 +1419,17 @@ function openTransitWhy(g, card){
           <span>${SIGNS[sk.sign-1]} &#183; your ${ordinal(sk.house)} house</span></div>
       </div>
       <p class="awlead" style="margin-top:10px">${cap(gm.is)}.</p>
+      <p class="tellme">${feel?(sk.favourable?feel.fav:feel.unfav):""}</p>
       <h2 class="awh2">Right now</h2>
-      <p class="awbody">${t.deg} ${SIGNS[sk.sign-1]} &#183; ${t.nak}${t.pada?` &#183; pada ${t.pada}`:""}
+      <p class="because">${t.deg} ${SIGNS[sk.sign-1]} &#183; ${t.nak}${t.pada?` &#183; pada ${t.pada}`:""}
         &#183; ${sk.retro?"retrograde":"direct"}${dig?` &#183; ${dig.toLowerCase()}`:""}${comb?" &#183; combust":""}.
         ${ing?`It moves to ${SIGNS[ing.sign-1]} ${nxWhen}.`:""}</p>
       <h2 class="awh2">Against your chart</h2>
-      <p class="awbody">At your birth it stood in <b>${SIGNS[natal.sign-1]}</b>, your
+      <p class="because">At your birth it stood in <b>${SIGNS[natal.sign-1]}</b>, your
         ${ordinal(natal.house)} house${sk.sign===natal.sign
           ?` &#8212; it is crossing its own natal sign right now, a <b>return</b>`:""}. Today it moves through the house
         of ${HOUSE_TRANSIT_SENSE[sk.house]}, counted ${ordinal(sk.houseFromMoon)} from
         your natal Moon &#8212; ${sk.favourable?"a supportive count":"a slower count"}.</p>
-      <p class="awbody">${feel?(sk.favourable?feel.fav:feel.unfav):""}</p>
       ${areas.length?`<p class="awbody">It is shaping today&#8217;s reading for
         <b>${areas.join(", ")}</b>.</p>`:""}
       <div class="awctas" style="margin-top:16px">
@@ -5105,6 +5109,174 @@ function openEventWhy(i, card){
       {source:"life_event",title:e.t,date:e.d,
        mahadasha:now?now.maha.lord:undefined,antardasha:now?now.antar.lord:undefined}));
     else close(()=>{ go(YOU_INDEX); subArg=i; subView="addevent"; renderSub(); });
+  };
+}
+
+/* ---- UNDERSTAND THIS PERIOD (Tab-2 spec 13, 20-35) ----------------
+   One reading page for the whole configuration at the selected date -
+   maha + antar + pratyantar + sade sati if running - on the same
+   warm-light surface as every other deep reading. Beginners get the
+   season in plain words first; the astrology arrives in layers under
+   it, ending in the pratyantar table the professionals want. */
+const HOUSE_THEME=["Self & vitality","Family & money","Communication & courage",
+  "Home & inner ground","Creativity & children","Work & health","Partnership",
+  "Transformation & shared resources","Belief & fortune","Career & standing",
+  "Gains & friendship","Rest & release"];
+
+function periodThemeRows(lord){
+  const p=CHART.get(lord), out=[];
+  for(const h of CHART.housesRuled(lord)) out.push({h,why:`${lord} rules your ${ordinal(h)}`});
+  out.push({h:p.house,why:`${lord} occupies your ${ordinal(p.house)}`});
+  for(const h of CHART.aspectedBy(lord)) out.push({h,why:`${lord} casts drishti on the ${ordinal(h)}`});
+  const seen=new Set();
+  return out.filter(r=>!seen.has(r.h)&&seen.add(r.h)).slice(0,4);
+}
+
+function periodEvidence(g,role,extra=""){
+  const p=CHART.get(g), conj=CHART.conjunct(g), ruled=CHART.housesRuled(g);
+  return `<div class="awinfblock">
+    <div class="awinfhead">
+      <img class="awart" src="assets/graha/${g.toLowerCase()}.png" alt="">
+      <div><b>${g}</b><span>${role}</span></div>
+    </div>
+    <p class="because">In your chart ${g} sits in <b>${SIGNS[p.sign-1]}</b>, your
+      <b>${ordinal(p.house)} house</b> &#8212; ${BHAVA[p.house-1][1].toLowerCase()} &#8212;
+      in ${p.nak}${p.pada?`, pada ${p.pada}`:""}${p.dig?`, ${p.dig.toLowerCase()}`:""}.
+      ${conj.length?`It shares that sign with ${conj.join(" and ")}.`:""}
+      ${ruled.length?`It rules your ${ruled.map(ordinal).join(" and ")}.`:""}
+      It casts drishti on the ${CHART.aspectedBy(g).map(ordinal).join(", ")}.</p>
+    <div class="awctas">
+      <button class="awcta" data-act="natal" data-g="${g}">See in birth chart</button>${extra}
+    </div>
+  </div>`;
+}
+
+function openPeriodWhy(maha,antar,when,p3,sati,card){
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mp=CHART.get(maha.lord), apn=CHART.get(antar.lord);
+  const pos=Math.min(Math.max((when-maha.start)/(maha.end-maha.start),0),1);
+  const apos=Math.min(Math.max((when-antar.start)/(antar.end-antar.start),0),1);
+  const snap=(g,title,range,pct)=>`
+    <div class="psrow">
+      <img class="awart" src="assets/graha/${g.toLowerCase()}.png" alt="">
+      <div><b>${title}</b><span>${range}</span></div>
+      ${pct!=null?`<span class="pspct">${Math.round(pct*100)}%</span>`:""}
+    </div>`;
+  /* life areas the active lords actually touch (spec 33) */
+  const touched=new Set();
+  for(const g of [maha.lord,antar.lord]){
+    CHART.housesRuled(g).forEach(h=>touched.add(h));
+    touched.add(CHART.get(g).house);
+    CHART.aspectedBy(g).forEach(h=>touched.add(h));
+  }
+  const areaRows=Object.entries(AREA_HOUSES).map(([a,hs])=>{
+    const hits=hs.filter(h=>touched.has(h));
+    return hits.length?`<div class="awrow"><b>${a}</b>
+      <span>through your ${hits.map(ordinal).join(" and ")}</span></div>`:"";
+  }).join("");
+  /* the fine-grain table (spec 35) */
+  const E=engine();
+  const m3=E.d3.mahadashas.find(x=>Math.abs(x.start-maha.start)<3*864e5);
+  const a3=m3?.antardashas.find(x=>Math.abs(x.start-antar.start)<3*864e5);
+  const futureNote=when>new Date()
+    ?`<p class="awbody" style="font-style:italic">This period lies ahead. What follows are the
+      themes tradition associates with it &#8212; a season forecast, never a script.</p>`:"";
+
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to Timeline">&#8249;</button>
+      <span>${maha.lord} Mahadasha &#183; ${antar.lord} Antardasha</span>
+    </header>
+    <div class="awscroll">
+      <div class="psnap">
+        ${snap(maha.lord,`${maha.lord} Mahadasha`,
+          `${fmtDate(maha.start)} &#8594; ${fmtDate(maha.end)} &#183; Age ${ageAt(maha.start)} &#8594; ${ageAt(maha.end)}`,pos)}
+        ${snap(antar.lord,`${antar.lord} Antardasha`,
+          `${fmtDate(antar.start)} &#8594; ${fmtDate(antar.end)}`,apos)}
+        ${p3?snap(p3.lord,`${p3.lord} Pratyantardasha`,
+          `${fmtDate(p3.start)} &#8594; ${fmtDate(p3.end)}`,null):""}
+        ${sati?snap("Saturn",`Sade Sati &#183; ${sati.ph.phase}`,
+          `${fmtDate(sati.ph.start)} &#8594; ${fmtDate(sati.ph.end)}`,null):""}
+      </div>
+      ${futureNote}
+      <h2 class="awh2">The season you&#8217;re in</h2>
+      <p class="awbody">${DASHA_THEME[maha.lord]}</p>
+      <p class="awbody">Because your ${maha.lord} sits in <b>${SIGNS[mp.sign-1]}</b> in your
+        <b>${ordinal(mp.house)} house</b>, the period is read through
+        ${HOUSE_TRANSIT_SENSE[mp.house]}.</p>
+      <h2 class="awh2">This stretch within it</h2>
+      <p class="awbody">Inside the larger ${maha.lord} season, a ${antar.lord} antardasha
+        traditionally ${ANTAR_FLAVOR[antar.lord]}. In your chart ${antar.lord} sits in
+        ${SIGNS[apn.sign-1]} in your ${ordinal(apn.house)} house, so these themes tend to
+        express through ${BHAVA[apn.house-1][1].toLowerCase()}.</p>
+      <h2 class="awh2">Right now</h2>
+      ${p3?`<p class="awbody">The finest dial: a <b>${p3.lord} pratyantardasha</b> runs
+        ${fmtDate(p3.start)} to ${fmtDate(p3.end)}. ${p3.lord===maha.lord
+          ?`It briefly brings the mahadasha&#8217;s own themes closer to the surface.`
+          :`For these few weeks it ${ANTAR_FLAVOR[p3.lord]}.`}</p>`
+        :`<p class="awbody">At this exact date the micro-period is changing hands &#8212;
+          the two calculation layers disagree by a day or two, so Astra stays quiet
+          rather than guessing.</p>`}
+      ${sati?`<p class="awbody">Underneath all of it, <b>sade sati</b> is in its
+        ${sati.ph.phase.toLowerCase()} phase &#8212; Saturn
+        ${sati.ph.phase==="Peak"?"is crossing your natal Moon sign":`stands in ${SIGNS[sati.ph.sign-1]}, beside your Moon sign`} until
+        ${fmtDate(sati.ph.end)}. The tradition reads it as a slow audit of structure and
+        responsibility, colouring the dasha themes above.</p>`:""}
+      <h2 class="awh2">Likely themes</h2>
+      ${periodThemeRows(maha.lord).map(r=>`<div class="awrow">
+        <b>${HOUSE_THEME[r.h-1]}</b><span>${r.why}</span></div>`).join("")}
+      <h2 class="awh2">Where it may show up</h2>
+      ${areaRows}
+      <h2 class="awh2">The planets behind this</h2>
+      ${periodEvidence(maha.lord,"Mahadasha lord")}
+      ${antar.lord!==maha.lord?periodEvidence(antar.lord,"Antardasha lord"):""}
+      ${sati?periodEvidence("Saturn","Sade sati &#183; transit",
+        `<button class="awcta" data-act="chart" data-g="Saturn">See on today&#8217;s chart</button>
+         <button class="awcta" data-act="sky" data-g="Saturn">See in today&#8217;s sky</button>`):""}
+      ${a3?.pratyantardashas?`
+      <details class="advd"><summary>Advanced timing &#8212; all nine pratyantardashas</summary>
+        ${a3.pratyantardashas.map(pr=>{
+          const on=when>=pr.start&&when<pr.end;
+          return `<div class="awrow${on?" cur":""}"><b>${pr.lord}</b>
+            <span>${fmtDate(pr.start)} &#8594; ${fmtDate(pr.end)}</span></div>`}).join("")}
+      </details>`:""}
+      <details class="advd"><summary>Traditional practice &#183; ${maha.lord}</summary>
+        <p class="awbody">Within Vedic tradition, periods governed by ${maha.lord} are
+        associated with observances directed to that graha &#8212; recitation, giving on
+        ${WEEKDAY[maha.lord]}, and reflective discipline. No practice is offered as a
+        guarantee of outcome.</p>
+      </details>
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="guide">Ask Guide about this period</button>
+      </div>
+      <p class="awfoot">Dates from the Vimshottari engine, validated against the printed
+      reports. Traditional associations within Vedic astrology &#8212; a lens for
+      reflection, not a forecast.</p>
+    </div>`;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px)
+      scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    void ov.offsetHeight;
+    ov.classList.add("in"); ov.style.transform="";
+  } else ov.classList.add("in","fade");
+  const close=(then)=>{ ov.classList.add("fadeout");
+    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9); const g=b.dataset.g;
+    if(b.dataset.act==="natal") close(()=>{ go(CHART_INDEX); setMode("birth"); openPlanet(g); });
+    else if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(g); });
+    else if(b.dataset.act==="guide") close(()=>askGuide(
+      "What does this period of my life mean?",
+      {source:"timeline",mahadasha:maha.lord,antardasha:antar.lord,
+       date:when.toDateString(),sadeSati:sati?sati.ph.phase:undefined}));
+    else close(()=>openSkyFocused(g));
   };
 }
 

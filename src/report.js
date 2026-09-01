@@ -144,7 +144,10 @@ const norm = d => ((d % 360) + 360) % 360;
 const signOf = L => Math.floor(norm(L) / 30) + 1;
 const degIn = L => norm(L) % 30;
 const nakOf = L => Math.floor(norm(L) / (360 / 27));
-const padaOf = L => Math.floor((norm(L) % (360 / 27)) / (360 / 108)) + 1;
+/* measured from the nakshatra's own start, never via `%` - the binary
+   remainder at exact 40° multiples lands in pada 4 instead of 1 */
+const padaOf = L => { const Ln = norm(L), n = Math.floor(Ln / (360 / 27) + 1e-9);
+  return Math.min(4, Math.floor((Ln - n * (360 / 27)) / (360 / 108) + 1e-9) + 1); };
 const houseFrom = (refSign, s) => ((s - refSign) % 12 + 12) % 12 + 1;
 const nakLord = i => DASHA_ORDER[i % 9];
 const ord = h => h + (h === 1 ? "st" : h === 2 ? "nd" : h === 3 ? "rd" : "th");

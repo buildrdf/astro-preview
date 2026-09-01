@@ -2,11 +2,13 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js";
+import { LEARN_LEVELS } from "./learn.js?v=20260902";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
-import { vargaChart, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260831";
+import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
+import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
+  NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
 import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
@@ -14,7 +16,7 @@ import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
 import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260901f";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./report.js?v=20260831e";
+import { avakhadaOf } from "./report.js?v=20260902";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
 const julian = jd;
@@ -70,8 +72,9 @@ const norm=d=>((d%360)+360)%360;
 const lon=(s,d,m=0)=>norm((s-1)*30+d+m/60);
 const signOf=L=>Math.floor(norm(L)/30)+1;
 const degIn=L=>norm(L)%30;
-const nakOf=L=>Math.floor(norm(L)/NSPAN);
-const padaOf=L=>Math.floor((norm(L)%NSPAN)/PSPAN)+1;
+/* one grid engine for every screen (spec part 54) */
+const nakOf=L=>nakIndex(L);
+const padaOf=L=>padaIndex(L);
 const nakFrac=L=>(norm(L)%NSPAN)/NSPAN;
 const sep=(a,b)=>{const r=Math.abs(norm(a)-norm(b));return r>180?360-r:r};
 const spokenDeg=L=>{const d=degIn(L),i=Math.floor(d);
@@ -1549,17 +1552,7 @@ let uniDate=new Date();
 /* The famous divisional charts, each with the one-line reason a person
    would open it - standard Parashari significations, hedged like all
    Astra prose. The full 18 stay in the printed report. */
-const VARGA_INFO=[
-  [1,"Rashi","the birth chart itself &#8212; body, self and the whole of life"],
-  [2,"Hora","traditionally read for wealth and what you hold"],
-  [3,"Drekkana","siblings, courage and effort"],
-  [4,"Chaturthamsa","home, property and the foundations of fortune"],
-  [7,"Saptamsa","children and what you create"],
-  [9,"Navamsa","marriage, partnership and each graha&#8217;s inner strength"],
-  [10,"Dasamsa","career and the work the world sees"],
-  [12,"Dwadasamsa","parents and what is inherited"],
-  [30,"Trimsamsa","difficulties and how they are met"],
-];
+const VARGA_INFO=[1,2,3,4,7,9,10,12,30].map(D=>{const m=vargaMeta(D); return [D,m.name,m.focus];});
 /* the same nine grahas re-seated by the D-fold division of each sign;
    null when the plain rashi chart is showing */
 function vargaView(){
@@ -2013,24 +2006,27 @@ function openVargaSheet(){
   if(mode) resetChart();
   mode="varga"; buzz(9);
   document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock("Divisional charts","the same sky, divided finer")}
+    ${peekBlock("Divisional charts","different lenses on the same birth positions")}
     <div>
-      <p class="muted" style="margin-bottom:14px">Every varga re-seats the nine grahas by
-        dividing each sign into finer parts &#8212; the tradition reads each division
-        for one field of life. The chart above becomes the one you choose.</p>
+      <p class="muted" style="margin-bottom:14px">Nothing moves in the sky. Each varga
+        divides every 30&#176; sign into finer parts and maps each part to a sign by a
+        classical rule, so the same natal longitudes form a new chart read for one
+        field of life. The chart above becomes the one you choose.</p>
       ${VARGA_INFO.map(([d,name,sense])=>`
         <button class="vrow${d===uniVarga?" on":""}" data-d="${d}">
           <b>D${d} &#183; ${name}</b><span>${sense}</span>
         </button>`).join("")}
-      <p class="note" style="margin-top:12px">All 18 computed vargas are printed in the
-        detailed report; these nine are the ones tradition reaches for first.</p>
+      <p class="note" style="margin-top:12px">These nine are the ones tradition reaches
+      for first. Astra computes all sixteen classical vargas (and two extras, labelled as
+      such) &#8212; the full directory, with the working shown, is in You &#8594; Birth
+      details &#8594; Divisional charts.</p>
     </div>`;
   showSheetPeek(); expandSheet();
   document.getElementById("sheetbody").onclick=e=>{
     const b=e.target.closest(".vrow"); if(!b) return;
     uniVarga=+b.dataset.d; buzz(12);
     resetChart();
-    paintUniverse(false);
+    vargaSwitchMotion();
   };
 }
 
@@ -3482,7 +3478,7 @@ function renderSub(){
   };
   const TITLES={birth:"Birth details",rel:"Relationships",events:"Life events",
     glossary:"Glossary",settings:"Settings",report:"Reports",people:"Charts",plans:"Plans",
-    yogas:"Yogas & doshas",muhurta:"Find a good time",reportview:"Your kundali report",
+    yogas:"Yogas & doshas",muhurta:"Find a good time",signs:"Signs & Nakshatras",reportview:"Your kundali report",
     relreportview:"Relationship report",
     learn:"Learn astrology",learntopic:(LEARN_LEVELS.flatMap(l=>l.topics).find(x=>x.id===learnTopic)||{}).title||"Learn",
     personchart:(partners()[subArg]||{}).name||"Chart",addpartner:subArg!=null?"Edit person":"Add a person",
@@ -3493,7 +3489,7 @@ function renderSub(){
   document.getElementById("topbar").classList.toggle("searching",searching);
   const body={birth:subBirth,rel:subRel,partner:subPartner,events:subEvents,addpartner:subAddPartner,addevent:subAddEvent,
               glossary:subGlossary,report:subReport,people:subPeople,learn:subLearn,learntopic:subLearnTopic,personchart:subPersonChart,
-              settings:subSettings,plans:subPlans,yogas:subYogas,muhurta:subMuhurta,
+              settings:subSettings,plans:subPlans,yogas:subYogas,muhurta:subMuhurta,signs:subSigns,
               reportview:subReportView,relreportview:subRelReportView}[subView];
   pg.innerHTML=body();
   pg.scrollTop=0;
@@ -3505,6 +3501,7 @@ function renderSub(){
   if(subView==="rel") wireRel();
   if(subView==="events") wireEvents();
   if(subView==="birth") wireBirth();
+  if(subView==="signs") wireSigns();
   document.body.classList.toggle("glossary",subView==="glossary");
   if(subView!=="glossary"){ glossSearching=false;
     document.getElementById("topbar").classList.remove("searching"); }
@@ -3706,8 +3703,12 @@ const GRAPHIC={
 let learnTopic=null;
 function subLearn(){
   return `
-    <p class="muted" style="font-size:13.5px;margin:0 0 18px">
+    <p class="muted" style="font-size:13.5px;margin:0 0 14px">
       Concept by concept, using your own chart as the classroom.</p>
+    <button class="item lsigns" style="margin-bottom:18px">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6L6 18"/></svg>
+      Signs &amp; Nakshatras<span class="sub">interactive &#8212; two grids over one zodiac, with your chart on the wheel</span>
+      <span class="chev">&#8250;</span></button>
     ${LEARN_LEVELS.map(lv=>`
       <div class="lvlhead"><b>${lv.level}</b><span>${lv.tag}</span></div>
       <p class="lvlintro">${lv.intro}</p>
@@ -3746,6 +3747,8 @@ function subLearnTopic(){
 }
 function wireLearn(){
   document.getElementById("pg-you").onclick=e=>{
+    if(e.target.closest(".lsigns")){ subView="signs"; buzz(7); renderSub();
+      document.getElementById("pg-you").scrollTop=0; return; }
     const b=e.target.closest(".lrnitem,.lrnnext"); if(!b) return;
     learnTopic=b.dataset.l; subView="learntopic"; buzz(7); renderSub();
     document.getElementById("pg-you").scrollTop=0;
@@ -4257,10 +4260,10 @@ function wireSettings(){
    immersive exploration - every row here deep-links there. ---- */
 let bdTab="overview";
 const BD_TABS=[["overview","Overview"],["planets","Planets"],["houses","Houses"],
-  ["yogas","Yogas"],["dashas","Dashas"],["sati","Sade Sati"]];
+  ["vargas","Divisional Charts"],["yogas","Yogas"],["dashas","Dashas"],["sati","Sade Sati"]];
 
 function subBirth(){
-  const body={overview:bdOverview,planets:bdPlanets,houses:bdHouses,
+  const body={overview:bdOverview,planets:bdPlanets,houses:bdHouses,vargas:bdVargas,
     yogas:subYogas,dashas:bdDashas,sati:bdSati}[bdTab]();
   return `
     <div class="bdrail" id="bdrail" role="tablist" aria-label="Birth details section">
@@ -4282,7 +4285,7 @@ function bdOverview(){
     : rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
         ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
         ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
-        ["Lagna nakshatra","Rohini"],
+        ["Lagna nakshatra",`${NAK[nakOf(CHART.ascendant)]} &#183; pada ${padaOf(CHART.ascendant)}`],
         ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
         ["Ayanamsa","Lahiri"]]);
   return `
@@ -4808,7 +4811,674 @@ function tlSeek(date){
   go(TIMELINE_INDEX);
 }
 
+/* ---- DIVISIONAL CHARTS (Birth Details) — spec parts 5-29 ----------
+   Teach the calculation first, interpret after. Every number here
+   comes from vargaDetail()/vargaChart() in vargas.js; the views never
+   divide a sign themselves (part 54). ---- */
+const G_ABBR={Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke",Asc:"As"};
+let vgMajorOnly=true, vgSort="uses", vgWalkG="Jupiter", vgWalkStep=1, vgHeroD=9, vgHeroTimer=null;
+
+const birthApprox=()=>!!((ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime));
+
+/* sign-level dignity only: the stretched "varga degree" is a
+   convention, not a measurement, so no deep-exaltation claims (part 23) */
+const EXALT_SIGN={Sun:1,Moon:2,Mars:10,Mercury:6,Jupiter:4,Venus:12,Saturn:7};
+function signDignity(g,sign){
+  if(!EXALT_SIGN[g]) return "";
+  if(EXALT_SIGN[g]===sign) return "exalted";
+  if(((EXALT_SIGN[g]+5)%12)+1===sign) return "debilitated";
+  if(SIGN_LORD[sign]===g) return "own sign";
+  return "";
+}
+
+/* the derived chart: every point's sign, and houses from the varga lagna */
+function vargaViewFor(D){
+  const points={Asc:CHART.ascendant};
+  for(const p of CHART.placements) points[p.graha]=p.L;
+  const signs=D===1?Object.fromEntries(Object.entries(points).map(([k,L])=>[k,signOf(L)])):vargaChart(points,D);
+  const lagna=signs.Asc;
+  const houses={};
+  for(const k in signs) houses[k]=houseFrom(lagna,signs[k]);
+  return {D,lagna,signs,houses,points};
+}
+
+/* a full North Indian figure for any derived chart: rashi number in
+   each house plus the grahas seated there (houses fixed, numbers = rashis) */
+function vargaFigure(view,opts={}){
+  const focus=opts.focus||null;
+  const byHouse={};
+  for(const g of GRAHA_ORDER){ const h=view.houses[g]; (byHouse[h]=byHouse[h]||[]).push(g); }
+  return `<svg class="vfig" viewBox="-3 -3 106 106" role="img" aria-label="${opts.aria||"chart"}">
+    <rect x="0" y="0" width="100" height="100" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.4"/>
+    <line x1="0" y1="0" x2="100" y2="100" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+    <line x1="100" y1="0" x2="0" y2="100" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+    <path d="${RHOMBUS_D}" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+    <path d="${LAGNA_D}" fill="rgba(194,155,78,.12)" stroke="none"/>
+    ${Object.keys(LABEL).map(h=>{
+      const hh=+h, sg=adv(view.lagna,hh), lst=byHouse[hh]||[];
+      const [x,y]=LABEL[h];
+      return `<text x="${x}" y="${y-(lst.length?4.2:0)}" font-size="5.2" fill="rgba(236,237,242,.55)"
+          text-anchor="middle" dominant-baseline="middle" font-family="var(--fm)">${sg}</text>
+        ${lst.length?(()=>{const rowsOf=[]; for(let i=0;i<lst.length;i+=3) rowsOf.push(lst.slice(i,i+3));
+          const fs=lst.length>3?5:5.6;
+          return `<text x="${x}" y="${y+3.4-(rowsOf.length-1)*2.6}" font-size="${fs}" font-weight="600"
+            text-anchor="middle" dominant-baseline="middle" font-family="var(--ff)" fill="#F1E7C9">${
+            rowsOf.map((row,ri)=>`<tspan x="${x}" dy="${ri?fs+0.4:0}">${row.map(g=>`<tspan fill="${focus===g?"#FFD37A":"#F1E7C9"}">${G_ABBR[g]}</tspan>`).join(" ")}</tspan>`).join("")}</text>`})():""}`;
+    }).join("")}
+  </svg>`;
+}
+
+/* ---- hero: one 30° sign, divided (Animation 2, part 7) ---- */
+const HERO_STEPS=[1,2,3,9,60];
+function vargaHeroHTML(){
+  const sign=CHART.lagna;
+  return `<div class="vhero" id="vhero" data-d="${vgHeroD}">
+    <div class="vherotop"><span>0&#176;</span><b>${SIGNS[sign-1]} &#8212; one sign, 30&#176;</b><span>30&#176;</span></div>
+    <div class="vherobar" id="vherobar">${heroCells(vgHeroD)}</div>
+    <div class="vheroseg" role="tablist" aria-label="Division">
+      ${HERO_STEPS.map(d=>`<button data-hd="${d}" class="${d===vgHeroD?"on":""}" role="tab" aria-selected="${d===vgHeroD}">D${d}</button>`).join("")}
+    </div>
+    <p class="vherocap" id="vherocap">${heroCaption(vgHeroD)}</p>
+  </div>`;
+}
+const heroCells=d=>Array.from({length:d},(_,i)=>`<i style="--k:${i}"></i>`).join("");
+function heroCaption(d){
+  return {1:"D1 &#8212; the sign whole. One 30&#176; section, the rashi chart itself.",
+    2:"D2 &#8212; the sign in two halves of 15&#176;. Hora, read for wealth.",
+    3:"D3 &#8212; three parts of 10&#176;. Drekkana, read for siblings and effort.",
+    9:"D9 &#8212; nine parts of 3&#176;20&#8242;. Navamsha does not cut the whole chart into nine: it divides <b>each</b> 30&#176; sign into nine.",
+    60:"D60 &#8212; sixty parts of 0&#176;30&#8242;. So fine that a two-minute birth-time error can change a placement."}[d];
+}
+function vargaHeroSet(d){
+  vgHeroD=d;
+  const h=document.getElementById("vhero"); if(!h) return;
+  h.dataset.d=d;
+  const bar=document.getElementById("vherobar"); if(bar) bar.innerHTML=heroCells(d);
+  h.querySelectorAll("[data-hd]").forEach(b=>{b.classList.toggle("on",+b.dataset.hd===d);b.setAttribute("aria-selected",+b.dataset.hd===d)});
+  const c=document.getElementById("vherocap"); if(c) c.innerHTML=heroCaption(d);
+}
+function vargaHeroAutoplay(){
+  clearInterval(vgHeroTimer);
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){ vargaHeroSet(9); return; }
+  let i=0; vargaHeroSet(HERO_STEPS[0]);
+  vgHeroTimer=setInterval(()=>{ i++; if(i>=HERO_STEPS.length){ clearInterval(vgHeroTimer); return; }
+    if(!document.getElementById("vhero")){ clearInterval(vgHeroTimer); return; }
+    vargaHeroSet(HERO_STEPS[i]); },1400);
+}
+
+/* ---- walkthrough: one exact longitude remapped (Animation 3, part 8) ---- */
+function walkModel(g,D){
+  const L=g==="Asc"?CHART.ascendant:CHART.get(g).L;
+  const d=vargaDetail(L,D), a=vargaDetail(CHART.ascendant,D);
+  const natalHouse=g==="Asc"?1:CHART.get(g).house;
+  return {g,D,L,d,a,natalHouse,house:houseFrom(a.sign,d.sign),meta:vargaMeta(D)};
+}
+function vargaWalkHTML(D=9){
+  const m=walkModel(vgWalkG,D);
+  const name=m.g==="Asc"?"Ascendant":m.g;
+  const steps=[
+    [`${name} in D1`,`${name} stands at <b>${SIGNS[m.d.natalSign-1]} ${fmtDMS(m.d.degInSign)}</b>${m.g!=="Asc"?`, your ${ordinal(m.natalHouse)} house`:""}. That longitude is the only input.`],
+    [`The exact degree`,`Inside the 30&#176; of ${SIGNS[m.d.natalSign-1]}, it sits ${fmtDMS(m.d.degInSign)} from the sign&#8217;s start.`],
+    [`Divide the sign into ${m.d.parts}`,`${m.meta.name} cuts every sign into ${m.d.parts} parts${m.d.unequal?" of unequal, classical widths":` of ${fmtDMS(m.d.span)}`}. The degree falls in <b>part ${m.d.part}</b> (${fmtDMS(m.d.partStart)} &#8211; ${fmtDMS(m.d.partEnd)}).`],
+    [`Map that part to a sign`,`Rule: ${m.meta.rule} For ${SIGNS[m.d.natalSign-1]}, part ${m.d.part} &#8594; <b>${SIGNS[m.d.sign-1]}</b>.`],
+    [`Place it in the D${D} chart`,`The Ascendant goes through the same working: ${fmtDMS(m.a.degInSign)} of ${SIGNS[m.a.natalSign-1]} &#8594; part ${m.a.part} &#8594; <b>${SIGNS[m.a.sign-1]}</b>, so D${D} houses start there. ${name} in ${SIGNS[m.d.sign-1]} is therefore the <b>${ordinal(m.house)} house</b> of D${D}. It did not move in the sky &#8212; its natal longitude was remapped.`]
+  ];
+  const s=Math.min(Math.max(vgWalkStep,1),5);
+  const parts=m.d.unequal?[[0,5],[5,10],[10,18],[18,25],[25,30]].map(([a,b],i)=>({w:(b-a)/30*100,i:i+1}))
+    :Array.from({length:m.d.parts},(_,i)=>({w:100/m.d.parts,i:i+1}));
+  const view=vargaViewFor(D);
+  return `<div class="vwalk" id="vwalk" data-step="${s}">
+    <div class="vwalkchips">${["Asc",...GRAHA_ORDER].map(g=>`<button class="antchip${g===vgWalkG?" sel":""}" data-wg="${g}">${g==="Asc"?"Asc":gIcon(g,13)}${g==="Asc"?"":g}</button>`).join("")}</div>
+    <div class="vwbar" aria-hidden="true">
+      <div class="vwsign"><span>${SIGNS[m.d.natalSign-1]}</span><span>30&#176;</span></div>
+      <div class="vwtrack">
+        ${parts.map(p=>`<i class="vwpart${p.i===m.d.part?" hit":""}" style="width:${p.w.toFixed(3)}%"></i>`).join("")}
+        <b class="vwmark" style="left:${(m.d.degInSign/30*100).toFixed(2)}%"><img src="assets/graha/${m.g==="Asc"?"sun":m.g.toLowerCase()}.png" alt=""></b>
+      </div>
+      <div class="vwmap"><span>part ${m.d.part}</span><i>&#8594;</i><b>${SIGNS[m.d.sign-1]}</b></div>
+    </div>
+    <div class="vwfig">${vargaFigure(view,{focus:m.g,aria:`D${D} chart with ${name} highlighted`})}</div>
+    <ol class="vwsteps">${steps.map(([t,b],i)=>`<li class="${i+1===s?"on":i+1<s?"done":""}" data-ws="${i+1}"><b>${t}</b><p>${b}</p></li>`).join("")}</ol>
+    <div class="vwctl"><button class="gact" data-wprev>&#8249; Back</button>
+      <button class="gact solid" data-wnext>${s<5?"Next &#8250;":"Replay"}</button></div>
+  </div>`;
+}
+
+/* ---- directory (parts 13-16) ---- */
+function vargaRows(){
+  let list=VARGA_META.filter(m=>vgMajorOnly?m.tier==="major":true);
+  list=vgSort==="uses"?[...list].sort((a,b)=>a.uses-b.uses):[...list].sort((a,b)=>a.D-b.D);
+  return list.map(m=>{
+    const v=vargaViewFor(m.D);
+    return `<button class="vrowx" data-vd="${m.D}">
+      <span class="vthumb">${miniChart(h=>String(adv(v.lagna,h)),{lagna:true})}</span>
+      <span class="vrowbody"><b>D${m.D} &#183; ${m.name}${m.alias?` <i>(${m.alias})</i>`:""}</b>
+        <span class="evmeta">${m.D===1?m.focus:cap(m.focus)}${m.tier==="extra"?` &#183; ${m.tradition}`:""}${m.sensitive&&birthApprox()?" &#183; low confidence with an approximate birth time":""}</span></span>
+      <span class="chev">&#8250;</span>
+    </button>`}).join("");
+}
+
+function bdVargas(){
+  const approx=birthApprox();
+  return `
+    <p class="skylead">Different lenses on the same birth positions. Each divisional chart
+      mathematically remaps the same natal planetary longitudes to examine one dimension
+      of the chart &#8212; nothing moves in the sky.</p>
+    <div class="vconf${approx?" warn":""}">${approx
+      ?`<b>Approximate birth time.</b> D27, D40, D45 and especially D60 are sensitive to small time errors; treat their placements as low confidence.`
+      :`<b>Exact birth time.</b> All sixteen classical vargas can be read; D60 still rewards a birth time known to the minute.`}</div>
+    <h3 class="secttl" style="margin-top:20px">How a varga divides a sign</h3>
+    ${vargaHeroHTML()}
+    <h3 class="secttl" style="margin-top:22px">Why planets appear in different houses</h3>
+    <p class="interp" style="margin-top:2px">Pick any point and watch its exact D1 longitude
+      become a D9 placement, step by step.</p>
+    ${vargaWalkHTML(9)}
+    <h3 class="secttl" style="margin-top:24px">The charts</h3>
+    <div class="vctl">
+      <div class="setrow" style="padding:8px 0">
+        <div class="setlabel"><b>Major vargas only</b><span>Astra shows the sixteen principal classical vargas by default</span></div>
+        <button class="switch${vgMajorOnly?" on":""}" id="vgmajor" role="switch" aria-checked="${vgMajorOnly}"><i></i></button>
+      </div>
+      <div class="tbseg subseg" id="vgsort" role="tablist" aria-label="Sort">
+        <span class="thumb" aria-hidden="true"></span>
+        <button class="${vgSort==="uses"?"on":""}" data-s="uses" role="tab" aria-selected="${vgSort==="uses"}">Most used</button>
+        <button class="${vgSort==="trad"?"on":""}" data-s="trad" role="tab" aria-selected="${vgSort==="trad"}">Traditional order</button>
+      </div>
+    </div>
+    <div id="vdir">${vargaRows()}</div>
+    <p class="note">&#8220;Most used&#8221; is one reasonable ordering, not a universal ranking.
+      Astra lists only vargas it has a validated rule for &#8212; D5 and D6 are absent because
+      no reliable published rule could be confirmed, and no D-number is invented to fill a gap.</p>`;
+}
+
+function wireVargasTab(){
+  const bb=document.getElementById("bdbody"); if(!bb) return;
+  vargaHeroAutoplay();
+  bb.addEventListener("click",e=>{
+    const hd=e.target.closest("[data-hd]");
+    if(hd){ clearInterval(vgHeroTimer); vargaHeroSet(+hd.dataset.hd); buzz(5); return; }
+    const wg=e.target.closest("[data-wg]");
+    if(wg){ vgWalkG=wg.dataset.wg; vgWalkStep=1; buzz(6);
+      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
+    const ws=e.target.closest("[data-ws]");
+    if(ws){ vgWalkStep=+ws.dataset.ws; buzz(4); document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
+    if(e.target.closest("[data-wnext]")){ vgWalkStep=vgWalkStep>=5?1:vgWalkStep+1; buzz(5);
+      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
+    if(e.target.closest("[data-wprev]")){ vgWalkStep=Math.max(1,vgWalkStep-1); buzz(5);
+      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
+    const sw=e.target.closest("#vgmajor");
+    if(sw){ vgMajorOnly=!vgMajorOnly; sw.classList.toggle("on",vgMajorOnly); sw.setAttribute("aria-checked",vgMajorOnly);
+      buzz(6); document.getElementById("vdir").innerHTML=vargaRows(); return; }
+    const so=e.target.closest("#vgsort button[data-s]");
+    if(so){ vgSort=so.dataset.s; buzz(5);
+      so.parentElement.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b===so);b.setAttribute("aria-selected",b===so)});
+      setThumb(so.parentElement,false);
+      document.getElementById("vdir").innerHTML=vargaRows(); return; }
+    const vr=e.target.closest("[data-vd]");
+    if(vr){ buzz(8); openVargaPage(+vr.dataset.vd, vr); return; }
+  });
+  requestAnimationFrame(()=>{ const s=document.getElementById("vgsort"); if(s) setThumb(s,true); });
+}
+
+/* ---- the varga page (parts 17-29) ---- */
+const VARGA_KEYHOUSE={9:7,10:10,7:5,2:2,4:4,12:9,3:3,16:4,24:5,20:9,30:6};
+function vargaThemes(D,view){
+  const out=[];
+  const votta=GRAHA_ORDER.filter(g=>view.signs[g]===CHART.get(g).sign);
+  if(D>1&&votta.length) out.push(`<b>${votta.join(", ")}</b> ${votta.length>1?"keep":"keeps"} the same sign here as in D1${D===9?" &#8212; vargottama":""}, traditionally read as steadier and more fully ${votta.length>1?"themselves":"itself"}.`);
+  const strong=GRAHA_ORDER.filter(g=>["exalted","own sign"].includes(signDignity(g,view.signs[g])));
+  if(strong.length) out.push(`${strong.map(g=>`<b>${g}</b> (${signDignity(g,view.signs[g])})`).join(", ")} ${strong.length>1?"sit":"sits"} well by sign in this chart.`);
+  const weak=GRAHA_ORDER.filter(g=>signDignity(g,view.signs[g])==="debilitated");
+  if(weak.length) out.push(`${weak.map(g=>`<b>${g}</b>`).join(", ")} ${weak.length>1?"fall":"falls"} in ${weak.length>1?"their":"its"} debilitation sign here &#8212; a placement the tradition reads with care, not alarm.`);
+  const kh=VARGA_KEYHOUSE[D];
+  if(kh){ const lord=SIGN_LORD[CHART.signOfHouse(kh)];
+    out.push(`Read with D1 (part 24): your D1 ${ordinal(kh)} lord <b>${lord}</b> sits in the D${D} ${ordinal(view.houses[lord])} house, in ${SIGNS[view.signs[lord]-1]}.`); }
+  const moved=GRAHA_ORDER.filter(g=>view.houses[g]!==CHART.get(g).house).length;
+  if(D>1) out.push(`${moved} of nine grahas appear in a different house than in D1 &#8212; remapped, not moved.`);
+  return out.slice(0,4);
+}
+function vargaCalcRows(D,view){
+  return ["Asc",...GRAHA_ORDER].map(k=>{
+    const L=view.points[k], d=vargaDetail(L,D);
+    return `<div class="awrow"><b>${k==="Asc"?"Ascendant":k}</b>
+      <span>${SIGNS[d.natalSign-1]} ${fmtDMS(d.degInSign)} &#8594; part ${d.part}/${d.parts}
+      (${fmtDMS(d.partStart)}&#8211;${fmtDMS(d.partEnd)}) &#8594; <b>${SIGNS[d.sign-1]}</b> &#183; ${ordinal(view.houses[k])} house</span></div>`;
+  }).join("");
+}
+let VG_VIEW="varga";
+function openVargaPage(D,card){
+  const m=vargaMeta(D); if(!m) return;
+  const view=vargaViewFor(D), d1=vargaViewFor(1);
+  VG_VIEW=D===1?"d1":"varga";
+  const approx=birthApprox();
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  const fig=which=>vargaFigure(which==="d1"?d1:view,{aria:which==="d1"?"D1 chart":`D${D} chart`});
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to Divisional Charts">&#8249;</button>
+      <span>D${D} &#183; ${m.name}</span>
+    </header>
+    <div class="awscroll">
+      <p class="awlead" style="margin:4px 0 10px">${m.D===1?m.focus:cap(m.focus)}.</p>
+      ${D>1?`<div class="tbseg subseg vgseg" id="vgseg" role="tablist" aria-label="Chart">
+        <span class="thumb" aria-hidden="true"></span>
+        <button data-v="d1" role="tab" aria-selected="false">Birth (D1)</button>
+        <button class="on" data-v="varga" role="tab" aria-selected="true">D${D}</button>
+      </div>
+      <p class="because" style="text-align:center;margin:6px 0 4px">Read D${D} together with D1, not instead of it.</p>`:""}
+      <div class="vfigwrap" id="vfigwrap">${fig(VG_VIEW)}</div>
+      <p class="because" style="text-align:center">Houses stay fixed; the numbers in the cells are rashis.
+        D${D} Ascendant: <b>${SIGNS[view.lagna-1]}</b>${D>1?` (D1: ${SIGNS[CHART.lagna-1]})`:""}.</p>
+      ${m.sensitive?`<p class="awnote">${approx
+        ?"D60 is highly sensitive to small birth-time differences and may not be reliable with an approximate birth time. Low confidence."
+        :"D60 is extremely birth-time sensitive: the Ascendant moves about 1&#176; every four minutes and each D60 part is only 0&#176;30&#8242;, so a two-minute error can change a placement."}</p>`:""}
+      <h2 class="awh2">What this chart looks at</h2>
+      <p class="tellme">${D===1?"Everything begins here: the sky as it stood, houses counted from your rising sign. Every other chart on this page is a remapping of these same longitudes."
+        :`Within Vedic astrology D${D} is read for ${m.focus}. It is a lens, not a second sky &#8212; the strength and seating a graha shows here is taken as a refinement of what D1 already says.`}</p>
+      ${m.tradition?`<p class="because">${m.tradition}. Not part of the classical Shodashavarga.</p>`:""}
+      ${D>1?`<h2 class="awh2">Your strongest themes</h2>${vargaThemes(D,view).map(t=>`<p class="awbody" style="margin-bottom:6px">&#8226; ${t}</p>`).join("")}`:""}
+      <h2 class="awh2">Placements</h2>
+      ${["Asc",...GRAHA_ORDER].map(k=>{
+        const nm=k==="Asc"?"Ascendant":k, dg=k==="Asc"?"":signDignity(k,view.signs[k]);
+        return `<button class="bdrow" data-vg="${k}">
+          ${k==="Asc"?`<span class="bdh">As</span>`:`<img src="assets/graha/${k.toLowerCase()}.png" alt="" width="34" height="34">`}
+          <span><b>${nm}</b><span class="evmeta">D1: ${SIGNS[d1.signs[k]-1]} &#183; ${ordinal(d1.houses[k])}${D>1?` &nbsp;&#8594;&nbsp; D${D}: ${SIGNS[view.signs[k]-1]} &#183; ${ordinal(view.houses[k])}${dg?` &#183; ${dg}`:""}`:""}</span></span>
+          <span class="chev">&#8250;</span></button>`}).join("")}
+      ${D>1?`<details class="advd"><summary>How was this calculated?</summary>
+        <p class="because" style="margin:6px 0 10px">${m.rule}${m.variant?` <b>Methodology note:</b> ${m.variant}`:""}</p>
+        ${vargaCalcRows(D,view)}
+        <p class="awfoot" style="margin-top:8px">Sidereal zodiac, Lahiri ayanamsa &#8212; the same longitudes as every other screen. Rules validated cell-for-cell against professional reference tables for all ten chart points.</p>
+      </details>`:""}
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="universe">Open in Universe</button>
+        <button class="awcta" data-act="guide">Ask Guide about this chart</button>
+      </div>
+      <p class="awfoot">Traditional readings within Vedic astrology &#8212; a lens for reflection, not a verdict.</p>
+    </div>`;
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
+  ov.querySelector(".awback").onclick=()=>close();
+  requestAnimationFrame(()=>{ const s=ov.querySelector("#vgseg"); if(s) setThumb(s,true); });
+  ov.onclick=e=>{
+    const sv=e.target.closest("#vgseg button[data-v]");
+    if(sv){ VG_VIEW=sv.dataset.v; buzz(6);
+      sv.parentElement.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b===sv);b.setAttribute("aria-selected",b===sv)});
+      setThumb(sv.parentElement,false);
+      const w=ov.querySelector("#vfigwrap"); w.classList.add("swap");
+      setTimeout(()=>{ w.innerHTML=fig(VG_VIEW); w.classList.remove("swap"); },180);
+      return; }
+    const pr=e.target.closest("[data-vg]");
+    if(pr){ buzz(8); openVargaPlanet(D,pr.dataset.vg,pr); return; }
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="universe") close(()=>{ uniVarga=D; go(CHART_INDEX); setMode("birth"); vargaSwitchMotion(); });
+    else close(()=>askGuide(D===9?"What does my Navamsha say about relationships?":`What does my D${D} (${m.name}) chart show?`,
+      {source:"varga",D,name:m.name,focus:m.focus,d1Ascendant:SIGNS[CHART.lagna-1],vargaAscendant:SIGNS[view.lagna-1],
+       placements:Object.fromEntries(GRAHA_ORDER.map(g=>[g,{d1:`${SIGNS[CHART.get(g).sign-1]} ${ordinal(CHART.get(g).house)}`,varga:`${SIGNS[view.signs[g]-1]} ${ordinal(view.houses[g])}`}]))}));
+  };
+}
+
+/* ---- planet in a varga (part 22) ---- */
+function openVargaPlanet(D,k,card){
+  const m=vargaMeta(D), view=vargaViewFor(D), d1=vargaViewFor(1);
+  const nm=k==="Asc"?"Ascendant":k;
+  const w=walkModel(k,D);
+  const dg=k==="Asc"?"":signDignity(k,view.signs[k]);
+  const moved=view.houses[k]!==d1.houses[k];
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${nm} in D${D}</span></header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 2px">
+        ${k==="Asc"?`<span class="bdh" style="width:52px;height:52px;font-size:18px">As</span>`:`<img class="awart" style="width:52px;height:52px" src="assets/graha/${k.toLowerCase()}.png" alt="">`}
+        <div><b style="font-size:20px">${nm} in D${D}</b>
+          <span>${SIGNS[view.signs[k]-1]} &#183; ${ordinal(view.houses[k])} house${dg?` &#183; ${dg}`:""}</span></div>
+      </div>
+      <h2 class="awh2">In your D1</h2>
+      <p class="because">${SIGNS[d1.signs[k]-1]} &#183; ${ordinal(d1.houses[k])} house &#183; ${fmtDMS(w.d.degInSign)}</p>
+      <h2 class="awh2">In your D${D}</h2>
+      <p class="because">${SIGNS[view.signs[k]-1]} &#183; ${ordinal(view.houses[k])} house${dg?` &#183; ${dg} by sign`:""}</p>
+      <h2 class="awh2">What changes?</h2>
+      <p class="tellme">${moved
+        ?`${nm} shows in the ${ordinal(view.houses[k])} house here instead of the ${ordinal(d1.houses[k])} &#8212; because its part of ${SIGNS[w.d.natalSign-1]} maps to ${SIGNS[w.d.sign-1]}, and D${D}&#8217;s houses are counted from a D${D} Ascendant of ${SIGNS[w.a.sign-1]}. Nothing moved in the sky; the coordinates did.`
+        :`${nm} lands in the same house here as in D1 &#8212; the remapping of its part of ${SIGNS[w.d.natalSign-1]} and the D${D} Ascendant happen to agree.`}
+        ${view.signs[k]===d1.signs[k]&&k!=="Asc"?` It keeps the same sign in both charts${D===9?" &#8212; vargottama":""}, traditionally read as steadier.`:""}</p>
+      <details class="advd"><summary>See why &#8212; the calculation</summary>
+        <div class="awrow"><b>D1 longitude</b><span>${SIGNS[w.d.natalSign-1]} ${fmtDMS(w.d.degInSign)}</span></div>
+        <div class="awrow"><b>Division</b><span>${w.d.parts} parts${w.d.unequal?" (unequal, classical)":` of ${fmtDMS(w.d.span)}`}</span></div>
+        <div class="awrow"><b>Falls in</b><span>part ${w.d.part} &#183; ${fmtDMS(w.d.partStart)}&#8211;${fmtDMS(w.d.partEnd)}</span></div>
+        <div class="awrow"><b>Rule</b><span>${m.rule}</span></div>
+        <div class="awrow"><b>Maps to</b><span>${SIGNS[w.d.sign-1]}</span></div>
+        <div class="awrow"><b>D${D} Ascendant</b><span>${SIGNS[w.a.natalSign-1]} ${fmtDMS(w.a.degInSign)} &#8594; part ${w.a.part} &#8594; ${SIGNS[w.a.sign-1]}</span></div>
+        <div class="awrow cur"><b>Therefore</b><span>${ordinal(view.houses[k])} house of D${D}</span></div>
+      </details>
+      <div class="awctas" style="margin-top:14px">
+        ${k!=="Asc"?`<button class="awcta" data-act="chart">Show in D${D} chart</button>`:""}
+        <button class="awcta" data-act="guide">Ask Guide</button>
+      </div>
+      <p class="awfoot">Sign-level dignity only: the &#8220;degree&#8221; inside a divisional sign is a convention, not a measurement, so Astra does not print one.</p>
+    </div>`;
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="chart") close(()=>{ document.querySelectorAll(".awpage").forEach(x=>x.remove());
+      uniVarga=D; go(CHART_INDEX); setMode("birth"); vargaSwitchMotion(); setTimeout(()=>openPlanet(k),800); });
+    else close(()=>askGuide(`Why is ${nm} in a different house in D${D}?`,
+      {source:"varga_planet",D,point:nm,d1:`${SIGNS[d1.signs[k]-1]} ${ordinal(d1.houses[k])}`,
+       varga:`${SIGNS[view.signs[k]-1]} ${ordinal(view.houses[k])}`,part:w.d.part,parts:w.d.parts,rule:m.rule}));
+  };
+}
+
+/* ---- Universe: the D1 -> varga move choreography (part 20) ----
+   hold, glow the natal degrees, a divide flash, then the planets
+   glide to their derived houses on the existing transition */
+function vargaSwitchMotion(){
+  const stage=document.getElementById("stage");
+  if(!stage||matchMedia("(prefers-reduced-motion: reduce)").matches){ paintUniverse(!stage); return; }
+  stage.classList.add("divide");
+  setTimeout(()=>{ stage.classList.remove("divide"); paintUniverse(false); },420);
+}
+
+/* ---- SIGNS & NAKSHATRAS (Learn) — spec parts 30-47 ----------------
+   Two coordinate grids over one 360° circle. Everything drawn here is
+   derived from longitude via zodiac.js; the wheel proves visually why
+   a nakshatra can belong to two signs. ---- */
+let szLayer="both", szMine=false, szDeg=false, szQ="", szAuto=null;
+
+const ringPt=(L,r)=>{const a=(180-L)*Math.PI/180; return [50+r*Math.cos(a), 50+r*Math.sin(a)];};
+const ringArc=(a,b,r)=>{const [x1,y1]=ringPt(a,r),[x2,y2]=ringPt(b,r);
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${b-a>180?1:0} 0 ${x2.toFixed(2)} ${y2.toFixed(2)}`;};
+
+/* the points of this chart, longitude-first */
+function myPoints(){
+  const out=[{k:"Asc",name:"Ascendant",L:CHART.ascendant}];
+  for(const p of CHART.placements) out.push({k:p.graha,name:p.graha,L:p.L});
+  return out.map(p=>({...p,g:pointGrid(p.L)}));
+}
+
+function zodiacRing(){
+  const R=44, r2=36, r3=30;
+  const signs=SIGNS.map((n,i)=>{
+    const [x,y]=ringPt(i*30+15,40);
+    return `<path class="zsw" d="${ringArc(i*30,i*30+30,R)}" style="--k:${i}"/>
+      <line class="zsb" x1="${ringPt(i*30,r3)[0].toFixed(2)}" y1="${ringPt(i*30,r3)[1].toFixed(2)}" x2="${ringPt(i*30,R)[0].toFixed(2)}" y2="${ringPt(i*30,R)[1].toFixed(2)}" style="--k:${i}"/>
+      <text class="zsl" x="${x.toFixed(2)}" y="${y.toFixed(2)}" style="--k:${i}">${n.slice(0,3).toUpperCase()}</text>`;
+  }).join("");
+  const naks=Array.from({length:27},(_,i)=>{
+    const L=i*NAK_SPAN, [x1,y1]=ringPt(L,r2-3),[x2,y2]=ringPt(L,r3+2);
+    const [tx,ty]=ringPt(L+NAK_SPAN/2,r2+1.5);
+    return `<line class="znb" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" style="--k:${i}"/>
+      <text class="znl" x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" style="--k:${i}" transform="rotate(${(-(L+NAK_SPAN/2)+90).toFixed(1)} ${tx.toFixed(2)} ${ty.toFixed(2)})">${i+1}</text>`;
+  }).join("");
+  const padas=Array.from({length:108},(_,i)=>{ if(i%4===0) return "";
+    const L=i*PADA_SPAN, [x1,y1]=ringPt(L,r3+2),[x2,y2]=ringPt(L,r3+5);
+    return `<line class="zpb" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`; }).join("");
+  const degs=[0,30,60,90,120,150,180,210,240,270,300,330].map(d=>{const [x,y]=ringPt(d,48.5);
+    return `<text class="zdeg" x="${x.toFixed(2)}" y="${y.toFixed(2)}">${d}&#176;</text>`;}).join("");
+  const mine=szMine?myPoints().map(p=>{const [x,y]=ringPt(p.L,25);
+    return `<g class="zme" data-pt="${p.k}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})">
+      <circle r="4.6" fill="#171A33" stroke="rgba(255,255,255,.5)" stroke-width=".5"/>
+      ${p.k==="Asc"?`<text y="1.4" font-size="3.6" text-anchor="middle" fill="#F1E7C9" font-weight="700">As</text>`
+        :`<image href="assets/graha/${p.k.toLowerCase()}.png" x="-3.6" y="-3.6" width="7.2" height="7.2"/>`}
+    </g>`;}).join(""):"";
+  return `<svg class="zring l-${szLayer}${szMine?" mine":""}" viewBox="0 0 100 100" role="img"
+      aria-label="The zodiac as one 360 degree circle: twelve signs of thirty degrees, twenty-seven nakshatras of thirteen degrees twenty minutes, four padas each">
+    <circle cx="50" cy="50" r="${R}" class="zbase"/>
+    <circle cx="50" cy="50" r="${r3}" class="zbase"/>
+    <g class="zsigns">${signs}</g>
+    <g class="znaks">${naks}</g>
+    <g class="zpadas">${padas}</g>
+    <g class="zdegs">${degs}</g>
+    <g class="zmine">${mine}</g>
+  </svg>`;
+}
+
+function subSigns(){
+  const me=myPoints(), asc=me[0].g, moon=me.find(p=>p.k==="Moon").g, sun=me.find(p=>p.k==="Sun").g;
+  const ascParts=signNakshatras(asc.sign);
+  return `
+    <p class="skylead">Two coordinate systems describing the same zodiac.</p>
+    <div class="zwheel">${zodiacRing()}
+      <p class="zpick" id="zpick">${szMine?"Tap a marker to read it.":"&nbsp;"}</p>
+    </div>
+    <div class="tbseg subseg" id="zlayer" role="tablist" aria-label="Grid">
+      <span class="thumb" aria-hidden="true"></span>
+      ${[["rashi","Rashis"],["nak","Nakshatras"],["both","Both"]].map(([k,l])=>`<button class="${szLayer===k?"on":""}" data-z="${k}" role="tab" aria-selected="${szLayer===k}">${l}</button>`).join("")}
+    </div>
+    <div class="setrow" style="padding:8px 0 2px">
+      <div class="setlabel"><b>Show my chart</b><span>Your Ascendant and grahas on the wheel</span></div>
+      <button class="switch${szMine?" on":""}" id="zmine" role="switch" aria-checked="${szMine}"><i></i></button>
+    </div>
+    <div class="satimath" style="margin-top:14px" aria-label="Twelve rashis of thirty degrees, twenty-seven nakshatras of thirteen degrees twenty minutes, four padas each of three degrees twenty minutes">
+      <span><b>12 &#215; 30&#176;</b>rashis</span><i>=</i>
+      <span><b>27 &#215; 13&#176;20&#8242;</b>nakshatras</span><i>=</i>
+      <span><b>108 &#215; 3&#176;20&#8242;</b>padas</span>
+    </div>
+    <p class="interp">Both grids add up to the same 360&#176; &#8212; but 30 is not a multiple of
+      13&#176;20&#8242;, so their boundaries drift apart. That is why one
+      <button class="term" data-bdterm="nak">nakshatra</button><span class="termdef" hidden>A
+      lunar mansion: one of 27 equal 13&#176;20&#8242; divisions of the ecliptic, each tied to a
+      traditional stellar reference point. Not the same as a modern IAU constellation, whose
+      boundaries differ.</span> can sit across two signs. A point does not choose between them:
+      its exact longitude belongs to both at once.</p>
+
+    <h3 class="secttl" style="margin-top:22px">Which sign is &#8220;my sign&#8221;?</h3>
+    <p class="interp" style="margin-top:2px">There isn&#8217;t one universal sign. Every point
+      in your chart has its own sign, its own nakshatra and its own pada.</p>
+    <div class="zwhich">
+      <div class="zwrow"><b>Ascendant &#183; Lagna</b><span>${asc.signName} ${fmtDMS(asc.degInSign)} &#183; ${asc.nakName} pada ${asc.pada}</span>
+        <small>The sign rising in the east at your birth &#8212; it sets the house framework of D1.</small></div>
+      <div class="zwrow"><b>Moon sign &#183; Chandra rashi</b><span>${moon.signName} ${fmtDMS(moon.degInSign)} &#183; ${moon.nakName} pada ${moon.pada}</span>
+        <small>The sign holding the Moon at birth &#8212; used by many Moon-based techniques, including sade sati.</small></div>
+      <div class="zwrow"><b>Sun sign</b><span>${sun.signName} ${fmtDMS(sun.degInSign)} &#183; ${sun.nakName} pada ${sun.pada}</span>
+        <small>The sign holding the Sun at birth.</small></div>
+      <details class="advd dark"><summary>Every graha has its own</summary>
+        ${me.filter(p=>!["Asc","Moon","Sun"].includes(p.k)).map(p=>`<div class="bdseq"><b>${p.name}</b>
+          <span class="evmeta">${p.g.signName} ${fmtDMS(p.g.degInSign)} &#183; ${p.g.nakName} ${p.g.pada}</span></div>`).join("")}
+      </details>
+    </div>
+    <p class="interp">So you can have a ${asc.signName} Ascendant, a ${moon.signName} Moon in
+      ${moon.nakName}, and ${me.find(p=>p.k==="Saturn").name} in ${me.find(p=>p.k==="Saturn").g.signName}
+      in a different nakshatra again. There is no contradiction &#8212; they are different points.</p>
+
+    <h3 class="secttl" style="margin-top:22px">What does &#8220;${asc.signName} rising&#8221; actually mean?</h3>
+    <figure class="zhoriz" aria-label="An observer on the ground; the ecliptic crosses the eastern horizon at the Ascendant point">
+      <svg viewBox="0 0 200 90">
+        <path d="M0 62 Q100 54 200 62" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+        <path d="M18 88 C 60 40, 130 8, 196 20" fill="none" stroke="#C29B4E" stroke-width="1.4" stroke-dasharray="3 2.5"/>
+        <circle cx="152" cy="58.7" r="4" fill="#F1E7C9"/>
+        <circle cx="100" cy="66" r="2.4" fill="#ECEDF2"/>
+        <text x="100" y="80" font-size="7" fill="rgba(236,237,242,.7)" text-anchor="middle">you, at your birthplace</text>
+        <text x="184" y="70" font-size="7" fill="rgba(236,237,242,.7)" text-anchor="end">east</text>
+        <text x="152" y="49" font-size="7" fill="#F1E7C9" text-anchor="middle" font-weight="700">Ascendant</text>
+        <text x="40" y="30" font-size="6.5" fill="#C29B4E">ecliptic &#8212; the planets&#8217; road</text>
+      </svg>
+    </figure>
+    <p class="interp">The Ascendant is a mathematical point: where the ecliptic crosses the
+      eastern horizon at your birth time and place. Its longitude at your birth was
+      <b>${fmtDMS(asc.longitude)}</b> of the sidereal zodiac &#8212; and because that lies between
+      ${(asc.sign-1)*30}&#176; and ${asc.sign*30}&#176;, Astra labels it <b>${asc.signName}</b>. The sign
+      is not itself rising like a planet; the point is.</p>
+    <p class="interp">The same longitude also falls inside a nakshatra. A ${asc.signName} Ascendant
+      can be ${ascParts.map(x=>x.name).join(", ")} depending on the exact degree &#8212; yours is
+      <b>${asc.nakName}, pada ${asc.pada}</b>.</p>
+
+    <h3 class="secttl" style="margin-top:22px">Moon sign and Moon nakshatra</h3>
+    <div class="zmoonrow">
+      <img src="assets/graha/moon.png" alt="" width="40" height="40">
+      <div><b>Moon at ${moon.signName} ${fmtDMS(moon.degInSign)}</b>
+        <span class="evmeta">longitude ${fmtDMS(moon.longitude)} &#8594; rashi ${moon.signName} &#183;
+        nakshatra ${moon.nakName} &#183; pada ${moon.pada}</span></div>
+    </div>
+    <p class="because" style="color:var(--ink-3)">One longitude, three labels &#8212; the dasha
+      sequence starts from the nakshatra, sade sati counts from the rashi.</p>
+
+    <h3 class="secttl" style="margin-top:22px">Reference</h3>
+    <div class="zsearch"><input id="zq" type="search" placeholder="Search a sign or nakshatra &#8212; Taurus, Vrishabha, Rohini, Mula&#8230;" value="${escText(szQ)}" autocomplete="off">
+      <button class="gact${szDeg?" solid":""}" id="zdeg">${szDeg?"Hide degrees":"Show degrees"}</button></div>
+    <div id="ztable">${signsTable()}</div>
+    <p class="note">Nakshatras are traditional lunar mansions &#8212; equal divisions of the
+      ecliptic tied to stellar reference points. Their boundaries are not the modern IAU
+      constellation boundaries the Sky view draws.</p>`;
+}
+
+function signsTable(){
+  const q=szQ.trim().toLowerCase();
+  const hit=s=>!q||s.toLowerCase().includes(q);
+  const rows=[];
+  for(let s=1;s<=12;s++){
+    const parts=signNakshatras(s);
+    const match=hit(SIGNS[s-1])||hit(SIGNS_SK[s-1])||parts.some(p=>hit(p.name));
+    if(!match) continue;
+    rows.push(`<button class="zrow" data-zs="${s}">
+      <b>${SIGN_GLYPH[s-1]} ${SIGNS[s-1]} <i>&#183; ${SIGNS_SK[s-1]}</i></b>
+      <span class="evmeta">${szDeg?`${(s-1)*30}&#176;&#8211;${s*30}&#176; &#183; `:""}${parts.map(p=>{
+        const pd=p.padas.length===1?String(p.padas[0]):`${p.padas[0]}&#8211;${p.padas[p.padas.length-1]}`;
+        return `<em data-zn="${p.index}">${p.name} ${pd}${szDeg?` (${fmtDMS(p.from-(s-1)*30)}&#8211;${fmtDMS(p.to-(s-1)*30)})`:""}</em>`;}).join(", ")}</span>
+    </button>`);
+  }
+  return rows.length?rows.join(""):`<p class="muted" style="font-size:13px">Nothing matches &#8220;${escText(szQ)}&#8221;.</p>`;
+}
+
+function wireSigns(){
+  const pg=document.getElementById("pg-you");
+  clearInterval(szAuto);
+  /* Animation 1: circle -> rashis -> nakshatras -> padas, once per visit */
+  if(!matchMedia("(prefers-reduced-motion: reduce)").matches&&!sessionStorage.getItem("astro.zring")){
+    const seq=["none","rashi","nak","both"]; let i=0;
+    const ring=()=>pg.querySelector(".zring");
+    if(ring()) ring().className.baseVal="zring l-none";
+    szAuto=setInterval(()=>{ i++; const r=ring(); if(!r||i>=seq.length){ clearInterval(szAuto); return; }
+      r.className.baseVal=`zring l-${seq[i]}${szMine?" mine":""}`; if(i===seq.length-1) sessionStorage.setItem("astro.zring","1"); },1100);
+  }
+  pg.onclick=e=>{
+    const zl=e.target.closest("#zlayer button[data-z]");
+    if(zl){ clearInterval(szAuto); szLayer=zl.dataset.z; buzz(5);
+      zl.parentElement.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b===zl);b.setAttribute("aria-selected",b===zl)});
+      setThumb(zl.parentElement,false);
+      const r=pg.querySelector(".zring"); if(r) r.className.baseVal=`zring l-${szLayer}${szMine?" mine":""}`; return; }
+    if(e.target.closest("#zmine")){ clearInterval(szAuto); szMine=!szMine; buzz(6);
+      pg.querySelector(".zwheel").innerHTML=zodiacRing()+`<p class="zpick" id="zpick">${szMine?"Tap a marker to read it.":"&nbsp;"}</p>`;
+      const sw=document.getElementById("zmine"); sw.classList.toggle("on",szMine); sw.setAttribute("aria-checked",szMine); return; }
+    const mk=e.target.closest(".zme");
+    if(mk){ const p=myPoints().find(x=>x.k===mk.dataset.pt); buzz(4);
+      pg.querySelectorAll(".zme").forEach(m=>m.classList.toggle("sel",m===mk));
+      const z=document.getElementById("zpick");
+      if(z&&p) z.innerHTML=`<b>${p.name}</b> &#183; ${p.g.signName} ${fmtDMS(p.g.degInSign)} &#183; ${p.g.nakName} &#183; pada ${p.g.pada}`;
+      return; }
+    const tm=e.target.closest(".term");
+    if(tm){ const d=tm.nextElementSibling; if(d&&d.classList.contains("termdef")) d.hidden=!d.hidden; return; }
+    if(e.target.closest("#zdeg")){ szDeg=!szDeg; buzz(5);
+      document.getElementById("zdeg").textContent=szDeg?"Hide degrees":"Show degrees";
+      document.getElementById("zdeg").classList.toggle("solid",szDeg);
+      document.getElementById("ztable").innerHTML=signsTable(); return; }
+    const zn=e.target.closest("[data-zn]");
+    if(zn){ e.stopPropagation(); buzz(8); openNakPage(+zn.dataset.zn, zn.closest(".zrow")); return; }
+    const zr=e.target.closest(".zrow");
+    if(zr){ buzz(8); openSignPage(+zr.dataset.zs, zr); return; }
+  };
+  const q=document.getElementById("zq");
+  if(q) q.oninput=()=>{ szQ=q.value; document.getElementById("ztable").innerHTML=signsTable(); };
+}
+
+/* ---- sign page (part 36) ---- */
+function openSignPage(s,card){
+  const parts=signNakshatras(s), a=(s-1)*30;
+  const here=myPoints().filter(p=>p.g.sign===s);
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${SIGNS[s-1]} &#183; ${SIGNS_SK[s-1]}</span></header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 2px">
+        <span class="zglyph">${SIGN_GLYPH[s-1]}</span>
+        <div><b style="font-size:20px">${SIGNS[s-1]} &#183; ${SIGNS_SK[s-1]}</b>
+          <span>${a}&#176;00&#8242; &#8211; ${s*30}&#176;00&#8242; of the sidereal zodiac</span></div>
+      </div>
+      ${rows([["Ruler",SIGN_LORD[s]],["Element",SIGN_ELEMENT[s-1]],["Modality",SIGN_MODALITY[s-1]],
+        ["In your chart",`${ordinal(CHART.houseOfSign(s))} house`]])}
+      <h2 class="awh2">Its nakshatra portions</h2>
+      <div class="zstrip" role="img" aria-label="${parts.map(p=>`${p.name} ${fmtDMS(p.from-a)} to ${fmtDMS(p.to-a)}`).join(", ")}">
+        <div class="zstripscale"><span>${a}&#176;</span><span>${s*30}&#176;</span></div>
+        <div class="zstripbar">${parts.map((p,i)=>`<i style="width:${((p.to-p.from)/30*100).toFixed(2)}%" class="c${p.index%3}"><span>${p.name}</span></i>`).join("")}</div>
+        <div class="zstriplbl">${parts.map(p=>`<span style="width:${((p.to-p.from)/30*100).toFixed(2)}%">padas ${p.padas.length===1?p.padas[0]:`${p.padas[0]}&#8211;${p.padas[p.padas.length-1]}`}</span>`).join("")}</div>
+      </div>
+      <p class="because">${parts.filter(p=>p.padas.length<4).length?`${parts.filter(p=>p.padas.length<4).map(p=>p.name).join(" and ")} spill across the sign boundary &#8212; the rest of their padas belong to the neighbouring sign.`:"All of these nakshatras sit wholly inside the sign."}</p>
+      <h2 class="awh2">In your chart</h2>
+      ${here.length?here.map(p=>`<div class="awrow"><b>${p.name}</b><span>${fmtDMS(p.g.degInSign)} &#183; ${p.g.nakName} pada ${p.g.pada}</span></div>`).join("")
+        :`<p class="because">No natal point sits in ${SIGNS[s-1]}; it is your ${ordinal(CHART.houseOfSign(s))} house, read through its lord ${SIGN_LORD[s]}.</p>`}
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="house">Open your ${ordinal(CHART.houseOfSign(s))} house</button>
+        <button class="awcta" data-act="guide">Ask Guide</button>
+      </div>
+    </div>`;
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const nk=e.target.closest(".zstripbar i");
+    if(nk){ const idx=parts[[...nk.parentElement.children].indexOf(nk)].index; buzz(7); openNakPage(idx,nk); return; }
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="house") close(()=>{ go(CHART_INDEX); setMode("birth"); openHouse(CHART.houseOfSign(s)); });
+    else close(()=>askGuide(`What does ${SIGNS[s-1]} mean in my chart?`,
+      {source:"sign",sign:SIGNS[s-1],house:CHART.houseOfSign(s),ruler:SIGN_LORD[s],pointsHere:here.map(p=>p.name)}));
+  };
+}
+
+/* ---- nakshatra page (parts 35, 41) ---- */
+function openNakPage(i,card){
+  const r=nakshatraRange(i), m=NAK_META[i];
+  const here=myPoints().filter(p=>p.g.nak===i);
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${r.name}</span></header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 2px">
+        <img class="awart" style="width:52px;height:52px" src="assets/graha/${nakLord(i).toLowerCase()}.png" alt="">
+        <div><b style="font-size:20px">${r.name}</b>
+          <span>${fmtDMS(r.start)} &#8211; ${fmtDMS(r.end)} &#183; ${r.signs.map(s=>SIGNS[s-1]).join(" and ")}</span></div>
+      </div>
+      <p class="tellme">Traditionally associated with ${m.means}.</p>
+      ${rows([["Ruler (Vimshottari)",nakLord(i)],["Deity",m.deity],["Symbol",m.symbol],
+        ["Span",`13&#176;20&#8242; &#183; four padas of 3&#176;20&#8242;`]])}
+      <h2 class="awh2">Its four padas</h2>
+      <div class="zpadas4" role="img" aria-label="${r.padas.map(p=>`pada ${p.pada} in ${SIGNS[p.sign-1]}`).join(", ")}">
+        ${r.padas.map(p=>`<div class="zp s${p.sign}"><b>Pada ${p.pada}</b><span>${SIGNS[p.sign-1]}</span><small>${fmtDMS(p.start-(p.sign-1)*30)}&#8211;${fmtDMS(p.end-(p.sign-1)*30)}</small></div>`).join("")}
+      </div>
+      <p class="because">${r.straddles
+        ?`${r.name} straddles two signs: its padas fall in ${r.signs.map(s=>SIGNS[s-1]).join(" and ")}. One nakshatra, two rashis &#8212; a point here belongs to both grids at once.`
+        :`All four padas of ${r.name} sit inside ${SIGNS[r.signs[0]-1]}.`}</p>
+      <h2 class="awh2">In your chart</h2>
+      ${here.length?here.map(p=>`<div class="awrow"><b>${p.name}</b><span>${p.g.signName} ${fmtDMS(p.g.degInSign)} &#183; pada ${p.g.pada}</span></div>`).join("")
+        :`<p class="because">No major natal point falls in ${r.name}.</p>`}
+      <div class="awctas" style="margin-top:14px">
+        ${here.filter(p=>p.k!=="Asc").length?`<button class="awcta" data-act="natal" data-g="${here.find(p=>p.k!=="Asc").k}">See ${here.find(p=>p.k!=="Asc").k} in birth chart</button>`:""}
+        <button class="awcta" data-act="guide">${here.some(p=>p.k==="Moon")?"Ask why my Moon is in "+r.name:"Ask Guide about "+r.name}</button>
+      </div>
+      <p class="awfoot">Deity, symbol and keywords are the widely attested Parashari associations &#8212; offered as tradition, not as verdict.</p>
+    </div>`;
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const b=e.target.closest(".awcta"); if(!b) return;
+    buzz(9);
+    if(b.dataset.act==="natal") close(()=>{ document.querySelectorAll(".awpage").forEach(x=>x.remove()); go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
+    else close(()=>askGuide(here.some(p=>p.k==="Moon")?`Why is my Moon in ${r.name}, and what does it mean?`:`What does ${r.name} mean?`,
+      {source:"nakshatra",nakshatra:r.name,lord:nakLord(i),deity:m.deity,symbol:m.symbol,signs:r.signs.map(s=>SIGNS[s-1]),
+       pointsHere:here.map(p=>`${p.name} pada ${p.g.pada}`)}));
+  };
+}
+
 function wireBirth(){
+  if(bdTab==="vargas") wireVargasTab();
   const r=document.getElementById("bdrail");
   if(r) r.onclick=e=>{
     const b=e.target.closest("button[data-b]");

@@ -1327,6 +1327,9 @@ function openAreaWhy(i, card){
       ${tara?`<p class="awbody" style="margin-top:14px">And beneath all of it, today&#8217;s
         Moon rides <b>${NAK[F.todayMoonNak]}</b> &#8212; the ${ordinal(F.tara.count)} star
         from your birth star, <b>${F.tara.name}</b> in tara bala. ${F.tara.note}</p>`:""}
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="guide">Ask Guide about this</button>
+      </div>
       <p class="awfoot">Verdicts from the classical gochara tables, counted from your
         natal Moon; schools differ over Rahu and Ketu. A compass for reflection,
         not a prediction.</p>
@@ -1361,6 +1364,9 @@ function openAreaWhy(i, card){
     const b=e.target.closest(".awcta"); if(!b) return;
     const g=b.dataset.g; buzz(9);
     if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(g); });
+    else if(b.dataset.act==="guide") close(()=>askGuide(
+      `Why does ${a.area.toLowerCase()} look ${a.tone==="favourable"?"supportive":a.tone==="slow"?"slow":"steady"} today?`,
+      {source:"today",area:a.area,tone:a.tone,date:viewDate.toDateString()}));
     else close(()=>openSkyFocused(g));
   };
 }
@@ -1412,6 +1418,7 @@ function openTransitWhy(g, card){
       <div class="awctas" style="margin-top:16px">
         <button class="awcta" data-act="chart" data-g="${g}">See on today&#8217;s chart</button>
         <button class="awcta" data-act="sky" data-g="${g}">See in today&#8217;s sky</button>
+        <button class="awcta" data-act="guide" data-g="${g}">Ask Guide about this</button>
       </div>
       <p class="awfoot">Positions from the ephemeris; verdicts from the classical
         gochara tables. Traditional associations, not a prediction.</p>
@@ -1432,6 +1439,10 @@ function openTransitWhy(g, card){
     const b=e.target.closest(".awcta"); if(!b) return;
     buzz(9);
     if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(b.dataset.g); });
+    else if(b.dataset.act==="guide") close(()=>askGuide(
+      `What does ${b.dataset.g}&#8217;s current transit mean for me?`
+        .replace("&#8217;","'"),
+      {source:"transit",planet:b.dataset.g,date:viewDate.toDateString()}));
     else close(()=>openSkyFocused(b.dataset.g));
   };
 }
@@ -2554,88 +2565,264 @@ function wireChips(scope){
   });
 }
 
-/* ---- LIVE GUIDE ---------------------------------------------------
-   The composer talks to Astra's own server (a Supabase edge function
-   in the app's project), which holds the API key and the daily
-   spending caps. The client sends the conversation plus facts computed
-   by the deterministic engine - the model explains, it never
-   calculates (constitution 57/60). The anon key below is public by
-   design: it only marks requests as coming from Astra's frontend. */
+/* ===================================================================
+   GUIDE — the conversational interface to Astra (Guide-tab spec).
+   Talk to your Kundali: full-screen warm-light room, a living Moon as
+   the conversational object, one continuous conversation, structured
+   navigation actions, incognito, and a prototype voice loop.
+
+   The brain is Astra's own server (Supabase edge fn) holding the API
+   key and daily caps; the client sends the conversation plus
+   engine-computed facts. The model explains, it never calculates.
+   The anon key below is public by design - it only marks requests as
+   coming from Astra's frontend.
+   =================================================================== */
 const GUIDE_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/guide";
 const GUIDE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpqcmh0bWV5cW9ncml1Y3Frd2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMTgzNzEsImV4cCI6MjEwMzc5NDM3MX0.DLp2GtNvPnxv8De3cWwkuWN2yb2KQ5lmrtUP1wqy4S8";
-let GUIDE_LIVE=[];
 
-const escText=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const escText=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* one continuous conversation per profile (spec 5), persisted -
+   except in incognito, where the session lives only in memory (7-8) */
+const GUIDE_KEY=()=>"astro.guide."+(ACTIVE.p?ACTIVE.name:"me");
+let GUIDE={msgs:[],incognito:false,snapshot:null,busy:false};
+let GUIDE_SEED=null;
+function guideLoad(){
+  try{GUIDE.msgs=JSON.parse(localStorage.getItem(GUIDE_KEY())||"[]")}catch(_){GUIDE.msgs=[]}
+}
+function guideSave(){
+  if(GUIDE.incognito) return;
+  try{localStorage.setItem(GUIDE_KEY(),JSON.stringify(GUIDE.msgs.slice(-200)))}catch(_){}
+}
+function guideExit(){
+  /* leaving the room. Incognito discards the session and switches off
+     (spec 8/73); the stored history returns untouched. */
+  voiceStop(true);
+  if(GUIDE.incognito){
+    GUIDE.msgs=GUIDE.snapshot||[]; GUIDE.snapshot=null; GUIDE.incognito=false;
+  }
+}
+
+/* layer B lite: a rolling list of what was recently discussed, sent as
+   context so dropped turns aren't forgotten wholesale (spec 6) */
+function guideTopics(){
+  return GUIDE.msgs.filter(m=>m.role==="user").slice(0,-1).slice(-8)
+    .map(m=>m.content.slice(0,70));
+}
 
 function guideFacts(){
-  const F=dayFacts(new Date()), now=CHART.dasha.at(new Date());
+  const F=dayFacts(viewDate), now=CHART.dasha.at(new Date());
+  const p3=now?pratAt(new Date(),now):null;
+  const sati=satiAt(new Date());
   const natal={};
   for(const p of CHART.placements)
     natal[p.graha]={sign:SIGNS[p.sign-1],house:p.house,deg:p.degf,nakshatra:p.nak,
       pada:p.pada,retrograde:!!p.retro,dignity:p.dig||undefined};
-  return {
+  const facts={
     name:ACTIVE.first||ACTIVE.name||"the user",
     lagna:SIGNS[CHART.lagna-1],
     today:new Date().toDateString(),
+    selectedDate:viewDate.toDateString(),
     natal,
     dasha:now?{mahadasha:{lord:now.maha.lord,start:fmtDate(now.maha.start),end:fmtDate(now.maha.end)},
-      antardasha:{lord:now.antar.lord,start:fmtDate(now.antar.start),end:fmtDate(now.antar.end)}}:null,
+      antardasha:{lord:now.antar.lord,start:fmtDate(now.antar.start),end:fmtDate(now.antar.end)},
+      pratyantardasha:p3?{lord:p3.lord,start:fmtDate(p3.start),end:fmtDate(p3.end)}:undefined}:null,
+    sadeSati:sati?{phase:sati.ph.phase,until:fmtDate(sati.ph.end)}:"not active",
     transits:F.sky.map(s=>({graha:s.graha,sign:SIGNS[s.sign-1],house:s.house,
-      retrograde:!!s.retro,supportive:!!s.favourable}))
+      retrograde:!!s.retro,supportive:!!s.favourable})),
+    recentTopics:guideTopics()
   };
+  if(GUIDE_SEED&&GUIDE_SEED.ctx) facts.invocation=GUIDE_SEED.ctx;
+  return facts;
 }
 
-async function guideSend(q){
-  const chat=document.getElementById("chat"); if(!chat) return;
-  const me=document.createElement("div"); me.className="bubble me"; me.textContent=q;
-  chat.appendChild(me);
-  chat.insertAdjacentHTML("beforeend",
-    `<div class="astrareply"><div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
-     <div class="astratext gthink">&#183;&#160;&#183;&#160;&#183;</div></div>`);
-  const th=chat.lastElementChild.querySelector(".astratext");
-  chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
-  GUIDE_LIVE.push({role:"user",content:q});
-  buzz(6);
-  try{
-    const r=await fetch(GUIDE_URL,{method:"POST",
-      headers:{"content-type":"application/json","authorization":"Bearer "+GUIDE_ANON},
-      body:JSON.stringify({messages:GUIDE_LIVE.slice(-12),facts:guideFacts()})});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok||!j.text) throw new Error(j.error||"err");
-    GUIDE_LIVE.push({role:"assistant",content:j.text});
-    th.classList.remove("gthink");
-    th.innerHTML=escText(j.text).split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
-    buzz(4);
-  }catch(e){
-    GUIDE_LIVE.pop();
-    th.classList.remove("gthink");
-    th.textContent=String(e.message)==="limit"
-      ? "The Guide has said a lot today and rests until tomorrow. Everything else in Astra keeps working."
-      : "The Guide can't reach the sky just now. Your chart still works - try again in a moment.";
+/* ---- structured navigation actions (spec 40-42): the model appends
+   one @@ACTIONS [...]@@ line; everything is validated against this
+   allow-list before a single chip is drawn. ---- */
+const G9=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+const normG=s=>G9.find(g=>g.toLowerCase()===String(s||"").toLowerCase())||null;
+function parseActions(text){
+  const m=text.match(/@@ACTIONS\s*(\[[\s\S]*?\])\s*@@/);
+  if(!m) return {text:text.trim(),actions:[]};
+  let acts=[]; try{acts=JSON.parse(m[1])}catch(_){acts=[]}
+  if(!Array.isArray(acts)) acts=[];
+  acts=acts.filter(a=>a&&typeof a==="object").map(a=>{
+    switch(a.action){
+      case "focus_planet": case "open_sky":{
+        const g=normG(a.planet); return g?{action:a.action,planet:g,
+          mode:a.mode==="birth"?"birth":"today"}:null;}
+      case "focus_house":{const h=+a.house;
+        return h>=1&&h<=12?{action:"focus_house",house:h,
+          mode:a.mode==="birth"?"birth":"today"}:null;}
+      case "open_timeline": return {action:"open_timeline"};
+      case "open_sade_sati": return {action:"open_sade_sati"};
+      case "suggest_life_event":
+        if(GUIDE.incognito) return null;      /* spec 46/49: never in incognito */
+        return (a.title&&/^\d{4}-\d{2}-\d{2}$/.test(a.date||""))
+          ?{action:"suggest_life_event",title:String(a.title).slice(0,60),date:a.date}:null;
+      default: return null;
+    }
+  }).filter(Boolean).slice(0,3);
+  return {text:text.replace(m[0],"").trim(),actions:acts};
+}
+function actChips(actions,idx){
+  if(!actions||!actions.length) return "";
+  const nav=actions.filter(a=>a.action!=="suggest_life_event");
+  const ev=actions.find(a=>a.action==="suggest_life_event");
+  const label=a=>({
+    focus_planet:a.mode==="birth"?`See ${a.planet} in birth chart`:`See ${a.planet} on today&#8217;s chart`,
+    open_sky:`See ${a.planet} in today&#8217;s sky`,
+    open_timeline:"See on Timeline",
+    open_sade_sati:"Explore sade sati",
+    focus_house:`Open your ${ordinal(a.house)} house`})[a.action];
+  return `${nav.length?`<div class="gacts">${nav.map((a,i)=>
+      `<button class="gact" data-mi="${idx}" data-ai="${actions.indexOf(a)}">${label(a)}</button>`).join("")}</div>`:""}
+    ${ev?`<div class="gevask">
+      <p>Add &#8220;${escText(ev.title)}&#8221; (${fmtDate(new Date(ev.date+"T12:00:00"))}) to your Timeline?</p>
+      <button class="gact solid" data-evadd="${idx}">Add to Timeline</button>
+      <button class="gact" data-evno="${idx}">Not now</button>
+    </div>`:""}`;
+}
+function runAct(a){
+  buzz(9);
+  switch(a.action){
+    case "focus_planet": go(CHART_INDEX); setMode(a.mode); openPlanet(a.planet); break;
+    case "open_sky": openSkyFocused(a.planet); break;
+    case "open_timeline": go(TIMELINE_INDEX); break;
+    case "open_sade_sati": go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); break;
+    case "focus_house": go(CHART_INDEX); setMode(a.mode); openHouse(a.house); break;
   }
-  chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+/* ---- the living Moon (spec 15-18): real phase art, and its state
+   always mirrors actual system state - motion teaches. ---- */
+function gMoonState(s){
+  const m=document.getElementById("gmoon");
+  if(m){ m.classList.remove("idle","listening","thinking","speaking");
+    m.classList.add(s); }
+}
+
+/* adaptive suggestions (spec 11-12) - drawn from the person's actual
+   chart state, so Guide visibly already knows the chart */
+function guideChips(){
+  const out=["What should I focus on today?"];
+  const sati=satiAt(new Date());
+  if(sati) out.push(`What does my sade sati (${sati.ph.phase.toLowerCase()} phase) mean?`);
+  const now=CHART.dasha.at(new Date());
+  if(now) out.push(`How is the ${now.antar.lord} antardasha affecting me?`,
+    "Explain my current dasha");
+  out.push("What does my 7th house say about relationships?",
+    "When is a good time to travel?");
+  return out.slice(0,6);
+}
+
+const daySepLabel=t=>{
+  const d=new Date(t), now=new Date();
+  const day=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const diff=(day(now)-day(d))/864e5;
+  return diff===0?"Today":diff===1?"Yesterday"
+    :d.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+};
+function guideMsgHTML(m,i,prev){
+  const sep=(!prev||daySepLabel(prev.t||Date.now())!==daySepLabel(m.t||Date.now()))
+    ?`<div class="gsep">${daySepLabel(m.t||Date.now())}</div>`:"";
+  if(m.role==="user")
+    return `${sep}<div class="bubble me">${escText(m.content)}</div>`;
+  const body=escText(m.content).split(/\n{2,}/)
+    .map(p=>`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
+  return `${sep}<div class="gasr">
+    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
+    <div class="astratext">${body}</div>
+    ${m.actions?actChips(m.actions,i):""}
+  </div>`;
 }
 
 function setGuideBar(){
-  setTopBar("Guide",{actions:`<button class="tb-btn" id="gclose" aria-label="Close Guide">
-    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`});
+  setTopBar("Guide",{sub:"Ask your chart",
+    actions:`<button class="tb-btn" id="gmenu" aria-label="Guide options">
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/>
+      <circle cx="19" cy="12" r="1.7"/></svg></button>
+    <button class="tb-btn" id="gclose" aria-label="Close Guide">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`});
   const c=document.getElementById("gclose");
   if(c) c.onclick=()=>{ buzz(6); go(guideFrom); if(guideFrom===YOU_INDEX) renderYou(); };
+  const mn=document.getElementById("gmenu");
+  if(mn) mn.onclick=()=>{ buzz(6); toggleGuideMenu(); };
+}
+
+function toggleGuideMenu(){
+  const old=document.getElementById("gmenusheet");
+  if(old){ old.remove(); return; }
+  const el=document.createElement("div");
+  el.id="gmenusheet"; el.className="gmenusheet";
+  el.innerHTML=`
+    <button data-g="incog">${GUIDE.incognito?"Turn off Incognito":"Incognito mode"}</button>
+    <button data-g="clear">Clear conversation</button>
+    <button data-g="privacy">How Guide uses your chart</button>`;
+  document.getElementById("pg-guide").appendChild(el);
+  el.onclick=e=>{
+    const b=e.target.closest("button[data-g]"); if(!b) return;
+    el.remove(); buzz(7);
+    if(b.dataset.g==="incog"){
+      if(!GUIDE.incognito){ GUIDE.snapshot=GUIDE.msgs.slice(); GUIDE.msgs=[]; GUIDE.incognito=true; }
+      else { GUIDE.msgs=GUIDE.snapshot||[]; GUIDE.snapshot=null; GUIDE.incognito=false; }
+      renderGuide();
+    }
+    if(b.dataset.g==="clear") guideConfirmClear();
+    if(b.dataset.g==="privacy") guidePrivacy();
+  };
+}
+function guideConfirmClear(){
+  const el=document.createElement("div");
+  el.className="gconfirm";
+  el.innerHTML=`<div class="gconfirmcard">
+    <b>Clear your Guide conversation?</b>
+    <p>Your birth chart and saved astrology data won&#8217;t be affected.</p>
+    <div><button data-c="no">Cancel</button><button data-c="yes" class="solid">Clear</button></div>
+  </div>`;
+  document.getElementById("pg-guide").appendChild(el);
+  el.onclick=e=>{
+    const b=e.target.closest("button[data-c]");
+    if(!b){ if(e.target===el) el.remove(); return; }
+    el.remove();
+    if(b.dataset.c==="yes"){
+      GUIDE.msgs=[]; GUIDE.snapshot=GUIDE.incognito?[]:GUIDE.snapshot;
+      try{localStorage.removeItem(GUIDE_KEY())}catch(_){}
+      buzz(9); renderGuide();
+    }
+  };
+}
+function guidePrivacy(){
+  const el=document.createElement("div");
+  el.className="gconfirm";
+  el.innerHTML=`<div class="gconfirmcard">
+    <b>How Guide uses your chart</b>
+    <p>Guide is an AI astrology guide. It answers using your saved birth chart,
+    current planetary calculations and relevant Timeline information &#8212; computed
+    by Astra&#8217;s own engine, never guessed. Incognito conversations aren&#8217;t
+    added to your Guide history.</p>
+    <div><button data-c="no" class="solid">Done</button></div>
+  </div>`;
+  document.getElementById("pg-guide").appendChild(el);
+  el.onclick=e=>{ if(e.target.closest("button")||e.target===el) el.remove(); };
+}
+
+/* cross-tab entry (spec 13-14): other tabs open Guide with a question
+   and structured context; nothing has to be retyped */
+function askGuide(q,ctx){
+  GUIDE_SEED={q,ctx:ctx||null};
+  go(3);
 }
 
 function renderGuide(){
   setGuideBar();
-  /* Guide rides with Pro. Free users get one crafted, fully-derived sample -
-     a taste of the mechanic (the answer moves the chart), never a weak live
-     trial that could sour the sale (Sangram, 30 Aug). */
   if(!isPro()){
     CHIP_ACTS=[];
     const s=ASKS[0];
     document.getElementById("pg-guide").innerHTML=`
       <div class="chatwrap">
-        <div class="voice"><div class="orb"></div>
-          <p class="muted" style="text-align:center;font-size:13px;max-width:30ch;margin:14px auto 0">
-            Ask about your chart. The answer moves it.</p></div>
+        <div class="gmoonwrap"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),84)}</div></div>
+        <p class="gsub">Ask about your chart. The answer moves it.</p>
         <div class="chat">
           <div class="bubble me">${s.q}</div>
           ${astraCard(s.a(), s.chips)}
@@ -2647,61 +2834,264 @@ function renderGuide(){
           <h3>Talk to your chart with Astra Pro</h3>
           <p>That answer above came from ${ACTIVE.p?`${ACTIVE.first}&#8217;s`:"your"} real chart
             &#8212; tap its buttons and watch the app move. Pro opens the full conversation,
-            voice included when it ships.</p>
+            voice included.</p>
           <button class="primary" id="prosee2">See Astra Pro</button>
         </div>
       </div>`;
     wireChips(document.getElementById("pg-guide"));
     const b=document.getElementById("prosee2");
     if(b) b.onclick=()=>{buzz(8); openProSheet();};
+    GUIDE_SEED=null;
     return;
   }
+  if(!GUIDE.incognito&&!GUIDE.msgs.length) guideLoad();
+  const empty=!GUIDE.msgs.length;
+  const firstRun=(()=>{try{return !localStorage.getItem("astro.guide.seen")}catch(_){return false}})();
   document.getElementById("pg-guide").innerHTML=`
-    <div class="chatwrap">
-      <div class="voice"><div class="orb"></div>
-        <p class="muted" style="text-align:center;font-size:13px;max-width:30ch;margin:14px auto 0">
-          Ask about your chart. The answer moves it.</p></div>
-      <div class="chat" id="chat">
-        ${SAMPLE_CHAT.map(m=>m.me
-          ? `<div class="bubble me">${m.t}</div>`
-          : astraCard(typeof m.t==="function"?m.t():m.t, m.chips)).join("")}
+    <div class="chatwrap glight">
+      ${GUIDE.incognito?`<div class="gincog"><svg viewBox="0 0 24 24"><path d="M4 14c0-1.5 1-2.5 2.5-2.5h11c1.5 0 2.5 1 2.5 2.5M7 17.5a2.2 2.2 0 104.4 0 2.2 2.2 0 10-4.4 0M12.6 17.5a2.2 2.2 0 104.4 0 2.2 2.2 0 10-4.4 0M6 11l1.4-4.6A2 2 0 019.3 5h5.4a2 2 0 011.9 1.4L18 11"/></svg>Incognito</div>`:""}
+      <div class="gmoonwrap${empty?"":" mini"}"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),empty?96:44)}</div></div>
+      ${empty?`
+        <h2 class="gh1">Ask your chart anything</h2>
+        <p class="gsub">${firstRun
+          ?"I can explain your Kundali, current transits, dashas, relationships and timing."
+          :"Your birth chart, current sky and timeline are already in context."}</p>`:""}
+      <div class="chat gchat" id="chat">
+        ${GUIDE.msgs.map((m,i)=>guideMsgHTML(m,i,GUIDE.msgs[i-1])).join("")}
       </div>
-      <div class="asks" id="asks">${ASKS.map((a,i)=>`<button class="ask" data-i="${i}">${a.q}</button>`).join("")}</div>
-      <p class="note">The suggested questions are crafted demonstrations &#8212; their answers
-      move the chart. The message box below is <b>live</b>: it reads
-      ${ACTIVE.p?`${ACTIVE.first}&#8217;s`:"your"} real chart and answers in a moment.
-      Voice is on the way.</p>
+      <div class="gvtranscript" id="gvtranscript" hidden></div>
+      ${empty?`<div class="gchips" id="gasks">${guideChips().map(q=>
+        `<button class="gchip">${q}</button>`).join("")}</div>`:""}
     </div>
-    <div class="composer">
-      <input id="cmpin" placeholder="Ask your chart" aria-label="Message">
-      <button class="cmp-btn mic" id="cmpmic" aria-label="Voice">
+    <div class="composer glight" id="gcomposer">
+      <input id="cmpin" placeholder="Ask about your chart&#8230;" aria-label="Message"
+        autocomplete="off">
+      <button class="cmp-btn mic" id="cmpmic" aria-label="Talk to Guide">
         <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
           <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg></button>
+      <button class="cmp-btn send" id="cmpsend" aria-label="Send" hidden>
+        <svg viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></svg></button>
+    </div>
+    <div class="gvoicebar" id="gvoicebar" hidden>
+      <button class="gvbtn" id="gvmute" aria-label="Mute microphone">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
+          <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg></button>
+      <button class="gvbtn end" id="gvend" aria-label="End voice">End voice</button>
+      <button class="gvbtn" id="gvkbd" aria-label="Switch to typing">
+        <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="11" rx="2"/>
+          <path d="M7 11h.01M11 11h.01M15 11h.01M7 14.5h10"/></svg></button>
     </div>`;
-
-  document.getElementById("asks").onclick=e=>{
-    const b=e.target.closest(".ask"); if(!b)return;
-    const item=ASKS[+b.dataset.i], chat=document.getElementById("chat");
-    chat.insertAdjacentHTML("beforeend",`<div class="bubble me">${item.q}</div>`);
-    buzz(6);
-    setTimeout(()=>{
-      chat.insertAdjacentHTML("beforeend", astraCard(item.a(), item.chips));
-      wireChips(chat.lastElementChild);
-      chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
-      setTimeout(item.act,900);
-    },420);
+  try{localStorage.setItem("astro.guide.seen","1")}catch(_){}
+  const pg=document.getElementById("pg-guide");
+  pg.scrollTop=pg.scrollHeight;
+  const chat=document.getElementById("chat");
+  chat.onclick=e=>{
+    const a=e.target.closest(".gact[data-ai]");
+    if(a){ const m=GUIDE.msgs[+a.dataset.mi];
+      const act=m&&m.actions&&m.actions[+a.dataset.ai];
+      if(act) runAct(act); return; }
+    const ad=e.target.closest("[data-evadd]");
+    if(ad){ const m=GUIDE.msgs[+ad.dataset.evadd];
+      const ev=m&&m.actions&&m.actions.find(x=>x.action==="suggest_life_event");
+      if(ev){ const l=events(); l.push({t:ev.title,d:ev.date,k:"milestone",f:"neutral"});
+        saveEvents(l); buzz(11);
+        ad.closest(".gevask").innerHTML=`<p>Saved to your Timeline.</p>`; }
+      return; }
+    const no=e.target.closest("[data-evno]");
+    if(no){ buzz(5); no.closest(".gevask").remove(); }
   };
-  wireChips(document.getElementById("chat"));
-  const mic=document.getElementById("cmpmic");
-  mic.onclick=()=>{mic.classList.toggle("live");buzz(8)};
-  const inp=document.getElementById("cmpin");
+  const asks=document.getElementById("gasks");
+  if(asks) asks.onclick=e=>{
+    const b=e.target.closest(".gchip"); if(!b) return;
+    buzz(6); guideSend(b.textContent);
+  };
+  const inp=document.getElementById("cmpin"),
+        mic=document.getElementById("cmpmic"),
+        snd=document.getElementById("cmpsend");
+  const swap=()=>{ const has=!!inp.value.trim();
+    mic.hidden=has; snd.hidden=!has; };
+  inp.oninput=swap;
   inp.onkeydown=e=>{
     if(e.key==="Enter"&&inp.value.trim()){
-      const q=inp.value.trim(); inp.value=""; inp.blur(); guideSend(q);
+      const q=inp.value.trim(); inp.value=""; swap(); guideSend(q);
     }
   };
+  snd.onclick=()=>{ if(!inp.value.trim())return;
+    const q=inp.value.trim(); inp.value=""; swap(); buzz(6); guideSend(q); };
+  mic.onclick=()=>voiceStart();
+  document.getElementById("gvmute").onclick=voiceMuteToggle;
+  document.getElementById("gvend").onclick=()=>voiceStop();
+  document.getElementById("gvkbd").onclick=()=>{ voiceStop();
+    setTimeout(()=>document.getElementById("cmpin")?.focus(),60); };
+  if(VOICE.on){
+    document.getElementById("gcomposer").hidden=true;
+    document.getElementById("gvoicebar").hidden=false;
+    document.getElementById("gvtranscript").hidden=false;
+    document.querySelector(".gmoonwrap")?.classList.remove("mini");
+  }
+  if(GUIDE_SEED&&GUIDE_SEED.q){
+    const q=GUIDE_SEED.q; GUIDE_SEED.q=null;   /* ctx stays for the send */
+    setTimeout(()=>{ guideSend(q); },320);
+  }
 }
 
+async function guideSend(q,opts={}){
+  if(GUIDE.busy) return;
+  GUIDE.busy=true;
+  const wasEmpty=!GUIDE.msgs.length;
+  GUIDE.msgs.push({role:"user",content:q,t:Date.now()});
+  if(wasEmpty){ renderGuide(); }
+  else{
+    const chat=document.getElementById("chat");
+    if(chat) chat.insertAdjacentHTML("beforeend",
+      guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]));
+  }
+  const chat=document.getElementById("chat");
+  if(chat){ chat.insertAdjacentHTML("beforeend",
+    `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Astra</div>
+     <div class="astratext gthink">Reading your chart&#8230;</div></div>`);
+    chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"}); }
+  gMoonState("thinking");
+  buzz(6);
+  const payload={
+    messages:GUIDE.msgs.slice(-12).map(m=>({role:m.role,content:m.content})),
+    facts:guideFacts()
+  };
+  GUIDE_SEED=null;
+  let reply=null, errText=null;
+  try{
+    const r=await fetch(GUIDE_URL,{method:"POST",
+      headers:{"content-type":"application/json","authorization":"Bearer "+GUIDE_ANON},
+      body:JSON.stringify(payload)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.text) throw new Error(j.error||"err");
+    reply=parseActions(j.text);
+  }catch(e){
+    errText=String(e.message)==="limit"
+      ? "The Guide has said a lot today and rests until tomorrow. Everything else in Astra keeps working."
+      : "The Guide can&#8217;t reach the sky just now. Your chart still works &#8212; try again in a moment.";
+  }
+  GUIDE.busy=false;
+  const pend=document.getElementById("gpending");
+  if(reply){
+    GUIDE.msgs.push({role:"assistant",content:reply.text,t:Date.now(),
+      actions:reply.actions.length?reply.actions:undefined});
+    guideSave();
+    if(pend) pend.outerHTML=guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],
+      GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]);
+    buzz(4);
+    if(VOICE.on) voiceSpeak(reply.text); else gMoonState("idle");
+  }else{
+    GUIDE.msgs.pop();          /* the question stays visible but not in context */
+    if(pend){ pend.removeAttribute("id");
+      pend.querySelector(".astratext").innerHTML=errText;
+      pend.querySelector(".astratext").classList.remove("gthink"); }
+    gMoonState("idle");
+    if(VOICE.on) gMoonState("listening");
+  }
+  const c2=document.getElementById("chat");
+  if(c2&&c2.lastElementChild) c2.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+/* ---- PROTOTYPE VOICE (spec 21-27, modular pipeline variant) --------
+   On-device speech recognition -> Guide server -> on-device speech
+   synthesis. Zero-cost modular STT/LLM/TTS loop to validate the
+   conversation design; the OpenAI Realtime benchmark is a separate
+   queued task. Moon states mirror REAL system state only (spec 17):
+   listening = recogniser running and unmuted, speaking = synthesis
+   actually playing, barge-in cancels speech immediately (spec 24). */
+let VOICE={on:false,muted:false,rec:null,utter:null};
+function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
+function voiceStart(){
+  buzz(8);
+  if(!voiceSupported()){
+    const inp=document.getElementById("cmpin");
+    if(inp){ inp.placeholder="Voice isn&#8217;t available in this browser &#8212; type instead"; }
+    return;
+  }
+  VOICE.on=true; VOICE.muted=false;
+  document.body.classList.add("gvoicemode");
+  document.getElementById("gcomposer").hidden=true;
+  document.getElementById("gvoicebar").hidden=false;
+  document.getElementById("gvtranscript").hidden=false;
+  document.querySelector(".gmoonwrap")?.classList.remove("mini");
+  voiceListen();
+}
+function voiceListen(){
+  if(!VOICE.on||VOICE.muted) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new SR();
+  rec.lang="en-IN"; rec.continuous=true; rec.interimResults=true;
+  rec.onstart=()=>{ if(!speechSynthesis.speaking) gMoonState("listening"); };
+  rec.onresult=e=>{
+    let interim="", final="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal) final+=r[0].transcript; else interim+=r[0].transcript;
+    }
+    if(interim||final){
+      /* barge-in: the user talking cancels Astra instantly */
+      if(speechSynthesis.speaking){ speechSynthesis.cancel(); gMoonState("listening"); }
+      const t=document.getElementById("gvtranscript");
+      if(t) t.textContent=interim||final;
+    }
+    if(final.trim()){
+      const t=document.getElementById("gvtranscript");
+      if(t) t.textContent="";
+      guideSend(final.trim(),{voice:true});
+    }
+  };
+  rec.onend=()=>{ if(VOICE.on&&!VOICE.muted) try{rec.start()}catch(_){} };
+  rec.onerror=ev=>{
+    if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){
+      voiceStop();
+      const inp=document.getElementById("cmpin");
+      if(inp) inp.placeholder="Microphone permission needed for voice";
+    }
+  };
+  VOICE.rec=rec;
+  try{rec.start()}catch(_){}
+}
+function voiceSpeak(text){
+  if(!VOICE.on){ gMoonState("idle"); return; }
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text.replace(/@@ACTIONS[\s\S]*?@@/,""));
+    const vs=speechSynthesis.getVoices();
+    u.voice=vs.find(v=>/en[-_]IN/i.test(v.lang))||vs.find(v=>/en/i.test(v.lang))||null;
+    u.rate=1;
+    u.onstart=()=>gMoonState("speaking");
+    u.onend=()=>{ if(VOICE.on) gMoonState(VOICE.muted?"idle":"listening"); };
+    VOICE.utter=u;
+    speechSynthesis.speak(u);
+  }catch(_){ gMoonState("idle"); }
+}
+function voiceMuteToggle(){
+  if(!VOICE.on) return;
+  buzz(7);
+  VOICE.muted=!VOICE.muted;
+  const b=document.getElementById("gvmute");
+  if(b) b.classList.toggle("muted",VOICE.muted);
+  if(VOICE.muted){ try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
+    if(!speechSynthesis.speaking) gMoonState("idle"); }
+  else voiceListen();
+}
+function voiceStop(silent){
+  if(!VOICE.on){ return; }
+  VOICE.on=false;
+  try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
+  try{speechSynthesis.cancel()}catch(_){}
+  VOICE.rec=null;
+  document.body.classList.remove("gvoicemode");
+  const c=document.getElementById("gcomposer"), v=document.getElementById("gvoicebar"),
+        t=document.getElementById("gvtranscript");
+  if(c) c.hidden=false;
+  if(v) v.hidden=true;
+  if(t){ t.hidden=true; t.textContent=""; }
+  if(GUIDE.msgs.length) document.querySelector(".gmoonwrap")?.classList.add("mini");
+  gMoonState("idle");
+  if(!silent) buzz(6);
+}
 const ICONS={
   chart:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -4485,6 +4875,9 @@ function openPeriodWhy(maha,antar,when,p3,sati,card){
         ${WEEKDAY[maha.lord]}, and reflective discipline. No practice is offered as a
         guarantee of outcome.</p>
       </details>
+      <div class="awctas" style="margin-top:14px">
+        <button class="awcta" data-act="guide">Ask Guide about this period</button>
+      </div>
       <p class="awfoot">Dates from the Vimshottari engine, validated against the printed
       reports. Traditional associations within Vedic astrology &#8212; a lens for
       reflection, not a forecast.</p>
@@ -4506,6 +4899,10 @@ function openPeriodWhy(maha,antar,when,p3,sati,card){
     buzz(9); const g=b.dataset.g;
     if(b.dataset.act==="natal") close(()=>{ go(CHART_INDEX); setMode("birth"); openPlanet(g); });
     else if(b.dataset.act==="chart") close(()=>{ go(CHART_INDEX); setMode("today"); openPlanet(g); });
+    else if(b.dataset.act==="guide") close(()=>askGuide(
+      "What does this period of my life mean?",
+      {source:"timeline",mahadasha:maha.lord,antardasha:antar.lord,
+       date:when.toDateString(),sadeSati:sati?sati.ph.phase:undefined}));
     else close(()=>openSkyFocused(g));
   };
 }
@@ -4989,10 +5386,11 @@ function go(i){
   if(i===0) renderToday();
   else if(i===TIMELINE_INDEX) renderTimelineTab();
   else if(i===CHART_INDEX) setUniverseBar();
-  else if(i===3) setGuideBar();
+  else if(i===3) renderGuide();
   /* Guide is a room, not a tab: the nav bows out and a close returns you */
   if(i===3){ if(from!==3) guideFrom=from; document.body.classList.add("guidefull"); }
-  else document.body.classList.remove("guidefull");
+  else { document.body.classList.remove("guidefull");
+    if(from===3) guideExit(); }
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
     nav.children[j].classList.toggle("on",j===i);

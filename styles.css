@@ -1972,3 +1972,128 @@ img[src$="sun.png"]{animation:sunbreathe 7s ease-in-out infinite}
 /* dark-surface variant of the collapse used on You pages */
 .advd.dark{border-color:var(--edge-soft);background:rgba(255,255,255,.04);margin-top:14px}
 .advd.dark summary{color:var(--ink)}
+
+/* ============ GUIDE ROOM (Guide-tab spec) ============ */
+/* the whole shell turns warm-light while inside Guide (spec 3) */
+body.guidefull #pg-guide{background:#F7F5EF;color:#171A33}
+body.guidefull .topbar{background:#F7F5EF;border-bottom-color:rgba(23,26,51,.08)}
+body.guidefull .tb-title b{color:#171A33}
+body.guidefull .tb-title span{color:#6B6E85}
+body.guidefull .tb-btn{color:#171A33}
+body.guidefull .wash{opacity:0}
+#pg-guide .chatwrap.glight{max-width:640px;margin:0 auto;padding-bottom:88px}
+#pg-guide .gh1{font-size:22px;font-weight:700;text-align:center;color:#171A33;
+  margin:14px 0 6px}
+#pg-guide .gsub{font-size:13.5px;color:#6B6E85;text-align:center;max-width:34ch;
+  margin:0 auto 18px;line-height:1.5}
+
+/* incognito indicator (spec 7) */
+.gincog{display:flex;align-items:center;gap:6px;justify-content:center;width:max-content;
+  margin:2px auto 10px;padding:4px 12px;border-radius:13px;font-size:11.5px;font-weight:600;
+  color:#4A4E66;background:rgba(23,26,51,.07)}
+.gincog svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- the living Moon (spec 15-18) ---- */
+.gmoonwrap{display:flex;justify-content:center;margin:18px 0 4px;
+  transition:margin .3s ease}
+.gmoonwrap.mini{margin:6px 0 2px}
+.gmoon{position:relative;display:inline-block;border-radius:50%;
+  filter:drop-shadow(0 2px 18px rgba(110,130,190,.35));
+  animation:gmidle 7s ease-in-out infinite}
+.gmoon.listening{animation:gmlisten 1.5s ease-in-out infinite}
+.gmoon.thinking{animation:gmthink 3.2s ease-in-out infinite}
+.gmoon.speaking{animation:gmspeak 1.1s ease-in-out infinite}
+@keyframes gmidle{0%,100%{transform:scale(1);filter:drop-shadow(0 2px 14px rgba(110,130,190,.28))}
+  50%{transform:scale(1.012);filter:drop-shadow(0 2px 20px rgba(110,130,190,.4))}}
+@keyframes gmlisten{0%,100%{transform:scale(1);filter:drop-shadow(0 2px 16px rgba(110,130,190,.35))}
+  50%{transform:scale(1.05);filter:drop-shadow(0 2px 26px rgba(120,145,210,.55))}}
+@keyframes gmthink{0%,100%{transform:scale(1);filter:drop-shadow(0 2px 14px rgba(110,130,190,.3)) brightness(1)}
+  50%{transform:scale(1.008);filter:drop-shadow(0 2px 24px rgba(150,170,230,.5)) brightness(1.12)}}
+@keyframes gmspeak{0%,100%{filter:drop-shadow(0 2px 16px rgba(110,130,190,.35)) brightness(1)}
+  50%{filter:drop-shadow(0 2px 24px rgba(140,160,225,.55)) brightness(1.09)}}
+@media (prefers-reduced-motion: reduce){
+  .gmoon,.gmoon.listening,.gmoon.thinking,.gmoon.speaking{animation:none}
+  .gmoon.listening{filter:drop-shadow(0 2px 26px rgba(120,145,210,.6))}
+  .gmoon.thinking{filter:drop-shadow(0 2px 24px rgba(150,170,230,.55)) brightness(1.1)}
+  .gmoon.speaking{filter:drop-shadow(0 2px 24px rgba(140,160,225,.6)) brightness(1.06)}
+}
+
+/* transcript: user compact bubble, Astra borderless editorial (spec 43) */
+#pg-guide .gchat{display:flex;flex-direction:column;gap:14px;padding:4px 0}
+#pg-guide .gchat .bubble.me{background:rgba(23,26,51,.07);color:#171A33;
+  align-self:flex-end;border-bottom-right-radius:6px}
+.gasr{align-self:stretch}
+.gasr .astrahead{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:#8A8DA3;margin-bottom:6px}
+.gasr .orbdot{width:8px;height:8px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#F2F5FC,#8B99B8)}
+.gasr .astratext{font-size:15px;line-height:1.62;color:#23263E}
+.gasr .astratext p{margin:0 0 10px}
+.gasr .astratext p:last-child{margin-bottom:0}
+.gasr .astratext.gthink{color:#8A8DA3;font-style:italic}
+.gsep{align-self:center;font-size:11px;font-weight:600;color:#9A9DB0;
+  padding:2px 12px;margin:6px 0 -2px}
+
+/* structured action chips under an answer (spec 40) */
+.gacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.gact{padding:8px 13px;border-radius:15px;border:1px solid rgba(23,26,51,.16);
+  background:#FFFFFF;color:#171A33;font-size:13px;font-weight:600;cursor:pointer}
+.gact:active{transform:scale(.97)}
+.gact.solid{background:#171A33;color:#F7F5EF;border-color:#171A33}
+.gevask{margin-top:11px;padding:11px 13px;border-radius:13px;background:#FFFFFF;
+  border:1px solid rgba(23,26,51,.12)}
+.gevask p{margin:0 0 9px;font-size:13.5px;color:#23263E}
+.gevask .gact{margin-right:7px}
+
+/* suggestion chips (spec 11) */
+.gchips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:14px}
+.gchip{padding:9px 14px;border-radius:17px;border:1px solid rgba(23,26,51,.14);
+  background:#FFFFFF;color:#23263E;font-size:13.5px;cursor:pointer;text-align:left}
+.gchip:active{transform:scale(.97)}
+
+/* light composer: mic when empty, send when typed (spec 19-20) */
+body.guidefull .composer.glight{background:#FFFFFF;border:1px solid rgba(23,26,51,.13);
+  box-shadow:0 4px 22px rgba(23,26,51,.08)}
+body.guidefull .composer.glight input{color:#171A33}
+body.guidefull .composer.glight input::placeholder{color:#9A9DB0}
+body.guidefull .composer.glight .cmp-btn{color:#171A33;background:rgba(23,26,51,.06)}
+body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
+
+/* three-dot menu + confirm dialogs (spec 4, 9, 58) */
+.gmenusheet{position:fixed;top:calc(env(safe-area-inset-top) + 52px);right:14px;z-index:60;
+  background:#FFFFFF;border:1px solid rgba(23,26,51,.12);border-radius:15px;
+  box-shadow:0 10px 34px rgba(23,26,51,.16);overflow:hidden;min-width:230px}
+.gmenusheet button{display:block;width:100%;padding:13px 17px;text-align:left;border:none;
+  background:none;font-size:14.5px;color:#171A33;cursor:pointer;
+  border-bottom:1px solid rgba(23,26,51,.06)}
+.gmenusheet button:last-child{border-bottom:none}
+.gmenusheet button:active{background:rgba(23,26,51,.05)}
+.gconfirm{position:fixed;inset:0;z-index:70;background:rgba(23,26,51,.32);
+  display:grid;place-items:center;padding:28px}
+.gconfirmcard{background:#FFFFFF;border-radius:19px;padding:20px;max-width:340px;
+  box-shadow:0 18px 50px rgba(23,26,51,.3)}
+.gconfirmcard b{font-size:16px;color:#171A33}
+.gconfirmcard p{font-size:13.5px;color:#4A4E66;line-height:1.55;margin:8px 0 15px}
+.gconfirmcard div{display:flex;gap:9px;justify-content:flex-end}
+.gconfirmcard button{padding:9px 17px;border-radius:13px;border:1px solid rgba(23,26,51,.16);
+  background:#FFFFFF;font-size:14px;font-weight:600;color:#171A33;cursor:pointer}
+.gconfirmcard button.solid{background:#171A33;color:#F7F5EF;border-color:#171A33}
+
+/* voice mode (spec 21-22, 66) */
+.gvtranscript{min-height:22px;text-align:center;font-size:14px;color:#6B6E85;
+  font-style:italic;margin:8px auto 0;max-width:40ch}
+.gvoicebar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:12px;
+  align-items:center;justify-content:center;
+  padding:14px 20px calc(env(safe-area-inset-bottom) + 16px)}
+.gvbtn{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;
+  border:1px solid rgba(23,26,51,.16);background:#FFFFFF;color:#171A33;cursor:pointer}
+.gvbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.gvbtn.end{width:auto;border-radius:26px;padding:0 22px;height:52px;background:#171A33;
+  color:#F7F5EF;font-size:14.5px;font-weight:600;border-color:#171A33}
+.gvbtn.muted{background:rgba(23,26,51,.85);color:#F7F5EF;position:relative}
+.gvbtn.muted::after{content:"";position:absolute;left:12px;right:12px;top:50%;height:2px;
+  background:currentColor;transform:rotate(-38deg);border-radius:2px}
+/* the hidden attribute must beat authored display values */
+.cmp-btn[hidden],.gvoicebar[hidden],.gvtranscript[hidden],.composer[hidden]{display:none!important}

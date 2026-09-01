@@ -2220,3 +2220,27 @@ body.guidefull .composer.glight .cmp-btn.send{background:#171A33;color:#F7F5EF}
 .tellme{font-size:15px;line-height:1.62;color:#23263E;margin:0 0 6px}
 .because{font-size:12.5px;line-height:1.58;color:#8A8DA3;margin:0 0 12px}
 .because b{color:#6B6E85;font-weight:600}
+
+/* language chips on the onboarding welcome */
+.oblang{display:flex;gap:8px;justify-content:center;margin-top:18px}
+.oblang button{padding:8px 16px;border-radius:16px;border:1px solid var(--edge-soft);
+  background:rgba(255,255,255,.05);color:var(--ink-2);font-size:13.5px;cursor:pointer}
+.oblang button.on{background:rgba(255,255,255,.14);color:var(--ink);font-weight:600;
+  border-color:var(--edge)}
+
+/* two-voice rule, dark-surface variant: technical asides step back */
+.interp.tech{font-size:12.5px;color:var(--ink-3)}
+.interp.tech b{color:var(--ink-2)}
+
+/* card-morph content cross-fade: the surface stretches, the text never
+   visibly does. Contract keeps the surface opaque until it has nearly
+   landed back on its card, then dissolves. */
+.awpage .awtop,.awpage .awscroll{opacity:0;transition:opacity .22s ease .1s}
+.awpage.in .awtop,.awpage.in .awscroll{opacity:1}
+.awpage.out .awtop,.awpage.out .awscroll{opacity:0;transition:opacity .14s ease}
+.awpage.out{transition:transform .32s cubic-bezier(.4,0,.2,1),border-radius .32s,
+  opacity .12s ease .22s;opacity:0}
+.lacard{cursor:pointer}
+@media (prefers-reduced-motion: reduce){
+  .awpage .awtop,.awpage .awscroll{transition:none;opacity:1}
+}

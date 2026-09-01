@@ -1265,6 +1265,9 @@ function renderToday(){
       return; }
     const w=e.target.closest(".seewhy");
     if(w){ buzz(8); openAreaWhy(+w.dataset.why, w.closest(".lacard")); return; }
+    const lc=e.target.closest(".lacard");   /* the whole card opens it */
+    if(lc){ const sw=lc.querySelector(".seewhy");
+      if(sw){ buzz(8); openAreaWhy(+sw.dataset.why, lc); return; } }
     const tm=e.target.closest(".term");
     if(tm){ const def=document.querySelector(`.termdef[data-def="${tm.dataset.term}"]`);
       if(def){ def.hidden=!def.hidden; buzz(4); } return; }
@@ -1276,7 +1279,40 @@ function renderToday(){
 /* ---- SEE WHY — the signature chain (spec §21-27). The card expands
    into a full-screen warm-paper reading page; back reverses it and the
    carousel keeps its place (the Today DOM is never torn down). ---- */
-let AWLAST=null;
+/* ---- SHARED CARD MORPH (Sangram, 1 Sep) ---------------------------
+   Every warm-light reading page expands from the element that was
+   tapped and contracts back to the same place. The content cross-fades
+   while the surface morphs, so text never visibly stretches. One
+   primitive, used by every opener - the interaction is learned once. */
+function awOpen(ov,card){
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.body.appendChild(ov);
+  if(card&&!reduced){
+    const r=card.getBoundingClientRect();
+    ov.style.transformOrigin="0 0";
+    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    ov.style.borderRadius="22px";
+    void ov.offsetHeight;
+    ov.classList.add("in");
+    ov.style.transform=""; ov.style.borderRadius="";
+    return {rect:r};
+  }
+  ov.classList.add("in","fade");
+  return null;
+}
+function awClose(ov,src,then){
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const done=()=>{ ov.remove(); if(then) then(); };
+  if(src&&!reduced){
+    const r=src.rect;
+    ov.classList.add("out");
+    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
+    ov.style.borderRadius="22px";
+    setTimeout(done,340);
+  } else { ov.classList.add("fadeout"); setTimeout(done,190); }
+  buzz(5);
+}
+
 function openAreaWhy(i, card){
   const R=dayReading(viewDate), a=R.areas[i], F=R.F;
   if(!a) return;
@@ -1351,31 +1387,8 @@ function openAreaWhy(i, card){
         natal Moon; schools differ over Rahu and Ketu. A compass for reflection,
         not a prediction.</p>
     </div>`;
-  document.body.appendChild(ov);
-  /* shared-element expand: from the card's rectangle to full screen */
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px)
-      scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    ov.style.borderRadius="22px";
-    void ov.offsetHeight;
-    ov.classList.add("in");
-    ov.style.transform=""; ov.style.borderRadius="";
-    AWLAST={rect:r};
-  } else { ov.classList.add("in","fade"); AWLAST=null; }
-  const close=(then)=>{
-    const done=()=>{ ov.remove(); if(then) then(); };
-    if(AWLAST&&!reduced){
-      const r=AWLAST.rect;
-      ov.classList.add("out");
-      ov.style.transform=`translate(${r.left}px,${r.top}px)
-        scale(${r.width/innerWidth},${r.height/innerHeight})`;
-      ov.style.borderRadius="22px";
-      setTimeout(done,330);
-    } else { ov.classList.add("fadeout"); setTimeout(done,180); }
-    buzz(5);
-  };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=e=>{
     const b=e.target.closest(".awcta"); if(!b) return;
@@ -1440,17 +1453,8 @@ function openTransitWhy(g, card){
       <p class="awfoot">Positions from the ephemeris; verdicts from the classical
         gochara tables. Traditional associations, not a prediction.</p>
     </div>`;
-  document.body.appendChild(ov);
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px)
-      scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    void ov.offsetHeight;
-    ov.classList.add("in"); ov.style.transform="";
-  } else ov.classList.add("in","fade");
-  const close=(then)=>{ ov.classList.add("fadeout");
-    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=e=>{
     const b=e.target.closest(".awcta"); if(!b) return;
@@ -2320,7 +2324,7 @@ function sheetPlanet(p,opts){
       const yg=E.yogas.filter(y=>y.planets&&y.planets.includes(g));
       return `
       <div class="eyebrow" style="margin:20px 0 7px">In the deeper charts</div>
-      <p class="interp">In the <b>navamsa (D9)</b> &#8212; the chart read for marriage and
+      <p class="interp tech">In the <b>navamsa (D9)</b> &#8212; the chart read for marriage and
         inner strength &#8212; your ${g} sits in <b>${d9?SIGNS[d9-1]:"&#8212;"}</b>.
         In the <b>dashamsa (D10)</b> &#8212; career and public work &#8212; in
         <b>${d10?SIGNS[d10-1]:"&#8212;"}</b>.${(()=>{
@@ -2603,6 +2607,14 @@ const escText=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 
 /* one continuous conversation per profile (spec 5), persisted -
    except in incognito, where the session lives only in memory (7-8) */
+/* language choice (Dad's suggestion, 1 Sep): honored by Guide's text
+   and voice today; full app translation arrives with the iOS build */
+const LANG_OPTS=[["en","English"],["hi","&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;"],["mix","Hinglish"]];
+const langName=()=>({en:"English",
+  hi:"Hindi, written in Devanagari",
+  mix:"Hinglish - a natural conversational Hindi-English mix written in Latin script"}
+  [PREFS().lang||"en"]);
+
 const GUIDE_KEY=()=>"astro.guide."+(ACTIVE.p?ACTIVE.name:"me");
 let GUIDE={msgs:[],incognito:false,snapshot:null,busy:false};
 let GUIDE_SEED=null;
@@ -2649,7 +2661,8 @@ function guideFacts(){
     sadeSati:sati?{phase:sati.ph.phase,until:fmtDate(sati.ph.end)}:"not active",
     transits:F.sky.map(s=>({graha:s.graha,sign:SIGNS[s.sign-1],house:s.house,
       retrograde:!!s.retro,supportive:!!s.favourable})),
-    recentTopics:guideTopics()
+    recentTopics:guideTopics(),
+    replyLanguage:langName()
   };
   if(GUIDE_SEED&&GUIDE_SEED.ctx) facts.invocation=GUIDE_SEED.ctx;
   return facts;
@@ -3054,7 +3067,8 @@ function voiceListen(){
   if(!VOICE.on||VOICE.muted) return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const rec=new SR();
-  rec.lang="en-IN"; rec.continuous=true; rec.interimResults=true;
+  rec.lang=(PREFS().lang==="hi")?"hi-IN":"en-IN";
+  rec.continuous=true; rec.interimResults=true;
   rec.onstart=()=>{ if(!speechSynthesis.speaking) gMoonState("listening"); };
   rec.onresult=e=>{
     let interim="", final="";
@@ -3091,7 +3105,9 @@ function voiceSpeak(text){
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text.replace(/@@ACTIONS[\s\S]*?@@/,""));
     const vs=speechSynthesis.getVoices();
-    u.voice=vs.find(v=>/en[-_]IN/i.test(v.lang))||vs.find(v=>/en/i.test(v.lang))||null;
+    u.voice=(PREFS().lang==="hi"
+      ? vs.find(v=>/hi[-_]IN/i.test(v.lang))||vs.find(v=>/en[-_]IN/i.test(v.lang))
+      : vs.find(v=>/en[-_]IN/i.test(v.lang)))||vs.find(v=>/en/i.test(v.lang))||null;
     u.rate=1;
     u.onstart=()=>gMoonState("speaking");
     u.onend=()=>{ if(VOICE.on) gMoonState(VOICE.muted?"idle":"listening"); };
@@ -4167,7 +4183,12 @@ function subSettings(){
       <div class="setlabel"><b>${label}</b>${note?`<span>${note}</span>`:""}</div>
       <button class="switch${on?" on":""}" id="${id}" role="switch" aria-checked="${on}"><i></i></button>
     </div>`;
+  const langLabel={en:"English",hi:"&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;",mix:"Hinglish"}[pr.lang||"en"];
   return `
+    <div class="setgroup">
+      ${picker("lang","Language",["English","&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;","Hinglish"],langLabel,
+        "Guide replies and voice; full app translation coming")}
+    </div>
     <div class="setgroup">
       ${picker("ayan","Ayanamsa",AYANAMSAS,pr.ayanamsa||"Lahiri","Sidereal offset")}
       ${picker("style","Chart style",STYLES,pr.style||"North Indian")}
@@ -4187,7 +4208,10 @@ function wireSettings(){
     setOpen=setOpen===b.dataset.open?null:b.dataset.open; buzz(5); renderSub();
   });
   document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{
-    setPref(b.dataset.set==="ayan"?"ayanamsa":"style", b.dataset.val);
+    if(b.dataset.set==="lang"){
+      const code={"English":"en","Hinglish":"mix"}[b.dataset.val]||"hi";
+      setPref("lang",code);
+    } else setPref(b.dataset.set==="ayan"?"ayanamsa":"style", b.dataset.val);
     setOpen=null; buzz(8); renderSub();
   });
   const n=document.getElementById("s_nodal");
@@ -4538,15 +4562,8 @@ function openSatiCycle(ci,card){
       Saturn season with edges &#8212; not a verdict. Astra&#8217;s dates come from
       Saturn&#8217;s real motion, retrogrades included.</p>
     </div>`;
-  document.body.appendChild(ov);
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    void ov.offsetHeight; ov.classList.add("in"); ov.style.transform="";
-  } else ov.classList.add("in","fade");
-  const close=(then)=>{ ov.classList.add("fadeout");
-    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=e=>{
     const p=e.target.closest("[data-ph]");
@@ -4719,15 +4736,8 @@ function openSatiPhase(ci,idx,card){
       themes, not certainties. Dates from Saturn&#8217;s real motion; dasha overlap from
       the Vimshottari engine.</p>
     </div>`;
-  document.body.appendChild(ov);
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    void ov.offsetHeight; ov.classList.add("in"); ov.style.transform="";
-  } else ov.classList.add("in","fade");
-  const close=(then)=>{ ov.classList.add("fadeout");
-    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=e=>{
     const term=e.target.closest(".term");
@@ -5091,15 +5101,8 @@ function openEventWhy(i, card){
       with such themes &#8212; shown alongside your memory as a frame for reflection.
       Nothing here means the sky caused what happened.</p>
     </div>`;
-  document.body.appendChild(ov);
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    void ov.offsetHeight; ov.classList.add("in"); ov.style.transform="";
-  } else ov.classList.add("in","fade");
-  const close=(then)=>{ ov.classList.add("fadeout");
-    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=ev2=>{
     const b=ev2.target.closest(".awcta"); if(!b) return;
@@ -5255,17 +5258,8 @@ function openPeriodWhy(maha,antar,when,p3,sati,card){
       reports. Traditional associations within Vedic astrology &#8212; a lens for
       reflection, not a forecast.</p>
     </div>`;
-  document.body.appendChild(ov);
-  if(card&&!reduced){
-    const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px)
-      scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    void ov.offsetHeight;
-    ov.classList.add("in"); ov.style.transform="";
-  } else ov.classList.add("in","fade");
-  const close=(then)=>{ ov.classList.add("fadeout");
-    setTimeout(()=>{ov.remove(); if(then)then();},190); buzz(5); };
+  const src=awOpen(ov,card);
+  const close=(then)=>awClose(ov,src,then);
   ov.querySelector(".awback").onclick=()=>close();
   ov.onclick=e=>{
     const b=e.target.closest(".awcta"); if(!b) return;
@@ -5799,49 +5793,27 @@ document.addEventListener("visibilitychange",()=>{
    fire here. So the app supplies its own: pull down from the top of
    Today or You and the tab re-renders against the live clock.
    Universe, Timeline and Guide are excluded - they own their drags. */
-const ptrEl=document.createElement("div");
-ptrEl.className="ptr";
-ptrEl.innerHTML=`<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 108 8"/><path d="M12 1.5V6.5"/></svg>`;
-document.body.appendChild(ptrEl);
-let ptrY0=null, ptrArmed=false;
-const ptrPage=()=>document.querySelector(".page.on");
-const ptrReset=()=>{ptrEl.style.opacity=0;ptrEl.style.transform="translate(-50%,0)";
-  ptrEl.classList.remove("armed","spin")};
-const pagesEl=document.querySelector(".pages");
-pagesEl.addEventListener("touchstart",e=>{
-  const pg=ptrPage();
-  if(!pg||!["pg-today","pg-you"].includes(pg.id)||pg.scrollTop>2) {ptrY0=null;return}
-  if(document.body.classList.contains("noscroll")) {ptrY0=null;return}
-  ptrY0=e.touches[0].clientY; ptrArmed=false;
-},{passive:true});
-pagesEl.addEventListener("touchmove",e=>{
-  if(ptrY0==null) return;
-  const pg=ptrPage();
-  if(!pg||pg.scrollTop>2){ ptrY0=null; ptrReset(); return }
-  const dy=e.touches[0].clientY-ptrY0;
-  if(dy<=8){ ptrReset(); ptrArmed=false; return }
-  const pull=Math.min((dy-8)*0.45,86);
-  ptrArmed=pull>=60;
-  ptrEl.style.opacity=Math.min(pull/40,1);
-  ptrEl.style.transform=`translate(-50%,${pull}px) rotate(${pull*3.4}deg)`;
-  ptrEl.classList.toggle("armed",ptrArmed);
-},{passive:true});
-pagesEl.addEventListener("touchend",()=>{
-  if(ptrY0==null) return;
-  ptrY0=null;
-  if(!ptrArmed){ ptrReset(); return }
-  ptrEl.classList.add("spin"); buzz(10);
-  setTimeout(()=>{
+/* No pull-to-refresh (Sangram, 1 Sep): it collided with the rhythm
+   seeker's drag, and a daily screen should simply stay current. A
+   minute tick keeps the now-marker honest and rolls the day over at
+   midnight; the visibility handler above covers long sleeps. */
+let tickDay=new Date().toDateString();
+setInterval(()=>{
+  if(document.hidden) return;
+  const nowD=new Date();
+  if(nowD.toDateString()!==tickDay){
+    tickDay=nowD.toDateString();
     lastRenderAt=Date.now();
-    const pg=ptrPage();
-    if(pg&&pg.id==="pg-you") renderYou();
-    else{
-      if(isToday(viewDate)||viewDate<new Date()) viewDate=new Date();
-      renderToday();
-    }
-    ptrReset();
-  },520);
-},{passive:true});
+    if(isToday(viewDate)||viewDate<nowD) viewDate=nowD;
+    renderToday();
+    return;
+  }
+  const rn=document.querySelector(".rnow");
+  if(rn&&isToday(viewDate)){
+    const M=rhythmModel(viewDate);
+    if(M) rn.style.left=(((nowD.getTime()-M.d0)/(M.d1-M.d0))*100).toFixed(3)+"%";
+  }
+},60000);
 
 /* the onboarded person's own chart takes over from the built-in
    reference chart before anything paints */
@@ -5912,6 +5884,13 @@ function paintOnb(){
         and a sky you can touch.</p>
       <button class="primary obwide" data-ob="begin">Begin</button>
       <button class="obghost" data-ob="sample">Explore a sample chart first</button>
+      <div class="oblang" role="radiogroup" aria-label="Language">
+        ${LANG_OPTS.map(([k,l])=>`<button data-oblang="${k}"
+          class="${(PREFS().lang||"en")===k?"on":""}" role="radio"
+          aria-checked="${(PREFS().lang||"en")===k}">${l}</button>`).join("")}
+      </div>
+      <p class="obnote" style="text-align:center;margin-top:6px">Guide converses in your
+        language today; the full app follows.</p>
     </div>`;
   }else if(obStep===1){
     obEl.innerHTML=`<div class="onbstep">
@@ -5954,6 +5933,9 @@ function paintOnb(){
     </div>`;
     obWireBirth();
   }
+  obEl.querySelectorAll("[data-oblang]").forEach(b=>b.onclick=()=>{
+    setPref("lang",b.dataset.oblang); buzz(6); paintOnb();
+  });
   obEl.querySelectorAll("[data-ob]").forEach(b=>b.onclick=()=>{
     buzz(8);
     const a=b.dataset.ob;

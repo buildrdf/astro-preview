@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903p";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903q";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903p";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903p";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903q";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903q";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2328,7 +2328,7 @@ function sheetHouse(h){
       return active?`<p class="interp brass">This house is live right now &#8212; ${lord} governs the period you are running.</p>`:""})()}
     <button class="askastra" data-q="What should I know about my ${ordinal(h)} house?">
       <span class="orbdot" aria-hidden="true"></span>
-      Ask Astra about your ${ordinal(h)} house</button>
+      Ask Guide about your ${ordinal(h)} house</button>
     <p class="note">Traditional readings for this configuration. Not a prediction.</p>`);
 }
 
@@ -2409,7 +2409,7 @@ function sheetPlanet(p,opts){
     <div class="skypanel" id="skypanel" hidden></div>`}
     <button class="askastra" data-q="Why is ${g} important in my life right now?">
       <span class="orbdot" aria-hidden="true"></span>
-      Ask Astra &#8212; &#8220;Why is ${g} important in my life?&#8221;</button>
+      Ask Guide &#8212; &#8220;Why is ${g} important in my life?&#8221;</button>
 
     <details class="adv">
       <summary>The technical placement</summary>
@@ -2651,7 +2651,7 @@ function astraCard(text,chips){
   const list=typeof chips==="function"?chips():(chips||[]);
   const idx=list.map(c=>{CHIP_ACTS.push(c.act); return CHIP_ACTS.length-1});
   return `<div class="astrareply">
-    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
+    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Guide</div>
     <div class="astratext">${text}</div>
     ${list.length?`<div class="chiprow">${list.map((c,i)=>
       `<button class="entchip" data-ca="${idx[i]}">${c.t}</button>`).join("")}</div>`:""}
@@ -2940,7 +2940,7 @@ function guideMsgHTML(m,i,prev){
     return `${sep}<div class="bubble me">${escText(m.content)}</div>`;
   const long=m.content.length>520;
   return `${sep}<div class="gasr">
-    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
+    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Guide</div>
     <div class="astratext${long?" clamp":""}">${fmtGuide(m.content)}</div>
     ${long?`<button class="gshowmore">Show more</button>`:""}
     ${m.actions?actChips(m.actions,i):""}
@@ -3075,8 +3075,8 @@ function renderGuide(){
     </div>
     <div class="composer glight" id="gcomposer">
       <div class="cmp-pill">
-        <input id="cmpin" placeholder="Ask Astra" aria-label="Message" autocomplete="off">
-        <button class="cmp-go" id="cmpgo" aria-label="Talk to Astra">
+        <input id="cmpin" placeholder="Ask Guide" aria-label="Message" autocomplete="off">
+        <button class="cmp-go" id="cmpgo" aria-label="Talk to Guide">
           <svg class="ico-voice" viewBox="0 0 24 24"><path d="M4.5 10v4M8.25 7v10M12 4.5v15M15.75 8v8M19.5 10.5v3"/></svg>
           <svg class="ico-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
         </button>
@@ -3089,7 +3089,7 @@ function renderGuide(){
         <div class="gvstate" id="gvstate" aria-live="polite">Listening</div>
       </div>
       <div class="gvbar">
-        <input id="gvin" class="gvpill" placeholder="Ask Astra" aria-label="Type instead" autocomplete="off">
+        <input id="gvin" class="gvpill" placeholder="Ask Guide" aria-label="Type instead" autocomplete="off">
         <button class="gvround" id="gvmute" aria-label="Mute microphone" aria-pressed="false">
           <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
             <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/><path class="slash" d="M4.5 4.5l15 15"/></svg></button>
@@ -3136,7 +3136,7 @@ function renderGuide(){
   /* one round button: voice when the field is empty, send once you type */
   const swap=()=>{ const has=!!inp.value.trim();
     goB.classList.toggle("has",has);
-    goB.setAttribute("aria-label",has?"Send":"Talk to Astra"); };
+    goB.setAttribute("aria-label",has?"Send":"Talk to Guide"); };
   inp.oninput=swap;
   inp.onkeydown=e=>{
     if(e.key==="Enter"&&inp.value.trim()){
@@ -3175,7 +3175,7 @@ async function guideSend(q,opts={}){
   }
   const chat=document.getElementById("chat");
   if(chat){ chat.insertAdjacentHTML("beforeend",
-    `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Astra</div>
+    `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Guide</div>
      <div class="astratext gthink">Reading your chart&#8230;</div></div>`);
     chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"}); }
   gMoonState("thinking");

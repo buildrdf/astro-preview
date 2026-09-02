@@ -20,8 +20,8 @@
    State: SkyMoment - birth | now | custom - each with its own
    timestamp and place. Birth never inherits device time or place.
    =================================================================== */
-import { positions, retrograde } from "./ephemeris.js?v=20260831a";
-import { raDecToAltAz, siderealPointAltAz, sunTimes } from "./sky.js?v=20260831a";
+import { positions, retrograde, eclipticLatitudes } from "./ephemeris.js?v=20260902e";
+import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from "./sky.js?v=20260902e";
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
@@ -187,7 +187,7 @@ const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"
    ==================================================================== */
 function computeSky(){
   const d=skyDate(), sp=skySpot();
-  const pos=positions(d), ret=retrograde(d);
+  const pos=positions(d), ret=retrograde(d), lats=eclipticLatitudes(d);
   if(tween){ const k=Math.min(1,(performance.now()-tween.t0)/tween.ms);
     const e=1-Math.pow(1-k,3);
     for(const g of GRAHAS){ const a=tween.from[g], b=pos[g];
@@ -197,7 +197,7 @@ function computeSky(){
   const sunT=(mode==="birth"||custom||seek)?null:null;
   cache={
     mode, key:cacheKey(), d, sp,
-    grahas:GRAHAS.map(g=>({g, retro:ret[g], L:pos[g], ...siderealPointAltAz(pos[g], d, sp.lat, sp.lon)})),
+    grahas:GRAHAS.map(g=>({g, retro:ret[g], L:pos[g], B:lats[g], ...siderealPointAltAzB(pos[g], lats[g], d, sp.lat, sp.lon)})),
     stars:STARS.map((s,i)=>({...s, nak:NAKS[i], ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
     asts:ASTERISMS.map(A=>({lines:A.lines,
       pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)}))})),

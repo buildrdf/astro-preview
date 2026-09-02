@@ -104,6 +104,52 @@ export function moonTropical(J){
     sl+=c*(m===0?1:m===1||m===-1?E:E2)*sin(d*Dd+m*M+mp*Mp+f*F);
   return norm(Lp+sl/1e6);
 }
+/* Moon ecliptic latitude: Meeus ch.47 table 47.B (60 terms) with the E
+   factor on solar-anomaly terms, plus the A1/A3/L' additive corrections.
+   Used only by the Sky so planets sit NEAR the ecliptic ribbon rather than
+   snapped onto it; positions() (longitudes) is untouched. */
+const BTERMS=[[0,0,0,1,5128122],[0,0,1,1,280602],[0,0,1,-1,277693],[2,0,0,-1,173237],
+[2,0,-1,1,55413],[2,0,-1,-1,46271],[2,0,0,1,32573],[0,0,2,1,17198],[2,0,1,-1,9266],
+[0,0,2,-1,8822],[2,-1,0,-1,8216],[2,0,-2,-1,4324],[2,0,1,1,4200],[2,1,0,-1,-3359],
+[2,-1,-1,1,2463],[2,-1,0,1,2211],[2,-1,-1,-1,2065],[0,1,-1,-1,-1870],[4,0,-1,-1,1828],
+[0,1,0,1,-1794],[0,0,0,3,-1749],[0,1,-1,1,-1565],[1,0,0,1,-1491],[0,1,1,1,-1475],
+[0,1,1,-1,-1410],[0,1,0,-1,-1344],[1,0,0,-1,-1335],[0,0,3,1,1107],[4,0,0,-1,1021],
+[4,0,-1,1,833],[0,0,1,-3,777],[4,0,-2,1,671],[2,0,0,-3,607],[2,0,2,-1,596],
+[2,-1,1,-1,491],[2,0,-2,1,-451],[0,0,3,-1,439],[2,0,2,1,422],[2,0,-3,-1,421],
+[2,1,-1,1,-366],[2,1,0,1,-351],[4,0,0,1,331],[2,-1,1,1,315],[2,-2,0,-1,302],
+[0,0,1,3,-283],[2,1,1,-1,-229],[1,1,0,-1,223],[1,1,0,1,223],[0,1,-2,-1,-220],
+[2,1,-1,-1,-220],[1,0,1,1,-185],[2,-1,-2,-1,181],[0,1,2,1,-177],[4,0,-2,-1,176],
+[4,-1,-1,-1,166],[1,0,1,-1,-164],[4,0,1,-1,132],[1,0,-1,-1,-119],[4,-1,0,-1,115],
+[2,-2,0,1,107]];
+export function moonLatitude(J){
+  const T=(J-2451545)/36525;
+  const Lp=norm(218.3164477+481267.88123421*T-0.0015786*T*T+T*T*T/538841-T*T*T*T/65194000);
+  const Dd=norm(297.8501921+445267.1114034*T-0.0018819*T*T+T*T*T/545868-T*T*T*T/113065000);
+  const M =norm(357.5291092+35999.0502909*T-0.0001536*T*T+T*T*T/24490000);
+  const Mp=norm(134.9633964+477198.8675055*T+0.0087414*T*T+T*T*T/69699-T*T*T*T/14712000);
+  const F =norm(93.2720950+483202.0175233*T-0.0036539*T*T-T*T*T/3526000+T*T*T*T/863310000);
+  const E=1-0.002516*T-0.0000074*T*T, E2=E*E;
+  const A1=119.75+131.849*T, A3=313.45+481266.484*T;
+  let sb=-2235*sin(Lp)+382*sin(A3)+175*sin(A1-F)+175*sin(A1+F)+127*sin(Lp-Mp)-115*sin(Lp+Mp);
+  for(const [d,m,mp,f,c] of BTERMS)
+    sb+=c*(m===0?1:m===1||m===-1?E:E2)*sin(d*Dd+m*M+mp*Mp+f*F);
+  return sb/1e6;
+}
+/* Geocentric ecliptic latitude per body, degrees. Sun and the nodes are on
+   the ecliptic by definition; planets from the heliocentric z of their
+   orbital elements against Earth in the ecliptic plane. */
+export function eclipticLatitudes(date){
+  const J=jd(date), T=(J-2451545)/36525;
+  const sg=sunGeo(J);
+  const earth=[-sg.R*cos(sg.lon), -sg.R*sin(sg.lon), 0];
+  const out={Sun:0, Moon:moonLatitude(J), Rahu:0, Ketu:0};
+  for(const p of ['Mercury','Venus','Mars','Jupiter','Saturn']){
+    const h=heliocentric(p,T);
+    const dx=h[0]-earth[0], dy=h[1]-earth[1], dz=h[2]-earth[2];
+    out[p]=Math.atan2(dz, Math.hypot(dx,dy))/D;
+  }
+  return out;
+}
 /* True lunar node (mean node plus the dominant periodic term) */
 function rahuTropical(J){
   const T=(J-2451545)/36525;

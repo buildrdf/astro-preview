@@ -180,6 +180,21 @@ export function raDecToAltAz(ra, dec, date, lat, lon){
   return {alt,az,up:alt>0};
 }
 /* a point ON the ecliptic by SIDEREAL longitude (rashi space) */
+/* ecliptic (lambda, beta) → equatorial, mean obliquity of date */
+function raDecB(lambda, beta, J){
+  const T = (J - 2451545) / 36525;
+  const eps = (23.439281 - 0.0130042 * T) * D;
+  const l = lambda * D, b = beta * D;
+  const ra  = norm(Math.atan2(Math.sin(l)*Math.cos(eps) - Math.tan(b)*Math.sin(eps), Math.cos(l)) / D);
+  const dec = Math.asin(Math.sin(b)*Math.cos(eps) + Math.cos(b)*Math.sin(eps)*Math.sin(l)) / D;
+  return { ra, dec };
+}
+/* a sidereal point WITH ecliptic latitude - planets sit near the ribbon, not on it */
+export function siderealPointAltAzB(lambdaSid, beta, date, lat, lon){
+  const J=jd(date);
+  const {ra,dec}=raDecB(norm(lambdaSid+ayanamsa(J)), beta||0, J);
+  return raDecToAltAz(ra, dec, date, lat, lon);
+}
 export function siderealPointAltAz(lambdaSid, date, lat, lon){
   const J=jd(date);
   const {ra,dec}=raDec(norm(lambdaSid+ayanamsa(J))*1, J);

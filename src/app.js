@@ -13,13 +13,13 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260831a";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
 import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
-         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260831a";
+         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260902e";
 const julian = jd;
 const RAD=Math.PI/180;
 const sind=d=>Math.sin(d*RAD);
@@ -670,63 +670,6 @@ function dayReading(date){
 }
 
 /* ---- prose assembly: facts from the engine, words from the library ---- */
-function leadLine(e,F){
-  if(e.tara) return `Today's Moon is in <b>${NAK[F.todayMoonNak]}</b>, `+
-    `${ordinal(F.tara.count)} from your birth star &#8212; <b>${F.tara.name}</b>, `+
-    `${F.tara.tone==="good"?"a supportive count":F.tara.tone==="testing"?"a count that asks for patience":"your own star"}.`;
-  return `<b>${e.graha}</b> ${e.occupies
-      ?`is moving through your ${ordinal(e.house)} house`
-      :`aspects your ${e.aspects.map(ordinal).join(" and ")}`}`
-    +` &#8212; ${e.favourable?"well placed from your Moon":"a slower placement from your Moon"}`
-    +`${e.retro?", and retrograde":""}.`;
-}
-/* one full explanation per touching graha, each carrying its sky link.
-   Written as cause and effect (Sangram, 30 Aug): where the graha is, what
-   that house governs, and what the placement traditionally does to this
-   area - in sentences, not capsules. */
-function reasonLines(a,F){
-  const seeBtn=g=>`<button class="seesky" data-g="${g}" aria-label="See ${g} in the sky">
-      <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>`;
-  const rows=a.evidence.map(e=>{
-    if(e.tara) return `<div class="whyrow">
-      <span class="whyart">${gIcon("Moon",30)}</span>
-      <span class="whymain"><span class="whytext">Today&#8217;s Moon rides
-        <b>${NAK[F.todayMoonNak]}</b> &#8212; the ${ordinal(F.tara.count)} star counted from
-        your birth star, called <b>${F.tara.name}</b> in tara bala. ${F.tara.note}</span>
-      </span>${seeBtn("Moon")}</div>`;
-    const gm=GRAHA_MEANING[e.graha];
-    const sk=F.sky.find(p=>p.graha===e.graha);
-    const feel=GOCHARA_FEEL[e.graha];
-    const where=e.occupies
-      ?`is in your <b>${ordinal(e.house)} house</b>${sk?` in ${SIGNS[sk.sign-1]}`:""} today
-        &#8212; the house of ${HOUSE_TRANSIT_SENSE[e.house]}`
-      :`casts its gaze on your <b>${e.aspects.map(ordinal).join(" and ")}</b>
-        ${e.aspects.length>1?"houses":"house"} today &#8212;
-        ${e.aspects.map(h=>HOUSE_TRANSIT_SENSE[h]).join("; and ")}`;
-    return `<div class="whyrow">
-      <span class="whyart">${gIcon(e.graha,30)}</span>
-      <span class="whymain"><span class="whytext"><b>${e.graha}</b>, ${gm.is}, ${where}.
-        Counted from your natal Moon it sits ${ordinal(e.houseFromMoon)}, which the
-        classical tables read as <b>${e.favourable?"supportive":"slower going"}</b>${
-        e.retro?", and it is moving retrograde &#8212; matters returned to rather than settled first time":""}.
-        ${feel?(e.favourable?feel.fav:feel.unfav):""}</span>
-      </span>${seeBtn(e.graha)}</div>`;
-  });
-  const fav=a.evidence.filter(e=>!e.tara&&e.favourable).length,
-        slow=a.evidence.filter(e=>!e.tara&&!e.favourable).length;
-  const aligned=(a.tone==="favourable"&&fav>=slow)||(a.tone==="slow"&&slow>=fav)
-             ||a.tone==="balanced";
-  return rows.join("")+`<p class="whysum">${aligned
-    ?`Weighed together &#8212; ${fav} supportive, ${slow} slower &#8212;`
-    :`Not every influence counts equally: a graha standing in one of these houses
-      weighs more than a distant gaze. On balance,`}
-    ${a.area.toLowerCase()} reads as
-    <b class="tone-${a.tone}">${TONE_WORD[a.tone].toLowerCase()}</b> today.</p>
-  <p class="whyfoot">Houses read for ${a.area.toLowerCase()}:
-    ${AREA_HOUSES[a.area].map(ordinal).join(", ")}. Verdicts from the classical gochara
-    tables, counted from your Moon; schools differ over Rahu and Ketu.</p>`;
-}
-
 const pickBy=(arr,seed,n)=>Array.from({length:Math.min(n,arr.length)},(_,i)=>arr[(seed+i*2)%arr.length]);
 const dayOfYear=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
 
@@ -1292,9 +1235,35 @@ function renderToday(){
    tapped and contracts back to the same place. The content cross-fades
    while the surface morphs, so text never visibly stretches. One
    primitive, used by every opener - the interaction is learned once. */
+/* ---- NAV: every full-screen page is a history entry, so the phone's
+   back gesture / browser back closes the topmost page exactly as its own
+   back button would (ARCH: no page without a back route). Programmatic
+   closes go through history.back() so the two paths never diverge. ---- */
+const NAV={stack:[],closing:false,seq:0};
+function navPush(ov,closeFn){
+  const token="aw"+(++NAV.seq);
+  NAV.stack.push({token,ov,closeFn});
+  try{ history.pushState({astra:token},""); }catch(_){}
+  return token;
+}
+window.addEventListener("popstate",()=>{
+  /* drop entries whose page was bulk-removed by a cross-navigation */
+  while(NAV.stack.length&&!NAV.stack[NAV.stack.length-1].ov.isConnected) NAV.stack.pop();
+  const top=NAV.stack.pop(); if(!top) return;
+  NAV.closing=true; try{ top.closeFn(); } finally{ NAV.closing=false; }
+});
+/* close every open page at once (a CTA that jumps elsewhere), keeping
+   history in step */
+function navUnwindAll(){
+  const live=NAV.stack.filter(e=>e.ov.isConnected);
+  NAV.stack.length=0;
+  live.forEach(e=>e.ov.remove());
+  if(live.length){ NAV.closing=true; try{ history.go(-live.length); }catch(_){} setTimeout(()=>{NAV.closing=false;},50); }
+}
 function awOpen(ov,card){
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   document.body.appendChild(ov);
+  ov._navToken=navPush(ov,()=>{ if(ov.isConnected) awClose(ov,ov._src,ov._then); });
   if(card&&!reduced){
     const r=card.getBoundingClientRect();
     ov.style.transformOrigin="0 0";
@@ -1309,6 +1278,12 @@ function awOpen(ov,card){
   return null;
 }
 function awClose(ov,src,then){
+  /* a tap on the page's own back arrow: let history drive the close so the
+     entry is consumed; popstate re-enters here with NAV.closing set */
+  if(!NAV.closing&&ov._navToken&&history.state&&history.state.astra===ov._navToken){
+    ov._src=src; ov._then=then; history.back(); return;
+  }
+  const idx=NAV.stack.findIndex(e=>e.ov===ov); if(idx>=0&&!NAV.closing) NAV.stack.splice(idx,1);
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const done=()=>{ ov.remove(); if(then) then(); };
   if(src&&!reduced){
@@ -2419,7 +2394,10 @@ closeBtn.onclick=()=>{
   if(sheet.classList.contains("up") && !sheet.classList.contains("peek")) collapseSheet();
   else resetChart();
 };
-document.addEventListener("keydown",e=>{if(e.key==="Escape")resetChart()});
+document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return;
+  const top=NAV.stack.filter(x=>x.ov.isConnected).pop();
+  if(top){ if(history.state&&history.state.astra===top.token) history.back(); else { NAV.closing=true; try{top.closeFn();}finally{NAV.closing=false;} } return; }
+  resetChart(); });
 sheet.addEventListener("click",e=>{
   const sw=e.target.closest("#psheetseg button[data-w]");
   if(sw){
@@ -5386,7 +5364,7 @@ function openVargaPlanet(D,k,card){
   ov.onclick=e=>{
     const b=e.target.closest(".awcta"); if(!b) return;
     buzz(9);
-    if(b.dataset.act==="chart") close(()=>{ document.querySelectorAll(".awpage").forEach(x=>x.remove());
+    if(b.dataset.act==="chart") close(()=>{ navUnwindAll();
       uniVarga=D; go(CHART_INDEX); setMode("birth"); vargaSwitchMotion(); setTimeout(()=>openPlanet(k),800); });
     else close(()=>askGuide(`Why is ${nm} in a different house in D${D}?`,
       {source:"varga_planet",D,point:nm,d1:`${SIGNS[d1.signs[k]-1]} ${ordinal(d1.houses[k])}`,
@@ -5690,7 +5668,7 @@ function openNakPage(i,card){
   ov.onclick=e=>{
     const b=e.target.closest(".awcta"); if(!b) return;
     buzz(9);
-    if(b.dataset.act==="natal") close(()=>{ document.querySelectorAll(".awpage").forEach(x=>x.remove()); go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
+    if(b.dataset.act==="natal") close(()=>{ navUnwindAll(); go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
     else close(()=>askGuide(here.some(p=>p.k==="Moon")?`Why is my Moon in ${r.name}, and what does it mean?`:`What does ${r.name} mean?`,
       {source:"nakshatra",nakshatra:r.name,lord:nakLord(i),deity:m.deity,symbol:m.symbol,signs:r.signs.map(s=>SIGNS[s-1]),
        pointsHere:here.map(p=>`${p.name} pada ${p.g.pada}`)}));

@@ -96,12 +96,16 @@ export function openObjectDetail(spec, ctx) {
         <div class="codpanel" data-panel="birth" ${emphasis === "birth" ? "" : "hidden"}>${panelHTML(model.birth)}</div>
         <div class="codpanel" data-panel="now" ${emphasis === "now" ? "" : "hidden"}>${panelHTML(model.now)}</div>
       </section>
-      <section class="codacts">
-        <div class="codactrow">
-          ${model.actions.filter(a => a.id !== "guide").map(a => `<button class="codact" data-act="${a.id}">${ACT_ICON[a.id] || ""}<span>${esc(a.label)}</span></button>`).join("")}
-        </div>
-        ${model.actions.filter(a => a.id === "guide").map(a => `<button class="codact wide primary" data-act="${a.id}">${ACT_ICON.guide}<span>${esc(a.label)}</span></button>`).join("")}
-      </section>
+      <section class="codacts">${(() => {
+        const rest = model.actions.filter(a => a.id !== "guide");
+        const ask = model.actions.filter(a => a.id === "guide");
+        const btn = (a, cls) => `<button class="codact${cls}" data-act="${a.id}">${ACT_ICON[a.id] || ""}<span>${esc(a.label)}</span></button>`;
+        /* three actions stack as two-then-one; two sit side by side rather than leaving a
+           lone button stranded above a full-width one */
+        return rest.length >= 2
+          ? `<div class="codactrow">${rest.map(a => btn(a, "")).join("")}</div>${ask.map(a => btn(a, " wide primary")).join("")}`
+          : `<div class="codactrow">${rest.map(a => btn(a, "")).join("")}${ask.map(a => btn(a, " primary")).join("")}</div>`;
+      })()}</section>
       <p class="codfoot">${esc(model.foot)}</p>
     </div>`;
   document.body.appendChild(ov);

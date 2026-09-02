@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903q";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903r";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903q";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903q";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903r";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903r";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so

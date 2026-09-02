@@ -2771,7 +2771,7 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .codminihero{width:30px;height:30px;display:grid;place-items:center}
 .codscroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(env(safe-area-inset-bottom) + 40px)}
 .codhero{height:clamp(240px,42vh,320px);display:grid;place-items:center;position:sticky;top:0;z-index:1;pointer-events:none}
-.codheroslot{transform-origin:center;transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .3s;
+.codheroslot{transform-origin:center;transition:opacity .3s;
   transform:translate(calc(var(--hx,0px) * var(--p,0)),calc(var(--hy,0px) * var(--p,0)))
     scale(calc(1 + (var(--hsT,.13) - 1) * var(--p,0)));
   opacity:1}
@@ -2784,7 +2784,7 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .codglance{margin-top:22px}
 .codgrid{display:grid;grid-template-columns:1.1fr 1fr 1fr;border-top:1px solid rgba(20,22,43,.12)}
 .codhead{padding:10px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.codhead.emph{color:var(--ink);box-shadow:inset 0 2px 0 var(--cta)}
+.codhead.emph{color:var(--ink);box-shadow:inset 0 -2px 0 var(--cta)}
 .codk,.codv{padding:9px 6px 9px 0;border-top:1px solid rgba(20,22,43,.08);font-size:14.5px}
 .codk{color:var(--ink-3)}.codv{font-weight:500;color:var(--ink-2)}.codv.emph{color:var(--ink);font-weight:600}
 .codv.chg::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cta);margin-left:7px;vertical-align:2px}
@@ -3125,3 +3125,19 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
 .notefold[open] summary::after{transform:rotate(90deg)}
 .notefold .note{margin:8px 0 0}
 @media (prefers-reduced-motion: reduce){ .notefold summary::after{transition:none} }
+
+/* every action button is the same box, whatever the row it sits in */
+.codact{min-height:46px;padding:0 16px;box-sizing:border-box;line-height:1.2}
+.codactrow{align-items:stretch}
+/* the deeper-chart heading inside a reading panel */
+.codsub2{font-size:12.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);margin:18px 0 8px}
+.codq{color:var(--ink-3);font-weight:500}
+/* the hero lands beside the back button and the name arrives next to it */
+.cod .codmini{display:flex;padding-left:46px}
+.cod .codminihero{display:none}
+
+/* the landed hero has to read on the pale bar: the big soft shadow it wears at full size
+   is invisible at 30px, so it swaps for a tight one */
+.cod.collapsed .codheroslot canvas,.cod.collapsed .codheroslot svg{
+  filter:drop-shadow(0 1px 2px rgba(20,22,43,.45))}

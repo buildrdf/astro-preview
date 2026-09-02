@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903r";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903v";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903r";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903r";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903v";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903v";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2896,10 +2896,12 @@ function gMoonState(s){
   VOICE.state=s;
   for(const id of ["gmoon","gvorb"]){
     const m=document.getElementById(id);
-    if(m){ m.classList.remove("idle","listening","thinking","speaking"); m.classList.add(s); }
+    if(m){ m.classList.remove("idle","listening","thinking","speaking","connecting");
+      m.classList.add(s==="connecting"?"thinking":s); }
   }
   const cap=document.getElementById("gvstate");
-  if(cap) cap.textContent=s==="listening"?"Listening":s==="thinking"?"Thinking":s==="speaking"?"Speaking":(VOICE.muted?"Muted":"");
+  if(cap) cap.textContent=s==="listening"?"Listening":s==="connecting"?"Connecting":
+    s==="thinking"?"Thinking":s==="speaking"?"Speaking":(VOICE.muted?"Muted":"");
 }
 
 /* adaptive suggestions (spec 11-12) - drawn from the person's actual
@@ -3210,7 +3212,7 @@ async function guideSend(q,opts={}){
     if(pend) pend.outerHTML=guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],
       GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]);
     buzz(4);
-    if(VOICE.on){ voiceNote(reply.text.replace(/@@ACTIONS[\s\S]*?@@/,"").trim()); voiceSpeak(reply.text); }
+    if(VOICE.on){ voiceSpeak(reply.text); }   /* the thread shows it — do not caption it twice */
     else gMoonState("idle");
   }else{
     GUIDE.msgs.pop();          /* the question stays visible but not in context */
@@ -3220,7 +3222,7 @@ async function guideSend(q,opts={}){
     gMoonState("idle");
     if(VOICE.on){
       const plain=String(e_plain||"");
-      voiceNote(plain); voiceSpeak(plain);
+      voiceSpeak(plain);
     }
   }
   const pg2=document.getElementById("pg-guide"), c2=document.getElementById("chat");
@@ -3254,7 +3256,99 @@ function voiceInterim(text){
   b.textContent=text;
   const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
 }
-function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
+function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition)
+  ||!!(window.RTCPeerConnection&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia); }
+
+/* ===================================================================
+   REAL VOICE — OpenAI Realtime over WebRTC.
+   The browser's own speech engine reads text back in a flat machine
+   voice; this streams the model's actual speech instead. The ephemeral
+   key is minted by our edge function, so no key ever reaches the page.
+   Falls back to the browser engine if anything here fails.
+   =================================================================== */
+const VOICE_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/voice-session";
+let RT=null;
+function rtStop(){
+  if(!RT) return;
+  try{ RT.dc&&RT.dc.close(); }catch(_){}
+  try{ RT.pc&&RT.pc.close(); }catch(_){}
+  try{ RT.mic&&RT.mic.getTracks().forEach(t=>t.stop()); }catch(_){}
+  try{ if(RT.audio){ RT.audio.pause(); RT.audio.srcObject=null; } }catch(_){}
+  RT=null;
+}
+function rtSay(text){                    /* stream the model's words into the thread */
+  let pend=document.getElementById("gpending");
+  const chat=document.getElementById("chat"); if(!chat) return;
+  if(!pend){
+    chat.insertAdjacentHTML("beforeend",
+      `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Guide</div>
+       <div class="astratext"></div></div>`);
+    pend=document.getElementById("gpending");
+  }
+  const t=pend.querySelector(".astratext");
+  t.textContent=(t.textContent||"")+text;
+  const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
+}
+function rtDone(){
+  const pend=document.getElementById("gpending"); if(!pend) return;
+  const txt=(pend.querySelector(".astratext").textContent||"").trim();
+  pend.removeAttribute("id");
+  if(txt){ GUIDE.msgs.push({role:"assistant",content:txt,t:Date.now()}); guideSave(); }
+  gMoonState("listening");
+}
+function rtEvent(m){
+  switch(m.type){
+    case "input_audio_buffer.speech_started": gMoonState("listening"); voiceInterim(""); break;
+    case "conversation.item.input_audio_transcription.delta":
+      if(m.delta) voiceInterim((document.getElementById("gvlive")?.textContent||"")+m.delta); break;
+    case "conversation.item.input_audio_transcription.completed": {
+      const said=(m.transcript||"").trim(); voiceInterim("");
+      if(said){ GUIDE.msgs.push({role:"user",content:said,t:Date.now()}); guideSave();
+        const chat=document.getElementById("chat");
+        if(chat) chat.insertAdjacentHTML("beforeend",
+          guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]));
+        const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight; }
+      break; }
+    case "response.created": gMoonState("thinking"); break;
+    case "response.output_audio_transcript.delta":
+    case "response.audio_transcript.delta": gMoonState("speaking"); rtSay(m.delta||""); break;
+    case "response.output_audio_transcript.done":
+    case "response.audio_transcript.done":
+    case "response.done": rtDone(); break;
+    case "error": voiceNote(m.error&&m.error.message?String(m.error.message).slice(0,120):"Voice error"); break;
+  }
+}
+async function rtStart(){
+  const r=await fetch(VOICE_URL,{method:"POST",
+    headers:{"Content-Type":"application/json",Authorization:"Bearer "+GUIDE_ANON,apikey:GUIDE_ANON},
+    body:JSON.stringify({facts:guideFacts()})});
+  if(!r.ok) throw new Error("session");
+  const j=await r.json();
+  const ek=(j.session&&j.session.value)||(j.client_secret&&j.client_secret.value)||j.value;
+  if(!ek) throw new Error("nokey");
+  const mic=await navigator.mediaDevices.getUserMedia({audio:true});
+  const pc=new RTCPeerConnection();
+  const audio=document.createElement("audio");
+  audio.autoplay=true; audio.setAttribute("playsinline","");
+  pc.ontrack=e=>{ audio.srcObject=e.streams[0]; audio.play().catch(()=>{}); };
+  pc.addTrack(mic.getTracks()[0],mic);
+  const dc=pc.createDataChannel("oai-events");
+  dc.onmessage=ev=>{ try{ rtEvent(JSON.parse(ev.data)); }catch(_){} };
+  dc.onopen=()=>{
+    /* the chart travels over the channel, so the model answers from real positions */
+    try{ dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"message",role:"user",
+      content:[{type:"input_text",text:"Chart facts for this conversation (do not read aloud): "+
+        JSON.stringify(guideFacts()).slice(0,6000)}]}})); }catch(_){}
+  };
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  const sdp=await fetch("https://api.openai.com/v1/realtime/calls",{method:"POST",
+    body:offer.sdp,headers:{Authorization:"Bearer "+ek,"Content-Type":"application/sdp"}});
+  if(!sdp.ok) throw new Error("sdp "+sdp.status);
+  await pc.setRemoteDescription({type:"answer",sdp:await sdp.text()});
+  RT={pc,dc,mic,audio};
+  gMoonState("listening");
+}
 function voiceUI(on){
   const c=document.getElementById("gcomposer"), v=document.getElementById("gvoice");
   if(c) c.hidden=on;
@@ -3273,12 +3367,21 @@ function voiceStart(){
   if(mb){ mb.classList.remove("muted"); mb.setAttribute("aria-pressed","false"); }
   voiceUI(true);
   voiceNote("");
-  gMoonState("listening");
+  gMoonState("connecting");
   /* Safari only speaks if synthesis was first touched inside a tap */
   try{ const u0=new SpeechSynthesisUtterance("\u00a0"); u0.volume=0; speechSynthesis.speak(u0); }catch(_){}
   voiceMeterStart();
-  voiceListen();
   voiceLoop();
+  /* the model's own voice first; the browser's flat engine only if that cannot connect */
+  const rtTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),12000));
+  Promise.race([rtStart(),rtTimeout]).catch(err=>{
+    if(!VOICE.on) return;
+    console.warn("realtime unavailable, falling back:",err&&err.message);
+    rtStop();
+    gMoonState("listening");
+    if(window.SpeechRecognition||window.webkitSpeechRecognition) voiceListen();
+    else voiceNote("Voice needs a microphone and a connection \u2014 type instead");
+  });
 }
 /* The Moon swells with the voice in the room: mic RMS while you talk,
    word beats while Astra talks. AudioContext is created inside the tap
@@ -3393,6 +3496,9 @@ function voiceMuteToggle(){
   const b=document.getElementById("gvmute");
   if(b){ b.classList.toggle("muted",VOICE.muted); b.setAttribute("aria-pressed",String(VOICE.muted));
     b.setAttribute("aria-label",VOICE.muted?"Unmute microphone":"Mute microphone"); }
+  /* on the real connection muting is the microphone track itself, not a recogniser */
+  if(RT&&RT.mic){ try{ RT.mic.getTracks().forEach(t=>t.enabled=!VOICE.muted); }catch(_){}
+    gMoonState(VOICE.muted?"idle":"listening"); return; }
   if(VOICE.muted){ try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
     if(!speechSynthesis.speaking) gMoonState("idle"); }
   else { voiceListen(); if(!speechSynthesis.speaking) gMoonState("listening"); }
@@ -3407,6 +3513,7 @@ function voiceStop(silent){
   try{VOICE.stream&&VOICE.stream.getTracks().forEach(x=>x.stop())}catch(_){}
   try{VOICE.ac&&VOICE.ac.close()}catch(_){}
   VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
+  rtStop();
   const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
   voiceInterim("");
   voiceNote("");

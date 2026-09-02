@@ -137,10 +137,14 @@ export function openObjectDetail(spec, ctx) {
     }
     ov.style.setProperty("--p", prev || "0");
   };
+  /* the object holds its ground while the reading scrolls up to meet it, and only then
+     shrinks and travels to the bar. Holding first is what makes the trip read as one
+     movement rather than the hero simply sliding off the top. */
+  const HOLD = 64, TRIP = 190;
   const onScroll = () => {
-    const p = Math.max(0, Math.min(1, sc.scrollTop / 170));
-    ov.style.setProperty("--p", p.toFixed(3));
-    ov.classList.toggle("collapsed", p > 0.98);
+    const q = Math.max(0, Math.min(1, (sc.scrollTop - HOLD) / TRIP));
+    ov.style.setProperty("--p", q.toFixed(3));
+    ov.classList.toggle("collapsed", q > 0.92);
   };
   requestAnimationFrame(measureHero);
   addEventListener("resize", measureHero);
@@ -206,6 +210,7 @@ function panelHTML(p) {
     <p class="tellme">${p.lead}</p>
     ${p.more ? `<p class="codmore">${p.more}</p>` : ""}
     <p class="because">${p.tech}</p>
+    ${p.extra || ""}
     <button class="codwhy" aria-expanded="false">See why</button>
     <ol class="codchain" hidden>
       ${p.chain.map(c => `<li><b>${esc(c.fact)}</b>${c.note ? `<span>${esc(c.note)}</span>` : ""}${c.show ? `<button class="codshow" data-show="${c.show}">${esc(c.showLabel || "Show")}</button>` : ""}</li>`).join("")}
@@ -241,7 +246,9 @@ function planetModel(spec, ctx) {
   if (dignRow) rows.push({ label: "Dignity", birth: esc(dignRow.birth ?? "—"), now: esc(dignRow.now ?? "—"), changed: !!dignRow.changed });
   const day = safe(() => ctx.dayFacts(at)); const skyRow = day && day.sky.find(x => x.graha === g);
   const timing = safe(() => ctx.timingContext(g, at)) || {};
-  const phase = g === "Moon" && day && day.tr && day.tr.phase ? { illum: day.tr.phase.illum, waxing: !!day.tr.phase.waxing } : undefined;
+  /* the hero is a portrait, not a readout: the Moon is drawn whole here, the way it is in
+     Guide. Its phase belongs in the reading, not in the object's own face. */
+  const phase = undefined;
 
   /* --- at birth --- */
   const h = birth.house, sName = birth.signName;
@@ -308,6 +315,31 @@ function planetModel(spec, ctx) {
     timing.nextIngress && timing.nextIngress.date ? { fact: `Next sign change · ${fmtShort(timing.nextIngress.date)}` } : null,
   ].filter(Boolean);
 
+  /* the deeper charts and the yogas this graha takes part in — straight from the engine.
+     These were on the old planet page and went missing when the page was rebuilt. */
+  const deeper = (() => {
+    const E = safe(() => ctx.engine()); if (!E) return "";
+    const d9 = safe(() => E.varga(9)[g]), d10 = safe(() => E.varga(10)[g]);
+    const yg = (E.yogas || []).filter(y => y.planets && y.planets.includes(g));
+    const S = T.SIGNS;
+    let rupas = "";
+    if (E.sb && E.sb.grahas && E.sb.grahas[g]) {
+      const order = Object.entries(E.sb.grahas).sort((a, b) => b[1].rupas - a[1].rupas);
+      const rank = order.findIndex(([k]) => k === g) + 1;
+      const say = rank === 1 ? "the strongest of the seven" : rank === 7 ? "the leanest of the seven" : `${ord(rank)} of the seven by strength`;
+      rupas = ` By shadbala it carries ${E.sb.grahas[g].rupas.toFixed(1)} rupas — ${say}.`;
+    }
+    const charts = (d9 || d10)
+      ? `<p class="because">In the navamsa (D9) — the chart read for marriage and inner strength —
+          your ${g} sits in <b>${d9 ? S[d9 - 1] : "—"}</b>. In the dashamsa (D10) — career and public
+          work — in <b>${d10 ? S[d10 - 1] : "—"}</b>.${rupas}</p>` : "";
+    const yogas = yg.length
+      ? `<h3 class="codsub2">Yogas it takes part in</h3>` + yg.map(y =>
+          `<p class="tellme"><b>${esc(y.name)}</b>${y.strength ? ` <span class="codq">· ${esc(y.strength)}</span>` : ""} — ${clean(y.because || "")}</p>`).join("")
+      : "";
+    return charts + yogas;
+  })();
+
   const meaning = T.GRAHA_MEANING[g] || {};
   const modeWord = spec.mode === "now" ? "now" : "at birth";
   return {
@@ -316,7 +348,7 @@ function planetModel(spec, ctx) {
     sub: `${esc(birth.signName)} ${esc(birth.degText)} at birth · ${esc(now.signName)} ${esc(now.degText)} now`,
     rows, changes: compare.changes || [],
     aboutTitle: `About ${g}`, about: clean(meaning.body || ""),
-    birth: { lead, more, tech: techBits.join(" · ") + ".", chain: chainB },
+    birth: { lead, more, tech: techBits.join(" · ") + ".", chain: chainB, extra: deeper },
     now: { lead: leadN, more: [feel, dashaLine, sati].filter(Boolean).join(" "), tech: techN.join(" · ") + ".", chain: chainN },
     actions: [
       { id: "chart", label: "See on chart", primary: true, run: () => ctx.actions.seeOnChart(g, spec.mode) },

@@ -14,10 +14,13 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902i";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902k";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902e";
+import * as INTERP from "./interpret.js";
+import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
    the screenshot matrix always opens the same app; the built-in reference chart is used */
 try{ if(new URLSearchParams(location.search).get("sky")) localStorage.setItem("astro.onboarded","1"); }catch(_){}
@@ -1247,7 +1250,7 @@ function renderToday(){
     if(tm){ const def=document.querySelector(`.termdef[data-def="${tm.dataset.term}"]`);
       if(def){ def.hidden=!def.hidden; buzz(4); } return; }
     const c=e.target.closest(".ingrow,.conjrow");
-    if(c){ buzz(8); openTransitWhy(c.dataset.g, c); }
+    if(c){ buzz(8); openObject({kind:"planet",id:c.dataset.g,mode:"now",at:viewDate,from:"today",emphasis:"now",origin:rectOrigin(c.querySelector("img,.art,.ga")||c)}); }
   };
 }
 
@@ -1878,10 +1881,11 @@ function renderUniverse(){
   }
 
   document.getElementById("reading").addEventListener("click",readingClicks);
-  chart.onclick=e=>{const t=e.target.closest(".hs"); if(t)openHouse(+t.dataset.h)};
+  chart.onclick=e=>{const t=e.target.closest(".hs"); if(t){ buzz(9); openObject({kind:"house",id:+t.dataset.h,mode:uniMode==="birth"?"birth":"now",at:uniMode==="birth"?null:uniDate,from:"chart",emphasis:uniMode==="birth"?"birth":"now",origin:rectOrigin(t)}); }};
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
-  plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation();openPlanet(b.dataset.g)}};
+  plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation(); buzz(12);
+    openObject({kind:"planet",id:b.dataset.g,mode:uniMode==="birth"?"birth":"now",at:uniMode==="birth"?null:uniDate,from:"chart",emphasis:uniMode==="birth"?"birth":"now",origin:rectOrigin(b)}); }};
   document.getElementById("tbcentre").onclick=e=>{
     const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===uniMode)return;
     setMode(b.dataset.m);
@@ -2783,6 +2787,59 @@ function runAct(a){
     case "focus_house": go(CHART_INDEX); setMode(a.mode); openHouse(a.house); break;
   }
 }
+
+/* ---- CELESTIAL OBJECT DETAIL: the one entry point for planet and house pages
+   (docs/UNIVERSE_OBJECT_SYSTEM_SPEC.md ARCH-01). Old in-page readings remain as
+   fallbacks until every kind routes here. ---- */
+const SIGNS_DEV=["मेष","वृषभ","मिथुन","कर्क","सिंह","कन्या","तुला","वृश्चिक","धनु","मकर","कुम्भ","मीन"];
+const SIGN_LORD_ARR=Array.from({length:12},(_,i)=>SIGN_LORD[i+1]);
+function codCtx(){
+  return {
+    CHART, pairFor, dayFacts, ordinal, fmtDeg, houseClass,
+    engine:()=>{ try{ return engine(); }catch(_){ return null; } },
+    timingContext:(g,d)=>{ let d3=null, ni=null; try{ d3=engine().d3; }catch(_){}; try{ ni=nextIngressMap(d)[g]||null; }catch(_){}
+      let sati=null; try{ if(g==="Saturn") sati=satiAt(d); }catch(_){}
+      return timingContext(g,d,{chart:CHART,d3,satiAt:()=>sati,sadeSati:sati,nextIngress:ni}); },
+    T:{SIGNS,SIGNS_SK,SIGNS_DEV,SIGN_LORD:SIGN_LORD_ARR,
+       BHAVA:BHAVA.map(b=>({head:b[1],body:b[2],name:b[0]})),
+       PLANET_STORY:INTERP.PLANET_STORY, GRAHA_MEANING:INTERP.GRAHA_MEANING, GOCHARA_FEEL:INTERP.GOCHARA_FEEL,
+       HOUSE_TRANSIT_SENSE:INTERP.HOUSE_TRANSIT_SENSE, HOUSE_STORY:LORE.HOUSE_STORY, GRAHA_IN_SIGN:LORE.GRAHA_IN_SIGN,
+       LORD_IN_HOUSE:LORE.LORD_IN_HOUSE, DASHA_THEME},
+    nav:{push:navPush}, buzz,
+    actions:{
+      seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g),260); }); },
+      showInSky:(g,mode,at)=>{ closeDetailThen(()=>{ if(mode==="birth") openSkyAt(g,CHART.birthDate,{mode:"birth"}); else openSkyAt(g,at||new Date(),{mode:"now"}); }); },
+      askGuide:(q,ctx)=>{ closeDetailThen(()=>askGuide(q,ctx)); },
+      openHouse:(h,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openHouse(h),260); }); },
+      show:(k,id,spec)=>{
+        if(k==="planet") openObject({kind:"planet",id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
+        else if(k==="house") openObject({kind:"house",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
+        else if(k==="chart") closeDetailThen(()=>{ go(CHART_INDEX); setMode(spec.mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(id),260); });
+        else if(k==="sky") closeDetailThen(()=>openSkyAt(id,spec.at||new Date(),{mode:spec.mode==="birth"?"birth":"now"}));
+        else if(k==="sign") closeDetailThen(()=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openSignPage(+id,null),200); });
+        else if(k==="nak") closeDetailThen(()=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openNakPage(+id,null),200); });
+        else if(k==="timeline") closeDetailThen(()=>go(TIMELINE_INDEX));
+        else if(k==="sati") closeDetailThen(()=>{ go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); });
+      }
+    }
+  };
+}
+/* leave the page through history so the stack stays true, then act */
+function closeDetailThen(fn){
+  const top=NAV.stack[NAV.stack.length-1];
+  if(top&&top.ov.classList.contains("cod")&&history.state&&history.state.astra===top.token){
+    const once=()=>{ removeEventListener("popstate",once); setTimeout(fn,380); };
+    addEventListener("popstate",once); history.back();
+  } else fn();
+}
+function openObject(spec){
+  /* the NOW column is always a live or pinned instant - never the birth instant, even when
+     the page is opened from a birth-mode surface (the birth column has its own source) */
+  const at=(spec.mode==="birth"||!spec.at)?new Date():new Date(spec.at);
+  return openObjectDetail({...spec,at},codCtx());
+}
+const rectOrigin=el=>{ if(!el) return null; const r=el.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2,r:Math.max(10,Math.min(r.width,r.height)/2)}; };
+addEventListener("astra:open",e=>{ const d=e.detail||{}; if(!d.kind||d.id==null) return; openObject(d); });
 
 /* ---- the living Moon (spec 15-18): real phase art, and its state
    always mirrors actual system state - motion teaches. ---- */

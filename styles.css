@@ -2731,3 +2731,67 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .svquick{display:flex;gap:8px;margin-bottom:12px}
 .svquick button{flex:1;padding:11px 0;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer}
 .skyview.birthmode .skcap>span::before{content:"Birth · ";color:#F1E7C9;font-weight:700}
+.skyview .sksearch .svres{display:block!important;flex-direction:column!important}
+
+/* ============ CELESTIAL OBJECT DETAIL (.cod) — frosted reading surface ============ */
+.cod{position:fixed;inset:0;z-index:85;--ink:#14162B;--ink-2:#3A3D55;--ink-3:#6B6E85;--cta:#8F6B24;
+  background:rgba(250,249,246,.92);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);color:var(--ink);
+  display:flex;flex-direction:column;opacity:0;transition:opacity .34s cubic-bezier(.22,1,.36,1)}
+@supports not (backdrop-filter:blur(1px)){.cod{background:#FAF9F6}}
+.cod.in{opacity:1}.cod.out{opacity:0;transition:opacity .32s cubic-bezier(.4,0,.2,1)}
+.codbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;height:52px;padding:0 8px;padding-top:env(safe-area-inset-top)}
+.codback{width:44px;height:44px;border:0;background:none;color:var(--ink);font-size:30px;line-height:1;cursor:pointer;border-radius:50%}
+.codback:active{background:rgba(20,22,43,.08)}
+.codmini{display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(6px);transition:opacity .22s,transform .22s;pointer-events:none}
+.cod.collapsed .codmini{opacity:1;transform:none}
+.codmini b{font-size:17px;font-weight:650}
+.codminihero{width:30px;height:30px;display:grid;place-items:center}
+.codscroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(env(safe-area-inset-bottom) + 40px)}
+.codhero{height:clamp(240px,42vh,320px);display:grid;place-items:center;position:sticky;top:0;z-index:1;pointer-events:none}
+.codheroslot{transform-origin:center;transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .3s;
+  transform:scale(calc(1 - var(--p,0)*.84)) translateY(calc(var(--p,0)*-120px));opacity:max(0,calc(1 - var(--p,0)*1.25))}
+.codheroslot canvas,.codheroslot svg{display:block;filter:drop-shadow(0 18px 40px rgba(20,22,43,.18))}
+.codtitle{margin-top:-6px}
+.codeyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cta)}
+.cod h1{font-size:34px;line-height:1.1;letter-spacing:-.01em;margin:4px 0 6px;font-weight:700}
+.cod h1 small{font-size:18px;font-weight:500;color:var(--ink-3);font-family:"Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",sans-serif;margin-left:6px}
+.codsub{margin:0;font-size:14px;color:var(--ink-2)}
+.codglance{margin-top:22px}
+.codgrid{display:grid;grid-template-columns:1.1fr 1fr 1fr;border-top:1px solid rgba(20,22,43,.12)}
+.codhead{padding:10px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.codhead.emph{color:var(--ink);box-shadow:inset 0 2px 0 var(--cta)}
+.codk,.codv{padding:9px 6px 9px 0;border-top:1px solid rgba(20,22,43,.08);font-size:14.5px}
+.codk{color:var(--ink-3)}.codv{font-weight:500;color:var(--ink-2)}.codv.emph{color:var(--ink);font-weight:600}
+.codv.chg::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cta);margin-left:7px;vertical-align:2px}
+.codchanges{margin:10px 0 0;font-size:13.5px;color:var(--ink-2)}.codchanges.quiet{color:var(--ink-3)}
+.codabout{margin-top:26px}
+.cod h2{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px}
+.codabout p{margin:0;font-size:15px;line-height:1.6;color:var(--ink-2)}
+.codread{margin-top:26px}
+.codpill{display:flex;gap:4px;padding:4px;border-radius:14px;background:rgba(20,22,43,.07);margin-bottom:14px}
+.codpill button{flex:1;padding:9px 0;border:0;border-radius:11px;background:none;color:var(--ink-2);font-size:14px;font-weight:600;cursor:pointer}
+.codpill button.on{background:#FFFFFF;color:var(--ink);box-shadow:0 1px 4px rgba(20,22,43,.12)}
+.cod .tellme{font-size:17px;line-height:1.5;color:var(--ink);font-weight:500;margin:0 0 10px}
+.cod .codmore{font-size:15px;line-height:1.6;color:var(--ink-2);margin:0 0 10px}
+.cod .because{font-size:13.5px;line-height:1.6;color:var(--ink-3);margin:0 0 8px;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12.5px}
+.codwhy{border:0;background:none;color:var(--cta);font-size:14px;font-weight:600;padding:4px 0;cursor:pointer}
+.codwhy::after{content:" \25BE";font-size:11px}
+.codchain{margin:6px 0 0;padding:0 0 0 18px;font-size:13.5px;color:var(--ink-2)}
+.codchain li{margin:6px 0}.codchain b{display:block;color:var(--ink);font-weight:600}.codchain span{display:block;color:var(--ink-3);font-size:12.5px}
+.codshow{margin-top:4px;padding:4px 10px;border-radius:99px;border:1px solid rgba(20,22,43,.18);background:#fff;color:var(--ink);font-size:12px;font-weight:600;cursor:pointer}
+.codacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.codact{padding:11px 16px;border-radius:14px;border:1px solid rgba(20,22,43,.16);background:#fff;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer}
+.codact.primary{background:var(--ink);color:#F7F5EF;border-color:var(--ink)}
+.codfoot{margin-top:22px;font-size:12.5px;color:var(--ink-3);line-height:1.5}
+.codhouse{display:block}
+body.indetail .tabs{transform:translateY(115%);pointer-events:none}
+@media (prefers-reduced-motion: reduce){ .codheroslot{transition:opacity .2s;transform:none!important} .cod{transition:opacity .2s} }
+/* the sky's peek sheet: compact, one primary action */
+.skyview .skcard.peek{padding:12px 14px 12px}
+.skyview .skcard.peek .skart{width:44px;height:44px;display:grid;place-items:center}
+.skyview .skcard.peek .skline .dev{font-family:"Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",sans-serif;color:#F1E7C9;font-weight:600}
+.skyview .skcard.peek .skmeaning{margin:8px 0 10px;font-size:15px;line-height:1.45}
+.skyview .skcard.peek .skacts{gap:8px}
+.skyview.hascard .skstack{bottom:calc(env(safe-area-inset-bottom) + 178px)}
+.skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 352px)}
+.skyview.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 190px)!important}

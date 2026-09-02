@@ -25,7 +25,7 @@ import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from 
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
-import { drawGraha, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
+import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
@@ -781,35 +781,30 @@ function setFoot(){
       : [`${g} is transiting ${SIGNS_EN[sg]} (${SIGNS_SK[sg]}) at ${fmtDMS(gr.degInSign)}, in ${NAKS[nk]} pada ${gr.pada}.`,
          house?`${SIGNS_EN[sg]} maps to your natal ${house}${["st","nd","rd"][house-1]||"th"} house.`:null,
          p.retro&&g!=="Rahu"&&g!=="Ketu"?`It is retrograde — matters return rather than settle first time.`:null].filter(Boolean);
-    f.innerHTML=`<div class="skcard">
+    /* the peek sheet (§20-21): most of the sky stays visible; meaning first, one primary action */
+    const sentence=String(meaning||"").replace(/&#8212;/g,"—").split(/(?<=[.!?])\s/)[0];
+    f.innerHTML=`<div class="skcard peek">
       <div class="skcardrow">
-        <img class="skart" src="assets/graha/${g.toLowerCase()}.png" alt="">
+        <div class="skart" id="skart" aria-hidden="true"></div>
         <div class="skmain">
-          <b>${g}${mode==="birth"?" at birth":""}${p.retro&&g!=="Rahu"&&g!=="Ketu"?' <i class="skretro">℞</i>':""}</b>
-          <span class="skline"><em>Sky</em> ${SIGNS_EN[sg]} · ${NAKS[nk]}</span>
-          ${house?`<span class="skline"><em>Your chart</em> ${house}${["st","nd","rd"][house-1]||"th"} house${mode==="birth"?"":" (natal)"}</span>`:""}
-          <span class="skline skwhere">${p.up?`up in the ${dir}`:`below the horizon, ${dir}`} · alt ${Math.round(p.alt)}°</span>
+          <b>${g}${p.retro&&g!=="Rahu"&&g!=="Ketu"?' <i class="skretro">℞</i>':""}</b>
+          <span class="skline"><span class="dev">${SIGNS_DEV[sg]}</span> ${layers.sanskrit?SIGNS_SK[sg]:SIGNS_EN[sg]} · ${NAKS[nk]}${house?` · your ${house}${["st","nd","rd"][house-1]||"th"}`:""}${p.up?"":" · below the horizon"}</span>
         </div>
         <button class="skx" id="svclear" aria-label="Clear selection">✕</button>
       </div>
-      <p class="skmeaning">${meaning}</p>
-      <details class="skwhy" id="skwhy"><summary>See why</summary>
-        <ol>${why.map(w=>`<li>${w}</li>`).join("")}</ol></details>
+      <p class="skmeaning">${sentence}</p>
       <div class="skacts">
-        <button class="skact solid" id="svexplore">${mode==="birth"?"Explore birth placement":"Explore current influence"}</button>
-        <button class="skact" id="svguide">Ask Guide</button>
-        ${mode!=="birth"&&birthOpts&&birthOpts.natal&&birthOpts.natal[g]!=null?`<button class="skact${ghostBirth?" on":""}" id="svghost">${ghostBirth?"Hide birth":"Compare birth"}</button>`:""}
+        <button class="skact solid" id="svexplore">Explore ${g}</button>
         <button class="skact${trackTarget?" on":""}" id="svtrackb">${trackTarget?"Tracking":"Track"}</button>
-        ${!(sensing&&followSky)?`<button class="skact" id="svgo2">Take me there</button>`:""}
       </div>
     </div>`;
-    const go2=document.getElementById("svgo2"); if(go2) go2.onclick=()=>{ aimAt(targetPos(),{force:true}); buzz(6); };
-    document.getElementById("svexplore").onclick=()=>{ const gg=g; closeSkyView();
-      dispatchEvent(new CustomEvent(mode==="birth"?"astra:openplanet":"astra:opentransit",{detail:gg})); };
-    document.getElementById("svguide").onclick=()=>{ const q=mode==="birth"?`What does ${g} in ${SIGNS_EN[sg]} at my birth mean?`:`What does ${g} in ${SIGNS_EN[sg]} mean for me right now?`;
-      const ctx={source:"sky",mode,graha:g,sign:SIGNS_EN[sg],nakshatra:NAKS[nk],pada:gr.pada,house,retrograde:!!p.retro,when:skyDate().toISOString()};
-      closeSkyView(); dispatchEvent(new CustomEvent("astra:askguide",{detail:{q,ctx}})); };
-    const gh=document.getElementById("svghost"); if(gh) gh.onclick=()=>{ ghostBirth=!ghostBirth; cache=null; setFoot(); buzz(5); };
+    /* the art in the card is the same dimensional object as in the sky */
+    try{ const art=document.getElementById("skart"); const c=grahaSprite(g,44,{ground:"dark",quality:"high",tilt:22}); art.appendChild(c); }catch(_){}
+    document.getElementById("svexplore").onclick=()=>{
+      const pt=targetPos(); const [x,y]=pt?project(pt):[NaN,NaN];
+      const origin=Number.isFinite(x)?{x,y,r:grahaR(g,vFov)}:null;
+      buzz(8);
+      dispatchEvent(new CustomEvent("astra:open",{detail:{kind:"planet",id:g,mode:mode==="birth"?"birth":"now",at:skyDate().toISOString(),from:"sky",emphasis:mode==="birth"?"birth":"now",origin}})); };
     document.getElementById("svtrackb").onclick=()=>{ trackTarget=!trackTarget; setFoot(); buzz(5); if(trackTarget) aimAt(targetPos()); };
   }else if(target.t==="rashi"){
     const s=target.i;
@@ -1305,7 +1300,7 @@ export function openSkyView(opts={}){
       el.canvas.width=w*devicePixelRatio; el.canvas.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); };
     fit(); addEventListener("resize",fit); el._fit=fit;
     n.querySelector(".svclose").onclick=()=>{ if(history.state&&history.state.sky) history.back(); else closeSkyView(); };
-    addEventListener("popstate",()=>{ if(running) closeSkyView(); });
+    addEventListener("popstate",()=>{ if(running&&!(history.state&&history.state.sky)) closeSkyView(); });
     addEventListener("keydown",e=>{ if(e.key==="Escape"&&running) n.querySelector(".svclose").click(); });
     n.querySelector("#svsearchb").onclick=()=>{ const s=n.querySelector("#svsearch"); s.hidden=!s.hidden; searchCat=null; if(!s.hidden){ renderSearch(""); } n.querySelector("#svlayers").hidden=true; wakeUI(); };
     n.querySelector("#svsclose").onclick=()=>{ n.querySelector("#svsearch").hidden=true; };

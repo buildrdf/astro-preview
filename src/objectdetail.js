@@ -149,6 +149,14 @@ function mountHero(el, model, px) {
     el.appendChild(c);
   } else {
     el.innerHTML = model.heroSVG(px);
+    /* frame the cell itself, not the whole chart square */
+    const svg = el.querySelector("svg"), cell = el.querySelector(".codcell");
+    if (svg && cell && cell.getBBox) {
+      try { const b = cell.getBBox();
+        const m = Math.max(b.width, b.height) * 0.10;
+        svg.setAttribute("viewBox", `${(b.x - m).toFixed(2)} ${(b.y - m).toFixed(2)} ${(b.width + 2 * m).toFixed(2)} ${(b.height + 2 * m).toFixed(2)}`);
+      } catch (_) {}
+    }
   }
 }
 
@@ -331,12 +339,19 @@ function houseModel(spec, ctx) {
       { id: "chart", label: "See on chart", primary: true, run: () => ctx.actions.openHouse(h, spec.mode) },
       { id: "guide", label: "Ask Guide", run: () => ctx.actions.askGuide(`What does my ${ord(h)} house say?`, { source: "detail", house: h, mode: spec.mode }) },
     ],
-    heroSVG: px => `<svg class="codhouse" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true">
+    /* the cell the finger touched, curves and all — the chart's own geometry, so the
+       object that lifts into the hero is the object that was on screen. mountHero fits
+       the viewBox to the path's real bounds, which the ogee edges bulge past. */
+    heroSVG: px => {
+      const a = ctx.houseAnchor ? ctx.houseAnchor(h) : [50, 50];
+      const d = ctx.housePath ? ctx.housePath(h) : "M50 4 L96 50 L50 96 L4 50 Z";
+      return `<svg class="codhouse" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true">
         <defs><linearGradient id="codhg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7EFDA"/><stop offset="1" stop-color="#D9C79A"/></linearGradient></defs>
-        <path d="M50 4 L96 50 L50 96 L4 50 Z" fill="url(#codhg)" stroke="#8F6B24" stroke-width="1.2"/>
-        <path d="M50 4 L50 96 M4 50 L96 50" stroke="rgba(143,107,36,.35)" stroke-width="0.8"/>
-        <text x="50" y="58" text-anchor="middle" font-size="26" font-weight="700" fill="#14162B">${h}</text>
-      </svg>`,
+        <path class="codcell" d="${d}" fill="url(#codhg)" stroke="#8F6B24" stroke-width="1.1" stroke-linejoin="round"/>
+        <text x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+          font-size="17" font-weight="700" fill="#14162B">${h}</text>
+      </svg>`;
+    },
     foot: "A house is read through its sign, its lord and its occupants — never in isolation. Traditional associations, not predictions.",
   };
 }

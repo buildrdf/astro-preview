@@ -2940,3 +2940,100 @@ body.light #pg-today .daychip{background:rgba(23,26,51,.06)}
 body.light #pg-today .daychip.tone-favourable{color:#2A6E45;background:rgba(62,142,92,.13)}
 body.light #pg-today .daychip.tone-balanced{color:#8A6516;background:rgba(191,146,42,.14)}
 body.light #pg-today .daychip.tone-slow{color:#A33F2C;background:rgba(176,58,40,.12)}
+
+/* ======================================================================
+   TIMELINE — one ladder, three declensions. The middle rung used to carry
+   the strongest container on the screen, so the antardasha read as the
+   headline and the mahadasha above it as a caption. Depth is now indent
+   plus a rule in the PARENT's colour: the geometry says "this sits inside
+   that". Three vertical numbers only: 28 between sections, 14 between
+   rungs, 6-8 inside a rung.
+   ====================================================================== */
+.dstack{margin:0}
+.dlvl+.dlvl{margin-top:14px}
+.dlvl.l2{padding-left:14px;border-left:1.5px solid var(--edge-soft)}
+.dlvl.l3{padding-left:28px;border-left:1.5px solid var(--edge-soft)}
+.dname{margin:0;display:flex;align-items:center;gap:8px;letter-spacing:-.02em;line-height:1.2}
+.dname b{font-weight:660}
+.dnoun{color:var(--ink-3);font-weight:500}
+.dart{display:inline-flex;align-items:center}
+.dart .gico{margin-right:0}
+.l1 .dname{font-size:20px}
+.l2 .dname{font-size:16px}
+.l3 .dname{font-size:13px}
+.l3 .dname b{color:var(--ink)!important}
+.dspan{margin-top:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  font-variant-numeric:tabular-nums}
+.dspan b{font-weight:600}
+.l1 .dspan b{font-size:13px;color:var(--ink)}
+.l2 .dspan b{font-size:12px;color:var(--ink-2)}
+.l3 .dspan b{font-size:11.5px;color:var(--ink-2)}
+.dspan .sarrow{color:var(--ink-3)}
+.dage{font-size:11px;color:var(--ink-3)}
+.dbar{position:relative;margin-top:8px;border-radius:99px;background:rgba(255,255,255,.10)}
+body.light .dbar{background:rgba(23,26,51,.08)}
+.l1 .dbar{height:6px}
+.l2 .dbar{height:4px}
+.l3 .dbar{height:3px}
+.dbar i{display:block;height:100%;border-radius:99px}
+.dpct{margin:6px 0 0}
+.l1 .dpct{font-size:12px;color:var(--ink-2)}
+.l2 .dpct{font-size:11.5px;color:var(--ink-3)}
+.l3 .dpct{font-size:11px;color:var(--ink-3)}
+/* the one boxed thing on the screen is the one thing that is NOT a dasha rung */
+#ro .satistrip{margin-top:28px}
+#ro .understand{margin-top:28px}
+
+/* ======================================================================
+   LIQUID GLASS — the tab bar as a material, not a translucent card.
+   Apple's framing is that the material LENSES light rather than scattering
+   it, and that it defers to the content underneath: clarity first, frost
+   second. So the fill stays almost nothing and the substance comes from
+   saturation, a specular rim, a dark contact edge and a tight shadow.
+   The rim is deliberately ACHROMATIC and varies in brightness around the
+   shape, because that is what a specular highlight does. A uniform, tinted
+   1px border is the single clearest tell of a CSS imitation.
+   ====================================================================== */
+.tabs{
+  background:hsl(0 0% 100% / .07);
+  border:0;border-top:0;
+  -webkit-backdrop-filter:blur(20px) saturate(180%) contrast(.92) brightness(1.12);
+  backdrop-filter:blur(20px) saturate(180%) contrast(.92) brightness(1.12);
+  box-shadow:0 0 0 .5px hsl(0 0% 0% / .18), 0 1px 1px hsl(0 0% 0% / .14),
+             0 8px 28px -8px hsl(0 0% 0% / .42);
+  transform:translateZ(0);          /* without a compositor layer iOS flickers the blur */
+  isolation:isolate;
+}
+body.light .tabs{
+  background:hsl(0 0% 100% / .55);
+  box-shadow:0 0 0 .5px hsl(240 30% 15% / .10), 0 1px 1px hsl(240 30% 15% / .07),
+             0 8px 28px -10px hsl(240 30% 15% / .26);
+}
+/* the specular rim: a masked gradient border, the only way to vary brightness round a capsule */
+.tabs::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;
+  pointer-events:none;
+  background:conic-gradient(from 200deg at 50% 50%,
+    hsl(0 0% 100%/.10), hsl(0 0% 100%/.55) 18%, hsl(0 0% 100%/.10) 42%,
+    hsl(0 0% 100%/.34) 62%, hsl(0 0% 100%/.06) 84%, hsl(0 0% 100%/.10));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude}
+body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
+  hsl(0 0% 100%/.30), hsl(0 0% 100%/.95) 18%, hsl(0 0% 100%/.35) 42%,
+  hsl(0 0% 100%/.75) 62%, hsl(0 0% 100%/.25) 84%, hsl(0 0% 100%/.30))}
+/* light from under the fingertip */
+.tabs::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  opacity:0;transition:opacity .18s ease-out;mix-blend-mode:plus-lighter;
+  background:radial-gradient(110px circle at var(--px,50%) var(--py,50%),
+    hsl(0 0% 100%/.22),transparent 70%)}
+.tabs[data-pressed]::after{opacity:1}
+/* never glass on glass: the selected pill is a plain fill inside the material */
+.tab::before{-webkit-backdrop-filter:none;backdrop-filter:none}
+@media (prefers-contrast: more){
+  .tabs{background:#171A33;-webkit-backdrop-filter:none;backdrop-filter:none;
+    box-shadow:0 0 0 1px hsl(0 0% 100%/.9)}
+  body.light .tabs{background:#FFFFFF;box-shadow:0 0 0 1px hsl(240 30% 15%/.9)}
+  .tabs::before{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .tabs::after{transition:none} }

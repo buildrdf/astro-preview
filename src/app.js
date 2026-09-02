@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903c";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902p";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903e";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -333,6 +333,22 @@ const RHOMBUS_D="M 50 0 C 43.07 11.46 29.38 13.83 25 25 C 13.83 29.38 11.46 43.0
    straight diagonals to the centre - agreeing with the drawn lines */
 const LAGNA_D="M 50 0 C 56.93 11.46 70.62 13.83 75 25 L 50 50 L 25 25 "+
   "C 29.38 13.83 43.07 11.46 50 0 Z";
+/* The real cell outlines, ogee edges and all — the same curves the chart draws, so a
+   house opened from the chart is the shape the finger touched, not a generic diamond.
+   Derived from RHOMBUS_D; house 1 reproduces LAGNA_D exactly. */
+const HOUSE_PATH={
+  1:"M 50 0 C 56.93 11.46 70.62 13.83 75 25 L 50 50 L 25 25 C 29.38 13.83 43.07 11.46 50 0 Z",
+  2:"M 0 0 L 50 0 C 43.07 11.46 29.38 13.83 25 25 L 0 0 Z",
+  3:"M 0 0 L 25 25 C 13.83 29.38 11.46 43.07 0 50 L 0 0 Z",
+  4:"M 0 50 C 11.46 43.07 13.83 29.38 25 25 L 50 50 L 25 75 C 13.83 70.62 11.46 56.93 0 50 Z",
+  5:"M 0 100 L 0 50 C 11.46 56.93 13.83 70.62 25 75 L 0 100 Z",
+  6:"M 0 100 L 25 75 C 29.38 86.17 43.07 88.54 50 100 L 0 100 Z",
+  7:"M 50 100 C 43.07 88.54 29.38 86.17 25 75 L 50 50 L 75 75 C 70.62 86.17 56.93 88.54 50 100 Z",
+  8:"M 100 100 L 50 100 C 56.93 88.54 70.62 86.17 75 75 L 100 100 Z",
+  9:"M 100 100 L 75 75 C 86.17 70.62 88.54 56.93 100 50 L 100 100 Z",
+  10:"M 100 50 C 88.54 56.93 86.17 70.62 75 75 L 50 50 L 75 25 C 86.17 29.38 88.54 43.07 100 50 Z",
+  11:"M 100 0 L 100 50 C 88.54 43.07 86.17 29.38 75 25 L 100 0 Z",
+  12:"M 100 0 L 75 25 C 70.62 13.83 56.93 11.46 50 0 L 100 0 Z"};
 const ANCHOR={},LABEL={};
 for(const h in HOUSES){
   const c=cent(HOUSES[h]),tri=HOUSES[h].length===3;
@@ -1922,11 +1938,10 @@ function paintUniverse(instant){
   paintHouseSigns(list);
   const vi=VARGA_INFO.find(v=>v[0]===uniVarga)||VARGA_INFO[0];
   document.getElementById("unihint").innerHTML = uniMode==="birth"
-    ? `<button class="vchip" id="vchip" aria-haspopup="dialog"
-         aria-label="Choose a divisional chart. Showing D${uniVarga}, ${vi[1]}">D${uniVarga} &#183; ${vi[1]} <i aria-hidden="true">&#9662;</i></button>`+
+    ? ``+
       (uniVarga===1
         ? `<button class="vchip" id="ychip" aria-haspopup="dialog"
-             aria-label="Show the yogas in your chart">Yogas &#183; ${engine().yogas.length}</button>`+
+             aria-label="Show the yogas in your chart">Yogas &#183; ${engine().yogas.length}</button> `+
           `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
         : `${cap(vi[2])} &#8212; house 1 is the ${vi[1]} lagna.`)
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
@@ -2810,6 +2825,7 @@ function codCtx(){
        PLANET_STORY:INTERP.PLANET_STORY, GRAHA_MEANING:INTERP.GRAHA_MEANING, GOCHARA_FEEL:INTERP.GOCHARA_FEEL,
        HOUSE_TRANSIT_SENSE:INTERP.HOUSE_TRANSIT_SENSE, HOUSE_STORY:LORE.HOUSE_STORY, GRAHA_IN_SIGN:LORE.GRAHA_IN_SIGN,
        LORD_IN_HOUSE:LORE.LORD_IN_HOUSE, DASHA_THEME},
+    housePath:h=>HOUSE_PATH[h]||HOUSE_PATH[1], houseAnchor:h=>ANCHOR[h]||[50,50],
     nav:{push:navPush,replace:navReplace}, buzz,
     actions:{
       seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g),260); }); },
@@ -6246,7 +6262,8 @@ function timelineBody(){
 /* Age never reads below zero (Sangram, 2 Sep): a period that was already
    running at birth is shown from birth, not from a negative age. */
 const ageAt=d=>Math.max(0,Math.floor((d-CHART.birthDate)/(365.2425*864e5)));
-const ageSpan=(a,b)=>(a<CHART.birthDate?"birth":`age ${ageAt(a)}`)+`&#8211;${ageAt(b)}`;
+/* a span shorter than a year has no age span to state, so it says nothing */
+const ageSpan=(a,b)=>ageAt(a)===ageAt(b)?"":(a<CHART.birthDate?"birth":`age ${ageAt(a)}`)+`&#8211;${ageAt(b)}`;
 
 function wireTimeline(){
   const {m,t0,t1}=tlBounds();
@@ -6275,37 +6292,30 @@ function wireTimeline(){
       const d=new Date(e.d+"T12:00:00");
       return d>=now.maha.start && d<now.maha.end});
 
+    /* One row skeleton at three sizes. Depth is indent plus a rule in the PARENT's
+       colour, so the geometry says "this sits inside that" without a word. The needle
+       and the lord's colour on the name belong to the levels big enough to carry them. */
+    const NOUN={1:"mahadasha",2:"antardasha",3:"pratyantardasha"};
+    const dlvl=(lvl,lord,start,end,frac,parent)=>{
+      const art=[28,20,14][lvl-1], pc=Math.round(frac*100), span=ageSpan(start,end);
+      return `<div class="dlvl l${lvl}"${parent?` style="border-left-color:${COLOUR(parent)}"`:""}
+        aria-label="Level ${lvl} of 3, ${lord} ${NOUN[lvl]}${parent?`, within ${parent} ${NOUN[lvl-1]}`:""}, ${fmtDate(start)} to ${fmtDate(end)}, ${pc} percent through">
+        <p class="dname"><span class="dart">${gIcon(lord,art)}</span><b style="color:${COLOUR(lord)}">${lord}</b> <span class="dnoun">${NOUN[lvl]}</span></p>
+        <div class="dspan"><b>${fmtDate(start)}</b><span class="sarrow">&#8594;</span><b>${fmtDate(end)}</b>${span?`<span class="dage">${span}</span>`:""}</div>
+        <div class="dbar"><i style="width:${(frac*100).toFixed(1)}%;background:${COLOUR(lord)}"></i>${lvl===1?`<span class="barnow" style="left:${(frac*100).toFixed(1)}%"></span>`:""}</div>
+        <p class="dpct">${pc}% through</p></div>`;
+    };
+
     /* landing order per spec 19: maha, antar, pratyantar, contextual
        sade sati, one CTA, life events. Interpretation lives behind the
        CTA, not on the landing. */
     document.getElementById("ro").innerHTML=`
-      <p class="big" style="color:${COLOUR(now.maha.lord)}">${gIcon(now.maha.lord,30)}${now.maha.lord} mahadasha</p>
-      <div class="spanrow">
-        <div><span class="sk">from</span><b>${fmtDate(now.maha.start)}</b>
-          <span class="sa">age ${ageAt(now.maha.start)}</span></div>
-        <span class="sarrow">&#8594;</span>
-        <div><span class="sk">to</span><b>${fmtDate(now.maha.end)}</b>
-          <span class="sa">age ${ageAt(now.maha.end)}</span></div>
+      <div class="dstack" role="group" aria-label="Current planetary periods">
+        ${dlvl(1,now.maha.lord,now.maha.start,now.maha.end,pos,null)}
+        ${dlvl(2,now.antar.lord,now.antar.start,now.antar.end,apos,now.maha.lord)}
+        ${p3?dlvl(3,p3.lord,p3.start,p3.end,
+            Math.min(Math.max((when-p3.start)/(p3.end-p3.start),0),1),now.antar.lord):""}
       </div>
-      <div class="bar"><i style="width:${(pos*100).toFixed(1)}%;background:${COLOUR(now.maha.lord)}"></i>
-        <span class="barnow" style="left:${(pos*100).toFixed(1)}%"></span></div>
-      <p class="poslabel">${Math.round(pos*100)}% through</p>
-      <div class="antarcard">
-        <p class="abig" style="color:${COLOUR(now.antar.lord)}">${gIcon(now.antar.lord,22)}${now.antar.lord} antardasha</p>
-        <div class="spanrow sm">
-          <div><span class="sk">from</span><b>${fmtDate(now.antar.start)}</b></div>
-          <span class="sarrow">&#8594;</span>
-          <div><span class="sk">to</span><b>${fmtDate(now.antar.end)}</b></div>
-        </div>
-        <div class="bar sm"><i style="width:${(apos*100).toFixed(1)}%;background:${COLOUR(now.antar.lord)}"></i></div>
-        <p class="poslabel">${Math.round(apos*100)}% through</p>
-      </div>
-      ${p3?`<div class="pratstrip">
-        <span class="eyebrow">Current micro-period</span>
-        <div class="pratrow">${gIcon(p3.lord,17)}
-          <b style="color:${COLOUR(p3.lord)}">${p3.lord} pratyantardasha</b>
-          <span class="evmeta">${fmtDate(p3.start)} &#8211; ${fmtDate(p3.end)}</span></div>
-      </div>`:""}
       ${sati?(()=>{const sp=Math.min(Math.max((when-sati.ph.start)/(sati.ph.end-sati.ph.start),0),1);
         return `<div class="satistrip" id="satistrip" role="button" tabindex="0">
         ${gIcon("Saturn",18)}
@@ -6324,8 +6334,7 @@ function wireTimeline(){
           <span class="chev">&#8250;</span></button>`}).join("")}
       <button class="addev" id="tladdev">+ Add event</button>`;
     setTopBar(when.toLocaleDateString("en-GB",{month:"long",year:"numeric"}),
-      {sub:`Age ${ageAt(when)}`,
-       actions:isToday(when)?`<span class="nowbadge">today</span>`
+      {actions:isToday(when)?`<span class="nowbadge">today</span>`
          :`<button class="tb-btn txt" id="tlnow">Today</button>`});
     const tn=document.getElementById("tlnow");
     if(tn) tn.onclick=()=>{tlT=tlNowT();buzz(10);paint()};
@@ -6680,7 +6689,14 @@ nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"o
     if(dy>6&&y>80) document.body.classList.add("tabmin");
     else if(dy<-6||y<40) document.body.classList.remove("tabmin");
   },{passive:true}));
-  nav.addEventListener("click",()=>document.body.classList.remove("tabmin"),true); }
+  nav.addEventListener("click",()=>document.body.classList.remove("tabmin"),true);
+  /* the glass lights from under the fingertip, the way Apple's does */
+  nav.addEventListener("pointerdown",e=>{ const r=nav.getBoundingClientRect();
+    nav.style.setProperty("--px",(e.clientX-r.left).toFixed(0)+"px");
+    nav.style.setProperty("--py",(e.clientY-r.top).toFixed(0)+"px");
+    nav.dataset.pressed="1"; },{passive:true});
+  for(const ev of ["pointerup","pointercancel","pointerleave"])
+    nav.addEventListener(ev,()=>{ delete nav.dataset.pressed; },{passive:true}); }
 let activeTab=0, guideFrom=0;
 function go(i){
   if(mode) resetChart();

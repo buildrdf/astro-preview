@@ -30,6 +30,8 @@
              showInSky, askGuide, openHouse, openPlanet}}
    =================================================================== */
 import { grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js";
+import { SIGN_LORDS, SIGN_ELEMENT, SIGN_MODALITY, NAK_META, nakLord, nakIndex, padaIndex, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
+import { taraBala } from "./panchang.js";
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 const clean = s => String(s ?? "").replace(/&#8212;/g, "—").replace(/&#8217;/g, "’").replace(/&#8211;/g, "–");
@@ -40,9 +42,13 @@ const HOUSE_DEV = ["", "प्रथम", "द्वितीय", "तृती
 let open = null;   /* the one mounted page */
 
 export function openObjectDetail(spec, ctx) {
+  const replacing = open ? open.ov._navToken : null;   /* a detail over a detail replaces it - one history entry */
   if (open) { closeNow(); }
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const model = spec.kind === "house" ? houseModel(spec, ctx) : planetModel(spec, ctx);
+  const model = spec.kind === "house" ? houseModel(spec, ctx)
+    : spec.kind === "rashi" ? rashiModel(spec, ctx)
+    : spec.kind === "nakshatra" ? nakshatraModel(spec, ctx)
+    : planetModel(spec, ctx);
   if (!model) return null;
   const emphasis = spec.emphasis || (spec.mode === "now" ? "now" : "birth");
   const ov = document.createElement("div");
@@ -117,7 +123,7 @@ export function openObjectDetail(spec, ctx) {
 
   /* history: Back gesture, Escape and the back arrow converge */
   const closeFn = () => closeDetail(true);
-  if (ctx.nav && ctx.nav.push) ov._navToken = ctx.nav.push(ov, closeFn);
+  if (ctx.nav && ctx.nav.push) ov._navToken = (replacing && ctx.nav.replace) ? ctx.nav.replace(ov, closeFn) : ctx.nav.push(ov, closeFn);
   ov.querySelector(".codback").onclick = () => closeDetail(false);
 
   /* the entry: the object lifts from where it was into the hero; the surface frosts in */
@@ -332,6 +338,149 @@ function houseModel(spec, ctx) {
         <text x="50" y="58" text-anchor="middle" font-size="26" font-weight="700" fill="#14162B">${h}</text>
       </svg>`,
     foot: "A house is read through its sign, its lord and its occupants — never in isolation. Traditional associations, not predictions.",
+  };
+}
+
+/* ---- RASHI --------------------------------------------------------- */
+/* one line per sign — the same twelve lines Learn teaches (learn.js "The twelve, in one line each") */
+const SIGN_LINE = ["fire, initiating: the spark that starts things", "earth, fixed: the garden that holds its ground",
+  "air, adaptable: the conversation that never quite ends", "water, initiating: the tide that pulls toward home",
+  "fire, fixed: the hearth that wants to be seen burning", "earth, adaptable: the workshop where details matter",
+  "air, initiating: the scales weighing every side", "water, fixed: the deep well, still on the surface",
+  "fire, adaptable: the arrow aimed at the horizon", "earth, initiating: the mountain path, climbed slowly",
+  "air, fixed: the long view held for everyone", "water, adaptable: the ocean where boundaries blur"];
+const SIGN_GLYPH = ["\u2648", "\u2649", "\u264A", "\u264B", "\u264C", "\u264D", "\u264E", "\u264F", "\u2650", "\u2651", "\u2652", "\u2653"];
+const NAK_TONE = { Janma: "your birth star — the tone is personal, read it gently", Sampat: "wealth, gain", Vipat: "friction, obstacles", Kshema: "well-being, safety", Pratyak: "setbacks, delays", Sadhana: "achievement", Naidhana: "hazard — the tradition's caution star", Mitra: "friendship, support", "Parama Mitra": "close friendship, ease" };
+
+function rashiModel(spec, ctx) {
+  const s = +spec.id, at = spec.at || new Date();               /* 1..12 */
+  const C = ctx.CHART, T = ctx.T, ord = ctx.ordinal;
+  const sName = T.SIGNS[s - 1], sk = (T.SIGNS_SK || [])[s - 1] || "", dev = (T.SIGNS_DEV || [])[s - 1] || "";
+  const h = C.houseOfSign(s), lord = SIGN_LORDS[s - 1];
+  const lordRec = C.rec(lord), lordHouse = lordRec ? lordRec.house : null;
+  const occ = C.placements.filter(p => p.sign === s).map(p => p.graha);
+  const ascHere = C.lagna === s;
+  const day = safe(() => ctx.dayFacts(at));
+  const transiting = day ? day.sky.filter(x => x.sign === s).map(x => x.graha) : [];
+  const lordNow = day ? (day.sky.find(x => x.graha === lord) || {}).house : null;
+  const aspB = C.aspecting(h), aspN = day ? day.sky.filter(x => x.aspects && x.aspects.includes(h)).map(x => x.graha) : [];
+  const parts = signNakshatras(s);
+  const el = SIGN_ELEMENT[s - 1], mo = SIGN_MODALITY[s - 1];
+  const bh = T.BHAVA[h] || {}; const head = clean(bh.head || (typeof bh === "string" ? bh : ""));
+  const moonRow = day ? day.sky.find(x => x.graha === "Moon") : null;
+  const rows = [
+    { label: "Your house", birth: esc(`${ord(h)} house`), now: esc(`${ord(h)} house`), changed: false },
+    { label: "Lord", birth: esc(lord), now: esc(lord), changed: false },
+    { label: "Lord placed", birth: esc(lordHouse ? `${ord(lordHouse)} house` : "—"), now: esc(lordNow ? `${ord(lordNow)} house` : "—"), changed: !!(lordNow && lordNow !== lordHouse) },
+    { label: "Points here", birth: esc([ascHere ? "Lagna" : null, ...occ].filter(Boolean).join(", ") || "none"), now: esc(transiting.join(", ") || "none passing"), changed: occ.join() !== transiting.join() },
+    { label: "Aspected by", birth: esc(aspB.join(", ") || "none"), now: esc(aspN.join(", ") || "none"), changed: aspB.join() !== aspN.join() },
+    { label: "Nature", birth: esc(`${el} · ${mo}`), now: esc(`${el} · ${mo}`), changed: false },
+  ];
+  const leadB = `${sName} is your ${ord(h)} house${head ? ` — ${head}` : "."}${ascHere ? " It is the sign that was rising when you were born." : ""}`;
+  const moreB = [clean(((T.LORD_IN_HOUSE || {})[h] || {})[lordHouse] || ""), ...occ.map(g => clean(((T.PLANET_STORY[g] || {}).inHouse || {})[h] || ""))].filter(Boolean).join(" ");
+  const techB = [`${sName} ${(s - 1) * 30}°–${s * 30}° sidereal`, `${ord(h)} house from your ${T.SIGNS[C.lagna - 1]} lagna`, `lord ${lord} in your ${ord(lordHouse)}`, occ.length ? `holds ${occ.join(", ")}` : "empty at birth", aspB.length ? `aspected by ${aspB.join(", ")}` : null, `${el.toLowerCase()}, ${mo.toLowerCase()}`].filter(Boolean);
+  const chainB = [
+    { fact: `House · ${ord(h)} — ${head}`.trim(), show: `house:${h}` },
+    { fact: `Lord · ${lord} in your ${ord(lordHouse)}`, show: `planet:${lord}` },
+    ...occ.map(g => ({ fact: `Occupant · ${g}`, show: `planet:${g}` })),
+    ...parts.map(p => ({ fact: `Nakshatra portion · ${p.name}${p.padas.length < 4 ? ` (padas ${p.padas[0]}–${p.padas[p.padas.length - 1]})` : ""}`, show: `nak:${p.index}` })),
+    { fact: `Nature · ${el}, ${mo}`, note: SIGN_LINE[s - 1] },
+  ];
+  const sense = clean((T.HOUSE_TRANSIT_SENSE || {})[h] || "");
+  const leadN = transiting.length ? `Right now ${transiting.join(" and ")} ${transiting.length > 1 ? "move" : "moves"} through ${sName} — your ${ord(h)} house${sense ? `, ${sense}` : "."}` : `No graha is passing through ${sName} right now; its lord ${lord} carries it from your ${ord(lordNow || lordHouse)}.`;
+  const moonNote = moonRow && moonRow.sign === s ? (moonRow.houseFromMoon === 8 ? "The Moon is here today — the 8th from your natal Moon, the day the tradition names Chandrashtama: a low, inward day, not a catastrophe." : `The Moon is here today, ${ord(moonRow.houseFromMoon)} from your natal Moon.`) : "";
+  const techN = [transiting.length ? `transiting: ${transiting.join(", ")}` : "no transiting graha", `lord ${lord} now in your ${ord(lordNow || lordHouse)}`, aspN.length ? `aspected now by ${aspN.join(", ")}` : null].filter(Boolean);
+  const chainN = [
+    ...transiting.map(g => ({ fact: `Transit · ${g} in ${sName}`, show: `sky:${g}`, showLabel: "Show in sky" })),
+    { fact: `Lord now · ${lord} in your ${ord(lordNow || lordHouse)}`, show: `planet:${lord}` },
+  ];
+  return {
+    kind: "rashi", id: s,
+    title: sName, dev, eyebrow: `Rashi · ${sk}`,
+    sub: `${(s - 1) * 30}°–${s * 30}° of the sidereal zodiac · ruled by ${esc(lord)}`,
+    rows, changes: [lordNow && lordNow !== lordHouse ? `${lord} now in your ${ord(lordNow)}` : null, transiting.length ? `${transiting.join(", ")} passing through now` : null, aspB.join() !== aspN.join() ? `aspected now by ${aspN.join(", ") || "none"}` : null].filter(Boolean),
+    aboutTitle: `About ${sName}`, about: `${sName} — ${SIGN_LINE[s - 1]}. Its lord is ${lord}; its nakshatras are ${parts.map(p => p.name).join(", ")}.`,
+    birth: { lead: leadB, more: moreB, tech: techB.join(" · ") + ".", chain: chainB },
+    now: { lead: leadN, more: moonNote, tech: techN.join(" · ") + ".", chain: chainN },
+    actions: [
+      { id: "chart", label: `See your ${ord(h)} house`, primary: true, run: () => ctx.actions.openHouse(h, spec.mode) },
+      { id: "sky", label: "Show in sky", run: () => ctx.actions.showInSky(`rashi:${s - 1}`, spec.mode, at) },
+      { id: "guide", label: "Ask Guide", run: () => ctx.actions.askGuide(`What does ${sName} mean in my chart?`, { source: "detail", sign: s, mode: spec.mode }) },
+    ],
+    heroSVG: px => `<svg class="codrashi" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true">
+        <defs><radialGradient id="codrg" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#FFFDF6"/><stop offset="1" stop-color="#E8DEC2"/></radialGradient></defs>
+        <circle cx="50" cy="50" r="46" fill="url(#codrg)" stroke="#8F6B24" stroke-width="1.2"/>
+        ${parts.map((p, i) => { const a0 = (p.from - (s - 1) * 30) / 30, a1 = (p.to - (s - 1) * 30) / 30; const R = 46, r = 41; const A = a => (-90 + a * 360) * Math.PI / 180;
+          const x0 = 50 + R * Math.cos(A(a0)), y0 = 50 + R * Math.sin(A(a0)), x1 = 50 + R * Math.cos(A(a1)), y1 = 50 + R * Math.sin(A(a1));
+          const xi = 50 + r * Math.cos(A(a1)), yi = 50 + r * Math.sin(A(a1)), xj = 50 + r * Math.cos(A(a0)), yj = 50 + r * Math.sin(A(a0));
+          return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${a1 - a0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L${xi.toFixed(1)} ${yi.toFixed(1)} A${r} ${r} 0 ${a1 - a0 > 0.5 ? 1 : 0} 0 ${xj.toFixed(1)} ${yj.toFixed(1)}Z" fill="${["#C29B4E", "#8F6B24", "#D9C79A"][i % 3]}" opacity=".85"/>`; }).join("")}
+        <text x="50" y="50" text-anchor="middle" font-size="24" font-weight="700" fill="#14162B" font-family="Devanagari Sangam MN, Kohinoor Devanagari, Noto Sans Devanagari, sans-serif">${esc(dev)}</text>
+        <text x="50" y="70" text-anchor="middle" font-size="13" fill="#8F6B24">${SIGN_GLYPH[s - 1]}\uFE0E</text>
+      </svg>`,
+    foot: "A rashi is read as the house it makes in your chart, through its lord and whatever stands in it. Traditional associations, not predictions.",
+  };
+}
+
+/* ---- NAKSHATRA ----------------------------------------------------- */
+function nakshatraModel(spec, ctx) {
+  const i = +spec.id, at = spec.at || new Date();                 /* 0..26 */
+  const C = ctx.CHART, T = ctx.T, ord = ctx.ordinal;
+  const r = nakshatraRange(i), m = NAK_META[i], lord = nakLord(i);
+  const pts = [{ graha: "Lagna", L: C.ascendant }, ...C.placements.map(p => ({ graha: p.graha, L: p.L }))].filter(p => nakIndex(p.L) === i).map(p => ({ graha: p.graha, pada: padaIndex(p.L) }));
+  const day = safe(() => ctx.dayFacts(at));
+  const transiting = day ? day.sky.filter(x => x.nak === i || x.nak === r.name).map(x => x.graha) : [];
+  const moonNat = C.get("Moon"); const moonNak = moonNat ? nakIndex(moonNat.L) : null;
+  const tara = moonNak != null ? taraBala(moonNak, i) : null;
+  const moonRow = day ? day.sky.find(x => x.graha === "Moon") : null; const moonHere = moonRow && (moonRow.nak === i || moonRow.nak === r.name);
+  const signs = r.signs.map(x => T.SIGNS[x - 1]);
+  const lordRec = C.rec(lord), lordHouse = lordRec ? lordRec.house : null;
+  const rows = [
+    { label: "Lord", birth: esc(lord), now: esc(lord), changed: false },
+    { label: "Padas", birth: esc(`4 · in ${signs.join(" and ")}`), now: esc(`4 · in ${signs.join(" and ")}`), changed: false },
+    { label: "Deity", birth: esc(m.deity), now: esc(m.deity), changed: false },
+    { label: "Points here", birth: esc(pts.map(p => `${p.graha} (pada ${p.pada})`).join(", ") || "none"), now: esc(transiting.join(", ") || "none passing"), changed: pts.map(p => p.graha).join() !== transiting.join() },
+    tara ? { label: "From your Moon", birth: esc(`${ord(tara.count)} · ${tara.name}`), now: esc(`${ord(tara.count)} · ${tara.name}`), changed: false } : null,
+  ].filter(Boolean);
+  const leadB = pts.length
+    ? `At birth your ${pts.map(p => `${p.graha} (pada ${p.pada})`).join(" and ")} stood in ${r.name} — traditionally associated with ${m.means}.`
+    : `No natal point stands in ${r.name}; it reaches you through its lord ${lord}, in your ${ord(lordHouse)}, and through ${signs.join(" and ")}.`;
+  const moreB = tara ? `Counted from your natal Moon this is the ${ord(tara.count)} star — ${tara.name}, ${NAK_TONE[tara.name] || tara.note || ""}.` : "";
+  const techB = [`${fmtDMS(r.start)}–${fmtDMS(r.end)}`, `lord ${lord} (Vimshottari)`, `padas in ${signs.join(" / ")}`, `deity ${m.deity}`, `symbol ${m.symbol}`].filter(Boolean);
+  const chainB = [
+    { fact: `Lord · ${lord}`, note: `${lord} rules its dasha years for anyone born with the Moon here`, show: `planet:${lord}` },
+    ...r.signs.map(x => ({ fact: `Rashi · ${T.SIGNS[x - 1]}`, show: `sign:${x}` })),
+    { fact: `Deity · ${m.deity}`, note: `symbol: ${m.symbol}` },
+    ...pts.filter(p => p.graha !== "Lagna").map(p => ({ fact: `Natal · ${p.graha}, pada ${p.pada}`, show: `planet:${p.graha}` })),
+  ];
+  const leadN = transiting.length ? `Right now ${transiting.join(" and ")} ${transiting.length > 1 ? "pass" : "passes"} through ${r.name}.` : `No graha is passing through ${r.name} right now.`;
+  const moreN = moonHere && tara ? `The Moon is here today — your ${tara.name} star (${ord(tara.count)} from your natal Moon): ${NAK_TONE[tara.name] || ""}.` : "";
+  const techN = [transiting.length ? `transiting: ${transiting.join(", ")}` : "no transiting graha", moonHere ? "today's Moon nakshatra" : null].filter(Boolean);
+  const chainN = [
+    ...transiting.map(g => ({ fact: `Transit · ${g} in ${r.name}`, show: `sky:${g}`, showLabel: "Show in sky" })),
+    moonHere && tara ? { fact: `Tara bala · ${tara.name}`, note: "counted from your natal Moon to today's Moon" } : null,
+  ].filter(Boolean);
+  return {
+    kind: "nakshatra", id: i,
+    title: r.name, dev: "", eyebrow: `Nakshatra · ${ord(i + 1)} of 27`,
+    sub: `${esc(fmtDMS(r.start))} – ${esc(fmtDMS(r.end))} · ${esc(signs.join(" and "))} · ruled by ${esc(lord)}`,
+    rows, changes: transiting.length ? [`${transiting.join(", ")} passing through now`] : [],
+    aboutTitle: `About ${r.name}`, about: `Traditionally associated with ${m.means}. Its deity is ${m.deity}; its symbol ${m.symbol}. ${r.straddles ? `It straddles two signs — its padas fall in ${signs.join(" and ")}.` : `All four padas sit inside ${signs[0]}.`}`,
+    birth: { lead: leadB, more: moreB, tech: techB.join(" · ") + ".", chain: chainB },
+    now: { lead: leadN, more: moreN, tech: techN.join(" · ") + ".", chain: chainN },
+    actions: [
+      { id: "sky", label: "Show in sky", primary: true, run: () => ctx.actions.showInSky(`nak:${i}`, spec.mode, at) },
+      { id: "guide", label: "Ask Guide", run: () => ctx.actions.askGuide(`What does ${r.name} mean for me?`, { source: "detail", nakshatra: i, mode: spec.mode }) },
+    ],
+    heroSVG: px => `<svg class="codnak" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true">
+        <defs><radialGradient id="codng" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#FFFDF6"/><stop offset="1" stop-color="#E8DEC2"/></radialGradient></defs>
+        <circle cx="50" cy="50" r="46" fill="url(#codng)" stroke="#8F6B24" stroke-width="1.2"/>
+        ${r.padas.map((p, k) => { const A = a => (-90 + a * 90) * Math.PI / 180; const R = 46, rr = 40; const x0 = 50 + R * Math.cos(A(k)), y0 = 50 + R * Math.sin(A(k)), x1 = 50 + R * Math.cos(A(k + 1)), y1 = 50 + R * Math.sin(A(k + 1)); const xi = 50 + rr * Math.cos(A(k + 1)), yi = 50 + rr * Math.sin(A(k + 1)), xj = 50 + rr * Math.cos(A(k)), yj = 50 + rr * Math.sin(A(k));
+          const mine = pts.some(q => q.pada === p.pada);
+          return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L${xi.toFixed(1)} ${yi.toFixed(1)} A${rr} ${rr} 0 0 0 ${xj.toFixed(1)} ${yj.toFixed(1)}Z" fill="${mine ? "#8F6B24" : (p.sign === r.signs[0] ? "#D9C79A" : "#C29B4E")}" opacity=".9"/>`; }).join("")}
+        <text x="50" y="47" text-anchor="middle" font-size="22" font-weight="700" fill="#14162B">${i + 1}</text>
+        <text x="50" y="64" text-anchor="middle" font-size="9" letter-spacing="1" fill="#8F6B24">${esc(lord.toUpperCase())}</text>
+      </svg>`,
+    foot: "A nakshatra is read through its lord, its deity and the points that stand in it. Traditional associations, not predictions.",
   };
 }
 

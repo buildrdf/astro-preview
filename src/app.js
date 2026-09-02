@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902n";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902o";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902e";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902o";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1273,6 +1273,9 @@ function navPush(ov,closeFn){
   try{ history.pushState({astra:token},""); }catch(_){}
   return token;
 }
+/* a page that replaces the page on top keeps that entry - one Back leaves both, and no
+   orphan entry is left for the sky's guard to misread */
+function navReplace(ov,closeFn){ const top=NAV.stack[NAV.stack.length-1]; if(!top) return navPush(ov,closeFn); top.ov=ov; top.closeFn=closeFn; return top.token; }
 window.addEventListener("popstate",()=>{
   /* drop entries whose page was bulk-removed by a cross-navigation */
   while(NAV.stack.length&&!NAV.stack[NAV.stack.length-1].ov.isConnected) NAV.stack.pop();
@@ -1487,7 +1490,9 @@ function openSkyFocused(g){
 /* the sky at a specific moment (Sade Sati phases, Guide dates) */
 function openSkyAt(g,date,opts={}){
   const motion=askMotion();
-  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:g, motion:m, at:date,
+  /* g is a graha name, or a ribbon selector "rashi:N" / "nak:N" (0-based) from the detail page */
+  const sel=/^(rashi|nak):/.test(String(g))?String(g):null;
+  getSpot().then(spot=>motion.then(m=>openSkyView({...spot, focus:sel?null:g, sel, motion:m, at:date,
     mode:opts.mode, pro:isPro(), birth:skyBirthOpts()})));
 }
 
@@ -2805,7 +2810,7 @@ function codCtx(){
        PLANET_STORY:INTERP.PLANET_STORY, GRAHA_MEANING:INTERP.GRAHA_MEANING, GOCHARA_FEEL:INTERP.GOCHARA_FEEL,
        HOUSE_TRANSIT_SENSE:INTERP.HOUSE_TRANSIT_SENSE, HOUSE_STORY:LORE.HOUSE_STORY, GRAHA_IN_SIGN:LORE.GRAHA_IN_SIGN,
        LORD_IN_HOUSE:LORE.LORD_IN_HOUSE, DASHA_THEME},
-    nav:{push:navPush}, buzz,
+    nav:{push:navPush,replace:navReplace}, buzz,
     actions:{
       seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g),260); }); },
       showInSky:(g,mode,at)=>{ closeDetailThen(()=>{ if(mode==="birth") openSkyAt(g,CHART.birthDate,{mode:"birth"}); else openSkyAt(g,at||new Date(),{mode:"now"}); }); },
@@ -2816,8 +2821,8 @@ function codCtx(){
         else if(k==="house") openObject({kind:"house",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
         else if(k==="chart") closeDetailThen(()=>{ go(CHART_INDEX); setMode(spec.mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(id),260); });
         else if(k==="sky") closeDetailThen(()=>openSkyAt(id,spec.at||new Date(),{mode:spec.mode==="birth"?"birth":"now"}));
-        else if(k==="sign") closeDetailThen(()=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openSignPage(+id,null),200); });
-        else if(k==="nak") closeDetailThen(()=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openNakPage(+id,null),200); });
+        else if(k==="sign") openObject({kind:"rashi",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
+        else if(k==="nak") openObject({kind:"nakshatra",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
         else if(k==="timeline") closeDetailThen(()=>go(TIMELINE_INDEX));
         else if(k==="sati") closeDetailThen(()=>{ go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); });
       }

@@ -865,10 +865,11 @@ function setFoot(){
       </div>
       <div class="skacts">
         ${here.map(g=>`<button class="skact" data-pick="${g}">${g}</button>`).join("")}
-        <button class="skact" id="svlearn">Learn ${SIGNS_EN[s]}</button>
+        <button class="skact solid" id="svexplore">Explore ${SIGNS_EN[s]}</button>
       </div></div>`;
     f.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>selectTarget({t:"graha",g:b.dataset.pick,label:b.dataset.pick}));
-    document.getElementById("svlearn").onclick=()=>{ closeSkyView(); dispatchEvent(new CustomEvent("astra:opensign",{detail:s+1})); };
+    document.getElementById("svexplore").onclick=()=>{ const m=project(cache.rashiMid[s]); const origin=Number.isFinite(m[0])?{x:m[0],y:m[1],r:28}:null; buzz(8);
+      dispatchEvent(new CustomEvent("astra:open",{detail:{kind:"rashi",id:s+1,mode:mode==="birth"?"birth":"now",at:skyDate().toISOString(),from:"sky",emphasis:mode==="birth"?"birth":"now",origin}})); };
   }else if(target.t==="nakshatra"){
     const i=target.i, r=nakshatraRange(i), m=NAK_META[i];
     const here=cache.grahas.filter(x=>nkOf(x.L)===i).map(x=>x.g);
@@ -884,10 +885,11 @@ function setFoot(){
       </div>
       <div class="skacts">
         ${here.map(g=>`<button class="skact" data-pick="${g}">${g}</button>`).join("")}
-        <button class="skact" id="svlearn">Learn ${r.name}</button>
+        <button class="skact solid" id="svexplore">Explore ${r.name}</button>
       </div></div>`;
     f.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>selectTarget({t:"graha",g:b.dataset.pick,label:b.dataset.pick}));
-    document.getElementById("svlearn").onclick=()=>{ closeSkyView(); dispatchEvent(new CustomEvent("astra:opennak",{detail:i})); };
+    document.getElementById("svexplore").onclick=()=>{ const m=project(cache.nakMid[i]); const origin=Number.isFinite(m[0])?{x:m[0],y:m[1],r:24}:null; buzz(8);
+      dispatchEvent(new CustomEvent("astra:open",{detail:{kind:"nakshatra",id:i,mode:mode==="birth"?"birth":"now",at:skyDate().toISOString(),from:"sky",emphasis:mode==="birth"?"birth":"now",origin}})); };
   }else if(target.t==="asc"){
     const gr=pointGrid(birthOpts.asc);
     f.innerHTML=`<div class="skcard">

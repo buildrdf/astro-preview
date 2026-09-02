@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903b";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
@@ -894,7 +894,7 @@ function renderToday(){
     Green:"#3E8E5C",Yellow:"#E0B84C",Deep:"#3552A8"};
   const cword=vc.c.split(" ")[0];
   const essentials=`
-    <div class="essentials">
+    <div class="essentials card">
       <div class="ess"><span class="essv"><i class="csw"
         style="background:${SWATCH[cword]||"#888"}"></i>${vc.c.split(" and ")[0]}</span>
         <small>Lucky colour</small></div>
@@ -953,8 +953,8 @@ function renderToday(){
       ${HOUSE_TRANSIT_SENSE[sup.house]} &#8212; is the current worth using.`:"";
     return `
     <section class="daysec">
-      <div class="secrow"><h3 class="secttl">Your day</h3>
-        <span class="daychip tone-${dayTone}">${vWord} &#183; ${vGloss}</span></div>
+      <h3 class="secttl">Your day</h3>
+      <span class="daychip tone-${dayTone}">${vWord} &#183; ${vGloss}</span>
       <p class="dsum"><b>${R.head}.</b> ${R.body}${extra}</p>
     </section>`})();
 
@@ -2987,7 +2987,7 @@ function renderGuide(){
     const s=ASKS[0];
     document.getElementById("pg-guide").innerHTML=`
       <div class="chatwrap">
-        <div class="gmoonwrap"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),84)}</div></div>
+        <div class="gmoonwrap"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),84,{full:true})}</div></div>
         <p class="gsub">Ask about your chart. The answer moves it.</p>
         <div class="chat">
           <div class="bubble me">${s.q}</div>
@@ -3016,7 +3016,7 @@ function renderGuide(){
   document.getElementById("pg-guide").innerHTML=`
     <div class="chatwrap glight">
       ${GUIDE.incognito?`<div class="gincog"><svg viewBox="0 0 24 24"><path d="M4 14c0-1.5 1-2.5 2.5-2.5h11c1.5 0 2.5 1 2.5 2.5M7 17.5a2.2 2.2 0 104.4 0 2.2 2.2 0 10-4.4 0M12.6 17.5a2.2 2.2 0 104.4 0 2.2 2.2 0 10-4.4 0M6 11l1.4-4.6A2 2 0 019.3 5h5.4a2 2 0 011.9 1.4L18 11"/></svg>Incognito</div>`:""}
-      <div class="gmoonwrap${empty?"":" mini"}"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),empty?96:44)}</div></div>
+      <div class="gmoonwrap${empty?"":" mini"}"><div class="gmoon idle" id="gmoon">${moonArt(new Date(),empty?96:44,{full:true})}</div></div>
       ${empty?`
         <h2 class="gh1">Ask your chart anything</h2>
         <p class="gsub">${firstRun
@@ -3040,10 +3040,9 @@ function renderGuide(){
     </div>
     <div class="gvoice" id="gvoice" hidden>
       <div class="gvstage">
+        <div class="gvreply" id="gvreply"></div>
         <div class="gvorb idle" id="gvorb"><img src="assets/moon/phase_15_full_moon.png" alt=""></div>
         <div class="gvstate" id="gvstate" aria-live="polite">Listening</div>
-        <div class="gvtranscript" id="gvtranscript"></div>
-        <div class="gvreply" id="gvreply"></div>
       </div>
       <div class="gvbar">
         <input id="gvin" class="gvpill" placeholder="Ask Astra" aria-label="Type instead" autocomplete="off">
@@ -3201,6 +3200,16 @@ let VOICE={on:false,muted:false,rec:null,utter:null,state:"idle",
   amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null};
 const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 function voiceNote(t){ const r=document.getElementById("gvreply"); if(r) r.textContent=t||""; }
+/* what you are saying, shown where your messages live — a pale bubble at the end of
+   the thread that firms up into a real message the moment the phrase closes */
+function voiceInterim(text){
+  const chat=document.getElementById("chat"); if(!chat) return;
+  let b=document.getElementById("gvlive");
+  if(!text){ if(b) b.remove(); return; }
+  if(!b){ b=document.createElement("div"); b.id="gvlive"; b.className="bubble me live"; chat.appendChild(b); }
+  b.textContent=text;
+  const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
+}
 function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
 function voiceUI(on){
   const c=document.getElementById("gcomposer"), v=document.getElementById("gvoice");
@@ -3290,12 +3299,10 @@ function voiceListen(){
       if(!VOICE.an) VOICE.bump=Math.min(1,VOICE.bump+0.5);   /* no meter: beat per phrase */
       /* barge-in: the user talking cancels Astra instantly */
       if(speechSynthesis.speaking){ speechSynthesis.cancel(); gMoonState("listening"); }
-      const t=document.getElementById("gvtranscript");
-      if(t) t.textContent=interim||final;
+      voiceInterim(interim||final);
     }
     if(final.trim()){
-      const t=document.getElementById("gvtranscript");
-      if(t) t.textContent="";
+      voiceInterim("");
       guideSend(final.trim(),{voice:true});
     }
   };
@@ -3357,7 +3364,7 @@ function voiceStop(silent){
   try{VOICE.ac&&VOICE.ac.close()}catch(_){}
   VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
   const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
-  const t=document.getElementById("gvtranscript"); if(t) t.textContent="";
+  voiceInterim("");
   voiceNote("");
   VOICE.muted=false;
   voiceUI(false);
@@ -5765,8 +5772,10 @@ const phaseFile=date=>{
 const moonImg=(date,size)=>`<img class="mn" src="${phaseFile(date)}" width="${size}" height="${size}" alt="" draggable="false">`;
 
 let mcid=0;
-function moonArt(date,size){
-  const ph=moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
+function moonArt(date,size,opts={}){
+  /* opts.full: the Guide's moon stands for Astra listening, so it shows the whole
+     disc whatever tonight's phase is. Everywhere else it reports the real phase. */
+  const ph=opts.full?{illum:1,waxing:true}:moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
   return `<svg class="mn" viewBox="${-size/2} ${-size/2} ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
     <defs><clipPath id="${id}"><path d="${moonPath(r,ph.illum,ph.waxing)}"/></clipPath></defs>
     <circle r="${r}" fill="#1B1F3C" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>

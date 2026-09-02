@@ -25,6 +25,58 @@ const sgOf=L=>Math.floor((((L%360)+360)%360)/30);
 const nkOf=L=>Math.floor((((L%360)+360)%360)/NSPAN);
 const norm=L=>((L%360)+360)%360;
 
+/* NASA's Blue Marble, mapped onto the globe. The projection is the expensive part and it
+   only changes when the size or the viewing longitude/latitude change, so it is done once
+   into an offscreen canvas and blitted every frame. The terminator, atmosphere and limb
+   are painted over it live, so day and night still track the real Sun.
+   Public domain, NASA Visible Earth 57752 — see assets/earth/SOURCE.txt. */
+let EARTH_TEX=null, EARTH_READY=false, EARTH_PX=null;
+function earthTexture(){
+  if(EARTH_TEX) return EARTH_TEX;
+  EARTH_TEX=new Image();
+  EARTH_TEX.decoding="async";
+  EARTH_TEX.onload=()=>{ try{
+      const c=document.createElement("canvas"); c.width=EARTH_TEX.naturalWidth; c.height=EARTH_TEX.naturalHeight;
+      const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(EARTH_TEX,0,0);
+      EARTH_PX=x.getImageData(0,0,c.width,c.height); EARTH_READY=true;
+    }catch(_){ EARTH_READY=false; } };
+  EARTH_TEX.src=new URL("../assets/earth/bluemarble_1024.jpg",import.meta.url).href;
+  return EARTH_TEX;
+}
+/* the globe as seen from here, rendered once per (size, place) and cached */
+const GLOBE={key:"",canvas:null};
+function globeSprite(D,lat0,lon0){
+  const key=`${D}|${lat0.toFixed(2)}|${lon0.toFixed(2)}`;
+  if(GLOBE.key===key&&GLOBE.canvas) return GLOBE.canvas;
+  if(!EARTH_READY||!EARTH_PX) return null;
+  const S=Math.max(24,Math.round(D)), R=S/2;
+  const c=document.createElement("canvas"); c.width=S; c.height=S;
+  const ctx=c.getContext("2d"); const img=ctx.createImageData(S,S);
+  const src=EARTH_PX.data, TW=EARTH_PX.width, TH=EARTH_PX.height, out=img.data;
+  const tilt=lat0*D2R-26*D2R, ct=Math.cos(tilt), st=Math.sin(tilt);
+  const l0=lon0*D2R;
+  for(let py=0;py<S;py++){
+    const y=(py+0.5-R)/R;
+    for(let px=0;px<S;px++){
+      const x=(px+0.5-R)/R;
+      const d2=x*x+y*y; if(d2>1) continue;
+      const z=Math.sqrt(1-d2);
+      /* screen (x, -y, z) back through the observer tilt to geographic coordinates */
+      const Y=-y, Z=z;
+      const Yg=Y*ct+Z*st, Zg=-Y*st+Z*ct;
+      const lat=Math.asin(Math.max(-1,Math.min(1,Yg)));
+      const lon=Math.atan2(x,Zg)+l0;
+      let u=(lon/(2*Math.PI)+0.5)%1; if(u<0) u+=1;
+      const v=0.5-lat/Math.PI;
+      const sx=Math.min(TW-1,(u*TW)|0), sy=Math.min(TH-1,Math.max(0,(v*TH)|0));
+      const si=(sy*TW+sx)*4, di=(py*S+px)*4;
+      out[di]=src[si]; out[di+1]=src[si+1]; out[di+2]=src[si+2]; out[di+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  GLOBE.key=key; GLOBE.canvas=c; return c;
+}
+
 /* The Earth's land as soft blobs [lat, lon, radius in degrees]. This is
    an emblem of home at 60–140 px, not a map: enough that Africa, the
    Americas, Eurasia and Australia read at a glance. */
@@ -97,19 +149,28 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA){
   const ar=c.createRadialGradient(cx,cy,R*0.98,cx,cy,R*1.18);
   ar.addColorStop(0,"rgba(120,178,255,.55)"); ar.addColorStop(0.45,"rgba(110,170,255,.18)"); ar.addColorStop(1,"rgba(100,160,255,0)");
   c.fillStyle=ar; c.beginPath(); c.arc(cx,cy,R*1.18,0,7); c.fill();
-  /* ocean */
-  const og=c.createRadialGradient(cx+light.x*R*0.4,cy+light.y*R*0.4,R*0.05,cx,cy,R);
-  og.addColorStop(0,"#4a93d6"); og.addColorStop(0.55,"#20579a"); og.addColorStop(1,"#0d2a55");
-  c.fillStyle=og; c.beginPath(); c.arc(cx,cy,R,0,7); c.fill();
-  /* land */
+  /* the globe itself: photography where it has loaded, the drawn emblem until then */
+  const dpr=(typeof devicePixelRatio!=="undefined"?devicePixelRatio:1)||1;
+  const sprite=globeSprite(Math.min(1400,2*R*dpr),spot?.lat||0,spot?.lon||0);
+  if(sprite){
+    c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
+    c.drawImage(sprite,cx-R,cy-R,2*R,2*R);
+    c.restore();
+  } else {
+    const og=c.createRadialGradient(cx+light.x*R*0.4,cy+light.y*R*0.4,R*0.05,cx,cy,R);
+    og.addColorStop(0,"#4a93d6"); og.addColorStop(0.55,"#20579a"); og.addColorStop(1,"#0d2a55");
+    c.fillStyle=og; c.beginPath(); c.arc(cx,cy,R,0,7); c.fill();
+  }
   c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
-  c.globalAlpha*=landA;
-  for(const [la,lo,rad] of LAND){ const p=proj(la,lo); if(p.z<=0.03) continue;
-    const rr=rad*D2R*R*0.95; const ang=Math.atan2(p.y-cy,p.x-cx);
-    const a=Math.abs(la);
-    c.fillStyle=a>62?"rgba(214,222,226,.92)":a>40?"rgba(128,152,104,.95)":a>17&&a<34?"rgba(190,168,112,.95)":"rgba(104,146,92,.95)";
-    c.beginPath(); c.ellipse(p.x,p.y,Math.max(1,rr*Math.max(0.12,p.z)),Math.max(1,rr),ang,0,7); c.fill(); }
-  c.globalAlpha/=Math.max(0.001,landA);
+  if(!sprite){
+    c.globalAlpha*=landA;
+    for(const [la,lo,rad] of LAND){ const p=proj(la,lo); if(p.z<=0.03) continue;
+      const rr=rad*D2R*R*0.95; const ang=Math.atan2(p.y-cy,p.x-cx);
+      const a=Math.abs(la);
+      c.fillStyle=a>62?"rgba(214,222,226,.92)":a>40?"rgba(128,152,104,.95)":a>17&&a<34?"rgba(190,168,112,.95)":"rgba(104,146,92,.95)";
+      c.beginPath(); c.ellipse(p.x,p.y,Math.max(1,rr*Math.max(0.12,p.z)),Math.max(1,rr),ang,0,7); c.fill(); }
+    c.globalAlpha/=Math.max(0.001,landA);
+  }
   /* a thin veil of cloud on the lit side */
   const cg=c.createRadialGradient(cx+light.x*R*0.5,cy+light.y*R*0.5,R*0.1,cx+light.x*R*0.2,cy+light.y*R*0.2,R*1.1);
   cg.addColorStop(0,"rgba(255,255,255,.22)"); cg.addColorStop(0.5,"rgba(255,255,255,.08)"); cg.addColorStop(1,"rgba(255,255,255,0)");
@@ -138,6 +199,7 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA){
 /* ---- the scene ------------------------------------------------------ */
 export function drawOrrery(c,W,H,k,env){
   const e=smooth(k); if(k<=0.002) return;
+  earthTexture();
   const cover=smooth(clamp(k*2.2,0,1));                     /* the sky is gone well before the chart settles */
   const sc=smooth(clamp((k-0.12)/0.88,0,1));               /* ring + bodies */
   const landA=smooth(clamp((k-0.5)/0.4,0,1));              /* continents only once it is a globe */

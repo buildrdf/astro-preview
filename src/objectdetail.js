@@ -39,6 +39,14 @@ const GRAHA_SK = { Sun: "Surya", Moon: "Chandra", Mars: "Mangal", Mercury: "Budh
 const GRAHA_DEV = { Sun: "सूर्य", Moon: "चंद्र", Mars: "मंगल", Mercury: "बुध", Jupiter: "गुरु", Venus: "शुक्र", Saturn: "शनि", Rahu: "राहु", Ketu: "केतु" };
 const HOUSE_DEV = ["", "प्रथम", "द्वितीय", "तृतीय", "चतुर्थ", "पंचम", "षष्ठ", "सप्तम", "अष्टम", "नवम", "दशम", "एकादश", "द्वादश"];
 
+/* the same glyphs the app uses elsewhere: the kundali diamond for the chart, the AR cube
+   for the sky, the Moon for Astra */
+const ACT_ICON = {
+  chart: `<svg class="acti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/></svg>`,
+  sky: `<svg class="acti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/><path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/><path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/></svg>`,
+  guide: `<svg class="acti moon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M8.6 5.2a8.4 8.4 0 000 13.6 8.4 8.4 0 010-13.6z" fill="currentColor" stroke="none" opacity=".5"/></svg>`,
+};
+
 let open = null;   /* the one mounted page */
 
 export function openObjectDetail(spec, ctx) {
@@ -89,7 +97,10 @@ export function openObjectDetail(spec, ctx) {
         <div class="codpanel" data-panel="now" ${emphasis === "now" ? "" : "hidden"}>${panelHTML(model.now)}</div>
       </section>
       <section class="codacts">
-        ${model.actions.map(a => `<button class="codact${a.primary ? " primary" : ""}" data-act="${a.id}">${esc(a.label)}</button>`).join("")}
+        <div class="codactrow">
+          ${model.actions.filter(a => a.id !== "guide").map(a => `<button class="codact" data-act="${a.id}">${ACT_ICON[a.id] || ""}<span>${esc(a.label)}</span></button>`).join("")}
+        </div>
+        ${model.actions.filter(a => a.id === "guide").map(a => `<button class="codact wide primary" data-act="${a.id}">${ACT_ICON.guide}<span>${esc(a.label)}</span></button>`).join("")}
       </section>
       <p class="codfoot">${esc(model.foot)}</p>
     </div>`;
@@ -105,7 +116,33 @@ export function openObjectDetail(spec, ctx) {
 
   /* the collapse: scroll 0→160px takes the hero from cinematic to a small object beside the title */
   const sc = ov.querySelector(".codscroll");
-  const onScroll = () => { const p = Math.max(0, Math.min(1, sc.scrollTop / 160)); ov.style.setProperty("--p", p.toFixed(3)); ov.classList.toggle("collapsed", p > 0.6); };
+  /* the hero does not dissolve — it travels up to the title and shrinks into the slot beside
+     the name, so the object you lifted stays the object you are reading about. The trip is
+     measured ONCE, at rest, and then driven by scroll progress alone: measuring a moving,
+     transformed element every frame feeds back on itself. */
+  const measureHero = () => {
+    const slot = ov.querySelector(".codheroslot"), bar = ov.querySelector(".codbar");
+    if (!slot || !bar) return;
+    const prev = ov.style.getPropertyValue("--p");
+    ov.style.setProperty("--p", "0");
+    const s0 = slot.getBoundingClientRect(), b = bar.getBoundingClientRect();
+    if (s0.width > 60) {
+      ov.style.setProperty("--hx", ((b.left + 66) - (s0.left + s0.width / 2)).toFixed(1) + "px");
+      ov.style.setProperty("--hy", ((b.top + b.height / 2) - (s0.top + s0.height / 2)).toFixed(1) + "px");
+      ov.style.setProperty("--hsT", (30 / s0.width).toFixed(4));
+    }
+    ov.style.setProperty("--p", prev || "0");
+  };
+  const onScroll = () => {
+    const p = Math.max(0, Math.min(1, sc.scrollTop / 170));
+    ov.style.setProperty("--p", p.toFixed(3));
+    ov.classList.toggle("collapsed", p > 0.98);
+  };
+  requestAnimationFrame(measureHero);
+  addEventListener("resize", measureHero);
+  /* the hero's art arrives after first layout, so measure again whenever it resizes —
+     a trip measured against a 38px placeholder lands nowhere near the title */
+  try { new ResizeObserver(measureHero).observe(ov.querySelector(".codheroslot")); } catch (_) {}
   sc.addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
   /* tabs, actions, see-why */

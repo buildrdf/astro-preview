@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903e";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903i";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903e";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903i";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1312,12 +1312,17 @@ function awOpen(ov,card){
   ov._navToken=navPush(ov,()=>{ if(ov.isConnected) awClose(ov,ov._src,ov._then); });
   if(card&&!reduced){
     const r=card.getBoundingClientRect();
-    ov.style.transformOrigin="0 0";
-    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    ov.style.borderRadius="22px";
-    void ov.offsetHeight;
     ov.classList.add("in");
-    ov.style.transform=""; ov.style.borderRadius="";
+    /* the card grows into the page. Driven by the Web Animations API rather than by setting
+       and clearing an inline transform: that depended on a style flush landing between the
+       two writes, which it did not, so opening jumped while closing animated. */
+    try{
+      ov.animate([
+        {transformOrigin:"0 0",borderRadius:"22px",
+         transform:`translate(${r.left}px,${r.top}px) scale(${(r.width/innerWidth).toFixed(4)},${(r.height/innerHeight).toFixed(4)})`},
+        {transformOrigin:"0 0",borderRadius:"0px",transform:"none"}
+      ],{duration:360,easing:"cubic-bezier(.22,1,.36,1)"});
+    }catch(_){}
     return {rect:r};
   }
   ov.classList.add("in","fade");
@@ -6697,6 +6702,29 @@ nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"o
     nav.dataset.pressed="1"; },{passive:true});
   for(const ev of ["pointerup","pointercancel","pointerleave"])
     nav.addEventListener(ev,()=>{ delete nav.dataset.pressed; },{passive:true}); }
+/* Universe parallax: the chart is a real object under glass. The geometry and the grahas
+   ride at different depths, so tilting the phone moves them by different amounts and the
+   chart gains a plane of its own. It also settles on arrival, which is the only motion a
+   device without sensors sees. Reduce Motion turns it off entirely. */
+let uniParStop=null;
+function wireUniParallax(){
+  if(uniParStop) return;
+  const st=document.getElementById("stage"); if(!st) return;
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let tx=0,ty=0,cx=0.55,cy=-0.4,raf=0;        /* start offset so entry settles into place */
+  const onO=ev=>{ if(ev.gamma==null&&ev.beta==null) return;
+    tx=Math.max(-1,Math.min(1,(ev.gamma||0)/26));
+    ty=Math.max(-1,Math.min(1,((ev.beta||0)-42)/26)); };
+  const tick=()=>{ cx+=(tx-cx)*0.075; cy+=(ty-cy)*0.075;
+    st.style.setProperty("--px",cx.toFixed(3));
+    st.style.setProperty("--py",cy.toFixed(3));
+    raf=requestAnimationFrame(tick); };
+  addEventListener("deviceorientation",onO,{passive:true});
+  raf=requestAnimationFrame(tick);
+  uniParStop=()=>{ removeEventListener("deviceorientation",onO); cancelAnimationFrame(raf);
+    st.style.removeProperty("--px"); st.style.removeProperty("--py"); uniParStop=null; };
+}
+
 let activeTab=0, guideFrom=0;
 function go(i){
   if(mode) resetChart();
@@ -6707,6 +6735,7 @@ function go(i){
   activeTab=i;
   /* two materials: the instrument (Universe) keeps its night; every reading tab is paper */
   document.body.classList.toggle("light", i!==CHART_INDEX);
+  if(i===CHART_INDEX) setTimeout(wireUniParallax,80); else if(uniParStop) uniParStop();
   /* the bar belongs to the tab, so it has to be reset on every switch -
      the render functions only run once at startup */
   if(i===0) renderToday();

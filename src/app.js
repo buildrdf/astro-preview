@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903w";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903z";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903w";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903w";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903z";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903z";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1063,8 +1063,7 @@ function renderToday(){
          ["Yoga",F.limbs.yoga.name],
          ["Karana",F.limbs.karana.name],
          ...(obs?[["Observance",`${obs.name}${PREFS().lang!=="en"&&obs.hi?` <small class="hiname">${obs.hi}</small>`:""}`]]:[]),
-         ["Tara bala",F.tara.name],
-         ["Colour of the day",vc.c]]
+         ["Tara bala",F.tara.name]]
         .map(([k,v])=>`<div class="row panchrow">
           <button class="term" data-term="${k}">${k}</button>
           <span class="v">${v}</span></div>
@@ -2967,8 +2966,71 @@ function guideMsgHTML(m,i,prev){
     <div class="astratext${long?" clamp":""}">${fmtGuide(m.content)}</div>
     ${long?`<button class="gshowmore">Show more</button>`:""}
     ${m.actions?actChips(m.actions,i):""}
+    <div class="gfb">
+      <button class="gfbb" data-fb="copy" data-i="${i}" aria-label="Copy this answer"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15.5 5.8V5A2 2 0 0013.5 3h-8A2.5 2.5 0 003 5.5v8A2 2 0 005 15.5h.8"/></svg></button>
+      <button class="gfbb" data-fb="up" data-i="${i}" aria-label="Good answer"><svg viewBox="0 0 24 24"><path d="M7 10.5v9M7 10.5l3.6-6.8a1.7 1.7 0 013.1 1.2l-.8 3.7h4.6a2 2 0 011.95 2.45l-1.35 6A2 2 0 0116.1 18.6H7"/></svg></button>
+      <button class="gfbb" data-fb="down" data-i="${i}" aria-label="Report a problem with this answer"><svg viewBox="0 0 24 24"><path d="M7 13.5v-9M7 13.5l3.6 6.8a1.7 1.7 0 003.1-1.2l-.8-3.7h4.6a2 2 0 001.95-2.45l-1.35-6A2 2 0 0016.1 5.4H7"/></svg></button>
+    </div>
   </div>`;
 }
+
+/* Feedback on an answer. Rows land in a Supabase table that only accepts inserts, never
+   reads — so a report can be filed but nothing about anyone can be read back from the app.
+   By default only the answer and the question that produced it travel; the whole
+   conversation goes only if the person asks for it. Guide talk is intimate (CLAUDE.md 103). */
+const FB_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/rest/v1/feedback";
+const FB_ISSUES=[["wrong","Wrong or incomplete"],["notasked","Not what I asked"],
+  ["slow","Slow or buggy"],["tone","Style or tone"],["safety","Safety concern"],["other","Other"]];
+function toastG(t){ let n=document.getElementById("gtoast");
+  if(!n){ n=document.createElement("div"); n.id="gtoast"; n.className="gtoast"; document.body.appendChild(n); }
+  n.textContent=t; n.classList.add("on"); clearTimeout(n._t); n._t=setTimeout(()=>n.classList.remove("on"),1800); }
+async function sendFeedback(o){
+  const m=GUIDE.msgs[o.i], q=GUIDE.msgs[o.i-1];
+  const row={kind:o.kind, issue:o.issue||null, details:(o.details||"").slice(0,2000)||null,
+    question:q&&q.role==="user"?String(q.content).slice(0,2000):null,
+    reply:m?String(m.content).slice(0,4000):null,
+    thread:o.thread?GUIDE.msgs.slice(-40).map(x=>({r:x.role,c:String(x.content).slice(0,2000)})):null,
+    build:(document.querySelector('meta[name="astra-build"]')||{}).content||null,
+    ua:navigator.userAgent.slice(0,200)};
+  try{
+    await fetch(FB_URL,{method:"POST",headers:{apikey:GUIDE_ANON,Authorization:"Bearer "+GUIDE_ANON,
+      "Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(row)});
+  }catch(_){ /* a report that cannot be filed must never interrupt the conversation */ }
+}
+let fbHost=null, fbIdx=-1, fbIssue=null;
+function openFeedback(i){
+  fbIdx=i; fbIssue=null; buzz(7);
+  if(!fbHost){
+    fbHost=document.createElement("div"); fbHost.className="fbwrap"; document.body.appendChild(fbHost);
+    fbHost.onclick=e=>{ if(e.target===fbHost) closeFeedback(); };
+  }
+  fbHost.innerHTML=`
+    <div class="fbsheet" role="dialog" aria-modal="true" aria-label="Feedback">
+      <div class="fbhead"><b>What could have been better?</b>
+        <button class="skx" id="fbx" aria-label="Close">&#10005;</button></div>
+      <div class="fbchips" id="fbchips" role="group" aria-label="What went wrong">
+        ${FB_ISSUES.map(([k,l])=>`<button data-i="${k}">${l}</button>`).join("")}
+      </div>
+      <textarea id="fbdet" maxlength="2000" rows="4" placeholder="Add details, if you like"></textarea>
+      <label class="fbinc"><input type="checkbox" id="fbthread"> Include this whole conversation</label>
+      <p class="fbnote">Only this answer and the question before it are sent, with your build number.
+        Nothing is readable from inside the app.</p>
+      <button class="primary fbsend" id="fbsend">Send</button>
+    </div>`;
+  requestAnimationFrame(()=>fbHost.classList.add("on"));
+  fbHost.querySelector("#fbx").onclick=closeFeedback;
+  fbHost.querySelector("#fbchips").onclick=e=>{ const b=e.target.closest("[data-i]"); if(!b) return;
+    fbIssue=b.dataset.i; buzz(4);
+    fbHost.querySelectorAll("#fbchips button").forEach(x=>x.classList.toggle("on",x===b)); };
+  fbHost.querySelector("#fbsend").onclick=()=>{
+    sendFeedback({kind:"down",i:fbIdx,issue:fbIssue,
+      details:fbHost.querySelector("#fbdet").value,
+      thread:fbHost.querySelector("#fbthread").checked});
+    buzz(9); closeFeedback(); toastG("Thank you \u2014 that helps");
+  };
+}
+function closeFeedback(){ if(!fbHost) return; fbHost.classList.remove("on");
+  setTimeout(()=>{ if(fbHost) fbHost.innerHTML=""; },220); }
 
 function setGuideBar(){
   setTopBar("Guide",{sub:"Ask your chart",
@@ -3132,6 +3194,11 @@ function renderGuide(){
     pg.scrollTo({top:pg.scrollHeight,behavior:"smooth"}); };
   const chat=document.getElementById("chat");
   chat.onclick=e=>{
+    const fb=e.target.closest(".gfbb");
+    if(fb){ const i2=+fb.dataset.i, m2=GUIDE.msgs[i2];
+      if(fb.dataset.fb==="copy"){ try{ navigator.clipboard.writeText(m2?m2.content:""); toastG("Copied"); buzz(5); }catch(_){}; return; }
+      if(fb.dataset.fb==="up"){ fb.classList.add("on"); buzz(6); sendFeedback({kind:"up",i:i2}); toastG("Thank you"); return; }
+      openFeedback(i2); return; }
     const sm=e.target.closest(".gshowmore");
     if(sm){ const t=sm.previousElementSibling; t.classList.toggle("clamp"); sm.textContent=t.classList.contains("clamp")?"Show more":"Show less"; buzz(4); return; }
     const ev0=e.target.closest(".gevid[data-ai]");

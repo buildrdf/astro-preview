@@ -3141,3 +3141,79 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
    is invisible at 30px, so it swaps for a tight one */
 .cod.collapsed .codheroslot canvas,.cod.collapsed .codheroslot svg{
   filter:drop-shadow(0 1px 2px rgba(20,22,43,.45))}
+
+/* ---- feedback on an answer ------------------------------------------
+   Three quiet marks under each reply; the dislike opens a sheet that says
+   plainly what travels. Nothing here shouts until you reach for it. */
+.gfb{display:flex;gap:2px;margin-top:8px}
+.gfbb{width:30px;height:30px;border:0;background:none;cursor:pointer;border-radius:8px;
+  display:grid;place-items:center;color:var(--ink-3);opacity:.55;
+  transition:opacity .2s var(--ease),background .2s var(--ease),color .2s var(--ease)}
+.gfbb svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.gfbb:active{background:rgba(23,26,51,.07)}
+.gasr:hover .gfbb,.gfbb:focus-visible{opacity:.9}
+.gfbb.on{opacity:1;color:#2A6E45}
+
+.fbwrap{position:fixed;inset:0;z-index:90;background:rgba(12,14,30,.34);
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;
+  transition:opacity .22s var(--ease);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.fbwrap.on{opacity:1;pointer-events:auto}
+.fbsheet{width:100%;background:#F7F5EF;color:#171A33;border-radius:22px 22px 0 0;
+  padding:16px 18px calc(env(safe-area-inset-bottom) + 18px);
+  transform:translateY(14px);transition:transform .26s var(--ease);
+  box-shadow:0 -10px 40px -12px rgba(12,14,30,.4)}
+.fbwrap.on .fbsheet{transform:none}
+.fbhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.fbhead b{font-size:17px;font-weight:680;letter-spacing:-.015em}
+.fbsheet .skx{width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(23,26,51,.06);color:#171A33;font-size:15px}
+.fbchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.fbchips button{border:1px solid rgba(23,26,51,.16);background:#fff;color:#3A3F5C;
+  border-radius:99px;padding:8px 13px;font-family:var(--ff);font-size:13.5px;cursor:pointer;
+  transition:background .18s var(--ease),color .18s var(--ease),border-color .18s var(--ease)}
+.fbchips button.on{background:#171A33;color:#F7F5EF;border-color:#171A33}
+.fbsheet textarea{width:100%;box-sizing:border-box;border-radius:14px;padding:12px 13px;
+  border:1px solid rgba(23,26,51,.14);background:#fff;font-family:var(--ff);font-size:16px;
+  color:#171A33;resize:none}
+.fbsheet textarea:focus{outline:none;border-color:rgba(23,26,51,.34)}
+.fbinc{display:flex;align-items:center;gap:9px;margin:12px 0 6px;font-size:14px;color:#3A3F5C}
+.fbinc input{width:19px;height:19px;accent-color:#171A33}
+.fbnote{margin:0 0 14px;font-size:12px;line-height:1.5;color:#6B6E85}
+.fbsend{width:100%;border:0;border-radius:15px;padding:14px;background:#171A33;color:#F7F5EF;
+  font-family:var(--ff);font-size:15.5px;font-weight:650;cursor:pointer}
+.fbsend:active{opacity:.85}
+.gtoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);z-index:95;
+  transform:translate(-50%,8px);opacity:0;pointer-events:none;
+  background:rgba(23,26,51,.94);color:#F7F5EF;padding:9px 16px;border-radius:99px;
+  font-family:var(--ff);font-size:13.5px;font-weight:560;
+  transition:opacity .2s var(--ease),transform .2s var(--ease)}
+.gtoast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion: reduce){
+  .fbwrap,.fbsheet,.gtoast{transition:none}
+}
+
+/* Life area cards: white on the cream page, with only the verdict pill carrying colour.
+   The tone tints made six near-identical washes; the pill says it in one place instead. */
+.lacard,.lacard.t-favourable,.lacard.t-slow,.lacard.t-balanced{
+  background:#FFFFFF;
+  border:1px solid rgba(23,26,51,.07);
+  box-shadow:0 1px 2px rgba(23,26,51,.04),0 10px 26px -20px rgba(23,26,51,.35)}
+/* the first card starts on the page's own left margin, not against the edge */
+.lacarousel{padding-left:20px;padding-right:20px;scroll-padding-left:20px}
+
+/* The month calendar belongs to Today, which is paper now. It kept a dark sheet while the
+   ink tokens flipped dark with the rest of the light shell, so the month name and the day
+   numbers were dark text on a dark ground. Same surface as the tab it opens from. */
+body.light .calsheet{
+  background:rgba(247,245,239,.94);
+  -webkit-backdrop-filter:saturate(160%) blur(26px);backdrop-filter:saturate(160%) blur(26px)}
+body.light .calweek{border-bottom-color:var(--line)}
+body.light .cday:active{background:rgba(23,26,51,.06)}
+body.light .cday.sel{background:rgba(23,26,51,.07)}
+body.light .cday.today .cnum{background:var(--brass);color:#F7F5EF}
+body.light .cmname{color:var(--ink)}
+body.light .calnav button{color:var(--ink-2)}
+body.light .calclose{color:var(--ink)}
+/* the moon discs were drawn for a night ground; give them an edge so they read on paper */
+body.light .cday .mn{filter:drop-shadow(0 0 0.5px rgba(23,26,51,.45))}

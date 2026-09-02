@@ -16,7 +16,7 @@
 ;
   /* reading surfaces (warm off-white, dark ink) — the only light palette */
   --rd-bg:#F7F5EF; --rd-bg2:#FFFFFF; --rd-ink:#171A33; --rd-ink2:#4A4F6E; --rd-ink3:#7B809E;
-  --rd-line:rgba(23,26,51,.12); --rd-edge:rgba(23,26,51,.24); --rd-brass:#8F6B24; --rd-hot:#5A5FB0;
+  --rd-line:rgba(23,26,51,.12); --rd-edge:rgba(23,26,51,.24); --rd-brass:#7F5F18; --rd-hot:#5A5FB0;
   --rd-good:#3E8E5C; --rd-warn:#B8702A}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* an instrument, not a document: taps navigate, they do not select */
@@ -1769,7 +1769,7 @@ body.guidefull #pg-guide{padding-bottom:26px}
 .laplanets .gico{width:36px;height:36px;
   filter:drop-shadow(0 2px 5px rgba(20,25,60,.25))}
 .seewhy{align-self:flex-start;border:0;background:none;padding:0;cursor:pointer;
-  font-family:var(--ff);font-size:13.5px;font-weight:650;color:#8F6B24}
+  font-family:var(--ff);font-size:13.5px;font-weight:650;color:var(--rd-brass)}
 .seewhy:active{opacity:.6}
 
 /* 6 · mantra — contemplative, centered, no chrome */
@@ -2600,7 +2600,7 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .gasr .astratext.clamp{max-height:168px;overflow:hidden;position:relative}
 .gasr .astratext.clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:56px;
   background:linear-gradient(180deg,rgba(247,245,239,0),#F7F5EF)}
-.gshowmore{display:block;margin:2px 0 6px;padding:4px 0;border:0;background:none;color:#8F6B24;
+.gshowmore{display:block;margin:2px 0 6px;padding:4px 0;border:0;background:none;color:var(--rd-brass);
   font-size:13px;font-weight:600;cursor:pointer}
 .gshowmore::after{content:" \25BE";font-size:11px}
 .gevids{display:flex;flex-direction:column;gap:6px;margin-top:10px}
@@ -2799,3 +2799,87 @@ body.indetail .tabs{transform:translateY(115%);pointer-events:none}
 /* Sky: the accessible list of what is in view (off-screen, VoiceOver only) */
 .skyview .svlist{position:absolute;left:0;top:0;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;list-style:none}
 .skyview .svlist button:focus-visible{position:fixed;left:12px;top:72px;width:auto;height:auto;clip:auto;background:#0e1030;color:#f1e7c9;border:1px solid rgba(241,231,201,.6);border-radius:10px;padding:8px 12px;font:600 14px -apple-system,system-ui,sans-serif;z-index:80}
+
+/* ======================================================================
+   LIGHT SHELL (R1) — two materials, one rule: instrument = indigo (Universe, Sky, orrery),
+   reading = warm paper (Today, Timeline, Guide, You, every detail page).
+   body.light flips the shared tokens so the 380+ var(--ink…) uses follow; the surfaces
+   below are the hard-coded ones that matter on the light tabs.
+   ====================================================================== */
+body.light{
+  --ink:#171A33; --ink-2:#4A4F6E; --ink-3:#7B809E;
+  --line:rgba(23,26,51,.12); --line-2:rgba(23,26,51,.18);
+  --edge:rgba(23,26,51,.16); --edge-soft:rgba(23,26,51,.10);
+  --void:#F7F5EF; --void-2:#FFFFFF; --raise:#FFFFFF; --hot:#5A5FB0; --brass:#8F6B24;
+  background:linear-gradient(180deg,#F1EFE7 0%,#F5F3EC 30%,#F7F5EF 100%);
+  color:var(--ink)}
+body.light .topbar{background:rgba(247,245,239,.72);border-bottom-color:rgba(23,26,51,.08)}
+body.light .tb-title b{color:var(--ink)} body.light .tb-title span{color:var(--ink-3)}
+body.light .tb-btn{color:var(--ink)}
+body.light .card{background:#FFFFFF;border-color:var(--edge-soft);
+  box-shadow:0 1px 2px rgba(23,26,51,.04),0 8px 24px -18px rgba(23,26,51,.25)}
+body.light .calbtn{background:#FFFFFF;border-color:var(--edge-soft);color:var(--ink-2)}
+body.light .todaychip{background:var(--ink);color:#F7F5EF}
+body.light .dchip{background:rgba(23,26,51,.05);color:var(--ink-3)}
+body.light .dchip b{color:var(--ink-2)}
+body.light .dchip.on{background:#FFFFFF;color:var(--ink);box-shadow:0 2px 10px -4px rgba(23,26,51,.3)}
+body.light .dchip.on b{color:var(--ink)}
+body.light .tbseg{background:rgba(23,26,51,.06);border-color:rgba(23,26,51,.08)}
+body.light .tbseg .thumb{background:#FFFFFF;box-shadow:0 1px 6px -1px rgba(23,26,51,.28)}
+body.light .tbseg button{color:var(--ink-2)} body.light .tbseg button.on{color:var(--ink)}
+body.light .segmented button{color:var(--ink-2)}
+body.light .paper{box-shadow:0 1px 2px rgba(23,26,51,.04),0 10px 30px -22px rgba(23,26,51,.3);background:#FFFFFF}
+body.light .advd.dark{background:rgba(23,26,51,.04);border-color:var(--edge-soft)}
+
+/* the tab bar as a floating glass capsule — the same shape on both materials */
+.tabs{left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 10px);
+  height:64px;padding-bottom:0;border-radius:32px;
+  background:rgba(33,32,74,.58);border:.5px solid rgba(190,200,245,.22);
+  box-shadow:0 12px 34px -14px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12)}
+body.light .tabs{background:rgba(255,255,255,.58);border-color:rgba(255,255,255,.75);
+  box-shadow:0 12px 34px -16px rgba(23,26,51,.35),inset 0 1px 0 rgba(255,255,255,.9)}
+.tab{position:relative;border-radius:26px}
+.tab::before{content:"";position:absolute;left:8px;right:8px;top:6px;bottom:6px;border-radius:22px;
+  background:rgba(255,255,255,.10);opacity:0;transform:scale(.92);transition:opacity .28s var(--ease),transform .34s cubic-bezier(.3,1.4,.4,1)}
+.tab.on::before{opacity:1;transform:scale(1)}
+body.light .tab::before{background:rgba(23,26,51,.07)}
+body.light .tab{color:var(--ink-3)} body.light .tab.on{color:var(--ink)}
+body.light .tab.on .tabico{filter:none}
+.tab .tabico,.tab .tablbl{position:relative;z-index:1}
+.page{padding-bottom:calc(var(--tabh) + 40px)}
+@media (prefers-reduced-transparency: reduce){
+  .tabs{background:rgba(33,32,74,.96);-webkit-backdrop-filter:none;backdrop-filter:none}
+  body.light .tabs{background:rgba(255,255,255,.96)}
+}
+/* R2: planet hues on paper — the same identities, deepened to read on warm white (AA on #F5F3EC) */
+body.light{--sun:#A8661A;--moon:#4A5C86;--mars:#B03A28;--mercury:#25795C;--jupiter:#8E6E14;
+  --venus:#A04B6A;--saturn:#485A98;--rahu:#684C8C;--ketu:#775A44}
+/* R3: glyphs inside category segments and the Birth-details rail */
+.segico{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;
+  stroke-linejoin:round;vertical-align:-3px;margin-right:5px;opacity:.75;transition:opacity .25s var(--ease)}
+.tbseg button.on .segico,.bdrail button.on .segico{opacity:1}
+.tbseg button{display:inline-flex;align-items:center}
+.bdrail button{display:inline-flex;align-items:center}
+/* R2: the rhythm track on paper — clearer verdict tints, ink markers, AA grade colours */
+body.light .rhytrack{background:rgba(23,26,51,.05)}
+body.light .rw.excellent{background:#7FC39A} body.light .rw.good{background:#A9D5B6}
+body.light .rw.steady{background:#D9D8E2} body.light .rw.caution{background:#E6C08E}
+body.light .rw.avoid{background:#E29C8C;background-image:repeating-linear-gradient(135deg,transparent 0 5px,rgba(0,0,0,.12) 5px 8px)}
+body.light .rnow,body.light .rseek{background:var(--ink);box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+body.light .rseek b{background:var(--ink);color:#F7F5EF}
+body.light .g-excellent{color:#2E7A4C} body.light .g-good{color:#3E8E5C} body.light .g-caution{color:#A8661A} body.light .g-avoid{color:#B03A28}
+body.light .rs b{color:#2E7A4C}
+body.light .rsun.set{background:rgba(143,107,36,.55)}
+/* R4: the bar minimises while you read (scroll down) and returns on scroll up or tap */
+.tabs{transition:transform .38s var(--ease),left .34s var(--ease),right .34s var(--ease),height .34s var(--ease),border-radius .34s var(--ease)}
+body.tabmin .tabs{left:calc(50% - 40px);right:calc(50% - 40px);height:52px;border-radius:26px;grid-template-columns:1fr}
+body.tabmin .tab:not(.on){display:none}
+body.tabmin .tab .tablbl{display:none}
+body.tabmin .tab::before{left:6px;right:6px;top:6px;bottom:6px}
+@media (prefers-reduced-motion: reduce){ .tabs{transition:transform .38s var(--ease)} }
+/* R5: contrast on paper — captions and tone colours lifted to AA (≥ 4.5:1 on #F5F3EC) */
+body.light{--ink-3:#646989;--brass:#7F5F18}
+body.light .g-caution{color:#93561A}
+body.light .daychip.tone-favourable{color:#2A6E45;background:rgba(62,142,92,.12)}
+body.light .dhk.do{color:#2A6E45} body.light .dhk.hold{color:#93561A}
+body.light .rsunlabels span{color:#7F5F18}

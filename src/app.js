@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902m";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902n";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
@@ -1182,7 +1182,7 @@ function renderToday(){
       <span class="thumb" aria-hidden="true"></span>
       ${[["horo","Horoscope"],["sky","Transits"],["panch","Panchang"]].map(([k,l])=>
         `<button class="${todayTab===k?"on":""}" data-t="${k}" role="tab"
-           aria-selected="${todayTab===k}">${l}</button>`).join("")}
+           aria-selected="${todayTab===k}">${segIcon(k)}${l}</button>`).join("")}
     </div>
     <div id="todaybody">${todayBodies[todayTab]}</div>`;
 
@@ -4540,6 +4540,19 @@ function wireSettings(){
 let bdTab="overview";
 const BD_TABS=[["overview","Overview"],["planets","Planets"],["houses","Houses"],
   ["vargas","Divisional Charts"],["yogas","Yogas"],["dashas","Dashas"],["sati","Sade Sati"]];
+/* monoline glyphs (24-box, stroke) for category controls — the same language as the tab bar */
+const SEG_ICON={
+  horo:'<path d="M12 3.5l2.2 5.1 5.5.5-4.2 3.7 1.3 5.4L12 15.4l-4.8 2.8 1.3-5.4L4.3 9.1l5.5-.5z"/>',
+  sky:'<circle cx="12" cy="12" r="3.2"/><path d="M4.5 12a7.5 7.5 0 0113.9-3.9M19.5 12a7.5 7.5 0 01-13.9 3.9"/><path d="M18.6 5.2v3h-3M5.4 18.8v-3h3"/>',
+  panch:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/><path d="M12.5 12.4a2.4 2.4 0 102.4 3.4 3 3 0 11-2.4-3.4z"/>',
+  overview:'<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17"/>',
+  planets:'<circle cx="12" cy="12" r="4"/><path d="M4.2 9.6c-1.6 3.4 8 9.6 14.6 6.6M19.8 14.4c1.6-3.4-8-9.6-14.6-6.6"/>',
+  houses:'<path d="M12 3.2l8.8 8.8L12 20.8 3.2 12z"/><path d="M12 3.2v17.6M3.2 12h17.6"/>',
+  vargas:'<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/>',
+  yogas:'<path d="M9.5 14.5a4 4 0 010-5.7l1.4-1.4a4 4 0 015.7 5.7l-1 1"/><path d="M14.5 9.5a4 4 0 010 5.7l-1.4 1.4a4 4 0 01-5.7-5.7l1-1"/>',
+  dashas:'<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/>',
+  sati:'<circle cx="12" cy="12" r="3.8"/><path d="M3.4 10.2c-1.2 2 4.2 6 10.6 5.2s9.6-4.4 7.8-6.4M5.5 8.6c2.4-1.6 6-2.2 9.8-1.6"/>'};
+const segIcon=k=>SEG_ICON[k]?`<svg class="segico" viewBox="0 0 24 24" aria-hidden="true">${SEG_ICON[k]}</svg>`:"";
 
 function subBirth(){
   const body={overview:bdOverview,planets:bdPlanets,houses:bdHouses,vargas:bdVargas,
@@ -4547,7 +4560,7 @@ function subBirth(){
   return `
     <div class="bdrail" id="bdrail" role="tablist" aria-label="Birth details section">
       ${BD_TABS.map(([k,l])=>`<button class="${bdTab===k?"on":""}" data-b="${k}"
-        role="tab" aria-selected="${bdTab===k}">${l}</button>`).join("")}
+        role="tab" aria-selected="${bdTab===k}">${segIcon(k)}${l}</button>`).join("")}
     </div>
     <div id="bdbody">${body}</div>`;
 }
@@ -5758,6 +5771,7 @@ function openNakPage(i,card){
 
 function wireBirth(){
   if(bdTab==="vargas") wireVargasTab();
+  document.querySelector("#bdrail button.on")?.scrollIntoView({inline:"center",block:"nearest"});
   const r=document.getElementById("bdrail");
   if(r) r.onclick=e=>{
     const b=e.target.closest("button[data-b]");
@@ -6727,12 +6741,22 @@ document.getElementById("tbback").onclick=()=>{
   else if(subView==="personchart"){subView="people";subArg=null;renderSub()}
   else{subView=null;subArg=null;renderYou()}
 };
+document.body.classList.add("light");
 const nav=document.getElementById("tabs");
 nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"on":""}"
   role="tab" data-i="${i}" aria-label="${t.label}">
   <span class="tabico"><svg viewBox="0 0 24 24">${t.icon}</svg></span>
   <span class="tablbl">${t.label}</span></button>`).join("");
 
+/* the bar minimises while reading: scroll down past the fold hides the other tabs,
+   scroll up (or any tap on the bar) brings them back */
+{ let lastY=0;
+  document.querySelectorAll(".page").forEach(pg=>pg.addEventListener("scroll",()=>{
+    const y=pg.scrollTop, dy=y-lastY; lastY=y;
+    if(dy>6&&y>80) document.body.classList.add("tabmin");
+    else if(dy<-6||y<40) document.body.classList.remove("tabmin");
+  },{passive:true}));
+  nav.addEventListener("click",()=>document.body.classList.remove("tabmin"),true); }
 let activeTab=0, guideFrom=0;
 function go(i){
   if(mode) resetChart();
@@ -6741,6 +6765,8 @@ function go(i){
     subView=null; subArg=null; document.body.classList.remove("insub"); }
   const from=activeTab;
   activeTab=i;
+  /* two materials: the instrument (Universe) keeps its night; every reading tab is paper */
+  document.body.classList.toggle("light", i!==CHART_INDEX);
   /* the bar belongs to the tab, so it has to be reset on every switch -
      the render functions only run once at startup */
   if(i===0) renderToday();

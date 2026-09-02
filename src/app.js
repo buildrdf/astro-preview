@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903v";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903w";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903v";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903v";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903w";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903w";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2678,6 +2678,27 @@ function wireChips(scope){
 const GUIDE_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/guide";
 const GUIDE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpqcmh0bWV5cW9ncml1Y3Frd2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMTgzNzEsImV4cCI6MjEwMzc5NDM3MX0.DLp2GtNvPnxv8De3cWwkuWN2yb2KQ5lmrtUP1wqy4S8";
 
+/* ---- STAYING CURRENT ---------------------------------------------
+   Safari holds the page itself, so a phone can sit on a build for days
+   while every fix ships past it. The app asks the server what the
+   current build is, uncached, and reloads once onto it. Guarded so it
+   can never loop. */
+(async () => {
+  try{
+    const meta=document.querySelector('meta[name="astra-build"]');
+    const mine=meta?meta.getAttribute("content"):"";
+    if(!mine) return;
+    const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(!j.build||j.build===mine) return;
+    if(sessionStorage.getItem("astra.build.seen")===j.build) return;
+    sessionStorage.setItem("astra.build.seen",j.build);
+    const u=new URL(location.href); u.searchParams.set("b",j.build.replace(/[^\w]/g,""));
+    location.replace(u.toString());
+  }catch(_){}
+})();
+
 /* ---- TEXT DENSITY ------------------------------------------------
    Methodology belongs in the app, not on top of it. Any standing note
    long enough to be a paragraph folds behind one line; short ones are
@@ -3321,7 +3342,7 @@ function rtEvent(m){
 async function rtStart(){
   const r=await fetch(VOICE_URL,{method:"POST",
     headers:{"Content-Type":"application/json",Authorization:"Bearer "+GUIDE_ANON,apikey:GUIDE_ANON},
-    body:JSON.stringify({facts:guideFacts()})});
+    body:JSON.stringify({model:"gpt-realtime",facts:guideFacts()})});
   if(!r.ok) throw new Error("session");
   const j=await r.json();
   const ek=(j.session&&j.session.value)||(j.client_secret&&j.client_secret.value)||j.value;
@@ -3335,10 +3356,28 @@ async function rtStart(){
   const dc=pc.createDataChannel("oai-events");
   dc.onmessage=ev=>{ try{ rtEvent(JSON.parse(ev.data)); }catch(_){} };
   dc.onopen=()=>{
-    /* the chart travels over the channel, so the model answers from real positions */
-    try{ dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"message",role:"user",
-      content:[{type:"input_text",text:"Chart facts for this conversation (do not read aloud): "+
-        JSON.stringify(guideFacts()).slice(0,6000)}]}})); }catch(_){}
+    /* Set the session up from here: a real voice, transcription of what YOU say (without it
+       your own words never come back and there is no thread), and the language rule — speak
+       whatever the person speaks, Marathi included, rather than reading it in English. */
+    try{
+      dc.send(JSON.stringify({type:"session.update",session:{
+        type:"realtime",
+        audio:{ input:{ transcription:{ model:"gpt-4o-transcribe" } },
+                output:{ voice:"marin", speed:1 } },
+        instructions:
+          "You are Guide, the calm, warm astrology companion in the Astra app. "+
+          "Only discuss astrology and this chart, using the facts below. "+
+          "Keep answers short — twenty to sixty seconds spoken — then offer to go deeper. "+
+          "SPEAK THE USER'S OWN LANGUAGE. Whatever language or mix they speak — English, Hindi, "+
+          "Hinglish, Marathi or any other — reply in that same language and speak it aloud "+
+          "naturally in that language, not in an English accent. "+
+          "Sound like a warm person talking, not a document being read: contractions, natural "+
+          "pauses, no bullet points, no markdown, and do not read out degrees or symbols unless "+
+          "asked. Never say the planets caused anything — say a period is traditionally read as, "+
+          "or associated with.\n\nThe chart, computed by the app (never read aloud verbatim):\n"+
+          JSON.stringify(guideFacts()).slice(0,6000)
+      }}));
+    }catch(_){}
   };
   const offer=await pc.createOffer();
   await pc.setLocalDescription(offer);

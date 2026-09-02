@@ -3217,3 +3217,14 @@ body.light .calnav button{color:var(--ink-2)}
 body.light .calclose{color:var(--ink)}
 /* the moon discs were drawn for a night ground; give them an edge so they read on paper */
 body.light .cday .mn{filter:drop-shadow(0 0 0.5px rgba(23,26,51,.45))}
+
+/* The selection travels through the material instead of two pills cross-fading — Apple is
+   explicit that a Liquid Glass selection moves rather than reappearing somewhere else. */
+.tabthumb{position:absolute;left:0;top:6px;height:calc(100% - 12px);width:60px;
+  border-radius:22px;background:rgba(255,255,255,.11);pointer-events:none;z-index:0;
+  transition:transform .44s cubic-bezier(.32,1.3,.4,1),width .44s cubic-bezier(.32,1.3,.4,1),
+             opacity .24s var(--ease),background .3s var(--ease)}
+body.light .tabthumb{background:rgba(23,26,51,.075)}
+.tab::before{display:none}
+body.tabmin .tabthumb{opacity:0}
+@media (prefers-reduced-motion: reduce){ .tabthumb{transition:opacity .2s} }

@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903z";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904a";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903z";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903z";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904a";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904a";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -6638,14 +6638,13 @@ function wireTimeline(){
           <span class="satibar"><i style="width:${(sp*100).toFixed(0)}%"></i></span></div>
       </div>`})():""}
       <button class="understand" id="understand">Understand this period<span class="chev">&#8250;</span></button>
-      <div class="eyebrow" style="margin:20px 0 8px">Your life around this time</div>
+      ${inPeriod.length?`<div class="eyebrow" style="margin:28px 0 8px">Your life around this time</div>`:""}
       ${inPeriod.map(e=>{const ed=eventDasha(e.d);
         return `<button class="evrow tap" data-ev="${e._i}">
           <span class="evkey" style="background:${KIND_COLOUR[e.k]}"></span>
           <span><b>${e.t}</b><span class="evmeta">${fmtDate(new Date(e.d+"T12:00:00"))}
           &#183; ${ed?`${gIcon(ed.maha.lord,13)}${ed.maha.lord}/${ed.antar.lord}`:""}</span></span>
-          <span class="chev">&#8250;</span></button>`}).join("")}
-      <button class="addev" id="tladdev">+ Add event</button>`;
+          <span class="chev">&#8250;</span></button>`}).join("")}`;
     setTopBar(when.toLocaleDateString("en-GB",{month:"long",year:"numeric"}),
       {actions:isToday(when)?`<span class="nowbadge">today</span>`
          :`<button class="tb-btn txt" id="tlnow">Today</button>`});
@@ -6653,8 +6652,6 @@ function wireTimeline(){
     if(tn) tn.onclick=()=>{tlT=tlNowT();buzz(10);paint()};
     const un=document.getElementById("understand");
     if(un) un.onclick=()=>openPeriodWhy(now.maha, now.antar, when, p3, sati, un);
-    const ae=document.getElementById("tladdev");
-    if(ae) ae.onclick=()=>{ buzz(7); go(YOU_INDEX); subArg=null; subView="addevent"; renderSub(); };
     const ss=document.getElementById("satistrip");
     if(ss) ss.onclick=()=>{ buzz(8); go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); };
     document.querySelectorAll(".evrow.tap").forEach(b=>b.onclick=()=>{
@@ -6989,18 +6986,34 @@ document.getElementById("tbback").onclick=()=>{
 };
 document.body.classList.add("light");
 const nav=document.getElementById("tabs");
-nav.innerHTML=TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"on":""}"
+nav.innerHTML=`<span class="tabthumb" aria-hidden="true"></span>`+
+  TABS.map((t,i)=>`<button class="tab ${t.hero?"hero":""} ${i===0?"on":""}"
   role="tab" data-i="${i}" aria-label="${t.label}">
   <span class="tabico"><svg viewBox="0 0 24 24">${t.icon}</svg></span>
   <span class="tablbl">${t.label}</span></button>`).join("");
+/* one pill that travels between tabs rather than two pills cross-fading — Apple is explicit
+   that the selection moves through the material instead of appearing in a new place */
+function moveTabThumb(instant){
+  const th=nav.querySelector(".tabthumb"), on=nav.querySelector(".tab.on");
+  if(!th||!on) return;
+  const prev=th.style.transition;
+  if(instant) th.style.transition="none";
+  th.style.width=(on.offsetWidth-16)+"px";
+  th.style.transform=`translateX(${on.offsetLeft+8}px)`;
+  if(instant){ void th.offsetWidth; th.style.transition=prev||""; }
+}
+addEventListener("resize",()=>moveTabThumb(true));
+requestAnimationFrame(()=>moveTabThumb(true));   /* place it before the first paint settles */
 
 /* the bar minimises while reading: scroll down past the fold hides the other tabs,
    scroll up (or any tap on the bar) brings them back */
 { let lastY=0;
   document.querySelectorAll(".page").forEach(pg=>pg.addEventListener("scroll",()=>{
     const y=pg.scrollTop, dy=y-lastY; lastY=y;
+    const was=document.body.classList.contains("tabmin");
     if(dy>6&&y>80) document.body.classList.add("tabmin");
     else if(dy<-6||y<40) document.body.classList.remove("tabmin");
+    if(was!==document.body.classList.contains("tabmin")) requestAnimationFrame(()=>moveTabThumb(false));
   },{passive:true}));
   nav.addEventListener("click",()=>document.body.classList.remove("tabmin"),true);
   /* the glass lights from under the fingertip, the way Apple's does */
@@ -7043,6 +7056,7 @@ function go(i){
   activeTab=i;
   /* two materials: the instrument (Universe) keeps its night; every reading tab is paper */
   document.body.classList.toggle("light", i!==CHART_INDEX);
+  requestAnimationFrame(()=>moveTabThumb(false));
   if(i===CHART_INDEX) setTimeout(wireUniParallax,80); else if(uniParStop) uniParStop();
   /* the bar belongs to the tab, so it has to be reset on every switch -
      the render functions only run once at startup */

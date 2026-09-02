@@ -195,14 +195,15 @@ let birthSeek=null;   /* Birth mode: a scrubbed absolute Date, or null = natal *
 let ghostBirth=false, trackTarget=false;
 let lastFrame=0, layers=null, uiTimer=null, hintStep=0;
 let tween=null;       /* {from:{g:L}, t0, ms} for the Birth->Now fast-forward */
-/* the compass rose: 36 ticks every 10 degrees, cardinals longer. Drawn in a 48-unit box
-   so the needle can be rotated with an SVG transform about an explicit centre (24,24) —
-   a CSS transform on a positioned element loses its centring translate. */
-const ROSE=Array.from({length:36},(_,i)=>{
-  const a=i*10*Math.PI/180, R=21.4, r=(i%9===0)?17.6:19.3;
-  const sx=Math.sin(a), cy=Math.cos(a);
-  return `<line x1="${(24+R*sx).toFixed(2)}" y1="${(24-R*cy).toFixed(2)}" x2="${(24+r*sx).toFixed(2)}" y2="${(24-r*cy).toFixed(2)}"${i%9===0?' class="c"':""}/>`;
-}).join("");
+/* the compass rose, measured off Apple's dial: 16 marks every 22.5 degrees, the cardinals
+   longer and brighter, north drawn as the red pointer instead of a mark. The rose turns as
+   a whole; the N in the middle stays upright, the way a compass card reads. Rotation is an
+   SVG transform about an explicit centre (24,24) — a CSS transform on a positioned element
+   would lose its centring translate. */
+const ROSE=(()=>{ let out="";
+  for(let i=1;i<16;i++){ const a=i*22.5*Math.PI/180, card=(i%4===0), R=21.2, r=card?16.4:18.3;
+    out+=`<line x1="${(24+R*Math.sin(a)).toFixed(2)}" y1="${(24-R*Math.cos(a)).toFixed(2)}" x2="${(24+r*Math.sin(a)).toFixed(2)}" y2="${(24-r*Math.cos(a)).toFixed(2)}"${card?' class="c"':""}/>`; }
+  return out; })();
 
 const LAYER_DEFAULT={planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,sanskrit:false};
 /* display radius per body (px): a controlled informational scale, not angular size;
@@ -474,7 +475,7 @@ function draw(){
            screen, right under the N label. Sort along the horizon line instead. */
         const ord=horizon.map(p=>({az:p.az,x:p.x,y:p.y,t:(p.x-cx)*dx+(p.y-cy)*dy})).sort((a,b)=>a.t-b.t);
         const ridge=(amp,ph,col)=>{ c.fillStyle=col; c.beginPath(); let pen0=false;
-          for(const p of ord){ const h=Math.max(0,amp*ppd*(0.5+0.5*Math.sin(p.az*2.5*D2R+ph)+0.3*Math.sin(p.az*7*D2R+ph*1.7)+0.16*Math.sin(p.az*17*D2R+ph*0.6)));
+          for(const p of ord){ const h=Math.max(0,amp*ppd*(0.5+0.5*Math.sin(p.az*3*D2R+ph)+0.3*Math.sin(p.az*7*D2R+ph*1.7)+0.16*Math.sin(p.az*17*D2R+ph*0.6)));
             const x=p.x-nx*h, y=p.y-ny*h; pen0?c.lineTo(x,y):(c.moveTo(x,y),pen0=true); }
           const e=ord[ord.length-1], f=ord[0];
           c.lineTo(e.x+dx*L,e.y+dy*L); c.lineTo(e.x+dx*L+nx*L,e.y+dy*L+ny*L);
@@ -803,8 +804,8 @@ function draw(){
   }
   if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
     spot:cache.sp,layers,target,reduced,now,mode,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
-  { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const g=cp.querySelector(".sknorth");
-      if(g) g.setAttribute("transform",`rotate(${(-viewAz).toFixed(1)} 24 24)`); } }
+  { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const g=cp.querySelector(".skrose");
+      if(g) g.setAttribute("transform",`rotate(${wrap(-viewAz).toFixed(1)} 24 24)`); } }
   /* accessibility: one sentence describing the view */
   if(now-(el._ariaAt||0)>1500){ el._ariaAt=now;
     { const ul=el.root.querySelector("#svlist"); if(ul){ const html=cache.grahas.map(g=>{ const s=sgOf(g.L), n2=nkOf(g.L);
@@ -1329,12 +1330,11 @@ export function openSkyView(opts={}){
       </div>
       <button class="svclose" aria-label="Close">✕</button>
       <button class="skcompass" id="svcompass" hidden aria-label="Compass — tap to face north">
-        <svg viewBox="0 0 48 48" aria-hidden="true"><g class="skrose">${ROSE}</g>
-          <g class="sknorth"><path d="M24 6.0l3.3 6.1h-6.6z"/></g></svg><span>N</span></button>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><g class="skrose">${ROSE}<path class="sknpt" d="M24 5.4l3.3 6.4h-6.6z"/></g></svg><span>N</span></button>
       <div class="skstack" id="svstack">
         <button class="skstk" id="svsearchb" aria-label="Search the sky"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></button>
         <button class="skstk" id="svlayersb" aria-label="Layers"><svg viewBox="0 0 24 24"><path d="M12 4l9 5-9 5-9-5 9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
-        <button class="skstk skloc" id="svlocb" aria-label="Follow my phone" data-state="off"><svg viewBox="0 0 24 24"><path class="beam" d="M8.5 2.7h7"/><path class="arrow" d="M20.5 3.5L3.5 11l8 2 2 8z"/></svg></button>
+        <button class="skstk skloc" id="svlocb" aria-label="Follow my phone" data-state="off"><svg viewBox="0 0 24 24"><path class="beam" d="M12 3.3v3.3"/><path class="arrowN" d="M12 8.5L17 20.4L12 17.1L7 20.4Z"/><path class="arrow" d="M20.5 3.5L3.5 11l8 2 2 8z"/></svg></button>
       </div>
       <div class="skseek" id="svseek" role="slider" tabindex="0" aria-label="Time of day" aria-valuetext="">
         <div class="skseekchip"></div>
@@ -1412,7 +1412,10 @@ export function openSkyView(opts={}){
         setZoom(pinch0.z*pinch0.d/Math.max(20,d)); return; }
       const dx=e.clientX-prev.x, dy=e.clientY-prev.y; moved+=Math.abs(dx)+Math.abs(dy);
       if(moved>10&&sensing&&followSky){ followSky=false; syncRecenter(); }
-      const F=CAM.F||1; wantAz-=dx/F/D2R; wantAlt=clampAlt(wantAlt+dy/F/D2R);
+      /* a sideways drag has to turn MORE than dx/F when the camera is pitched: the screen
+         foreshortens azimuth by cos(alt). Without this the sky slid under the finger. */
+      const F=CAM.F||1, cA=Math.max(0.35,Math.cos(viewAlt*D2R));
+      wantAz-=dx/(F*cA)/D2R; wantAlt=clampAlt(wantAlt+dy/F/D2R);
       if(reduced){ viewAz=wantAz; viewAlt=wantAlt; } });
     const up=e=>{ const was=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0=null;
       if(!was||moved>10||!cache||e.type==="pointercancel") return;

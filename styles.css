@@ -2687,13 +2687,18 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .skstk+.skstk{border-top:1px solid rgba(255,255,255,.1);border-radius:0 0 22px 22px}
 /* off = hollow arrow · following = filled arrow · following with heading = the arrow
    stands upright under a red beam, the same red as the compass needle. No tinted pill. */
-.skstk.skloc .arrow{transform-box:view-box;transform-origin:12px 12px;transition:transform .34s var(--ease)}
-.skstk.skloc .beam{stroke:#FF453A;stroke-width:2.2;opacity:0;transition:opacity .22s var(--ease)}
+.skstk.skloc .arrow{transform-box:view-box;transform-origin:12px 12px;
+  transition:transform .34s var(--ease),opacity .2s var(--ease)}
+.skstk.skloc .arrowN{fill:#0A84FF;stroke:#0A84FF;stroke-width:1.1;stroke-linejoin:round;opacity:0;
+  transition:opacity .22s var(--ease)}
+.skstk.skloc .beam{stroke:#FF453A;stroke-width:2;stroke-linecap:round;opacity:0;
+  transition:opacity .22s var(--ease)}
 .skstk.skloc[data-state="off"] .arrow{fill:none}
 .skstk.skloc[data-state="on"] .arrow{fill:#0A84FF;stroke:#0A84FF}
-.skstk.skloc[data-state="compass"] .arrow{fill:#0A84FF;stroke:#0A84FF;transform:translate(0,2.6px) rotate(-45deg) scale(.72)}
-.skstk.skloc[data-state="compass"] .beam{opacity:1}
-@media (prefers-reduced-motion: reduce){ .skstk.skloc .arrow,.skstk.skloc .beam{transition:none} }
+/* following with heading: Apple swaps in its own upright symbol under a short vertical bar */
+.skstk.skloc[data-state="compass"] .arrow{fill:#0A84FF;stroke:#0A84FF;opacity:0;transform:rotate(-45deg) scale(.8)}
+.skstk.skloc[data-state="compass"] .arrowN,.skstk.skloc[data-state="compass"] .beam{opacity:1}
+@media (prefers-reduced-motion: reduce){ .skstk.skloc .arrow,.skstk.skloc .arrowN,.skstk.skloc .beam{transition:none} }
 .skcompass{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom) + 196px);z-index:7;width:48px;height:48px;border-radius:50%;
   padding:0;cursor:pointer;font-family:var(--ff);
   background:rgba(14,16,36,.6);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:grid;place-items:center;
@@ -2701,9 +2706,9 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 520px)}
 .skcompass:active{transform:scale(.93)}
 .skcompass svg{position:absolute;inset:0;width:100%;height:100%}
-.skcompass .skrose line{stroke:rgba(255,255,255,.30);stroke-width:1;stroke-linecap:round}
-.skcompass .skrose line.c{stroke:rgba(255,255,255,.55);stroke-width:1.3}
-.skcompass .sknorth path{fill:#FF453A}
+.skcompass .skrose line{stroke:rgba(255,255,255,.34);stroke-width:1.4;stroke-linecap:round}
+.skcompass .skrose line.c{stroke:rgba(255,255,255,.72);stroke-width:1.7}
+.skcompass .skrose .sknpt{fill:#FF453A}
 .skcompass span{position:relative;font-size:13px;font-weight:640;color:#F1EFE8;letter-spacing:.02em;line-height:1}
 .skyview .skseek{bottom:calc(env(safe-area-inset-bottom) + 200px)!important}
 .skyview .skseek .skseekrule i.skmoonm{color:#D6E2FF;font-size:11px;right:-3px}

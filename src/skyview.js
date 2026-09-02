@@ -169,6 +169,7 @@ function nearestCity(lat,lon){
 let el=null, ctx=null, running=false, watch=null, reduced=false;
 let viewAz=180, viewAlt=25, wantAz=180, wantAlt=25, sensing=false, followSky=true;
 let QUIET=false;   /* test states: no toasts, no motion pill (screenshots must compare) */
+let revealBelow=false;   /* ground as glass to show a target that is below the horizon */
 let vFov=62;                            /* vertical field of view, degrees */
 const FOV_MIN=10, FOV_MAX=112;
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
@@ -428,7 +429,8 @@ function draw(){
       const {p1,p2,dx,dy,nx,ny,cx,cy}=hz, L=6000;
       const gg=c.createLinearGradient(cx,cy,cx+nx*H*0.7,cy+ny*H*0.7);
       const haze=mixc(t2,[10,12,26],0.45);
-      gg.addColorStop(0,`rgba(${haze.join(",")},0.82)`); gg.addColorStop(0.25,"rgba(8,10,24,0.86)"); gg.addColorStop(1,"rgba(4,5,14,0.94)");
+      const ga=revealBelow?0.38:1;
+      gg.addColorStop(0,`rgba(${haze.join(",")},${0.82*ga})`); gg.addColorStop(0.25,`rgba(8,10,24,${0.86*ga})`); gg.addColorStop(1,`rgba(4,5,14,${0.94*ga})`);
       c.fillStyle=gg;
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
       c.lineTo(p2.x+dx*L+nx*L,p2.y+dy*L+ny*L); c.lineTo(p1.x-dx*L+nx*L,p1.y-dy*L+ny*L); c.closePath(); c.fill();
@@ -690,6 +692,13 @@ function draw(){
     const a=(g.p.up?1:0.45)*(g.isT?1:(target?0.55+0.45*(1-focusK):1));
     if(day>0.5) haloText(c,g.txt,g.pos[0],g.pos[1],`rgba(22,20,40,${a})`,g.font,"center",`rgba(255,252,244,${0.8*a})`);
     else haloText(c,g.txt,g.pos[0],g.pos[1],`rgba(245,246,252,${a})`,g.font);
+    if(g.isT){ /* one concise identification: rashi · nakshatra, under the name */
+      const s=sgOf(g.p.L), n=nkOf(g.p.L); const sub=`${SIGNS_DEV[s]} ${layers.sanskrit?SIGNS_SK[s]:SIGNS_EN[s]} · ${NAKS[n]}`;
+      c.font=devF(10.5); const w=c.measureText(sub).width+4; const below=g.pos[1]>g.y;
+      const p2=L.place(g.pos[0],g.pos[1],w,13,[[0,below?15:-15]]);
+      if(p2){ if(day>0.5) haloText(c,sub,p2[0],p2[1],`rgba(50,46,70,${a})`,devF(10.5),"center",`rgba(255,252,244,${0.7*a})`);
+        else haloText(c,sub,p2[0],p2[1],`rgba(224,206,160,${a})`,devF(10.5)); }
+    }
   }
   /* birth ghost: where the selected graha stood at birth */
   if(cache.ghost){ const [x,y]=project(cache.ghost); if(onScreen(x,y,20)){
@@ -713,9 +722,12 @@ function draw(){
     const [x,y]=tgtXY;
     const inside=Number.isFinite(x)&&x>36&&x<W-36&&y>110&&y<H-150;
     if(inside){
-      const r=(target.t==="graha"?26:18)+(reduced?0:3*Math.sin(now/300));
-      c.strokeStyle="rgba(241,231,201,.95)"; c.lineWidth=1.8; c.beginPath(); c.arc(x,y,r,0,7); c.stroke();
-      c.strokeStyle="rgba(241,231,201,.3)"; c.beginPath(); c.arc(x,y,r+8,0,7); c.stroke();
+      const rr=target.t==="graha"?grahaR(target.g,vFov):14;
+      const tone=target.t==="graha"?(GRAHA_BASE[target.g]?.token||"241,231,201"):"241,231,201";
+      const hg=c.createRadialGradient(x,y,rr*0.9,x,y,rr*2.6);
+      hg.addColorStop(0,`rgba(${tone},${day>0.5?0.10:0.22})`); hg.addColorStop(1,`rgba(${tone},0)`);
+      c.fillStyle=hg; c.beginPath(); c.arc(x,y,rr*2.6,0,7); c.fill();
+      c.strokeStyle=day>0.5?"rgba(40,36,60,.55)":"rgba(241,231,201,.6)"; c.lineWidth=1.2; c.beginPath(); c.arc(x,y,rr+7,0,7); c.stroke();
       if(!target.seen){ target.seen=true; buzz(10); setFoot(); }
     }else{
       target.seen=false;
@@ -734,6 +746,7 @@ function draw(){
       haloText(c,lbl,Math.max(60,Math.min(W-60,ex)),ey+(Math.sin(ang)>0?-22:24),"rgba(241,231,201,.95)",sysF(11.5,600));
     }
   }
+  { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const i=cp.querySelector("i"); if(i) i.style.transform=`rotate(${-viewAz}deg)`; } }
   /* accessibility: one sentence describing the view */
   if(now-(el._ariaAt||0)>1500){ el._ariaAt=now;
     const dir=["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round((((viewAz%360)+360)%360)/45)%8];
@@ -874,18 +887,41 @@ function buildIndex(){
   if(layers.starNames) STARS.forEach((s,i)=>items.push({t:"nakshatra",i,label:`${s.name} · ${NAKS[i]}`,kind:"star",keys:[s.name.toLowerCase()]}));
   return items;
 }
-let INDEX=null;
-function runSearch(q){
-  const res=document.getElementById("svres"); q=q.trim().toLowerCase();
-  if(!q){ res.innerHTML=""; return; }
-  INDEX=buildIndex();
-  const hits=INDEX.filter(it=>it.keys.some(k=>k.startsWith(q)))
-    .concat(INDEX.filter(it=>it.keys.some(k=>!k.startsWith(q)&&k.includes(q)))).slice(0,5);
-  res.innerHTML=hits.map((h,i)=>`<button class="svhit" data-i="${i}"><b>${h.label}</b><span>${h.kind}</span></button>`).join("");
-  res.querySelectorAll(".svhit").forEach((b,i)=>b.onclick=()=>selectTarget(hits[i]));
+let INDEX=null, searchCat=null;
+const CATS=[["graha","Planets","the nine grahas"],["rashi","Rashis","twelve signs of the zodiac"],["nakshatra","Nakshatras","twenty-seven lunar mansions"],["lagna","Lagna","the rising point at birth"],["star","Stars","the bright yogataras"]];
+function hitLabel(h){
+  if(h.t==="rashi") return `<b class="dev">${SIGNS_DEV[h.i]}</b><span class="sub">${SIGNS_SK[h.i]} · ${SIGNS_EN[h.i]}</span>`;
+  if(h.t==="nakshatra"&&h.kind==="nakshatra"){ const r=nakshatraRange(h.i), s0=r.signs[0], s1=r.signs[r.signs.length-1];
+    return `<b>${NAKS[h.i]}</b><span class="sub">${SIGNS_EN[s0-1]}${s1!==s0?` – ${SIGNS_EN[s1-1]}`:""}</span>`; }
+  if(h.t==="graha") return `<b>${h.g}</b><span class="sub">${GRAHA_SK[h.g]}</span>`;
+  return `<b>${h.label}</b><span class="sub">${h.kind}</span>`;
 }
+function renderSearch(q){
+  const res=document.getElementById("svres"); if(!res) return; q=(q||"").trim().toLowerCase();
+  INDEX=buildIndex();
+  const bind=(hits)=>{ res.querySelectorAll(".svhit").forEach((b,i)=>b.onclick=()=>{ selectTarget(hits[i]); document.getElementById("svsearch").hidden=true; }); };
+  if(q){
+    const hits=INDEX.filter(it=>it.keys.some(k=>k.startsWith(q)))
+      .concat(INDEX.filter(it=>it.keys.some(k=>!k.startsWith(q)&&k.includes(q)))).slice(0,12);
+    res.innerHTML=hits.length?hits.map(h=>`<button class="svhit">${hitLabel(h)}</button>`).join(""):`<p class="svnone">Nothing in the sky by that name.</p>`;
+    bind(hits); return;
+  }
+  if(!searchCat){
+    const avail=CATS.filter(([k])=>INDEX.some(it=>it.kind===k));
+    res.innerHTML=`<p class="skseyebrow">Find in the sky</p><div class="skcats">${avail.map(([k,l,n])=>`<button class="skcat" data-c="${k}"><i class="ci ${k}"></i><span><b>${l}</b><small>${n}</small></span><em>›</em></button>`).join("")}</div>`;
+    res.querySelectorAll(".skcat").forEach(b=>b.onclick=()=>{ searchCat=b.dataset.c; buzz(4); renderSearch(""); });
+    return;
+  }
+  const hits=INDEX.filter(it=>it.kind===searchCat);
+  const title=(CATS.find(([k])=>k===searchCat)||[])[1]||"";
+  res.innerHTML=`<button class="skcatback" id="svcatback">‹ ${title}</button><div class="skcatlist">${hits.map(h=>`<button class="svhit">${hitLabel(h)}</button>`).join("")}</div>`;
+  res.querySelector("#svcatback").onclick=()=>{ searchCat=null; renderSearch(""); };
+  bind(hits);
+}
+const runSearch=renderSearch;
 function selectTarget(hit){
   if(hit.t==="asc"&&mode!=="birth"){ setSkyMode("birth"); }
+  revealBelow=false;
   target={...hit,seen:false};
   const q=document.getElementById("svq"), res=document.getElementById("svres");
   if(q){ q.value=""; q.blur(); } if(res) res.innerHTML="";
@@ -901,8 +937,12 @@ function syncFind(){
   const [x,y]=project(p); const inside=Number.isFinite(x)&&x>36&&x<CAM.W-36&&y>110&&y<CAM.H-150;
   if(inside||(sensing&&followSky)){ fb.hidden=true; return; }
   fb.hidden=false;
-  fb.innerHTML=`<button class="skpill solid" id="svgo">Take me there</button>${sensing?`<button class="skpill" id="svtrackp">Track with phone</button>`:""}`;
-  fb.querySelector("#svgo").onclick=()=>{ aimAt(targetPos(),{force:true}); buzz(6); };
+  const below=!p.up&&target.t!=="asc";
+  fb.innerHTML=below
+    ?`<button class="skpill solid" id="svreveal">${revealBelow?"Hide the ground":"Show below horizon"}</button>${sensing?`<button class="skpill" id="svtrackp">Track with phone</button>`:""}`
+    :`<button class="skpill solid" id="svgo">Take me there</button>${sensing?`<button class="skpill" id="svtrackp">Track with phone</button>`:""}`;
+  const go=fb.querySelector("#svgo"); if(go) go.onclick=()=>{ aimAt(targetPos(),{force:true}); buzz(6); };
+  const rv=fb.querySelector("#svreveal"); if(rv) rv.onclick=()=>{ revealBelow=!revealBelow; if(revealBelow){ followSky=false; aimAt(targetPos(),{force:true}); } buzz(6); syncFind(); syncRecenter(); };
   const tp=fb.querySelector("#svtrackp"); if(tp) tp.onclick=()=>{ followSky=true; syncRecenter(); buzz(6); };
 }
 
@@ -969,11 +1009,25 @@ function toast(msg){ if(QUIET) return;
    ==================================================================== */
 let seekActive=false, seekLastHour=null, seekLastSign=null, seekLastNak=null, seekEvents=null;
 function anchorDate(){ return mode==="birth"?new Date(birthOpts.date):custom?new Date(custom.iso):new Date(); }
+/* Moon rise/set for the civil day: altitude sign changes, bisected to the minute */
+function moonTimes(d,lat,lon){
+  const day0=new Date(d); day0.setHours(0,0,0,0);
+  const altAt=t=>siderealPointAltAzB(positions(new Date(t)).Moon, eclipticLatitudes(new Date(t)).Moon, new Date(t), lat, lon).alt;
+  let rise=null,set=null, prev=altAt(day0.getTime());
+  for(let t=day0.getTime()+15*60e3;t<=day0.getTime()+864e5;t+=15*60e3){
+    const a=altAt(t);
+    if(prev<0&&a>=0||prev>=0&&a<0){ let lo=t-15*60e3, hi=t; for(let i=0;i<10;i++){ const m=(lo+hi)/2; ((altAt(m)>=0)===(a>=0))?hi=m:lo=m; }
+      if(a>=0) rise=rise||new Date((lo+hi)/2); else set=set||new Date((lo+hi)/2); }
+    prev=a;
+  }
+  return {rise,set};
+}
 function buildSeeker(){
   const s=el.root.querySelector("#svseek"); if(!s) return;
   const d=skyDate(), sp=skySpot(), tz=skyTz();
   const st=sunTimes(d,sp.lat,sp.lon);
-  seekEvents={rise:st.rise,set:st.set,anchor:anchorDate()};
+  let mt={rise:null,set:null}; try{ mt=moonTimes(d,sp.lat,sp.lon); }catch(_){}
+  seekEvents={rise:st.rise,set:st.set,mrise:mt.rise,mset:mt.set,anchor:anchorDate()};
   paintSeeker();
 }
 function paintSeeker(){
@@ -989,6 +1043,7 @@ function paintSeeker(){
     return `<i class="${cls}" style="top:${(f*100).toFixed(2)}%">${txt||""}</i>`; };
   rl.innerHTML=[0,3,6,9,12,15,18,21,24].map(h=>`<span style="top:${(h/24*100).toFixed(2)}%">${h===0?"12 AM":h===12?"12 PM":h===24?"12 AM":h<12?h+" AM":(h-12)+" PM"}</span>`).join("")
     +mark(seekEvents?.rise,"sksun","☀")+mark(seekEvents?.set,"sksun","☀")
+    +mark(seekEvents?.mrise,"skmoonm","☾")+mark(seekEvents?.mset,"skmoonm","☾")
     +(mode==="birth"?mark(new Date(birthOpts.date),"skbirth"):mark(new Date(),"sknow"));
   s.dataset.day=fmtLocal(d,tz,{day:"numeric",month:"short"});
 }
@@ -1003,6 +1058,7 @@ function seekTo(ms){
   seekLastHour=hr;
   const crossed=(t)=>t&&prevSeekMs!=null&&((prevSeekMs<t.getTime())!==(ms<t.getTime()));
   if(crossed(seekEvents?.rise)||crossed(seekEvents?.set)||crossed(seekEvents?.anchor)) buzz(9);
+  else if(crossed(seekEvents?.mrise)||crossed(seekEvents?.mset)) buzz(6);
   if(prevSel){ const nowSel=cache.grahas.find(x=>x.g===target.g);
     const s0=sgOf(prevSel.L), s1=sgOf(nowSel.L), n0=nkOf(prevSel.L), n1=nkOf(nowSel.L);
     if(s0!==s1){ buzz(8); toast(`${target.g} entered ${SIGNS_EN[s1]}`); }
@@ -1088,9 +1144,28 @@ function onOrient(ev){
 }
 function armSensors(){ if(watch) return; watch=onOrient;
   addEventListener("deviceorientationabsolute",watch); addEventListener("deviceorientation",watch); }
-function syncRecenter(){
-  const fb=el?.root.querySelector("#svrecenter"); if(!fb) return;
-  fb.hidden=!(sensing&&!followSky);
+let compassShown=false;
+function syncLoc(){
+  const b=el?.root.querySelector("#svlocb"); if(!b) return;
+  const st=!(sensing&&followSky)?"off":(compassShown?"compass":"on");
+  b.dataset.state=st;
+  b.setAttribute("aria-label",st==="off"?(sensing?"Recenter on my phone":"Follow my phone"):st==="on"?"Show the compass":"Hide the compass");
+  const cp=el.root.querySelector("#svcompass"); if(cp) cp.hidden=!(compassShown&&sensing&&followSky);
+  const rc=el.root.querySelector("#svrecenter"); if(rc) rc.hidden=true;
+}
+const syncRecenter=syncLoc;
+function locTap(){
+  buzz(7);
+  const canAsk=typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function";
+  if(!sensing){
+    if(canAsk){ DeviceOrientationEvent.requestPermission().then(r=>{ if(r==="granted"){ armSensors(); followSky=true; syncLoc(); }
+      else toast("Motion access is off — allow it in Settings › Safari › Motion & Orientation."); }).catch(()=>{}); return; }
+    armSensors(); followSky=true;
+    if(!sensing){ /* no sensors at all: look east, the sky's natural front */ wantAz=90; wantAlt=Math.max(wantAlt,14); toast("No motion sensors — drag to explore"); }
+    syncLoc(); return;
+  }
+  if(!followSky){ followSky=true; compassShown=false; syncLoc(); return; }
+  compassShown=!compassShown; syncLoc();
 }
 
 /* ====================================================================
@@ -1186,17 +1261,22 @@ export function openSkyView(opts={}){
         <button class="skcap" id="svcap" aria-label="Viewing moment"></button>
       </div>
       <button class="svclose" aria-label="Close">✕</button>
-      <div class="skside">
-        <button class="skibtn" id="svsearchb" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></button>
-        <button class="skibtn" id="svlayersb" aria-label="Layers"><svg viewBox="0 0 24 24"><path d="M12 4l9 5-9 5-9-5 9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
+      <div class="skcompass" id="svcompass" hidden aria-label="Compass"><i></i><span>N</span></div>
+      <div class="skstack" id="svstack">
+        <button class="skstk" id="svsearchb" aria-label="Search the sky"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></button>
+        <button class="skstk" id="svlayersb" aria-label="Layers"><svg viewBox="0 0 24 24"><path d="M12 4l9 5-9 5-9-5 9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
+        <button class="skstk skloc" id="svlocb" aria-label="Follow my phone" data-state="off"><svg viewBox="0 0 24 24"><path class="arrow" d="M20.5 3.5L3.5 11l8 2 2 8z"/></svg></button>
       </div>
       <div class="skseek" id="svseek" role="slider" tabindex="0" aria-label="Time of day" aria-valuetext="">
         <div class="skseekchip"></div>
         <div class="skseektrack"><div class="skseekrule"></div><div class="skseekknob"></div></div>
       </div>
-      <div class="sksearch" id="svsearch" hidden>
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg>
-        <input id="svq" type="search" placeholder="Saturn, Shani, Meena, Mula…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="sksearch" id="svsearch" hidden role="dialog" aria-label="Search the sky">
+        <div class="skshead">
+          <div class="sksfield"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg>
+            <input id="svq" type="search" placeholder="Search the sky" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
+          <button class="skx" id="svsclose" aria-label="Close">✕</button>
+        </div>
         <div class="svres" id="svres"></div>
       </div>
       <div class="sklayers" id="svlayers" hidden></div>
@@ -1205,6 +1285,7 @@ export function openSkyView(opts={}){
       <button class="skpill" id="svmotion" hidden>Follow my phone</button>
       <div class="sktoast" id="sktoast" hidden></div>
       <div class="svedit" id="svedit" hidden>
+        <div class="svquick" id="svquick"><button data-q="now">Now</button><button data-q="birth">Birth</button></div>
         <p class="svemote">Every sky is kept. Pick a moment and a place, and stand under it again.</p>
         <div class="sverow">
           <label class="fld"><span class="flabel">Date</span><input type="date" id="svd"></label>
@@ -1226,13 +1307,20 @@ export function openSkyView(opts={}){
     n.querySelector(".svclose").onclick=()=>{ if(history.state&&history.state.sky) history.back(); else closeSkyView(); };
     addEventListener("popstate",()=>{ if(running) closeSkyView(); });
     addEventListener("keydown",e=>{ if(e.key==="Escape"&&running) n.querySelector(".svclose").click(); });
-    n.querySelector("#svsearchb").onclick=()=>{ const s=n.querySelector("#svsearch"); s.hidden=!s.hidden; if(!s.hidden) n.querySelector("#svq").focus(); n.querySelector("#svlayers").hidden=true; wakeUI(); };
+    n.querySelector("#svsearchb").onclick=()=>{ const s=n.querySelector("#svsearch"); s.hidden=!s.hidden; searchCat=null; if(!s.hidden){ renderSearch(""); } n.querySelector("#svlayers").hidden=true; wakeUI(); };
+    n.querySelector("#svsclose").onclick=()=>{ n.querySelector("#svsearch").hidden=true; };
+    n.querySelector("#svlocb").onclick=()=>{ locTap(); };
+    n.querySelector("#svcompass").onclick=()=>{ compassShown=false; syncLoc(); buzz(4); };
+    n.querySelector("#svquick").onclick=e=>{ const b=e.target.closest("[data-q]"); if(!b) return; buzz(6);
+      n.querySelector("#svedit").hidden=true;
+      if(b.dataset.q==="now"){ custom=null; seek=null; birthSeek=null; if(mode!=="now") setSkyMode("now"); else { cache=null; computeSky(); fmtMoment(); buildSeeker(); } }
+      else if(birthOpts){ if(mode!=="birth") setSkyMode("birth"); else { birthSeek=null; cache=null; computeSky(); fmtMoment(); buildSeeker(); } } };
     n.querySelector("#svlayersb").onclick=()=>{ const s=n.querySelector("#svlayers"); s.hidden=!s.hidden; if(!s.hidden) paintLayers(); n.querySelector("#svsearch").hidden=true; wakeUI(); };
-    const q=n.querySelector("#svq"); q.oninput=()=>runSearch(q.value);
+    const q=n.querySelector("#svq"); q.oninput=()=>renderSearch(q.value);
     q.onkeydown=e=>{ if(e.key==="Enter"){ const first=n.querySelector(".svhit"); if(first) first.click(); } };
-    n.querySelector("#svcap").onclick=e=>{ const act=e.currentTarget.dataset.act;
-      if(act==="edit") openEditor(); else if(act==="live"||act==="birthreturn") returnToAnchor();
-      else if(act==="birthedit") { closeSkyView(); dispatchEvent(new CustomEvent("astra:openbirth")); } wakeUI(); };
+    n.querySelector("#svcap").onclick=e=>{
+      if(e.target.closest(".skreturn")){ returnToAnchor(); wakeUI(); return; }   /* the return chip */
+      openEditor(); wakeUI(); };
     n.querySelector("#svcancel").onclick=()=>{ n.querySelector("#svedit").hidden=true; };
     n.querySelector("#svapply").onclick=applyMoment;
     n.querySelector("#svp").oninput=e=>paintPlist(e.target.value);
@@ -1242,7 +1330,7 @@ export function openSkyView(opts={}){
     /* gestures: one finger drags (detaches motion), two fingers pinch the field of view, tap selects */
     const ptrs=new Map(); let moved=0, pinch0=null;
     n.addEventListener("pointerdown",e=>{
-      if(e.target.closest(".sktop,.svclose,.skside,.skseek,.sksearch,.sklayers,.skfind,.skpill,.svedit,.skfoot")) return;
+      if(e.target.closest(".sktop,.svclose,.skside,.skstack,.skcompass,.skseek,.sksearch,.sklayers,.skfind,.skpill,.svedit,.skfoot")) return;
       ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=0;
       if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),fov:vFov}; }
       wakeUI(); });
@@ -1250,7 +1338,7 @@ export function openSkyView(opts={}){
       if(!ptrs.has(e.pointerId)) return;
       const prev=ptrs.get(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
       if(ptrs.size===2&&pinch0){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y);
-        vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,pinch0.fov*pinch0.d/Math.max(20,d))); moved+=9; return; }
+        vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,pinch0.fov*pinch0.d/Math.max(20,d))); return; }
       const dx=e.clientX-prev.x, dy=e.clientY-prev.y; moved+=Math.abs(dx)+Math.abs(dy);
       if(moved>10&&sensing&&followSky){ followSky=false; syncRecenter(); }
       const F=CAM.F||1; wantAz-=dx/F/D2R; wantAlt=clampAlt(wantAlt+dy/F/D2R);
@@ -1260,7 +1348,8 @@ export function openSkyView(opts={}){
       const r=el.canvas.getBoundingClientRect(); const cx=e.clientX-r.left, cy=e.clientY-r.top;
       hitTest(cx,cy); };
     n.addEventListener("pointerup",up); n.addEventListener("pointercancel",up);
-    n.addEventListener("dblclick",e=>{ if(e.target.closest(".sktop,.skside,.skseek,.skfoot")) return; vFov=62; buzz(4); });
+    n.addEventListener("dblclick",e=>{ if(e.target.closest(".sktop,.skside,.skseek,.skfoot,.skcard")) return;
+      const tp=target&&targetPos(); if(tp){ aimAt(tp,{force:true}); vFov=Math.max(FOV_MIN,Math.min(vFov,40)); buzz(6); } else { vFov=62; buzz(4); } });
     n.addEventListener("wheel",e=>{ vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,vFov*(e.deltaY>0?1.08:0.92))); },{passive:true});
   }
   el._fit();
@@ -1300,15 +1389,16 @@ export function openSkyView(opts={}){
   fmtMoment(); setFoot(); syncFind(); buildSeeker(); wakeUI(); showHints();
   if(st==="seek"){ const s=el.root.querySelector("#svseek"); if(s){ s.classList.add("open"); seekActive=true; paintSeeker(); } }
   if(st==="layers"){ const s=el.root.querySelector("#svlayers"); if(s){ s.hidden=false; paintLayers(); } }
+  if(st==="search"||st.startsWith("search:")){ const s=el.root.querySelector("#svsearch"); if(s){ s.hidden=false; searchCat=st.includes(":")?st.split(":")[1]:null; renderSearch(""); } }
+  if(st==="moment"){ openEditor(); }
   if(st==="manual"||st.startsWith("find:")||st==="below"){ setTimeout(syncRecenter,0); setTimeout(syncFind,0); }
   running=true; lastFrame=0; draw();
   if(mode==="birth") toast("The sky you were born under.");
   const canAsk=typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function";
   const fb=el.root.querySelector("#svmotion");
-  if(QUIET){ fb.hidden=true; }
-  else if(!canAsk||opts.motion===true){ armSensors(); fb.hidden=true; }
-  else { fb.hidden=false; fb.onclick=()=>{ DeviceOrientationEvent.requestPermission().then(r=>{ if(r==="granted"){ armSensors(); fb.hidden=true; }
-      else toast("Motion access is off — allow it in Settings › Safari › Motion & Orientation."); }).catch(()=>{}); }; }
+  fb.hidden=true;                                   /* the location button owns motion permission now */
+  if(!QUIET&&(!canAsk||opts.motion===true)){ armSensors(); }
+  setTimeout(syncLoc,50);
   setTimeout(()=>{ if(running&&!sensing) toast(canAsk&&fb&&!fb.hidden?"Drag to explore — or tap Follow my phone":"Motion tracking unavailable · drag to explore"); },2500);
 }
 function hitTest(cx,cy){

@@ -2648,3 +2648,86 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 
 .replang{margin:10px 0 12px}
 .replang .k{display:block;font-size:12px;color:var(--ink-2);margin-bottom:6px}
+
+/* Sky chrome (§36-37): lighter floating glass, smaller visual mass, same 44px targets */
+.skyview .skibtn,.skyview .svclose{background:rgba(12,14,34,.38)!important;border:1px solid rgba(255,255,255,.16)!important;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.skyview .skibtn svg{width:18px;height:18px}
+.skyview .skcap{background:rgba(12,14,34,.38)!important;border:1px solid rgba(255,255,255,.14)!important;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font-size:12.5px!important;padding:6px 11px!important}
+.skyview .svseg{background:rgba(12,14,34,.38)!important;border:1px solid rgba(255,255,255,.14)!important;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.skyview .svseg button{padding:6px 14px!important;font-size:13px!important}
+.skyview #svrecenter{left:auto!important;right:14px!important;bottom:auto!important;top:calc(env(safe-area-inset-top) + 178px)!important;
+  transform:none!important;width:44px;height:44px;padding:0!important;border-radius:50%!important;font-size:0!important;
+  background:rgba(12,14,34,.42)!important;border:1px solid rgba(255,255,255,.16)!important;color:#F1E7C9}
+.skyview #svrecenter::before{content:"\2316";font-size:19px;line-height:44px}
+.skyview #svmotion{bottom:calc(env(safe-area-inset-bottom) + 92px)!important;font-size:13px!important;padding:8px 14px!important}
+
+/* Sky time rail (§31): a thin rail with a floating time; hour marks only while scrubbing */
+.skyview .skseek .skseektrack{width:3px!important;border-radius:2px;background:rgba(255,255,255,.22)!important;margin-right:8px!important}
+.skyview .skseek .skseekknob{width:12px!important;height:12px!important;right:-4.5px!important;box-shadow:0 1px 6px rgba(0,0,0,.45),0 0 0 3px rgba(12,14,34,.35)!important}
+.skyview .skseek .skseekchip{background:rgba(12,14,34,.42)!important;color:#F1E7C9!important;border:1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font-size:11.5px!important;padding:4px 9px!important}
+.skyview .skseek.open .skseektrack{width:6px!important;background:rgba(20,22,48,.75)!important}
+.skyview .skseek.open .skseekchip{transform:scale(1.28)!important;background:#F1E7C9!important;color:#0B0C1E!important}
+.skyview .skseek .skseekrule span{font-size:9.5px!important;color:rgba(236,237,242,.6)!important}
+
+/* Sky control cluster (Apple-Maps-like): stacked glass pill bottom-right, compass dial, category search sheet */
+.skyview #svseg{display:none!important}
+.skyview #svrecenter,.skyview #svmotion{display:none!important}
+.skyview .skside{display:none!important}
+.skstack{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom) + 24px);z-index:7;display:flex;flex-direction:column;
+  background:rgba(14,16,36,.55);border:1px solid rgba(255,255,255,.16);border-radius:26px;padding:4px;
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 4px 18px rgba(0,0,0,.28)}
+.skyview.hascard .skstack{bottom:calc(env(safe-area-inset-bottom) + 348px)}
+.skstk{width:44px;height:44px;border:0;background:none;color:#F1EFE8;display:grid;place-items:center;cursor:pointer;border-radius:22px}
+.skstk:active{background:rgba(255,255,255,.12)}
+.skstk svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.skstk+.skstk{border-top:1px solid rgba(255,255,255,.1);border-radius:0 0 22px 22px}
+.skstk.skloc[data-state="off"] .arrow{fill:none}
+.skstk.skloc[data-state="on"] .arrow,.skstk.skloc[data-state="compass"] .arrow{fill:#8FB4FF;stroke:#8FB4FF}
+.skstk.skloc[data-state="compass"]{background:rgba(143,180,255,.16)}
+.skcompass{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom) + 196px);z-index:7;width:52px;height:52px;border-radius:50%;
+  background:rgba(14,16,36,.6);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:grid;place-items:center}
+.skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 520px)}
+.skcompass i{position:absolute;inset:4px;border-radius:50%;border:1px dashed rgba(255,255,255,.22);transition:transform .12s linear}
+.skcompass i::before{content:"";position:absolute;left:50%;top:-1px;width:0;height:0;transform:translateX(-50%);border:5px solid transparent;border-bottom:9px solid #E8524A;border-top:0}
+.skcompass span{font-size:12px;font-weight:700;color:#F1EFE8;letter-spacing:.06em}
+.skyview .skseek{bottom:calc(env(safe-area-inset-bottom) + 200px)!important}
+.skyview .skseek .skseekrule i.skmoonm{color:#D6E2FF;font-size:11px;right:-3px}
+/* search: a bottom sheet with categories */
+.skyview .sksearch{position:absolute!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;z-index:9!important;
+  max-height:64vh;display:flex;flex-direction:column;background:rgba(12,14,32,.92);border-radius:22px 22px 0 0;
+  border-top:1px solid rgba(255,255,255,.12);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);padding:10px 14px calc(env(safe-area-inset-bottom) + 12px)}
+.skyview .sksearch>svg{display:none}
+.skshead{display:flex;gap:10px;align-items:center}
+.sksfield{flex:1;position:relative}
+.sksfield svg{position:absolute;left:12px;top:13px;width:15px;height:15px;fill:none;stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
+.skyview .sksearch .sksfield input{width:100%;padding:11px 12px 11px 36px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);color:var(--ink);font-size:16px}
+.skyview .sksearch .skx{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--ink);font-size:16px;cursor:pointer}
+.skyview .sksearch .svres{position:static!important;margin-top:12px;overflow:auto;flex:1}
+.skseyebrow{margin:2px 0 8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.skcats{border-radius:16px;background:rgba(255,255,255,.06);overflow:hidden}
+.skcat{display:flex;align-items:center;gap:14px;width:100%;padding:13px 14px;border:0;background:none;color:var(--ink);text-align:left;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.07)}
+.skcat:last-child{border-bottom:0}
+.skcat span{flex:1}.skcat b{display:block;font-size:15px}.skcat small{display:block;font-size:12px;color:var(--ink-3)}
+.skcat em{font-style:normal;color:var(--ink-3);font-size:18px}
+.skcat .ci{width:26px;height:26px;border-radius:50%;display:block;flex:0 0 auto}
+.skcat .ci.graha{background:radial-gradient(circle at 35% 30%,#F7E3B0,#C29B4E 60%,#6B4E1A)}
+.skcat .ci.rashi{background:rgba(194,155,78,.25);border:1px solid rgba(241,231,201,.5)}
+.skcat .ci.nakshatra{background:rgba(160,150,214,.3);border:1px solid rgba(196,188,236,.6)}
+.skcat .ci.lagna{background:#E2BE64;transform:rotate(45deg) scale(.7);border-radius:3px}
+.skcat .ci.star{background:radial-gradient(circle,#fff,rgba(255,255,255,0) 70%)}
+.skcatback{display:block;width:100%;text-align:left;padding:6px 2px 10px;border:0;background:none;color:#F1E7C9;font-size:15px;font-weight:600;cursor:pointer}
+.skcatlist{border-radius:16px;background:rgba(255,255,255,.06);overflow:hidden}
+.skyview .sksearch .svhit{display:flex!important;align-items:center;gap:10px;justify-content:space-between;width:100%;padding:12px 14px;border:0;border-radius:0;
+  border-bottom:1px solid rgba(255,255,255,.07);background:none!important;margin:0!important;color:var(--ink);text-align:left;cursor:pointer}
+.skyview .sksearch .svhit:last-child{border-bottom:0}
+.skyview .sksearch .svhit b{font-size:15px;font-weight:600}
+.skyview .sksearch .svhit b.dev{font-family:"Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",sans-serif;font-size:17px;color:#F1E7C9}
+.skyview .sksearch .svhit .sub{font-size:12px;color:var(--ink-3);text-transform:none!important;letter-spacing:0!important}
+.svnone{padding:12px 4px;color:var(--ink-3);font-size:14px}
+.svquick{display:flex;gap:8px;margin-bottom:12px}
+.svquick button{flex:1;padding:11px 0;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer}
+.skyview.birthmode .skcap>span::before{content:"Birth · ";color:#F1E7C9;font-weight:700}

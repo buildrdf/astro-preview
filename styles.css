@@ -2685,15 +2685,26 @@ body.guidefull .composer.glight{border:0;box-shadow:none;padding:8px 14px 12px;
 .skstk:active{background:rgba(255,255,255,.12)}
 .skstk svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .skstk+.skstk{border-top:1px solid rgba(255,255,255,.1);border-radius:0 0 22px 22px}
+/* off = hollow arrow · following = filled arrow · following with heading = the arrow
+   stands upright under a red beam, the same red as the compass needle. No tinted pill. */
+.skstk.skloc .arrow{transform-box:view-box;transform-origin:12px 12px;transition:transform .34s var(--ease)}
+.skstk.skloc .beam{stroke:#FF453A;stroke-width:2.2;opacity:0;transition:opacity .22s var(--ease)}
 .skstk.skloc[data-state="off"] .arrow{fill:none}
-.skstk.skloc[data-state="on"] .arrow,.skstk.skloc[data-state="compass"] .arrow{fill:#8FB4FF;stroke:#8FB4FF}
-.skstk.skloc[data-state="compass"]{background:rgba(143,180,255,.16)}
-.skcompass{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom) + 196px);z-index:7;width:52px;height:52px;border-radius:50%;
-  background:rgba(14,16,36,.6);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:grid;place-items:center}
+.skstk.skloc[data-state="on"] .arrow{fill:#0A84FF;stroke:#0A84FF}
+.skstk.skloc[data-state="compass"] .arrow{fill:#0A84FF;stroke:#0A84FF;transform:translate(0,2.6px) rotate(-45deg) scale(.72)}
+.skstk.skloc[data-state="compass"] .beam{opacity:1}
+@media (prefers-reduced-motion: reduce){ .skstk.skloc .arrow,.skstk.skloc .beam{transition:none} }
+.skcompass{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom) + 196px);z-index:7;width:48px;height:48px;border-radius:50%;
+  padding:0;cursor:pointer;font-family:var(--ff);
+  background:rgba(14,16,36,.6);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:grid;place-items:center;
+  transition:transform .2s var(--ease)}
 .skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 520px)}
-.skcompass i{position:absolute;inset:4px;border-radius:50%;border:1px dashed rgba(255,255,255,.22);transition:transform .12s linear}
-.skcompass i::before{content:"";position:absolute;left:50%;top:-1px;width:0;height:0;transform:translateX(-50%);border:5px solid transparent;border-bottom:9px solid #E8524A;border-top:0}
-.skcompass span{font-size:12px;font-weight:700;color:#F1EFE8;letter-spacing:.06em}
+.skcompass:active{transform:scale(.93)}
+.skcompass svg{position:absolute;inset:0;width:100%;height:100%}
+.skcompass .skrose line{stroke:rgba(255,255,255,.30);stroke-width:1;stroke-linecap:round}
+.skcompass .skrose line.c{stroke:rgba(255,255,255,.55);stroke-width:1.3}
+.skcompass .sknorth path{fill:#FF453A}
+.skcompass span{position:relative;font-size:13px;font-weight:640;color:#F1EFE8;letter-spacing:.02em;line-height:1}
 .skyview .skseek{bottom:calc(env(safe-area-inset-bottom) + 200px)!important}
 .skyview .skseek .skseekrule i.skmoonm{color:#D6E2FF;font-size:11px;right:-3px}
 /* search: a bottom sheet with categories */
@@ -2883,3 +2894,8 @@ body.light .g-caution{color:#93561A}
 body.light .daychip.tone-favourable{color:#2A6E45;background:rgba(62,142,92,.12)}
 body.light .dhk.do{color:#2A6E45} body.light .dhk.hold{color:#93561A}
 body.light .rsunlabels span{color:#7F5F18}
+
+/* a peek card owns the bottom of the screen: the control cluster and the dial step aside
+   rather than sitting on top of it (they come back when the card is dismissed) */
+.skyview.hascard .skstack,.skyview.hascard .skcompass{opacity:0;pointer-events:none;transition:opacity .2s var(--ease)}
+@media (prefers-reduced-motion: reduce){ .skyview.hascard .skstack,.skyview.hascard .skcompass{transition:none} }

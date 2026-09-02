@@ -186,7 +186,7 @@ const FOV_MIN=10, FOV_MAX=112;
 const ORR_SPAN=70; let orr=0, wantOrr=0, orrSide=false, wheelT=null;
 const zoomOf=()=>wantOrr>0?FOV_MAX+ORR_SPAN*wantOrr:vFov;
 function setZoom(z){ z=Math.max(FOV_MIN,Math.min(FOV_MAX+ORR_SPAN,z)); vFov=Math.min(FOV_MAX,z); wantOrr=Math.max(0,Math.min(1,(z-FOV_MAX)/ORR_SPAN)); }
-function snapOrr(){ if(wantOrr>0&&wantOrr<1){ wantOrr=wantOrr>0.4?1:0; if(!wantOrr) vFov=FOV_MAX; } }
+
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
 let cache=null, cacheAt=0, target=null, focusK=0;
 let mode="now", birthOpts=null, proUser=false, custom=null;
@@ -195,6 +195,15 @@ let birthSeek=null;   /* Birth mode: a scrubbed absolute Date, or null = natal *
 let ghostBirth=false, trackTarget=false;
 let lastFrame=0, layers=null, uiTimer=null, hintStep=0;
 let tween=null;       /* {from:{g:L}, t0, ms} for the Birth->Now fast-forward */
+/* the compass rose: 36 ticks every 10 degrees, cardinals longer. Drawn in a 48-unit box
+   so the needle can be rotated with an SVG transform about an explicit centre (24,24) —
+   a CSS transform on a positioned element loses its centring translate. */
+const ROSE=Array.from({length:36},(_,i)=>{
+  const a=i*10*Math.PI/180, R=21.4, r=(i%9===0)?17.6:19.3;
+  const sx=Math.sin(a), cy=Math.cos(a);
+  return `<line x1="${(24+R*sx).toFixed(2)}" y1="${(24-R*cy).toFixed(2)}" x2="${(24+r*sx).toFixed(2)}" y2="${(24-r*cy).toFixed(2)}"${i%9===0?' class="c"':""}/>`;
+}).join("");
+
 const LAYER_DEFAULT={planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,sanskrit:false};
 /* display radius per body (px): a controlled informational scale, not angular size;
    grows gently as the field narrows so close views stay balanced */
@@ -458,10 +467,18 @@ function draw(){
       /* two ridges along the horizon: a far one lost in the haze, a nearer darker one
          (a sense of place, not scenery — the same land at every azimuth of this spot) */
       if(horizon.length>4){
+        /* the point list runs by azimuth and drops everything behind the camera, so when the
+           camera faces north the 357-degree point and the 0-degree point sit next to each
+           other on screen but at opposite ends of the array: closing the polygon on array
+           order drew a thin double-filled sliver from the horizon to the bottom of the
+           screen, right under the N label. Sort along the horizon line instead. */
+        const ord=horizon.map(p=>({az:p.az,x:p.x,y:p.y,t:(p.x-cx)*dx+(p.y-cy)*dy})).sort((a,b)=>a.t-b.t);
         const ridge=(amp,ph,col)=>{ c.fillStyle=col; c.beginPath(); let pen0=false;
-          for(const p of horizon){ const h=Math.max(0,amp*ppd*(0.5+0.5*Math.sin(p.az*2.5*D2R+ph)+0.3*Math.sin(p.az*7*D2R+ph*1.7)+0.16*Math.sin(p.az*17*D2R+ph*0.6)));
+          for(const p of ord){ const h=Math.max(0,amp*ppd*(0.5+0.5*Math.sin(p.az*2.5*D2R+ph)+0.3*Math.sin(p.az*7*D2R+ph*1.7)+0.16*Math.sin(p.az*17*D2R+ph*0.6)));
             const x=p.x-nx*h, y=p.y-ny*h; pen0?c.lineTo(x,y):(c.moveTo(x,y),pen0=true); }
-          const e=horizon[horizon.length-1], f=horizon[0]; c.lineTo(e.x+nx*L,e.y+ny*L); c.lineTo(f.x+nx*L,f.y+ny*L); c.closePath(); c.fill(); };
+          const e=ord[ord.length-1], f=ord[0];
+          c.lineTo(e.x+dx*L,e.y+dy*L); c.lineTo(e.x+dx*L+nx*L,e.y+dy*L+ny*L);
+          c.lineTo(f.x-dx*L+nx*L,f.y-dy*L+ny*L); c.lineTo(f.x-dx*L,f.y-dy*L); c.closePath(); c.fill(); };
         const farC=mixc(hazeC,[8,10,24],day>0.5?0.22:0.45), nearC=mixc(farC,[5,6,15],0.6);
         ridge(2.2,0.4,`rgba(${farC.join(",")},${0.92*ga})`);
         ridge(1.2,2.1,`rgba(${nearC.join(",")},${0.94*ga})`);
@@ -786,7 +803,8 @@ function draw(){
   }
   if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
     spot:cache.sp,layers,target,reduced,now,mode,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
-  { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const i=cp.querySelector("i"); if(i) i.style.transform=`rotate(${-viewAz}deg)`; } }
+  { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const g=cp.querySelector(".sknorth");
+      if(g) g.setAttribute("transform",`rotate(${(-viewAz).toFixed(1)} 24 24)`); } }
   /* accessibility: one sentence describing the view */
   if(now-(el._ariaAt||0)>1500){ el._ariaAt=now;
     { const ul=el.root.querySelector("#svlist"); if(ul){ const html=cache.grahas.map(g=>{ const s=sgOf(g.L), n2=nkOf(g.L);
@@ -837,7 +855,7 @@ function setFoot(){
       </div>
       <p class="skmeaning">${sentence}</p>
       <div class="skacts">
-        <button class="skact solid" id="svexplore">Explore ${g}</button>
+        <button class="skact solid" id="svexplore" aria-label="See more about ${g}">See more</button>
         <button class="skact${trackTarget?" on":""}" id="svtrackb">${trackTarget?"Tracking":"Track"}</button>
       </div>
     </div>`;
@@ -865,7 +883,7 @@ function setFoot(){
       </div>
       <div class="skacts">
         ${here.map(g=>`<button class="skact" data-pick="${g}">${g}</button>`).join("")}
-        <button class="skact solid" id="svexplore">Explore ${SIGNS_EN[s]}</button>
+        <button class="skact solid" id="svexplore" aria-label="See more about ${SIGNS_EN[s]}">See more</button>
       </div></div>`;
     f.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>selectTarget({t:"graha",g:b.dataset.pick,label:b.dataset.pick}));
     document.getElementById("svexplore").onclick=()=>{ const m=project(cache.rashiMid[s]); const origin=Number.isFinite(m[0])?{x:m[0],y:m[1],r:28}:null; buzz(8);
@@ -885,7 +903,7 @@ function setFoot(){
       </div>
       <div class="skacts">
         ${here.map(g=>`<button class="skact" data-pick="${g}">${g}</button>`).join("")}
-        <button class="skact solid" id="svexplore">Explore ${r.name}</button>
+        <button class="skact solid" id="svexplore" aria-label="See more about ${r.name}">See more</button>
       </div></div>`;
     f.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>selectTarget({t:"graha",g:b.dataset.pick,label:b.dataset.pick}));
     document.getElementById("svexplore").onclick=()=>{ const m=project(cache.nakMid[i]); const origin=Number.isFinite(m[0])?{x:m[0],y:m[1],r:24}:null; buzz(8);
@@ -1190,10 +1208,18 @@ function syncLoc(){
   const st=!(sensing&&followSky)?"off":(compassShown?"compass":"on");
   b.dataset.state=st;
   b.setAttribute("aria-label",st==="off"?(sensing?"Recenter on my phone":"Follow my phone"):st==="on"?"Show the compass":"Hide the compass");
-  const cp=el.root.querySelector("#svcompass"); if(cp) cp.hidden=!(compassShown&&sensing&&followSky);
+  const cp=el.root.querySelector("#svcompass"); if(cp) cp.hidden=!compassShown;
   const rc=el.root.querySelector("#svrecenter"); if(rc) rc.hidden=true;
 }
 const syncRecenter=syncLoc;
+/* turn to face north: azimuth to 0, pitch eased back to where the horizon is on screen.
+   Detaches from the phone first — otherwise the next sensor frame would snap the view back. */
+function faceNorth(){
+  buzz(8); followSky=false;
+  wantAz=0; wantAlt=clampAlt(Math.max(-4,Math.min(48,viewAlt)));
+  if(reduced){ viewAz=wantAz; viewAlt=wantAlt; }
+  syncLoc(); wakeUI();
+}
 function locTap(){
   buzz(7);
   const canAsk=typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function";
@@ -1302,11 +1328,13 @@ export function openSkyView(opts={}){
         <button class="skcap" id="svcap" aria-label="Viewing moment"></button>
       </div>
       <button class="svclose" aria-label="Close">✕</button>
-      <div class="skcompass" id="svcompass" hidden aria-label="Compass"><i></i><span>N</span></div>
+      <button class="skcompass" id="svcompass" hidden aria-label="Compass — tap to face north">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><g class="skrose">${ROSE}</g>
+          <g class="sknorth"><path d="M24 6.0l3.3 6.1h-6.6z"/></g></svg><span>N</span></button>
       <div class="skstack" id="svstack">
         <button class="skstk" id="svsearchb" aria-label="Search the sky"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.5 16.5l4 4"/></svg></button>
         <button class="skstk" id="svlayersb" aria-label="Layers"><svg viewBox="0 0 24 24"><path d="M12 4l9 5-9 5-9-5 9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
-        <button class="skstk skloc" id="svlocb" aria-label="Follow my phone" data-state="off"><svg viewBox="0 0 24 24"><path class="arrow" d="M20.5 3.5L3.5 11l8 2 2 8z"/></svg></button>
+        <button class="skstk skloc" id="svlocb" aria-label="Follow my phone" data-state="off"><svg viewBox="0 0 24 24"><path class="beam" d="M8.5 2.7h7"/><path class="arrow" d="M20.5 3.5L3.5 11l8 2 2 8z"/></svg></button>
       </div>
       <div class="skseek" id="svseek" role="slider" tabindex="0" aria-label="Time of day" aria-valuetext="">
         <div class="skseekchip"></div>
@@ -1351,7 +1379,7 @@ export function openSkyView(opts={}){
     n.querySelector("#svsearchb").onclick=()=>{ const s=n.querySelector("#svsearch"); s.hidden=!s.hidden; searchCat=null; if(!s.hidden){ renderSearch(""); } n.querySelector("#svlayers").hidden=true; wakeUI(); };
     n.querySelector("#svsclose").onclick=()=>{ n.querySelector("#svsearch").hidden=true; };
     n.querySelector("#svlocb").onclick=()=>{ locTap(); };
-    n.querySelector("#svcompass").onclick=()=>{ compassShown=false; syncLoc(); buzz(4); };
+    n.querySelector("#svcompass").onclick=()=>{ faceNorth(); };
     n.querySelector("#svquick").onclick=e=>{ const b=e.target.closest("[data-q]"); if(!b) return; buzz(6);
       n.querySelector("#svedit").hidden=true;
       if(b.dataset.q==="now"){ custom=null; seek=null; birthSeek=null; if(mode!=="now") setSkyMode("now"); else { cache=null; computeSky(); fmtMoment(); buildSeeker(); } }
@@ -1386,7 +1414,7 @@ export function openSkyView(opts={}){
       if(moved>10&&sensing&&followSky){ followSky=false; syncRecenter(); }
       const F=CAM.F||1; wantAz-=dx/F/D2R; wantAlt=clampAlt(wantAlt+dy/F/D2R);
       if(reduced){ viewAz=wantAz; viewAlt=wantAlt; } });
-    const up=e=>{ const was=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if(ptrs.size<2){ if(pinch0) snapOrr(); pinch0=null; }
+    const up=e=>{ const was=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0=null;
       if(!was||moved>10||!cache||e.type==="pointercancel") return;
       const r=el.canvas.getBoundingClientRect(); const cx=e.clientX-r.left, cy=e.clientY-r.top;
       hitTest(cx,cy); };
@@ -1394,7 +1422,7 @@ export function openSkyView(opts={}){
     n.addEventListener("dblclick",e=>{ if(e.target.closest(".sktop,.skside,.skseek,.skfoot,.skcard")) return;
       if(wantOrr>0){ wantOrr=0; vFov=FOV_MAX; buzz(6); return; }
       const tp=target&&targetPos(); if(tp){ aimAt(tp,{force:true}); vFov=Math.max(FOV_MIN,Math.min(vFov,40)); buzz(6); } else { vFov=62; buzz(4); } });
-    n.addEventListener("wheel",e=>{ setZoom(zoomOf()*(e.deltaY>0?1.08:0.92)); clearTimeout(wheelT); wheelT=setTimeout(snapOrr,220); },{passive:true});
+    n.addEventListener("wheel",e=>{ setZoom(zoomOf()*(e.deltaY>0?1.08:0.92)); },{passive:true});
   }
   el._fit();
   el.root.classList.add("on"); el.root.classList.remove("birthmode","quiet");
@@ -1432,6 +1460,7 @@ export function openSkyView(opts={}){
   if(st.startsWith("find:")){ const t=selOf(st.slice(5)); if(t){ target=t; followSky=false; if(opts.az==null){ const p=targetPos(); if(p){ wantAz=viewAz=(p.az+150)%360; wantAlt=viewAlt=20; } } } }
   if(st==="below"){ const down=cache.grahas.filter(x=>!x.up&&x.g!=="Rahu"&&x.g!=="Ketu").sort((a,b)=>b.alt-a.alt)[0]; if(down){ target={t:"graha",g:down.g,label:down.g,kind:"graha",seen:false}; followSky=false; } }
   if(st==="manual"){ followSky=false; }
+  if(st==="compass"){ compassShown=true; followSky=false; }
   if(st==="orrery"){ orr=wantOrr=1; orrSide=true; vFov=FOV_MAX; followSky=false; }
   fmtMoment(); setFoot(); syncFind(); buildSeeker(); wakeUI(); showHints();
   if(st==="seek"){ const s=el.root.querySelector("#svseek"); if(s){ s.classList.add("open"); seekActive=true; paintSeeker(); } }

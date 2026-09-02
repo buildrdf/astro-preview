@@ -43,17 +43,21 @@ function earthTexture(){
   EARTH_TEX.src=new URL("../assets/earth/bluemarble_1024.jpg",import.meta.url).href;
   return EARTH_TEX;
 }
-/* the globe as seen from here, rendered once per (size, place) and cached */
-const GLOBE={key:"",canvas:null};
-function globeSprite(D,lat0,lon0){
-  const key=`${D}|${lat0.toFixed(2)}|${lon0.toFixed(2)}`;
-  if(GLOBE.key===key&&GLOBE.canvas) return GLOBE.canvas;
+/* the globe as seen from a given angle. Projection is per-pixel, so the result is cached and
+   the angles are quantised to 3 degrees: turning the Earth then costs a few dozen renders
+   across a whole drag rather than one per frame. */
+const GLOBE=new Map(); const GLOBE_CAP=48;
+function globeSprite(D,lat0,lon0,pitch){
+  const q=v=>Math.round(v/3)*3;
+  const key=`${Math.round(D)}|${q(lat0)}|${q(lon0)}|${q(pitch||0)}`;
+  const hit=GLOBE.get(key); if(hit) return hit;
   if(!EARTH_READY||!EARTH_PX) return null;
+  lat0=q(lat0); lon0=q(lon0); pitch=q(pitch||0);
   const S=Math.max(24,Math.round(D)), R=S/2;
   const c=document.createElement("canvas"); c.width=S; c.height=S;
   const ctx=c.getContext("2d"); const img=ctx.createImageData(S,S);
   const src=EARTH_PX.data, TW=EARTH_PX.width, TH=EARTH_PX.height, out=img.data;
-  const tilt=lat0*D2R-26*D2R, ct=Math.cos(tilt), st=Math.sin(tilt);
+  const tilt=lat0*D2R-26*D2R+pitch*D2R, ct=Math.cos(tilt), st=Math.sin(tilt);
   const l0=lon0*D2R;
   for(let py=0;py<S;py++){
     const y=(py+0.5-R)/R;
@@ -74,7 +78,8 @@ function globeSprite(D,lat0,lon0){
     }
   }
   ctx.putImageData(img,0,0);
-  GLOBE.key=key; GLOBE.canvas=c; return c;
+  if(GLOBE.size>=GLOBE_CAP) GLOBE.delete(GLOBE.keys().next().value);
+  GLOBE.set(key,c); return c;
 }
 
 /* The Earth's land as soft blobs [lat, lon, radius in degrees]. This is
@@ -138,9 +143,9 @@ function ledger(W,H,top,bottom){
 }
 
 /* ---- the Earth ------------------------------------------------------ */
-function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA){
-  const lat0=(spot?.lat||0)*D2R, lon0=(spot?.lon||0)*D2R;
-  const tilt=lat0-26*D2R;                       /* the observer sits a little above the disc centre */
+function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
+  const lat0=(spot?.lat||0)*D2R, lon0=((spot?.lon||0)+(spin||0))*D2R;
+  const tilt=lat0-26*D2R+(pitch||0)*D2R;                       /* the observer sits a little above the disc centre */
   const proj=(la,lo)=>{ const f=la*D2R, l=lo*D2R-lon0;
     const X=Math.cos(f)*Math.sin(l), Y=Math.sin(f), Z=Math.cos(f)*Math.cos(l);
     const y2=Y*Math.cos(tilt)-Z*Math.sin(tilt), z2=Y*Math.sin(tilt)+Z*Math.cos(tilt);
@@ -151,7 +156,7 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA){
   c.fillStyle=ar; c.beginPath(); c.arc(cx,cy,R*1.18,0,7); c.fill();
   /* the globe itself: photography where it has loaded, the drawn emblem until then */
   const dpr=(typeof devicePixelRatio!=="undefined"?devicePixelRatio:1)||1;
-  const sprite=globeSprite(Math.min(1400,2*R*dpr),spot?.lat||0,spot?.lon||0);
+  const sprite=globeSprite(Math.min(1400,2*R*dpr),spot?.lat||0,(spot?.lon||0)+(spin||0),pitch||0);
   if(sprite){
     c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
     c.drawImage(sprite,cx-R,cy-R,2*R,2*R);
@@ -204,10 +209,11 @@ export function drawOrrery(c,W,H,k,env){
   const sc=smooth(clamp((k-0.12)/0.88,0,1));               /* ring + bodies */
   const landA=smooth(clamp((k-0.5)/0.4,0,1));              /* continents only once it is a globe */
   const {grahas,layers,target,names,reduced,now}=env;
+  const spin=env.spin||0, pitch=env.pitch||0;   /* dragged yaw and elevation */
   const S=clamp(Math.min(W,H)/390,0.9,1.5);                /* phone → tablet scale */
   const sunG=grahas.find(g=>g.g==="Sun"), moonG=grahas.find(g=>g.g==="Moon");
   const ascL=env.asc!=null?env.asc:risingLongitude(env.ecl);
-  const asc=ascL!=null?ascL:(sunG?sunG.L+90:0);
+  const asc=(ascL!=null?ascL:(sunG?sunG.L+90:0))-spin;
 
   /* geometry: the globe shrinks from underfoot to the centre; the ring
      opens from edge-on around you to the tilted zodiac */
@@ -215,7 +221,7 @@ export function drawOrrery(c,W,H,k,env){
   const RE=lerp(Math.max(W,H)*2.4,R1,e);
   const topY=lerp(H*0.66,cy1-R1,e);
   const ecx=W/2, ecy=topY+RE;
-  const geo={cx:W/2, cy:lerp(H*0.64,cy1,e), R:lerp(Math.max(W,H)*1.15,Math.min(W,H)*0.47,e), sy:lerp(0.05,0.44,e), asc};
+  const geo={cx:W/2, cy:lerp(H*0.64,cy1,e), R:lerp(Math.max(W,H)*1.15,Math.min(W,H)*0.47,e), sy:lerp(0.05,clamp(0.44+pitch/70,0.10,0.92),e), asc};
   const geoM={...geo,R:geo.R*0.60};
   const pt=(L,g=geo)=>{ const th=Math.PI+(L-g.asc)*D2R; return {x:g.cx+g.R*Math.cos(th), y:g.cy-g.R*g.sy*Math.sin(th), d:Math.sin(th), th}; };
   const band=clamp(geo.R*0.16,14,48);
@@ -311,7 +317,7 @@ export function drawOrrery(c,W,H,k,env){
       c.beginPath(); c.moveTo(sx,sy2); c.lineTo(a.x-dx/dl*band*0.55,a.y-dy/dl*band*0.55); c.stroke(); c.setLineDash([]); c.restore(); }
   }
 
-  c.globalAlpha=cover; drawEarth(c,ecx,ecy,RE,light,env.spot,e,now,reduced,landA); c.globalAlpha=sc;
+  c.globalAlpha=cover; drawEarth(c,ecx,ecy,RE,light,env.spot,e,now,reduced,landA,spin,pitch); c.globalAlpha=sc;
   drawRing(false);
   for(const b of bodies) if(b.d<=0) drawBody(b);
 

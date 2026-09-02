@@ -3114,3 +3114,14 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
   border-radius:99px;padding:2px 7px}
 .festrow .chev{flex:0 0 auto;color:var(--ink-3);font-size:17px}
 .hiname{font-size:12px;font-weight:500;color:var(--ink-3)}
+
+/* a folded methodology note: one quiet line, the full text one tap down */
+.notefold{margin:16px 0 0;border-top:.5px solid var(--line);padding-top:10px}
+.notefold summary{list-style:none;cursor:pointer;font-size:12px;font-weight:600;
+  color:var(--ink-3);letter-spacing:-.005em}
+.notefold summary::-webkit-details-marker{display:none}
+.notefold summary::after{content:"\203A";display:inline-block;margin-left:5px;
+  transition:transform .2s var(--ease)}
+.notefold[open] summary::after{transform:rotate(90deg)}
+.notefold .note{margin:8px 0 0}
+@media (prefers-reduced-motion: reduce){ .notefold summary::after{transition:none} }

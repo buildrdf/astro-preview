@@ -26,7 +26,7 @@ import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
-import { drawOrrery, orreryHit } from "./orrery.js?v=20260903k";
+import { drawOrrery, orreryHit } from "./orrery.js?v=20260903p";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
@@ -184,6 +184,14 @@ const FOV_MIN=10, FOV_MAX=112;
 /* past the widest field the ground falls away: orr 0 = the sky, 1 = the zodiac from above
    the Earth (orrery.js). One zoom scalar runs through both so a pinch never "ends". */
 const ORR_SPAN=70; let orr=0, wantOrr=0, orrSide=false, wheelT=null;
+/* zoomed out, a drag turns the whole system: sideways spins the Earth and its ring together,
+   up and down tips the ring from edge-on toward a plan view */
+let orrSpin=0, orrPitch=0, orrBase=null;
+/* zoomed out, time is the wrong scale: a whole day moves only the Moon. The rail becomes a
+   year, so every graha visibly walks the ring and the rashis change under them. */
+const YEAR_MS=365*864e5;
+const orrTime=()=>orr>0.5;
+const seekSpan=()=>orrTime()?YEAR_MS:864e5;
 const zoomOf=()=>wantOrr>0?FOV_MAX+ORR_SPAN*wantOrr:vFov;
 function setZoom(z){ z=Math.max(FOV_MIN,Math.min(FOV_MAX+ORR_SPAN,z)); vFov=Math.min(FOV_MAX,z); wantOrr=Math.max(0,Math.min(1,(z-FOV_MAX)/ORR_SPAN)); }
 
@@ -214,10 +222,11 @@ function loadLayers(){ try{ layers={...LAYER_DEFAULT,...JSON.parse(localStorage.
 function saveLayers(){ try{ localStorage.setItem("astro.sky.layers",JSON.stringify(layers)); }catch(_){} }
 
 const skyDate=()=>mode==="birth"?(birthSeek||new Date(birthOpts.date))
-  :custom?new Date(custom.iso):(seek||new Date());
+  :(seek||(custom?new Date(custom.iso):new Date()));
 const skySpot=()=>mode==="birth"?{lat:birthOpts.lat,lon:birthOpts.lon}:custom?custom:spot;
 const skyTz=()=>mode==="birth"?(birthOpts.tz||"Asia/Kolkata"):custom?(custom.tz||null):(spot.tz||Intl.DateTimeFormat().resolvedOptions().timeZone);
-const cacheKey=()=>mode+"|"+(mode==="birth"?(birthSeek?birthSeek.getTime():"b"):custom?custom.iso+custom.lat:seek?seek.getTime():"live");
+const cacheKey=()=>mode+"|"+(mode==="birth"?(birthSeek?birthSeek.getTime():"b")
+  :(seek?seek.getTime():custom?custom.iso+custom.lat:"live"));
 const wrap=a=>((a+180)%360+360)%360-180;
 const clampAlt=a=>Math.max(-60,Math.min(85,a));
 const buzz=n=>{ try{ navigator.vibrate&&navigator.vibrate(n); }catch(_){} };
@@ -375,7 +384,9 @@ function draw(){
   viewAz+=wrap(wantAz-viewAz)*k; viewAlt+=(wantAlt-viewAlt)*k;
   focusK+=((target?1:0)-focusK)*(reduced?1:1-Math.exp(-dt/160));
   orr+=(wantOrr-orr)*(reduced?1:1-Math.exp(-dt/150)); if(Math.abs(wantOrr-orr)<0.002) orr=wantOrr;
-  if((orr>=0.5)!==orrSide){ orrSide=orr>=0.5; buzz(8); }
+  if((orr>=0.5)!==orrSide){ orrSide=orr>=0.5; buzz(8);
+    if(orrSide) orrBase=skyDate().getTime();
+    if(el&&el.root.querySelector("#svseek")) paintSeeker(); }
   if(!cache||cache.key!==cacheKey()||tween||(mode==="now"&&!custom&&!seek&&Date.now()-cacheAt>2000)) computeSky();
   updateCamera(W,H);
   const c=ctx, ppd=ppdCenter();
@@ -803,7 +814,7 @@ function draw(){
     }
   }
   if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
-    spot:cache.sp,layers,target,reduced,now,mode,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
+    spot:cache.sp,layers,target,reduced,now,mode,spin:orrSpin,pitch:orrPitch,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
   { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const g=cp.querySelector(".skrose");
       if(g) g.setAttribute("transform",`rotate(${wrap(-viewAz).toFixed(1)} 24 24)`); } }
   /* accessibility: one sentence describing the view */
@@ -1093,11 +1104,31 @@ function paintSeeker(){
   const s=el.root.querySelector("#svseek"); if(!s) return;
   const d=skyDate(), tz=skyTz();
   const off=offsetAtTz(tz||Intl.DateTimeFormat().resolvedOptions().timeZone,d.getTime());
+  const chip=s.querySelector(".skseekchip");
+  const knob=s.querySelector(".skseekknob");
+  const rl=s.querySelector(".skseekrule");
+  if(orrTime()){
+    /* a year centred on the moment the Earth came into view */
+    const base=orrBase||d.getTime(), start=base-YEAR_MS/2;
+    const f=Math.max(0,Math.min(1,(d.getTime()-start)/YEAR_MS));
+    if(chip) chip.textContent=fmtLocal(d,tz,{day:"numeric",month:"short",year:"numeric"});
+    if(knob) knob.style.top=(f*100).toFixed(2)+"%";
+    if(rl){
+      let out="";
+      for(let i=0;i<=4;i++){ const t=new Date(start+i*YEAR_MS/4);
+        out+=`<span style="top:${(i*25).toFixed(2)}%">${t.toLocaleDateString("en-GB",{month:"short",year:"2-digit"})}</span>`; }
+      const af=(base-start)/YEAR_MS;
+      out+=`<i class="sknow" style="top:${(af*100).toFixed(2)}%"></i>`;
+      rl.innerHTML=out;
+    }
+    s.dataset.day=fmtLocal(d,tz,{year:"numeric"});
+    return;
+  }
   const localMs=d.getTime()+off; const dayStart=localMs-((localMs%864e5)+864e5)%864e5; /* local midnight */
   const frac=(localMs-dayStart)/864e5;
-  const chip=s.querySelector(".skseekchip"); if(chip) chip.textContent=fmtLocal(d,tz,{hour:"numeric",minute:"2-digit"});
-  const knob=s.querySelector(".skseekknob"); if(knob) knob.style.top=(frac*100).toFixed(2)+"%";
-  const rl=s.querySelector(".skseekrule"); if(!rl) return;
+  if(chip) chip.textContent=fmtLocal(d,tz,{hour:"numeric",minute:"2-digit"});
+  if(knob) knob.style.top=(frac*100).toFixed(2)+"%";
+  if(!rl) return;
   const mark=(dd,cls,txt)=>{ if(!dd) return ""; const f=((dd.getTime()+off)-dayStart)/864e5; if(f<0||f>1) return "";
     return `<i class="${cls}" style="top:${(f*100).toFixed(2)}%">${txt||""}</i>`; };
   rl.innerHTML=[0,3,6,9,12,15,18,21,24].map(h=>`<span style="top:${(h/24*100).toFixed(2)}%">${h===0?"12 AM":h===12?"12 PM":h===24?"12 AM":h<12?h+" AM":(h-12)+" PM"}</span>`).join("")
@@ -1112,7 +1143,8 @@ function seekTo(ms){
   const prevSel=target&&target.t==="graha"?cache.grahas.find(x=>x.g===target.g):null;
   cache=null; computeSky();
   /* haptics: hour, sunrise/sunset, the anchor, and the selected graha's sign/nakshatra edges */
-  const tz=skyTz(); const hr=Math.floor((ms+offsetAtTz(tz||Intl.DateTimeFormat().resolvedOptions().timeZone,ms))/36e5);
+  const tz=skyTz(); const unit=orrTime()?864e5*7:36e5;   /* a tick per week when a year is in hand */
+  const hr=Math.floor((ms+offsetAtTz(tz||Intl.DateTimeFormat().resolvedOptions().timeZone,ms))/unit);
   if(seekLastHour!==null&&hr!==seekLastHour) buzz(3);
   seekLastHour=hr;
   const crossed=(t)=>t&&prevSeekMs!=null&&((prevSeekMs<t.getTime())!==(ms<t.getTime()));
@@ -1138,8 +1170,9 @@ function wireSeeker(){
   s.addEventListener("pointermove",e=>{ if(!dragging) return; e.stopPropagation();
     const dy=e.clientY-startY; if(Math.abs(dy)>4&&!seekActive){ clearTimeout(holdT); expand(true); }
     if(!seekActive) return;
-    const ms=startMs+(dy/H())*864e5;     /* down = later, like reading a day top to bottom */
-    seekTo(Math.round(ms/60000)*60000); });
+    const ms=startMs+(dy/H())*seekSpan();  /* down = later, like reading top to bottom */
+    const grain=orrTime()?864e5/4:60000;    /* six-hour steps over a year, minutes over a day */
+    seekTo(Math.round(ms/grain)*grain); });
   const end=e=>{ if(!dragging) return; dragging=false; clearTimeout(holdT); setTimeout(()=>expand(false),900); };
   s.addEventListener("pointerup",end); s.addEventListener("pointercancel",end);
   s.addEventListener("keydown",e=>{ const step=e.shiftKey?60:15; let ms=skyDate().getTime();
@@ -1412,6 +1445,7 @@ export function openSkyView(opts={}){
         setZoom(pinch0.z*pinch0.d/Math.max(20,d)); return; }
       const dx=e.clientX-prev.x, dy=e.clientY-prev.y; moved+=Math.abs(dx)+Math.abs(dy);
       if(moved>10&&sensing&&followSky){ followSky=false; syncRecenter(); }
+      if(orr>0.5){ orrSpin=(orrSpin-dx*0.30)%360; orrPitch=Math.max(-24,Math.min(46,orrPitch+dy*0.16)); return; }
       /* a sideways drag has to turn MORE than dx/F when the camera is pitched: the screen
          foreshortens azimuth by cos(alt). Without this the sky slid under the finger. */
       const F=CAM.F||1, cA=Math.max(0.35,Math.cos(viewAlt*D2R));
@@ -1423,7 +1457,7 @@ export function openSkyView(opts={}){
       hitTest(cx,cy); };
     n.addEventListener("pointerup",up); n.addEventListener("pointercancel",up);
     n.addEventListener("dblclick",e=>{ if(e.target.closest(".sktop,.skside,.skseek,.skfoot,.skcard")) return;
-      if(wantOrr>0){ wantOrr=0; vFov=FOV_MAX; buzz(6); return; }
+      if(wantOrr>0){ orrSpin=0; orrPitch=0; wantOrr=0; vFov=FOV_MAX; buzz(6); return; }
       const tp=target&&targetPos(); if(tp){ aimAt(tp,{force:true}); vFov=Math.max(FOV_MIN,Math.min(vFov,40)); buzz(6); } else { vFov=62; buzz(4); } });
     n.addEventListener("wheel",e=>{ setZoom(zoomOf()*(e.deltaY>0?1.08:0.92)); },{passive:true});
   }
@@ -1451,7 +1485,7 @@ export function openSkyView(opts={}){
   if(opts.az!=null){ wantAz=viewAz=((+opts.az)%360+360)%360; }
   if(opts.alt!=null){ wantAlt=viewAlt=clampAlt(+opts.alt); }
   if(opts.fov){ vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,+opts.fov)); }
-  orr=wantOrr=0; orrSide=false;
+  orr=wantOrr=0; orrSide=false; orrSpin=0; orrPitch=0;
   if(opts.orr!=null){ orr=wantOrr=Math.max(0,Math.min(1,+opts.orr)); orrSide=orr>=0.5; if(wantOrr>0) vFov=FOV_MAX; }
   if(opts.preset&&PRESETS[opts.preset]){ layers={...layers,...PRESETS[opts.preset]}; }
   const selOf=s=>{ if(!s) return null; const m=String(s).match(/^(rashi|nak):(\d+)$/);

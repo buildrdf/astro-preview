@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903k";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903p";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903k";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903k";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903p";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903p";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1378,7 +1378,6 @@ function openAreaWhy(i, card){
         counted ${ordinal(e.houseFromMoon)} from your natal Moon, ${e.favourable?"supportive":"slower going"}.`;
     return `<div class="awinf">
       <div class="awinfhead">
-        <span class="awn">${n}</span>
         <img class="awart" src="assets/graha/${e.graha.toLowerCase()}.png" alt="">
         <div><b>${e.graha}</b><span>${where}</span></div>
       </div>
@@ -2678,6 +2677,30 @@ function wireChips(scope){
    =================================================================== */
 const GUIDE_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/guide";
 const GUIDE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpqcmh0bWV5cW9ncml1Y3Frd2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMTgzNzEsImV4cCI6MjEwMzc5NDM3MX0.DLp2GtNvPnxv8De3cWwkuWN2yb2KQ5lmrtUP1wqy4S8";
+
+/* ---- TEXT DENSITY ------------------------------------------------
+   Methodology belongs in the app, not on top of it. Any standing note
+   long enough to be a paragraph folds behind one line; short ones are
+   left where they are. One rule, every surface, nothing deleted. */
+function foldNotes(root){
+  const host=root||document;
+  for(const n of host.querySelectorAll("p.note:not([data-fold])")){
+    n.dataset.fold="1";
+    if((n.textContent||"").trim().length<=120) continue;
+    const d=document.createElement("details");
+    d.className="notefold";
+    const sum=document.createElement("summary");
+    sum.textContent="How this is worked out";
+    d.appendChild(sum);
+    n.replaceWith(d);
+    d.appendChild(n);
+  }
+}
+let foldTimer=null;
+try{
+  new MutationObserver(()=>{ clearTimeout(foldTimer); foldTimer=setTimeout(()=>foldNotes(),60); })
+    .observe(document.body,{childList:true,subtree:true});
+}catch(_){}
 
 const escText=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -6044,7 +6067,26 @@ function openEventWhy(i, card){
   const d=new Date(e.d+"T12:00:00");
   const now=CHART.dasha.at(d);
   const pos=positions(d), retro=retrograde(d);
+  const p3=now?pratAt(d,now):null;
+  const sati=satiAt(d);
+  const contacts={};
+  for(const g of ["Saturn","Jupiter","Rahu","Ketu","Mars"]){
+    try{ contacts[g]=pairFor(g,d).toNatal; }catch(_){ contacts[g]=null; }
+  }
+  /* the slow movers, with the ones touching this kind of event's houses first. Order only —
+     nothing is filtered out, and nothing is claimed to have caused anything. */
+  const KIND_HOUSES={career:[10,6,3,1],relationship:[7,5,11],home:[4,2,12],
+    health:[1,6,8],study:[9,12,5],milestone:[],loss:[]};
+  const want=KIND_HOUSES[e.k]||[];
+  const slow=["Saturn","Jupiter","Rahu","Ketu"].sort((a,b)=>
+    (want.includes(CHART.houseOfSign(signOf(pos[b])))?1:0)-(want.includes(CHART.houseOfSign(signOf(pos[a])))?1:0));
   const FEEL={good:"a happy one",hard:"a hard one",neutral:"one you marked"};
+  /* the user's own marking frames the reading. Co-presence only: what was running at that
+     time, set beside the memory — never offered as its cause (CLAUDE.md 51). */
+  const FEEL_FRAME={
+    good:"You marked this a happy one. Here is what was running underneath it, within this tradition, set alongside your memory rather than offered as its cause.",
+    hard:"You marked this a hard one. Here is what was running underneath it, within this tradition, set alongside your memory rather than offered as its cause.",
+    neutral:"Here is what was running underneath this date, within this tradition, set alongside your memory rather than offered as its cause."};
   const moonH=CHART.houseOfSign(signOf(pos.Moon));
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const ov=document.createElement("div");
@@ -6061,19 +6103,33 @@ function openEventWhy(i, card){
           <span>${fmtDate(d)} &#183; ${EVENT_KINDS[e.k]||e.k} &#183; ${FEEL[e.f]||FEEL.neutral}</span></div>
       </div>
       ${e.n?`<p class="awlead" style="font-style:italic;margin-top:10px">&#8220;${escText(e.n)}&#8221;</p>`:""}
+      <p class="awlead">${FEEL_FRAME[e.f]||FEEL_FRAME.neutral}</p>
       <h2 class="awh2">The period you were in</h2>
       ${now?`<p class="awbody">You were in a <b>${now.maha.lord} mahadasha</b>, inside its
         <b>${now.antar.lord} antardasha</b> (${fmtDate(now.antar.start)} to
-        ${fmtDate(now.antar.end)}). ${DASHA_THEME[now.maha.lord].split(" &#8212; ")[0]}
-        &#8212; and a ${now.antar.lord} stretch traditionally ${ANTAR_FLAVOR[now.antar.lord]}.</p>`
+        ${fmtDate(now.antar.end)}). ${DASHA_THEME[now.maha.lord]}
+        A ${now.antar.lord} stretch inside it is traditionally read as one that
+        ${ANTAR_FLAVOR[now.antar.lord]}.</p>
+        ${p3?`<p class="because">Finer still, a <b>${p3.lord} pratyantardasha</b> ran from
+          ${fmtDate(p3.start)} to ${fmtDate(p3.end)}.</p>`:""}`
         :`<p class="awbody">This date falls outside the computed dasha range.</p>`}
+      ${sati?`<div class="satistrip" style="margin:14px 0">${gIcon("Saturn",18)}
+        <div><b>Sade Sati &#183; ${sati.ph.phase} phase</b>
+          <span class="evmeta">${fmtDate(sati.ph.start)} &#8211; ${fmtDate(sati.ph.end)}</span></div></div>
+        <p class="because">${SPECIAL.sadeSati.body}</p>`:""}
       <h2 class="awh2">The sky that day</h2>
       <p class="awbody">The Moon was moving through your ${ordinal(moonH)} house
         &#8212; ${HOUSE_TRANSIT_SENSE[moonH]}.</p>
-      ${["Saturn","Jupiter","Rahu","Ketu"].map(g=>{
+      ${slow.map(g=>{
         const h=CHART.houseOfSign(signOf(pos[g]));
+        const tn=contacts[g];
+        const hit=[
+          tn&&tn.conjunctNatal&&tn.conjunctNatal.length?`within orb of your natal ${tn.conjunctNatal.map(x=>x.graha).join(" and ")}`:"",
+          tn&&tn.aspectsNatal&&tn.aspectsNatal.length?`casting drishti on your natal ${tn.aspectsNatal.map(x=>x.graha).join(" and ")}`:""
+        ].filter(Boolean).join(", ");
         return `<p class="awbody"><b>${g}</b> was crossing your ${ordinal(h)} house
-          &#8212; ${HOUSE_TRANSIT_SENSE[h]}${retro[g]&&g!=="Rahu"&&g!=="Ketu"?", retrograde":""}.</p>`;
+          &#8212; ${HOUSE_TRANSIT_SENSE[h]}${retro[g]&&g!=="Rahu"&&g!=="Ketu"?", retrograde":""}.</p>
+          ${hit?`<p class="because">At that time it was ${hit}.</p>`:""}`;
       }).join("")}
       <div class="awctas" style="margin-top:14px">
         <button class="awcta" data-act="guide">Ask Guide about this event</button>
@@ -6091,8 +6147,9 @@ function openEventWhy(i, card){
     buzz(9);
     if(b.dataset.act==="guide") close(()=>askGuide(
       "What was happening astrologically when this happened?",
-      {source:"life_event",title:e.t,date:e.d,
-       mahadasha:now?now.maha.lord:undefined,antardasha:now?now.antar.lord:undefined}));
+      {source:"life_event",title:e.t,date:e.d,feel:e.f,note:e.n||undefined,
+       mahadasha:now?now.maha.lord:undefined,antardasha:now?now.antar.lord:undefined,
+       pratyantardasha:p3?p3.lord:undefined,sadeSati:sati?sati.ph.phase:undefined}));
     else close(()=>{ go(YOU_INDEX); subArg=i; subView="addevent"; renderSub(); });
   };
 }

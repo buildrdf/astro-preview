@@ -14,7 +14,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902k";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902l";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
@@ -7048,6 +7048,7 @@ setTimeout(()=>{
       mode:q.get("mode")||"now",pro:true,birth:skyBirthOpts()};
     for(const k of ["at","az","alt","fov","sel","preset","state"]) if(q.get(k)!=null) o[k]=q.get(k);
     o.quiet=q.get("quiet")!=="0"; o.artPending=q.get("art")==="pending";
+    if(q.get("orr")!=null) o.orr=+q.get("orr");
     if(q.get("t")) o.at=q.get("t");
     if(q.get("hints")!=="1") try{ localStorage.setItem("astro.sky.hints",JSON.stringify({move:1,pinch:1,time:1})); }catch(_){}
     openSkyView(o);

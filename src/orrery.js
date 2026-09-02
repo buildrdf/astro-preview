@@ -1,0 +1,309 @@
+/* ====================================================================
+   ORRERY — the zodiac seen from above the Earth
+   --------------------------------------------------------------------
+   Pinch past the widest sky view and the ground falls away: the globe
+   you were standing on shrinks to a sphere, and the ribbon that arched
+   over your head becomes the ring it always was — the zodiac around the
+   Earth, with every graha at its sidereal longitude for the moment on
+   the seeker. The Moon rides an inner ring with Rahu and Ketu on it
+   (they are the Moon's nodes). The rising sign points at the ring.
+
+   It is a chart in space, not a scale model, and the caption says so.
+   Same objects, same names, same taps as the sky. No new screen.
+
+   drawOrrery(ctx, W, H, k, env)  k: 0 = the sky, 1 = the orrery
+   orreryHit(x, y)                the object under a tap, or null
+   ==================================================================== */
+import { drawGraha, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
+
+const D2R=Math.PI/180;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>{ t=clamp(t,0,1); return t*t*(3-2*t); };
+const NSPAN=360/27;
+const sgOf=L=>Math.floor((((L%360)+360)%360)/30);
+const nkOf=L=>Math.floor((((L%360)+360)%360)/NSPAN);
+const norm=L=>((L%360)+360)%360;
+
+/* The Earth's land as soft blobs [lat, lon, radius in degrees]. This is
+   an emblem of home at 60–140 px, not a map: enough that Africa, the
+   Americas, Eurasia and Australia read at a glance. */
+const LAND=[
+  /* Africa */ [5,20,22],[-15,22,15],[20,5,14],[25,20,12],[-28,25,8],[10,40,7],
+  /* Europe */ [50,10,10],[55,30,9],[42,20,6],[40,-4,5],[60,15,6],[62,30,7],
+  /* Asia */ [55,70,20],[45,100,20],[30,90,14],[60,110,14],[65,140,12],[35,110,10],
+             [20,78,12],[48,135,7],[10,102,7],[25,52,8],[33,60,8],[40,45,6],[70,100,10],
+  /* North America */ [45,-100,20],[60,-110,16],[35,-100,12],[65,-150,10],[30,-90,8],
+             [20,-100,6],[50,-70,8],[72,-40,12],[58,-130,8],
+  /* South America */ [-5,-60,16],[-20,-55,12],[-32,-64,8],[5,-70,8],[-45,-70,5],
+  /* Australia */ [-25,135,13],[-20,125,6],[-38,145,5],[-40,172,4],
+  /* Antarctica */ [-85,0,20],[-78,60,10],[-78,-60,10],[-75,150,8],
+];
+const RING_R={Sun:15,Moon:10,Mars:9,Mercury:8,Jupiter:12,Venus:9.5,Saturn:11,Rahu:7,Ketu:7};
+
+/* a fixed field of faint stars behind the scene — seeded, never random per frame */
+let STARS=null;
+function starField(W,H){
+  if(STARS&&STARS.W===W&&STARS.H===H) return STARS.pts;
+  let s=987654321; const rnd=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  const pts=[]; for(let i=0;i<160;i++) pts.push({x:rnd()*W,y:rnd()*H,r:0.35+rnd()*1.05,a:0.18+rnd()*0.55});
+  STARS={W,H,pts}; return pts;
+}
+
+/* the last frame's layout, for taps */
+let LAST={planets:[],ring:[],band:0,names:null};
+
+function text(c,txt,x,y,fill,font,align="center",halo="rgba(4,5,18,.82)"){
+  c.save(); c.font=font; c.textAlign=align; c.textBaseline="middle"; c.lineJoin="round";
+  c.lineWidth=3; c.strokeStyle=halo; c.strokeText(txt,x,y); c.fillStyle=fill; c.fillText(txt,x,y); c.restore();
+}
+const sysF=(px,w)=>`${w||500} ${px}px -apple-system,system-ui,sans-serif`;
+const devF=px=>`600 ${px}px "Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",-apple-system,system-ui,sans-serif`;
+
+/* the rising sign for this moment: where the ecliptic crosses the eastern horizon */
+export function risingLongitude(ecl){
+  if(!ecl||ecl.length<3) return null;
+  let east=null, any=null;
+  for(let i=0;i<ecl.length-1;i++){ const a=ecl[i], b=ecl[i+1];
+    if(!Number.isFinite(a.alt)||!Number.isFinite(b.alt)) continue;
+    if(a.alt>0&&b.alt<=0){ const t=a.alt/(a.alt-b.alt); const L=a.L+(b.L-a.L)*t; const az=(a.az+b.az)/2;
+      if(any==null) any=L; if(az<180&&east==null) east=L; } }
+  return east!=null?east:any;
+}
+
+/* a small label ledger of its own — the sky's ledger reserves room for sky chrome */
+function ledger(W,H,top,bottom){
+  const boxes=[];
+  const hit=(b,x,y,w,h)=>Math.abs(b.x-x)<(b.w+w)/2+5&&Math.abs(b.y-y)<(b.h+h)/2+3;
+  return {
+    claim(x,y,w,h){ boxes.push({x,y,w,h}); },
+    place(x,y,w,h,anchors){
+      for(const [dx,dy] of anchors){ const px=x+dx, py=y+dy;
+        if(px-w/2<4||px+w/2>W-4||py<top||py>H-bottom) continue;
+        if(!boxes.some(b=>hit(b,px,py,w,h))){ boxes.push({x:px,y:py,w,h}); return [px,py]; } }
+      return null; }
+  };
+}
+
+/* ---- the Earth ------------------------------------------------------ */
+function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA){
+  const lat0=(spot?.lat||0)*D2R, lon0=(spot?.lon||0)*D2R;
+  const tilt=lat0-26*D2R;                       /* the observer sits a little above the disc centre */
+  const proj=(la,lo)=>{ const f=la*D2R, l=lo*D2R-lon0;
+    const X=Math.cos(f)*Math.sin(l), Y=Math.sin(f), Z=Math.cos(f)*Math.cos(l);
+    const y2=Y*Math.cos(tilt)-Z*Math.sin(tilt), z2=Y*Math.sin(tilt)+Z*Math.cos(tilt);
+    return {x:cx+X*R, y:cy-y2*R, z:z2, X, y2}; };
+  /* atmosphere: a cool rim outside the disc, brighter toward the light */
+  const ar=c.createRadialGradient(cx,cy,R*0.98,cx,cy,R*1.18);
+  ar.addColorStop(0,"rgba(120,178,255,.55)"); ar.addColorStop(0.45,"rgba(110,170,255,.18)"); ar.addColorStop(1,"rgba(100,160,255,0)");
+  c.fillStyle=ar; c.beginPath(); c.arc(cx,cy,R*1.18,0,7); c.fill();
+  /* ocean */
+  const og=c.createRadialGradient(cx+light.x*R*0.4,cy+light.y*R*0.4,R*0.05,cx,cy,R);
+  og.addColorStop(0,"#4a93d6"); og.addColorStop(0.55,"#20579a"); og.addColorStop(1,"#0d2a55");
+  c.fillStyle=og; c.beginPath(); c.arc(cx,cy,R,0,7); c.fill();
+  /* land */
+  c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
+  c.globalAlpha*=landA;
+  for(const [la,lo,rad] of LAND){ const p=proj(la,lo); if(p.z<=0.03) continue;
+    const rr=rad*D2R*R*0.95; const ang=Math.atan2(p.y-cy,p.x-cx);
+    const a=Math.abs(la);
+    c.fillStyle=a>62?"rgba(214,222,226,.92)":a>40?"rgba(128,152,104,.95)":a>17&&a<34?"rgba(190,168,112,.95)":"rgba(104,146,92,.95)";
+    c.beginPath(); c.ellipse(p.x,p.y,Math.max(1,rr*Math.max(0.12,p.z)),Math.max(1,rr),ang,0,7); c.fill(); }
+  c.globalAlpha/=Math.max(0.001,landA);
+  /* a thin veil of cloud on the lit side */
+  const cg=c.createRadialGradient(cx+light.x*R*0.5,cy+light.y*R*0.5,R*0.1,cx+light.x*R*0.2,cy+light.y*R*0.2,R*1.1);
+  cg.addColorStop(0,"rgba(255,255,255,.22)"); cg.addColorStop(0.5,"rgba(255,255,255,.08)"); cg.addColorStop(1,"rgba(255,255,255,0)");
+  c.fillStyle=cg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  /* night: the terminator runs across the light vector */
+  const tg=c.createLinearGradient(cx+light.x*R,cy+light.y*R,cx-light.x*R,cy-light.y*R);
+  tg.addColorStop(0,"rgba(2,4,16,0)"); tg.addColorStop(0.40,"rgba(2,4,16,0)"); tg.addColorStop(0.58,"rgba(2,4,16,.62)"); tg.addColorStop(1,"rgba(2,4,16,.90)");
+  c.fillStyle=tg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  /* limb darkening + a bright edge on the day side */
+  const lg=c.createRadialGradient(cx,cy,R*0.72,cx,cy,R);
+  lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,4,20,.45)");
+  c.fillStyle=lg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  c.restore();
+  const la=Math.atan2(light.y,light.x);
+  c.strokeStyle="rgba(190,225,255,.55)"; c.lineWidth=Math.max(1,R*0.012);
+  c.beginPath(); c.arc(cx,cy,R-c.lineWidth/2,la-1.55,la+1.55); c.stroke();
+  /* you: a small mark where this sky is being watched from */
+  if(e>0.55&&spot){ const p=proj(spot.lat,spot.lon); if(p.z>0){
+    const a=(e-0.55)/0.45; const pulse=reduced?0:0.5+0.5*Math.sin(now/600);
+    c.strokeStyle=`rgba(255,244,214,${0.5*a})`; c.lineWidth=1.2; c.beginPath(); c.arc(p.x,p.y,4+pulse*3,0,7); c.stroke();
+    c.fillStyle=`rgba(255,250,235,${a})`; c.beginPath(); c.arc(p.x,p.y,2.4,0,7); c.fill();
+    if(R>44) text(c,"You",p.x+9,p.y,`rgba(241,231,201,${0.95*a})`,sysF(10,600),"left");
+  } }
+}
+
+/* ---- the scene ------------------------------------------------------ */
+export function drawOrrery(c,W,H,k,env){
+  const e=smooth(k); if(k<=0.002) return;
+  const cover=smooth(clamp(k*2.2,0,1));                     /* the sky is gone well before the chart settles */
+  const sc=smooth(clamp((k-0.12)/0.88,0,1));               /* ring + bodies */
+  const landA=smooth(clamp((k-0.5)/0.4,0,1));              /* continents only once it is a globe */
+  const {grahas,layers,target,names,reduced,now}=env;
+  const S=clamp(Math.min(W,H)/390,0.9,1.5);                /* phone → tablet scale */
+  const sunG=grahas.find(g=>g.g==="Sun"), moonG=grahas.find(g=>g.g==="Moon");
+  const ascL=env.asc!=null?env.asc:risingLongitude(env.ecl);
+  const asc=ascL!=null?ascL:(sunG?sunG.L+90:0);
+
+  /* geometry: the globe shrinks from underfoot to the centre; the ring
+     opens from edge-on around you to the tilted zodiac */
+  const R1=Math.min(W,H)*0.175, cy1=H*0.47;
+  const RE=lerp(Math.max(W,H)*2.4,R1,e);
+  const topY=lerp(H*0.66,cy1-R1,e);
+  const ecx=W/2, ecy=topY+RE;
+  const geo={cx:W/2, cy:lerp(H*0.64,cy1,e), R:lerp(Math.max(W,H)*1.15,Math.min(W,H)*0.47,e), sy:lerp(0.05,0.44,e), asc};
+  const geoM={...geo,R:geo.R*0.60};
+  const pt=(L,g=geo)=>{ const th=Math.PI+(L-g.asc)*D2R; return {x:g.cx+g.R*Math.cos(th), y:g.cy-g.R*g.sy*Math.sin(th), d:Math.sin(th), th}; };
+  const band=clamp(geo.R*0.16,14,48);
+
+  c.save();
+  c.globalAlpha=cover;
+  /* space */
+  const bg=c.createRadialGradient(W/2,H*0.45,0,W/2,H*0.45,Math.max(W,H)*0.9);
+  bg.addColorStop(0,"#0b1030"); bg.addColorStop(0.6,"#060820"); bg.addColorStop(1,"#03040f");
+  c.fillStyle=bg; c.fillRect(0,0,W,H);
+  for(const s of starField(W,H)){ c.fillStyle=`rgba(226,232,255,${s.a})`; c.beginPath(); c.arc(s.x,s.y,s.r,0,7); c.fill(); }
+  c.globalAlpha=sc;
+
+  /* light: from the Earth toward the Sun on the ring */
+  const sp=sunG?pt(sunG.L):{x:ecx+1,y:ecy-1};
+  let lx=sp.x-ecx, ly=sp.y-ecy; const ll=Math.hypot(lx,ly)||1; lx/=ll; ly/=ll;
+  const light={x:lx,y:ly};
+
+  /* the ring, drawn twice: the far half behind the Earth, the near half in front */
+  const ringSamples=[]; for(let L=0;L<360;L+=5){ const p=pt(L); ringSamples.push({L,x:p.x,y:p.y}); }
+  const focusSign=target?.t==="graha"?sgOf(grahas.find(x=>x.g===target.g)?.L??0):target?.t==="rashi"?target.i:null;
+  const sector=(i,inner,outer)=>{ c.beginPath();
+    for(let j=0;j<=6;j++){ const L=i*30+j*5, th=Math.PI+(L-asc)*D2R; c.lineTo(geo.cx+outer*Math.cos(th),geo.cy-outer*geo.sy*Math.sin(th)); }
+    for(let j=6;j>=0;j--){ const L=i*30+j*5, th=Math.PI+(L-asc)*D2R; c.lineTo(geo.cx+inner*Math.cos(th),geo.cy-inner*geo.sy*Math.sin(th)); }
+    c.closePath(); };
+  const drawRing=far=>{
+    c.save(); c.beginPath(); c.rect(0,far?-10:geo.cy,W+20,far?geo.cy+10:H-geo.cy+10); c.clip();
+    if(layers.rashis!==false){
+      for(let i=0;i<12;i++){ sector(i,geo.R-band/2,geo.R+band/2);
+        c.fillStyle=focusSign===i?"rgba(232,204,146,.30)":(i%2?"rgba(122,134,196,.17)":"rgba(122,134,196,.11)"); c.fill();
+        c.strokeStyle="rgba(200,210,244,.28)"; c.lineWidth=0.8; c.stroke(); }
+      c.beginPath(); c.ellipse(geo.cx,geo.cy,geo.R+band/2,(geo.R+band/2)*geo.sy,0,0,7); c.strokeStyle="rgba(230,236,255,.42)"; c.lineWidth=1; c.stroke();
+      c.beginPath(); c.ellipse(geo.cx,geo.cy,geo.R-band/2,(geo.R-band/2)*geo.sy,0,0,7); c.strokeStyle="rgba(0,2,12,.45)"; c.lineWidth=1; c.stroke();
+      /* nakshatra ticks on the inner edge */
+      if(layers.naks!==false&&e>0.5){ c.strokeStyle="rgba(200,210,244,.5)"; c.lineWidth=0.8;
+        for(let n=0;n<27;n++){ const L=n*NSPAN, th=Math.PI+(L-asc)*D2R; const r0=geo.R-band/2, r1=r0+band*0.22;
+          c.beginPath(); c.moveTo(geo.cx+r0*Math.cos(th),geo.cy-r0*geo.sy*Math.sin(th)); c.lineTo(geo.cx+r1*Math.cos(th),geo.cy-r1*geo.sy*Math.sin(th)); c.stroke(); } }
+      /* engraved names along the band */
+      if(band>=18) for(let i=0;i<12;i++){ const m=pt(i*30+15); if(far?m.d<=0:m.d>0) continue;
+        const a=pt(i*30+11), b=pt(i*30+19); let ang=Math.atan2(b.y-a.y,b.x-a.x); if(ang>Math.PI/2) ang-=Math.PI; else if(ang<-Math.PI/2) ang+=Math.PI;
+        const depth=lerp(0.72,1.1,(1-m.d)/2)*(focusSign===i?1.08:1);
+        const two=band>=26;
+        c.save(); c.translate(m.x,m.y); c.rotate(ang); c.textAlign="center"; c.textBaseline="middle";
+        const dev=names.SIGNS_DEV[i], lat=(layers.sanskrit?names.SIGNS_SK:names.SIGNS_EN)[i];
+        const fz=clamp(band*0.40,9,14)*depth;
+        c.font=devF(fz); c.fillStyle="rgba(18,14,8,.6)"; c.fillText(dev,0.7,(two?-band*0.20:0)+0.9);
+        c.fillStyle=focusSign===i?"rgba(255,246,222,.98)":"rgba(236,238,250,.88)"; c.fillText(dev,0,two?-band*0.20:0);
+        if(two){ c.font=sysF(clamp(band*0.29,8,11)*depth,600); c.fillStyle="rgba(18,14,8,.5)"; c.fillText(lat,0.6,band*0.22+0.8);
+          c.fillStyle=focusSign===i?"rgba(255,246,222,.9)":"rgba(210,216,240,.8)"; c.fillText(lat,0,band*0.22); }
+        c.restore(); }
+    }
+    /* the Moon's ring */
+    c.setLineDash([3,5]); c.strokeStyle="rgba(214,226,255,.32)"; c.lineWidth=1;
+    c.beginPath(); c.ellipse(geoM.cx,geoM.cy,geoM.R,geoM.R*geoM.sy,0,0,7); c.stroke(); c.setLineDash([]);
+    c.restore();
+  };
+  drawRing(true);
+
+  /* the bodies, sorted back to front */
+  const bodies=[];
+  const elong=sunG&&moonG?norm(moonG.L-sunG.L):0;
+  const phase={illum:(1-Math.cos(elong*D2R))/2,waxing:elong<180};
+  for(const g of grahas){
+    if(layers.planets===false) continue;
+    const onMoonRing=g.g==="Moon"||g.g==="Rahu"||g.g==="Ketu";
+    const p=pt(g.L,onMoonRing?geoM:geo);
+    const r=(RING_R[g.g]||9)*S*lerp(0.55,1,e);
+    const hidden=p.d>0&&Math.hypot(p.x-ecx,p.y-ecy)<RE*(onMoonRing?0.98:1);
+    bodies.push({g:g.g,L:g.L,retro:g.retro,x:p.x,y:p.y,d:p.d,r,hidden,onMoonRing});
+  }
+  bodies.sort((a,b)=>b.d-a.d);
+  const drawBody=b=>{
+    if(b.hidden) return;
+    const isT=target?.t==="graha"&&target.g===b.g;
+    let vx=sp.x-b.x, vy=sp.y-b.y; const vl=Math.hypot(vx,vy)||1;
+    const lightB=b.g==="Sun"?{x:-0.55,y:-0.6}:{x:vx/vl,y:vy/vl};
+    if(b.g==="Sun"){ const sg=c.createRadialGradient(b.x,b.y,b.r*0.8,b.x,b.y,b.r*4.2);
+      sg.addColorStop(0,"rgba(255,222,160,.34)"); sg.addColorStop(0.4,"rgba(255,210,140,.10)"); sg.addColorStop(1,"rgba(255,200,130,0)");
+      c.fillStyle=sg; c.beginPath(); c.arc(b.x,b.y,b.r*4.2,0,7); c.fill(); }
+    if(isT){ const tone=GRAHA_BASE[b.g]?.token||"241,231,201";
+      const hg=c.createRadialGradient(b.x,b.y,b.r*0.9,b.x,b.y,b.r*2.8);
+      hg.addColorStop(0,`rgba(${tone},.22)`); hg.addColorStop(1,`rgba(${tone},0)`);
+      c.fillStyle=hg; c.beginPath(); c.arc(b.x,b.y,b.r*2.8,0,7); c.fill();
+      c.strokeStyle="rgba(241,231,201,.65)"; c.lineWidth=1.2; c.beginPath(); c.arc(b.x,b.y,b.r+6,0,7); c.stroke(); }
+    drawGraha(c,b.g,b.x,b.y,b.r,{light:lightB,phase:b.g==="Moon"?phase:undefined,quality:b.r>=13?"high":"low",focus:isT});
+  };
+  for(const b of bodies) if(b.d>0) drawBody(b);
+
+  /* the rising sign: a line from the Earth's edge to the ring */
+  if(ascL!=null&&e>0.3){ const a=pt(ascL); const dx=a.x-ecx, dy=a.y-ecy, dl=Math.hypot(dx,dy)||1;
+    const sx=ecx+dx/dl*RE*1.02, sy2=ecy+dy/dl*RE*1.02;
+    if(dl>RE*1.1){ c.save(); c.strokeStyle="rgba(226,190,100,.55)"; c.lineWidth=1; c.setLineDash([2,4]);
+      c.beginPath(); c.moveTo(sx,sy2); c.lineTo(a.x-dx/dl*band*0.55,a.y-dy/dl*band*0.55); c.stroke(); c.setLineDash([]); c.restore(); }
+  }
+
+  c.globalAlpha=cover; drawEarth(c,ecx,ecy,RE,light,env.spot,e,now,reduced,landA); c.globalAlpha=sc;
+  drawRing(false);
+  for(const b of bodies) if(b.d<=0) drawBody(b);
+
+  /* the rising-sign marker sits on the ring, over everything */
+  if(ascL!=null&&e>0.3){ const a=pt(ascL); const isT=target?.t==="asc";
+    c.save(); c.translate(a.x,a.y); c.rotate(Math.PI/4); c.fillStyle=`rgba(226,190,100,${isT?1:.92})`; c.strokeStyle="rgba(255,240,200,.9)"; c.lineWidth=1.1;
+    c.beginPath(); c.rect(-5,-5,10,10); c.fill(); c.stroke(); c.restore(); }
+
+  /* labels */
+  const LABELS=[];
+  if(k>0.6){
+    const la=smooth((k-0.6)/0.4);
+    const Ld=ledger(W,H,96,env.padBottom||150);
+    for(const b of bodies) if(!b.hidden) Ld.claim(b.x,b.y,2*b.r+8,2*b.r+8);
+    Ld.claim(ecx,ecy,1.3*RE,1.3*RE);
+    const ordered=[...bodies].filter(b=>!b.hidden).sort((a,b)=>((target?.t==="graha"&&target.g===b.g)?1:0)-((target?.t==="graha"&&target.g===a.g)?1:0));
+    for(const b of ordered){
+      const isT=target?.t==="graha"&&target.g===b.g;
+      const txt=b.g+(b.retro&&b.g!=="Rahu"&&b.g!=="Ketu"?" ℞":"");
+      const font=sysF(isT?13.5:11.5,isT?700:600); c.font=font; const w=c.measureText(txt).width+4;
+      const pos=Ld.place(b.x,b.y,w,14,[[0,b.r+14],[0,-b.r-13],[b.r+w/2+9,0],[-b.r-w/2-9,0]]);
+      if(!pos) continue;
+      LABELS.push(txt);
+      const dimA=target&&!isT?0.6:1;
+      text(c,txt,pos[0],pos[1],`rgba(245,246,252,${la*dimA})`,font);
+      if(isT){ const s=sgOf(b.L), n=nkOf(b.L); const sub=`${names.SIGNS_DEV[s]} ${layers.sanskrit?names.SIGNS_SK[s]:names.SIGNS_EN[s]} · ${names.NAKS[n]}`;
+        c.font=devF(10.5); const w2=c.measureText(sub).width+4; const below=pos[1]>b.y;
+        const p2=Ld.place(pos[0],pos[1],w2,13,[[0,below?14:-14]]);
+        if(p2) text(c,sub,p2[0],p2[1],`rgba(224,206,160,${la})`,devF(10.5)); }
+    }
+    if(ascL!=null){ const a=pt(ascL); const s=sgOf(ascL);
+      const t=env.mode==="birth"?`${names.SIGNS_EN[s]} Lagna`:`${names.SIGNS_EN[s]} rising`;
+      c.font=sysF(11,700); const w=c.measureText(t).width+4;
+      const pos=Ld.place(a.x,a.y,w,14,[[0,-band*0.5-12],[0,band*0.5+12],[w/2+12,0],[-w/2-12,0]]);
+      if(pos) text(c,t,pos[0],pos[1],`rgba(241,231,201,${la})`,sysF(11,700)); }
+    /* caption: what this is, and how to leave */
+    const capY=Math.min(H-(env.padBottom||150)+14, geo.cy+geo.R*geo.sy+band+34);
+    text(c,"The zodiac from above the Earth · not to scale",W/2,capY,`rgba(200,206,236,${0.85*la})`,sysF(11,500));
+    if(!target) text(c,"Spread two fingers to return to the sky",W/2,capY+16,`rgba(160,168,208,${0.8*la})`,sysF(10.5,500));
+  }
+  c.restore();
+  LAST={planets:bodies.filter(b=>!b.hidden),ring:ringSamples,band,names,e,labels:LABELS};
+}
+
+/* the object under a tap: a graha first, then the ring's rashi */
+export function orreryHit(x,y){
+  let best=null,bd=26;
+  for(const b of LAST.planets){ const d=Math.hypot(b.x-x,b.y-y)-b.r*0.4; if(d<bd){ bd=d; best={t:"graha",g:b.g,label:b.g,kind:"graha"}; } }
+  if(best) return best;
+  let bi=-1,bdd=1e9;
+  for(const s of LAST.ring){ const d=Math.hypot(s.x-x,s.y-y); if(d<bdd){ bdd=d; bi=s.L; } }
+  if(bi>=0&&bdd<LAST.band/2+14&&LAST.names){ const i=sgOf(bi); return {t:"rashi",i,label:`${LAST.names.SIGNS_SK[i]} · ${LAST.names.SIGNS_EN[i]}`,kind:"rashi"}; }
+  return null;
+}
+
+/* for the phase gates: what the last frame laid out */
+export function orreryDebug(){ return {labels:LAST.labels||[],planets:(LAST.planets||[]).map(b=>b.g),at:(LAST.planets||[]).map(b=>({g:b.g,x:Math.round(b.x),y:Math.round(b.y)})),band:LAST.band,e:LAST.e}; }

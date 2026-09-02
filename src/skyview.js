@@ -26,6 +26,7 @@ import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
+import { drawOrrery, orreryHit } from "./orrery.js?v=20260902l";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
@@ -172,6 +173,12 @@ let QUIET=false;   /* test states: no toasts, no motion pill (screenshots must c
 let revealBelow=false;   /* ground as glass to show a target that is below the horizon */
 let vFov=62;                            /* vertical field of view, degrees */
 const FOV_MIN=10, FOV_MAX=112;
+/* past the widest field the ground falls away: orr 0 = the sky, 1 = the zodiac from above
+   the Earth (orrery.js). One zoom scalar runs through both so a pinch never "ends". */
+const ORR_SPAN=70; let orr=0, wantOrr=0, orrSide=false, wheelT=null;
+const zoomOf=()=>wantOrr>0?FOV_MAX+ORR_SPAN*wantOrr:vFov;
+function setZoom(z){ z=Math.max(FOV_MIN,Math.min(FOV_MAX+ORR_SPAN,z)); vFov=Math.min(FOV_MAX,z); wantOrr=Math.max(0,Math.min(1,(z-FOV_MAX)/ORR_SPAN)); }
+function snapOrr(){ if(wantOrr>0&&wantOrr<1){ wantOrr=wantOrr>0.4?1:0; if(!wantOrr) vFov=FOV_MAX; } }
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
 let cache=null, cacheAt=0, target=null, focusK=0;
 let mode="now", birthOpts=null, proUser=false, custom=null;
@@ -348,6 +355,8 @@ function draw(){
   const k=reduced?1:1-Math.exp(-dt/110);
   viewAz+=wrap(wantAz-viewAz)*k; viewAlt+=(wantAlt-viewAlt)*k;
   focusK+=((target?1:0)-focusK)*(reduced?1:1-Math.exp(-dt/160));
+  orr+=(wantOrr-orr)*(reduced?1:1-Math.exp(-dt/150)); if(Math.abs(wantOrr-orr)<0.002) orr=wantOrr;
+  if((orr>=0.5)!==orrSide){ orrSide=orr>=0.5; buzz(8); }
   if(!cache||cache.key!==cacheKey()||tween||(mode==="now"&&!custom&&!seek&&Date.now()-cacheAt>2000)) computeSky();
   updateCamera(W,H);
   const c=ctx, ppd=ppdCenter();
@@ -718,7 +727,7 @@ function draw(){
     if(pos) haloText(c,t,pos[0],pos[1],"rgba(241,231,201,.95)",sysF(11.5,700)); } }
 
   /* --- the guide: halo on the target, or an edge pointer to it --- */
-  if(tgt){
+  if(tgt&&orr<0.5){
     const [x,y]=tgtXY;
     const inside=Number.isFinite(x)&&x>36&&x<W-36&&y>110&&y<H-150;
     if(inside){
@@ -746,12 +755,14 @@ function draw(){
       haloText(c,lbl,Math.max(60,Math.min(W-60,ex)),ey+(Math.sin(ang)>0?-22:24),"rgba(241,231,201,.95)",sysF(11.5,600));
     }
   }
+  if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
+    spot:cache.sp,layers,target,reduced,now,mode,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
   { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const i=cp.querySelector("i"); if(i) i.style.transform=`rotate(${-viewAz}deg)`; } }
   /* accessibility: one sentence describing the view */
   if(now-(el._ariaAt||0)>1500){ el._ariaAt=now;
     const dir=["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round((((viewAz%360)+360)%360)/45)%8];
     const vis=discs.filter(d=>d.vis&&d.p.up).map(d=>d.p.g);
-    el.canvas.setAttribute("aria-label",`Looking ${dir}, ${Math.round(viewAlt)} degrees up. ${vis.length?vis.join(", ")+" visible.":"No graha in view."}${target?" Selected: "+target.label+".":""}`); }
+    el.canvas.setAttribute("aria-label",orr>0.5?`The zodiac ring seen from above the Earth. ${cache.grahas.map(g=>g.g+" in "+SIGNS_EN[sgOf(g.L)]).join(", ")}.${target?" Selected: "+target.label+".":""}`:`Looking ${dir}, ${Math.round(viewAlt)} degrees up. ${vis.length?vis.join(", ")+" visible.":"No graha in view."}${target?" Selected: "+target.label+".":""}`); }
   requestAnimationFrame(draw);
 }
 
@@ -1224,7 +1235,7 @@ function wakeUI(){ el?.root.classList.remove("quiet"); clearTimeout(uiTimer);
   uiTimer=setTimeout(()=>{ if(el&&!seekActive&&!target) el.root.classList.add("quiet"); },4500); }
 function showHints(){
   let seen={}; try{ seen=JSON.parse(localStorage.getItem("astro.sky.hints")||"{}"); }catch(_){}
-  const seq=[["move","Move your phone to look around"],["pinch","Pinch to zoom"],["time","Drag the time bar to move the sky"]]
+  const seq=[["move","Move your phone to look around"],["pinch","Pinch to zoom · keep pinching in to see the Earth"],["time","Drag the time bar to move the sky"]]
     .filter(([k])=>!seen[k]);
   if(!seq.length) return;
   let i=0; const next=()=>{ if(i>=seq.length||!running) return; const [k,msg]=seq[i++];
@@ -1320,32 +1331,33 @@ export function openSkyView(opts={}){
     n.querySelector("#svapply").onclick=applyMoment;
     n.querySelector("#svp").oninput=e=>paintPlist(e.target.value);
     n.querySelector("#svp").onkeydown=e=>{ if(e.key==="Enter"){ const f=n.querySelector(".svpitem"); if(f) f.click(); } };
-    n.querySelector("#svrecenter").onclick=()=>{ followSky=true; syncRecenter(); buzz(8); wakeUI(); };
+    n.querySelector("#svrecenter").onclick=()=>{ followSky=true; if(wantOrr>0){ wantOrr=0; vFov=FOV_MAX; } syncRecenter(); buzz(8); wakeUI(); };
     wireSeeker();
     /* gestures: one finger drags (detaches motion), two fingers pinch the field of view, tap selects */
     const ptrs=new Map(); let moved=0, pinch0=null;
     n.addEventListener("pointerdown",e=>{
       if(e.target.closest(".sktop,.svclose,.skside,.skstack,.skcompass,.skseek,.sksearch,.sklayers,.skfind,.skpill,.svedit,.skfoot")) return;
       ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=0;
-      if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),fov:vFov}; }
+      if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),z:zoomOf()}; }
       wakeUI(); });
     n.addEventListener("pointermove",e=>{
       if(!ptrs.has(e.pointerId)) return;
       const prev=ptrs.get(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
       if(ptrs.size===2&&pinch0){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y);
-        vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,pinch0.fov*pinch0.d/Math.max(20,d))); return; }
+        setZoom(pinch0.z*pinch0.d/Math.max(20,d)); return; }
       const dx=e.clientX-prev.x, dy=e.clientY-prev.y; moved+=Math.abs(dx)+Math.abs(dy);
       if(moved>10&&sensing&&followSky){ followSky=false; syncRecenter(); }
       const F=CAM.F||1; wantAz-=dx/F/D2R; wantAlt=clampAlt(wantAlt+dy/F/D2R);
       if(reduced){ viewAz=wantAz; viewAlt=wantAlt; } });
-    const up=e=>{ const was=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0=null;
+    const up=e=>{ const was=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if(ptrs.size<2){ if(pinch0) snapOrr(); pinch0=null; }
       if(!was||moved>10||!cache||e.type==="pointercancel") return;
       const r=el.canvas.getBoundingClientRect(); const cx=e.clientX-r.left, cy=e.clientY-r.top;
       hitTest(cx,cy); };
     n.addEventListener("pointerup",up); n.addEventListener("pointercancel",up);
     n.addEventListener("dblclick",e=>{ if(e.target.closest(".sktop,.skside,.skseek,.skfoot,.skcard")) return;
+      if(wantOrr>0){ wantOrr=0; vFov=FOV_MAX; buzz(6); return; }
       const tp=target&&targetPos(); if(tp){ aimAt(tp,{force:true}); vFov=Math.max(FOV_MIN,Math.min(vFov,40)); buzz(6); } else { vFov=62; buzz(4); } });
-    n.addEventListener("wheel",e=>{ vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,vFov*(e.deltaY>0?1.08:0.92))); },{passive:true});
+    n.addEventListener("wheel",e=>{ setZoom(zoomOf()*(e.deltaY>0?1.08:0.92)); clearTimeout(wheelT); wheelT=setTimeout(snapOrr,220); },{passive:true});
   }
   el._fit();
   el.root.classList.add("on"); el.root.classList.remove("birthmode","quiet");
@@ -1371,6 +1383,8 @@ export function openSkyView(opts={}){
   if(opts.az!=null){ wantAz=viewAz=((+opts.az)%360+360)%360; }
   if(opts.alt!=null){ wantAlt=viewAlt=clampAlt(+opts.alt); }
   if(opts.fov){ vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,+opts.fov)); }
+  orr=wantOrr=0; orrSide=false;
+  if(opts.orr!=null){ orr=wantOrr=Math.max(0,Math.min(1,+opts.orr)); orrSide=orr>=0.5; if(wantOrr>0) vFov=FOV_MAX; }
   if(opts.preset&&PRESETS[opts.preset]){ layers={...layers,...PRESETS[opts.preset]}; }
   const selOf=s=>{ if(!s) return null; const m=String(s).match(/^(rashi|nak):(\d+)$/);
     if(m) return m[1]==="rashi"?{t:"rashi",i:+m[2],label:SIGNS_SK[+m[2]],kind:"rashi",seen:false}:{t:"nakshatra",i:+m[2],label:NAKS[+m[2]],kind:"nakshatra",seen:false};
@@ -1381,6 +1395,7 @@ export function openSkyView(opts={}){
   if(st.startsWith("find:")){ const t=selOf(st.slice(5)); if(t){ target=t; followSky=false; if(opts.az==null){ const p=targetPos(); if(p){ wantAz=viewAz=(p.az+150)%360; wantAlt=viewAlt=20; } } } }
   if(st==="below"){ const down=cache.grahas.filter(x=>!x.up&&x.g!=="Rahu"&&x.g!=="Ketu").sort((a,b)=>b.alt-a.alt)[0]; if(down){ target={t:"graha",g:down.g,label:down.g,kind:"graha",seen:false}; followSky=false; } }
   if(st==="manual"){ followSky=false; }
+  if(st==="orrery"){ orr=wantOrr=1; orrSide=true; vFov=FOV_MAX; followSky=false; }
   fmtMoment(); setFoot(); syncFind(); buildSeeker(); wakeUI(); showHints();
   if(st==="seek"){ const s=el.root.querySelector("#svseek"); if(s){ s.classList.add("open"); seekActive=true; paintSeeker(); } }
   if(st==="layers"){ const s=el.root.querySelector("#svlayers"); if(s){ s.hidden=false; paintLayers(); } }
@@ -1397,6 +1412,10 @@ export function openSkyView(opts={}){
   setTimeout(()=>{ if(running&&!sensing) toast(canAsk&&fb&&!fb.hidden?"Drag to explore — or tap Follow my phone":"Motion tracking unavailable · drag to explore"); },2500);
 }
 function hitTest(cx,cy){
+  if(orr>0.5){ const h=orreryHit(cx,cy);
+    if(h){ target={...h,seen:true}; ghostBirth=false; cache=null; computeSky(); buzz(6); setFoot(); syncFind(); }
+    else if(target) clearTarget();
+    wakeUI(); return; }
   let best=null,bd=34;
   for(const p of cache.grahas){ const [x,y]=project(p); if(!Number.isFinite(x)) continue; const d2=Math.hypot(x-cx,y-cy); if(d2<bd){bd=d2;best={t:"graha",g:p.g,label:p.g,kind:"graha"};} }
   if(!best&&cache.asc){ const [x,y]=project(cache.asc); if(Number.isFinite(x)&&Math.hypot(x-cx,y-cy)<28) best={t:"asc",label:`${birthOpts.sign} Lagna`,kind:"lagna"}; }
@@ -1415,7 +1434,7 @@ function hitTest(cx,cy){
   wakeUI();
 }
 export function closeSkyView(){
-  running=false; sensing=false; target=null; followSky=true; seekActive=false; tween=null;
+  running=false; sensing=false; target=null; followSky=true; seekActive=false; tween=null; orr=wantOrr=0;
   if(watch){ removeEventListener("deviceorientationabsolute",watch); removeEventListener("deviceorientation",watch); watch=null; }
   if(el){ el.root.classList.remove("on"); el.root.querySelector("#svq").value=""; el.root.querySelector("#svres").innerHTML=""; el.root.querySelector("#svfoot").hidden=true; }
 }

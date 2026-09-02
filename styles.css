@@ -2795,3 +2795,7 @@ body.indetail .tabs{transform:translateY(115%);pointer-events:none}
 .skyview.hascard .skstack{bottom:calc(env(safe-area-inset-bottom) + 178px)}
 .skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 352px)}
 .skyview.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 190px)!important}
+
+/* Sky: the accessible list of what is in view (off-screen, VoiceOver only) */
+.skyview .svlist{position:absolute;left:0;top:0;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;list-style:none}
+.skyview .svlist button:focus-visible{position:fixed;left:12px;top:72px;width:auto;height:auto;clip:auto;background:#0e1030;color:#f1e7c9;border:1px solid rgba(241,231,201,.6);border-radius:10px;padding:8px 12px;font:600 14px -apple-system,system-ui,sans-serif;z-index:80}

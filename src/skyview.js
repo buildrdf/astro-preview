@@ -164,6 +164,14 @@ function nearestCity(lat,lon){
   return bd<0.6?best[0]:null;      /* ~65 km */
 }
 
+/* the galactic equator, as RA/Dec, weighted brighter toward the centre (l=0) */
+const MW=(()=>{ const R=Math.PI/180, aG=192.85948*R, dG=27.12825*R, lN=122.93192*R, out=[];
+  for(let l=0;l<360;l+=4){ const L=l*R, b=0, x=lN-L;
+    const sd=Math.sin(dG)*Math.sin(b)+Math.cos(dG)*Math.cos(b)*Math.cos(x);
+    const ra=aG+Math.atan2(Math.cos(b)*Math.sin(x), Math.sin(b)*Math.cos(dG)-Math.cos(b)*Math.sin(dG)*Math.cos(x));
+    out.push({ra:((ra/R)%360+360)%360, dec:Math.asin(sd)/R, w:0.35+0.65*Math.pow(Math.max(0,Math.cos(L)),0.7)}); }
+  return out; })();
+
 /* ====================================================================
    STATE
    ==================================================================== */
@@ -226,6 +234,7 @@ function computeSky(){
       pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)}))})),
     amb:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
     amb2:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz((s.ra+137.5)%360, -s.dec*0.93, d, sp.lat, sp.lon)})),
+    mw:MW.map(p=>({w:p.w, ...raDecToAltAz(p.ra, p.dec, d, sp.lat, sp.lon)})),
     ecl:Array.from({length:181},(_,i)=>{ const L=i*2; return {L, ...siderealPointAltAz(L, d, sp.lat, sp.lon)}; }),
     rashiMid:Array.from({length:12},(_,i)=>siderealPointAltAz(i*30+15, d, sp.lat, sp.lon)),
     nakMid:Array.from({length:27},(_,i)=>siderealPointAltAz(i*NSPAN+NSPAN/2, d, sp.lat, sp.lon)),
@@ -436,33 +445,40 @@ function draw(){
     c.save();
     if(hz){
       const {p1,p2,dx,dy,nx,ny,cx,cy}=hz, L=6000;
-      const gg=c.createLinearGradient(cx,cy,cx+nx*H*0.7,cy+ny*H*0.7);
-      const haze=mixc(t2,[10,12,26],0.45);
       const ga=revealBelow?0.38:1;
-      gg.addColorStop(0,`rgba(${haze.join(",")},${0.82*ga})`); gg.addColorStop(0.25,`rgba(8,10,24,${0.86*ga})`); gg.addColorStop(1,`rgba(4,5,14,${0.94*ga})`);
+      /* aerial perspective: the ground near the horizon wears the sky's haze — pale and
+         airy by day, the sky's warmth at dusk, blue-black at night; the nadir stays dark */
+      const hazeC=day>0.5?mixc(t2,[160,168,184],0.45):mixc(t2,[10,12,26],0.42);
+      const midC=mixc(hazeC,[12,14,28],day>0.5?0.38:0.72);
+      const gg=c.createLinearGradient(cx,cy,cx+nx*H*0.95,cy+ny*H*0.95);
+      gg.addColorStop(0,`rgba(${hazeC.join(",")},${0.9*ga})`); gg.addColorStop(day>0.5?0.42:0.22,`rgba(${midC.join(",")},${0.9*ga})`); gg.addColorStop(1,`rgba(6,7,16,${0.95*ga})`);
       c.fillStyle=gg;
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
       c.lineTo(p2.x+dx*L+nx*L,p2.y+dy*L+ny*L); c.lineTo(p1.x-dx*L+nx*L,p1.y-dy*L+ny*L); c.closePath(); c.fill();
-      /* atmospheric edge: haze rising from the line into the sky */
-      const hzg=c.createLinearGradient(cx,cy,cx-nx*H*0.16,cy-ny*H*0.16);
-      hzg.addColorStop(0,`rgba(${t2.join(",")},${0.42-0.18*day})`); hzg.addColorStop(1,`rgba(${t2.join(",")},0)`);
+      /* two ridges along the horizon: a far one lost in the haze, a nearer darker one
+         (a sense of place, not scenery — the same land at every azimuth of this spot) */
+      if(horizon.length>4){
+        const ridge=(amp,ph,col)=>{ c.fillStyle=col; c.beginPath(); let pen0=false;
+          for(const p of horizon){ const h=Math.max(0,amp*ppd*(0.5+0.5*Math.sin(p.az*2.5*D2R+ph)+0.3*Math.sin(p.az*7*D2R+ph*1.7)+0.16*Math.sin(p.az*17*D2R+ph*0.6)));
+            const x=p.x-nx*h, y=p.y-ny*h; pen0?c.lineTo(x,y):(c.moveTo(x,y),pen0=true); }
+          const e=horizon[horizon.length-1], f=horizon[0]; c.lineTo(e.x+nx*L,e.y+ny*L); c.lineTo(f.x+nx*L,f.y+ny*L); c.closePath(); c.fill(); };
+        const farC=mixc(hazeC,[8,10,24],day>0.5?0.22:0.45), nearC=mixc(farC,[5,6,15],0.6);
+        ridge(2.2,0.4,`rgba(${farC.join(",")},${0.92*ga})`);
+        ridge(1.2,2.1,`rgba(${nearC.join(",")},${0.94*ga})`);
+      }
+      /* haze rising from the line into the sky: airy by day, a thin breath at night */
+      const hzC=mixc(t2,[255,255,255],0.3*day);
+      const hzg=c.createLinearGradient(cx,cy,cx-nx*H*(0.14+0.1*day),cy-ny*H*(0.14+0.1*day));
+      hzg.addColorStop(0,`rgba(${hzC.join(",")},${0.32+0.3*day})`); hzg.addColorStop(1,`rgba(${hzC.join(",")},0)`);
       c.fillStyle=hzg;
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
-      c.lineTo(p2.x+dx*L-nx*H*0.16,p2.y+dy*L-ny*H*0.16); c.lineTo(p1.x-dx*L-nx*H*0.16,p1.y-dy*L-ny*H*0.16); c.closePath(); c.fill();
-      /* a faint land silhouette that follows the horizon line (place, not scenery) */
-      if(horizon.length>4){
-        const hh=az=>ppd*(0.55+0.45*Math.sin(az*0.31*D2R*8)+0.28*Math.sin(az*0.87*D2R*8+1.3)+0.15*Math.sin(az*2.1*D2R*8+0.4));
-        c.fillStyle=`rgba(4,5,14,${0.55-0.25*day})`; c.beginPath(); let pen0=false;
-        for(const p of horizon){ const h=Math.max(0,hh(p.az)); const x=p.x-nx*h, y=p.y-ny*h; pen0?c.lineTo(x,y):(c.moveTo(x,y),pen0=true); }
-        const e=horizon[horizon.length-1], f=horizon[0];
-        c.lineTo(e.x+nx*L,e.y+ny*L); c.lineTo(f.x+nx*L,f.y+ny*L); c.closePath(); c.fill();
-      }
-      /* a soft glow along the horizon, then the crisp line */
-      c.strokeStyle=`rgba(190,205,245,${0.08+0.16*day})`; c.lineWidth=7; c.lineCap="round";
+      c.lineTo(p2.x+dx*L-nx*H*0.24,p2.y+dy*L-ny*H*0.24); c.lineTo(p1.x-dx*L-nx*H*0.24,p1.y-dy*L-ny*H*0.24); c.closePath(); c.fill();
+      /* a soft luminous edge — never a hard line */
+      c.strokeStyle=`rgba(${mixc(t2,[220,228,255],0.5).join(",")},${0.05+0.08*day})`; c.lineWidth=6; c.lineCap="round";
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L); c.stroke();
     } else if(viewAlt<0){ c.fillStyle="rgba(4,5,14,0.94)"; c.fillRect(0,0,W,H); }
     c.restore();
-    c.strokeStyle="rgba(150,170,235,.55)"; c.lineWidth=1.5; c.beginPath(); let pen=false;
+    c.strokeStyle=`rgba(${mixc(t2,[200,212,255],0.55).join(",")},${day>0.5?0.22:0.36})`; c.lineWidth=1; c.beginPath(); let pen=false;
     let last=null;
     for(const p of horizon){ if(last&&Math.hypot(p.x-last.x,p.y-last.y)>W) pen=false;
       pen?c.lineTo(p.x,p.y):(c.moveTo(p.x,p.y),pen=true); last=p; }
@@ -485,6 +501,18 @@ function draw(){
       const k=Math.min(1,(vFov-56)/30);
       for(const s of cache.amb2){ if(!s.up) continue; const [x,y]=project({alt:s.alt,az:s.az+slip*1.4}); if(!onScreen(x,y,4)) continue;
         c.fillStyle=`rgba(215,224,255,${0.12*starA*k})`; c.beginPath(); c.arc(x,y,0.75,0,7); c.fill(); }
+    }
+    /* the Milky Way: one continuous path per layer (segment-wise strokes leave a string of
+       pearls), feathered by three widths; the half toward the galactic centre gets a core */
+    { const pts=cache.mw.map(p=>{ const [x,y]=project(p); return {x,y,w:p.w,up:p.up}; });
+      const path=(pred)=>{ c.beginPath(); let pen=false,last=null;
+        for(let i=0;i<=pts.length;i++){ const p=pts[i%pts.length];
+          const ok=Number.isFinite(p.x)&&pred(p)&&!(last&&Math.hypot(p.x-last.x,p.y-last.y)>W*0.6);
+          if(!ok){ pen=false; last=Number.isFinite(p.x)?p:null; continue; }
+          pen?c.lineTo(p.x,p.y):(c.moveTo(p.x,p.y),pen=true); last=p; } };
+      c.lineCap="round"; c.lineJoin="round";
+      for(const wid of [30,25,20,16,12,9,6]){ path(()=>true); c.strokeStyle=`rgba(205,214,242,${0.011*starA*dim})`; c.lineWidth=wid*ppd; c.stroke(); }
+      for(const wid of [14,10,7,4]){ path(p=>p.w>0.6); c.strokeStyle=`rgba(222,226,246,${0.014*starA*dim})`; c.lineWidth=wid*ppd; c.stroke(); }
     }
     for(const s of cache.amb){ if(!s.up) continue; const [x,y]=project({alt:s.alt,az:s.az+slip}); if(!onScreen(x,y,6)) continue;
       const a=(s.m>5?.15:s.m>4.4?.22:.32)*starA;
@@ -752,7 +780,8 @@ function draw(){
       const total=Math.round(Math.hypot(dAz,dAlt));
       const word=Math.abs(dAz)>=Math.abs(dAlt)?(dAz>0?"right":"left"):(dAlt>0?"up":"down");
       const lbl=!tgt.up&&target.t!=="asc"?`${target.label.split(" · ")[0]} · below horizon`:`${target.label.split(" · ")[0]} · ${total}° ${word}`;
-      haloText(c,lbl,Math.max(60,Math.min(W-60,ex)),ey+(Math.sin(ang)>0?-22:24),"rgba(241,231,201,.95)",sysF(11.5,600));
+      c.font=sysF(11.5,600); const lw=c.measureText(lbl).width/2+10;
+      haloText(c,lbl,Math.max(lw,Math.min(W-lw,ex)),ey+(Math.sin(ang)>0?-22:24),"rgba(241,231,201,.95)",sysF(11.5,600));
     }
   }
   if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
@@ -760,6 +789,9 @@ function draw(){
   { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const i=cp.querySelector("i"); if(i) i.style.transform=`rotate(${-viewAz}deg)`; } }
   /* accessibility: one sentence describing the view */
   if(now-(el._ariaAt||0)>1500){ el._ariaAt=now;
+    { const ul=el.root.querySelector("#svlist"); if(ul){ const html=cache.grahas.map(g=>{ const s=sgOf(g.L), n2=nkOf(g.L);
+        return `<li><button data-g="${g.g}" aria-pressed="${target?.t==="graha"&&target.g===g.g}">${g.g}${g.retro&&g.g!=="Rahu"&&g.g!=="Ketu"?" retrograde":""}, ${SIGNS_EN[s]}, ${NAKS[n2]}, ${g.up?Math.round(g.alt)+" degrees up":"below the horizon"}</button></li>`; }).join("");
+      if(ul._html!==html){ ul._html=html; ul.innerHTML=html; } } }
     const dir=["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round((((viewAz%360)+360)%360)/45)%8];
     const vis=discs.filter(d=>d.vis&&d.p.up).map(d=>d.p.g);
     el.canvas.setAttribute("aria-label",orr>0.5?`The zodiac ring seen from above the Earth. ${cache.grahas.map(g=>g.g+" in "+SIGNS_EN[sgOf(g.L)]).join(", ")}.${target?" Selected: "+target.label+".":""}`:`Looking ${dir}, ${Math.round(viewAlt)} degrees up. ${vis.length?vis.join(", ")+" visible.":"No graha in view."}${target?" Selected: "+target.label+".":""}`); }
@@ -1259,6 +1291,7 @@ export function openSkyView(opts={}){
   if(!el){
     const n=document.createElement("div"); n.className="skyview sky2"; n.id="skyview";
     n.innerHTML=`<canvas id="svc" role="img" aria-label="The sky"></canvas>
+      <ul class="svlist" id="svlist" aria-label="Objects in view"></ul>
       <div class="sktop">
         <div class="svseg" id="svseg" role="tablist" aria-label="Which sky" hidden>
           <button data-m="birth" role="tab" aria-selected="false">Birth</button>
@@ -1331,6 +1364,8 @@ export function openSkyView(opts={}){
     n.querySelector("#svapply").onclick=applyMoment;
     n.querySelector("#svp").oninput=e=>paintPlist(e.target.value);
     n.querySelector("#svp").onkeydown=e=>{ if(e.key==="Enter"){ const f=n.querySelector(".svpitem"); if(f) f.click(); } };
+    n.querySelector("#svlist").onclick=e=>{ const b=e.target.closest("[data-g]"); if(!b) return; const g=b.dataset.g;
+      target={t:"graha",g,label:g,kind:"graha",seen:false}; ghostBirth=false; cache=null; computeSky(); setFoot(); syncFind(); aimAt(targetPos(),{force:true}); buzz(6); };
     n.querySelector("#svrecenter").onclick=()=>{ followSky=true; if(wantOrr>0){ wantOrr=0; vFov=FOV_MAX; } syncRecenter(); buzz(8); wakeUI(); };
     wireSeeker();
     /* gestures: one finger drags (detaches motion), two fingers pinch the field of view, tap selects */

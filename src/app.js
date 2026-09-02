@@ -18,6 +18,11 @@ import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
+/* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
+   the screenshot matrix always opens the same app; the built-in reference chart is used */
+try{ if(new URLSearchParams(location.search).get("sky")) localStorage.setItem("astro.onboarded","1"); }catch(_){}
+import { placementRecord, comparePlacement, transitToNatal, timingContext, functionalNature,
+         bindu as avBindu, houseClass } from "./objectmodel.js?v=20260902e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260902e";
 const julian = jd;
@@ -128,6 +133,12 @@ function buildChart({ascendant,placements,birthDate}){
     return {...p,sign:s,house:houseOfSign(s),degf:fmtDeg(p.L),
       nak:NAK[ni],pada:padaOf(p.L),dig:dignity(p.graha,p.L)}});
   const get=g=>ps.find(p=>p.graha===g);
+  /* the ONE record shape every detail screen reads (objectmodel.js):
+     identity + house + dignity + combustion + speed + natural/functional
+     nature, cached per graha; the legacy fields above stay for old callers */
+  const recCache={}, sunL=(placements.find(p=>p.graha==="Sun")||{}).L;
+  const rec=g=>{ if(recCache[g]!==undefined) return recCache[g];
+    const p=get(g); return recCache[g]=p?placementRecord(g,p.L,{retro:p.retro,lagna,sunL,date:birthDate}):null; };
   const occupants=h=>ps.filter(p=>p.house===h);
   const housesRuled=g=>shadow(g)?[]:own(g).map(houseOfSign).sort((a,b)=>a-b);
   const aspectedBy=g=>{const p=get(g);return p?offsets(g).map(o=>adv(p.house,o)).sort((a,b)=>a-b):[]};
@@ -135,7 +146,20 @@ function buildChart({ascendant,placements,birthDate}){
   const conjunct=g=>{const p=get(g);return p?ps.filter(q=>q.graha!==g&&q.sign===p.sign).map(q=>q.graha):[]};
   const dasha=vimshottari(birthDate,placements.find(p=>p.graha==="Moon").L);
   return {lagna,ascendant,placements:ps,birthDate,houseOfSign,signOfHouse,
-          get,occupants,housesRuled,aspectedBy,aspecting,conjunct,dasha};
+          get,rec,occupants,housesRuled,aspectedBy,aspecting,conjunct,dasha,
+          functional:functionalNature(lagna)};
+}
+/* current placement of a graha as the same record shape, and the natal-vs-now
+   pair every planet page opens with (side by side, never a toggle) */
+function nowRecord(g,date){
+  const pos=positions(date), ret=retrograde(date);
+  return placementRecord(g,pos[g],{retro:ret[g],lagna:CHART.lagna,sunL:pos.Sun,date});
+}
+function pairFor(g,date){
+  const birth=CHART.rec(g), now=nowRecord(g,date);
+  const natal=CHART.placements.map(p=>CHART.rec(p.graha)).filter(Boolean);
+  return {birth, now, compare:comparePlacement(birth,now),
+    toNatal:transitToNatal(now,natal,CHART.lagna,{nodal:!!PREFS().nodal})};
 }
 
 /* Solar longitude (Meeus 25), needed for the lunar phase. */
@@ -6957,3 +6981,18 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("#festlink"); if(!b) return;
   buzz(7); go(YOU_INDEX); subView="festivals"; subArg=null; renderSub();
 });
+
+/* ---- reproducible Sky test states (phase gates): ?sky=1&mode=birth|now&t=ISO&az=&alt=&fov=&sel=&preset=&state= ----
+   deterministic place (the profile's birthplace, IST), no sensors, no geolocation */
+setTimeout(()=>{
+  try{
+    const q=new URLSearchParams(location.search); if(!q.get("sky")) return;
+    const o={lat:BIRTHPLACE.lat,lon:BIRTHPLACE.lon,from:BIRTHPLACE.name.split(",")[0],tz:"Asia/Kolkata",motion:false,
+      mode:q.get("mode")||"now",pro:true,birth:skyBirthOpts()};
+    for(const k of ["at","az","alt","fov","sel","preset","state"]) if(q.get(k)!=null) o[k]=q.get(k);
+    o.quiet=q.get("quiet")!=="0"; o.artPending=q.get("art")==="pending";
+    if(q.get("t")) o.at=q.get("t");
+    if(q.get("hints")!=="1") try{ localStorage.setItem("astro.sky.hints",JSON.stringify({move:1,pinch:1,time:1})); }catch(_){}
+    openSkyView(o);
+  }catch(e){ console.warn("sky test state failed", e); }
+},700);

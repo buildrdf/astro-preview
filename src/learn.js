@@ -112,6 +112,55 @@ export const LEARN_LEVELS = [
     {try:"Open Universe and count round your chart from the top diamond. Check that the numbers step through all twelve signs in order."}
   ]},
 
+{ id:"house-lordship", title:"House lords",
+  one:"Every house has an owner, and where it sits matters", read:"5 min",
+  sections:[
+    {h:"Every sign has an owner"},
+    {p:"Each of the twelve rashis belongs to a graha. The Sun owns Leo and the Moon owns Cancer; the other five own two signs each. Because a sign sits in a house, the owner of that sign becomes the lord of that house &#8212; permanently, in your chart, from the minute you were born."},
+    {graphic:"sign-glyphs"},
+    {term:"Adhipati", means:"lord &#8212; the graha that owns the sign in a house, and so answers for that house"},
+    {list:[
+      "Sun &#8212; Leo",
+      "Moon &#8212; Cancer",
+      "Mars &#8212; Aries and Scorpio",
+      "Mercury &#8212; Gemini and Virgo",
+      "Jupiter &#8212; Sagittarius and Pisces",
+      "Venus &#8212; Taurus and Libra",
+      "Saturn &#8212; Capricorn and Aquarius"]},
+    {p:"Rahu and Ketu own nothing in the system this app uses, so they are never lords. Some schools give them co-rulership of Aquarius and Scorpio; that is a genuine disagreement between traditions, not an oversight."},
+    {h:"The sentence that does the work"},
+    {p:"Almost every classical judgement takes one shape: the lord of X sits in Y. Read it as a sentence about where a subject has gone. If the lord of your 10th sits in your 7th, career and partnership are tied together &#8212; work is traditionally read as arriving through people. If the lord of your 4th sits in your 12th, home is read as connected to distance, or to somewhere foreign."},
+    {p:"This is why a house is never judged by what sits in it alone. The occupant describes the room; the lord tells you where the room's affairs are actually conducted."},
+    {h:"Where a lord sits, roughly graded"},
+    {list:[
+      "In its own house &#8212; self-contained, and traditionally strengthened",
+      "In a kendra (1, 4, 7, 10) or trikona (1, 5, 9) &#8212; well seated; the house has support",
+      "In a dusthana (6, 8, 12) &#8212; the house's affairs are read as tested, often through work rather than lost",
+      "In the house of a friendly graha &#8212; comfortable; in an enemy's, read as effortful"]},
+    {term:"Dusthana", means:"the 6th, 8th and 12th houses &#8212; the demanding ones, traditionally read as testing rather than destroying"},
+    {h:"The lagna lord first"},
+    {p:"Of the twelve, the lord of the 1st matters most: it carries the whole chart, because the 1st house is you. Where it sits, and how comfortably, is usually the first thing an astrologer checks after the lagna itself. A well-placed lagna lord is traditionally read as steadying everything else."},
+    {try:"Open You &#8226; Birth details &#8226; Houses. Every row already names the sign, its lord, and the house that lord sits in. Read one row aloud as a sentence &#8212; that is the whole grammar."}
+  ]},
+
+{ id:"occupants-vs-lords", title:"Occupants and lords",
+  one:"Sitting in a house is not the same as owning it", read:"4 min",
+  sections:[
+    {h:"Two different jobs"},
+    {p:"A house can hold grahas, and a house always has a lord. These are separate facts answering separate questions, and confusing them is the single most common beginner's error."},
+    {graphic:"houses-wheel"},
+    {p:"Think of a room and its keyholder. Whoever is standing in the room affects what happens there tonight &#8212; that is the occupant. The keyholder decides what the room is for, and if they happen to be three floors away, the room's business tends to get done three floors away. That is the lord."},
+    {term:"Kendra", means:"the 1st, 4th, 7th and 10th &#8212; the angles, traditionally the strongest seats"},
+    {term:"Trikona", means:"the 1st, 5th and 9th &#8212; the trines, traditionally the most fortunate"},
+    {h:"Empty houses are not silent"},
+    {p:"Nine grahas cannot fill twelve houses, so most charts have six or seven houses with nothing in them. This is completely ordinary. An empty house is read exactly as a full one is: through the sign on it, through its lord, and through anything casting drishti at it."},
+    {p:"So a person with an empty 7th does not lack partnership. Their 7th is read through the sign there and through wherever its lord sits &#8212; and a strong lord in a good house is traditionally read as better news than a struggling graha sitting inside."},
+    {h:"When a house has both"},
+    {p:"Where a house holds grahas and its lord is somewhere interesting, read both and expect texture rather than agreement. The occupant describes how the area feels day to day; the lord describes what it is connected to. They can point in different directions, and when they do, that mixture is the information &#8212; not a contradiction to be resolved."},
+    {p:"One more pattern worth recognising early: when two lords sit in each other's signs, the two houses are tied tightly together, each carrying something of the other. Tradition treats that exchange as one of the strongest links a chart can contain."},
+    {try:"Open You &#8226; Birth details &#8226; Houses and find a house with nothing in it. Its row still names a sign, a lord and an address for that lord. Nothing is missing &#8212; that is the reading."}
+  ]},
+
 { id:"the-moon-and-you", title:"The Moon and you",
   one:"Why Vedic astrology begins with the Moon", read:"4 min",
   sections:[
@@ -206,6 +255,38 @@ export const LEARN_LEVELS = [
     {try:"Open Universe and tap each graha, watching for words like exalted or debilitated. Most charts hold a mix &#8212; that mix is the texture of the chart."}
   ]},
 
+{ id:"natural-vs-functional", title:"Natural and functional nature",
+  one:"Why no graha is simply good or bad", read:"6 min",
+  sections:[
+    {h:"The question asked twice"},
+    {p:"Ask whether Saturn is a benefic and the honest reply is: benefic for whom? Vedic astrology answers twice. Natural nature is the same in every chart ever cast. Functional nature depends entirely on your lagna &#8212; and it can reverse the first answer completely."},
+    {graphic:"chart-anatomy"},
+    {h:"Natural nature &#8212; the same for everyone"},
+    {list:[
+      "Naturally benefic &#8212; Jupiter, Venus, the waxing Moon, and Mercury when it keeps good company",
+      "Naturally malefic &#8212; Saturn, Mars, the Sun, Rahu and Ketu, and the waning Moon",
+      "Mercury appears on both sides on purpose: it takes its colour from whatever it sits with"]},
+    {p:"Malefic here does not mean harmful. Within this tradition it names a graha that works through pressure, friction and limit rather than through ease: the Sun burns, Saturn withholds, Mars cuts. A great deal of what people value in themselves is traditionally attributed to exactly those pressures."},
+    {h:"Functional nature &#8212; yours alone"},
+    {p:"Now the second question: what does this graha own in your chart? The classical grading follows from the houses a graha rules, counted from your lagna and nobody else's."},
+    {list:[
+      "Lords of the trikonas &#8212; the 1st, 5th and 9th &#8212; are read as functionally benefic, whatever their natural character",
+      "Lords of the 3rd, 6th and 11th are read as functionally malefic",
+      "The 8th lord is read as difficult, unless it also owns the lagna &#8212; then owning the 1st takes precedence",
+      "The 2nd and 12th are treated as neutral, taking their colour from what else their lord owns and the company it keeps",
+      "Kendra lords swap: a natural benefic owning the 4th, 7th or 10th loses some of its benefic power, and a natural malefic owning one gains the capacity to do good"]},
+    {term:"Yogakaraka", means:"a graha owning both a kendra and a trikona from your lagna &#8212; traditionally the most helpful graha in that chart"},
+    {h:"The yogakaraka"},
+    {p:"When one graha owns both an angle and a trine, tradition treats it as the chart's best worker regardless of its natural character. Three cases are cited most often: Saturn for a Taurus or Libra lagna, Mars for Cancer or Leo, Venus for Capricorn or Aquarius. A Taurus ascendant's Saturn is a natural malefic doing that chart's most constructive work."},
+    {h:"Marakas, without the drama"},
+    {p:"The classical texts also call the lords of the 2nd and 7th marakas, a word that concerns the end of life. Read them here as the parts of a chart associated with bringing matters to a conclusion &#8212; commitments closing, chapters finishing. Judging longevity is one of the most technically demanding things in Jyotish, the classical texts hedge it heavily and disagree with each other, and Astra does not attempt it at all."},
+    {term:"Maraka", means:"the lords of the 2nd and 7th; in this app read only as themes reaching a conclusion, never as prediction"},
+    {h:"Why the tables online are wrong"},
+    {p:"A table saying Saturn in the 8th is bad has collapsed six separate questions into one. Natural nature, functional nature, dignity, the house occupied, what joins or aspects it, and whether its period has arrived are independent questions, and they routinely disagree with each other."},
+    {p:"Saturn in the 8th for a Taurus lagna is that chart's yogakaraka sitting in a demanding seat &#8212; a very different sentence from the same placement for an Aries lagna, where Saturn owns quite different houses. Any reading that does not begin from your lagna is not reading your chart."},
+    {try:"Open You &#8226; Birth details &#8226; Houses and note which grahas own your 1st, 5th and 9th. Those are your functional benefics &#8212; and one of them may well be a graha you were taught to be wary of."}
+  ]},
+
 { id:"retrograde-and-combust", title:"Retrograde and combust",
   one:"Two conditions that change how a graha reads", read:"4 min",
   sections:[
@@ -221,6 +302,30 @@ export const LEARN_LEVELS = [
     {try:"Open Today's Sky and look for an R beside any graha. If Mercury carries one, tradition suggests a season for revising rather than launching."}
   ]},
 
+{ id:"conjunctions", title:"Conjunctions",
+  one:"What happens when two grahas share a sign", read:"5 min",
+  sections:[
+    {h:"Contact in the same room"},
+    {p:"When two grahas occupy the same sign they are conjunct &#8212; yuti. They sit in the same house, act on the same area of life, and their significations blend. Drishti reaches across the chart; a conjunction is contact in the same room, and it is the most direct relationship two grahas can have."},
+    {term:"Yuti", means:"conjunction &#8212; two or more grahas sharing one sign"},
+    {h:"Same sign, or close degree?"},
+    {p:"Both readings are used, and they answer different questions. Whole-sign conjunction &#8212; simply sharing a rashi &#8212; is the structural reading, and it is what a chart summary means by conjunct: same house, same lordship consequences. Degree conjunction asks how close, and two grahas a few degrees apart blend far more literally than two at opposite ends of a thirty-degree sign."},
+    {p:"Astra uses both, deliberately. Your birth chart lists conjunctions by sign, because that is how houses and lords work. Today's sky flags one only when the two are astronomically close, within about three and a half degrees &#8212; roughly when you could go outside and see them together."},
+    {h:"Who sets the tone"},
+    {p:"A conjunction is not an average of two grahas. Tradition asks which one is leading, in roughly this order:"},
+    {list:[
+      "Dignity first &#8212; a graha in its own or exalted sign tends to colour the other rather than the reverse",
+      "Then closeness &#8212; a few degrees apart is genuine fusion; twenty degrees apart in one sign is more a shared address than a shared voice",
+      "Then what each owns &#8212; when two lords meet, their houses are tied together, and that is often the more useful fact",
+      "Then the pairing itself &#8212; Jupiter with Venus reads quite differently from Mars with Saturn, and tradition has a note on most combinations"]},
+    {p:"Where two grahas sit within a single degree of each other, the classical texts treat it as a contest and name a winner &#8212; judged by brightness, by latitude or by degree, depending on the school. That disagreement is old and unresolved, so Astra reports the closeness and does not score a victor."},
+    {h:"The Sun's conjunctions are a special case"},
+    {p:"You have already met this one. A graha sharing the Sun's sign and close enough in degree is combust: present, but lost in the glare. Same mechanism, with one participant so bright that the other stops being visible. The orbs are traditional and differ by graha &#8212; about 12&#176; for Mercury, 8&#176; to 10&#176; for Venus, 17&#176; for Mars, 11&#176; for Jupiter, 15&#176; for Saturn."},
+    {term:"Sambandha", means:"a connection between two grahas &#8212; by sharing a sign, by aspect, or by exchanging signs"},
+    {p:"Conjunction is only one of the ways two grahas connect. The others are mutual drishti, an exchange in which each sits in a sign the other owns, and one graha sitting in a house the other rules. Any of them links two parts of a chart; a conjunction is simply the tightest."},
+    {try:"Open Universe and tap a graha that shares its sign with another. The reading names the pair and says their significations blend &#8212; then check both dignities to see which one is likely leading."}
+  ]},
+
 { id:"gochara-transits", title:"Transits &#8212; gochara",
   one:"Today's sky, read against your birth sky", read:"6 min",
   sections:[
@@ -233,6 +338,32 @@ export const LEARN_LEVELS = [
     {term:"Chandrashtama", means:"the Moon transiting the 8th house from your natal Moon &#8212; about two days each month"},
     {p:"Chandrashtama is monthly and brief: traditionally a low-energy couple of days, better suited to finishing than starting. Note it, keep the day light if you can, and let it pass."},
     {try:"Open Today's Sky and count which house from your natal Moon the transiting Moon occupies right now. That single count is gochara in miniature."}
+  ]},
+
+{ id:"panchang-and-hora", title:"The panchang and the hora",
+  one:"The five limbs of a day, and its planetary hours", read:"6 min",
+  sections:[
+    {h:"Five limbs, one day"},
+    {p:"A panchang is the traditional Indian almanac, and the word means five limbs. Where a birth chart describes a person, a panchang describes a day &#8212; the same sky, read for everybody rather than for one chart. It is the oldest and most everyday use of Indian astronomy: the reason a festival falls when it does."},
+    {graphic:"moon-phases"},
+    {list:[
+      "Vara &#8212; the weekday, each one ruled by a graha",
+      "Tithi &#8212; the lunar day: a thirtieth of the Moon's lap away from the Sun and back",
+      "Nakshatra &#8212; the lunar mansion the Moon occupies that day",
+      "Yoga &#8212; one of twenty-seven divisions of the Sun and Moon positions taken together",
+      "Karana &#8212; half a tithi; two of them make each lunar day"]},
+    {term:"Tithi", means:"lunar day &#8212; one thirtieth of the Moon's cycle away from the Sun and back"},
+    {h:"Why the week runs in that order"},
+    {p:"Each weekday is ruled by a graha: Sunday the Sun, Monday the Moon, then Mars, Mercury, Jupiter, Venus, Saturn. That sequence looks arbitrary until you look at the hours underneath it."},
+    {p:"Classical practice divides each day into twenty-four planetary hours and hands them out in order of apparent slowness: Saturn, Jupiter, Mars, Sun, Venus, Mercury, Moon, then round again. A day takes its name from the lord of its first hour. Twenty-four is three more than three full turns of seven, so each new day begins three places along the cycle &#8212; and three places along from the Sun is the Moon. Sunday is followed by Monday for that reason and no other."},
+    {term:"Hora", means:"a planetary hour &#8212; one of twenty-four in a day, each ruled by a graha in the classical order"},
+    {p:"Confusingly, hora is also the name of the D2 divisional chart, which halves each sign. Same word, unrelated instrument."},
+    {h:"The hours are not sixty minutes"},
+    {p:"Astra divides sunrise to sunset into twelve, and sunset to the next sunrise into twelve. In summer the daylight hours run long and the night hours short; in winter it reverses. This is the older, seasonal way of keeping time &#8212; and it is why a panchang needs your place as well as your date."},
+    {h:"Timing, not fate"},
+    {p:"The traditional use of all this is choosing when to begin something, not learning what will happen. An hour belonging to Mercury is traditionally favoured for correspondence and negotiation; Jupiter's for teaching, counsel and anything you would like to grow. The choghadiya table divides the same day a second way, into eight segments marked favourable or set aside."},
+    {p:"None of it describes an outcome. It is a suggestion about rhythm, of much the same order as not scheduling a hard conversation at midnight. Treat an unfavourable window as a reason to wait an hour, never as a reason to be afraid of the hour."},
+    {try:"Open Today &#8226; Panchang. The five limbs are the first rows &#8212; tap any of them for what it means &#8212; and Right now names both the current choghadiya and the graha that owns the hour you are in."}
   ]},
 ]},
 
@@ -327,6 +458,44 @@ export const LEARN_LEVELS = [
     {h:"Which ayanamsa?"},
     {p:"The exact gap depends on choosing a moment when the zodiacs coincided, and traditions differ. The Lahiri ayanamsa &#8212; adopted by the Indian government's calendar reform committee in the 1950s &#8212; is the most widely used, and is what this app uses. Others (Raman, Krishnamurti) differ by fractions of a degree, enough to move a graha sitting near a sign boundary. Serious software always states its ayanamsa; now you know why."},
     {try:"Compare your Vedic Sun sign in Universe with the Western sign you grew up with. If they differ by one, you have just watched the ayanamsa at work."}
+  ]},
+
+{ id:"how-it-combines", title:"How it all combines",
+  one:"The reasoning chain behind every reading in Astra", read:"7 min",
+  sections:[
+    {h:"One chain, used everywhere"},
+    {p:"You now have the pieces. This topic is about the order they go in. Every reading in this app &#8212; a house, a graha, a day, a period &#8212; is assembled by walking the same chain, and each link either adds weight to a conclusion or takes weight away."},
+    {list:[
+      "Placement &#8212; the exact longitude; everything below is derived from it",
+      "Sign &#8212; which rashi holds it, and therefore its element and its lord",
+      "House &#8212; which area of life it acts on, counted from your lagna",
+      "Lordship &#8212; which houses answer to it, and so what it carries with it",
+      "Nakshatra &#8212; the finer position, and the graha ruling it",
+      "Dignity &#8212; how comfortable it is in the sign it landed in",
+      "Conjunction and drishti &#8212; who it is in contact with",
+      "Dasha and transit &#8212; whether any of this is awake right now"]},
+    {p:"No single link decides anything. A chart is read the way a case is argued: several independent lines pointing the same way make a strong reading, and lines that disagree mean the honest answer is a mixed one. Saying so is not a failure of the method."},
+    {h:"A worked example"},
+    {p:"Take Saturn in Capricorn in the 9th house, in a chart with a Taurus lagna. Walk the chain link by link."},
+    {list:[
+      "Sign &#8212; Capricorn is one of Saturn's own signs, so it is at home: comfortable, and reliably itself. Weight added.",
+      "House &#8212; from a Taurus lagna, Capricorn falls in the 9th: teachers, belief, the father, long journeys, and what tradition calls fortune.",
+      "Lordship &#8212; Saturn owns Capricorn and Aquarius, which from Taurus are the 9th and the 10th. A trikona and a kendra together: this Saturn is the chart's yogakaraka.",
+      "Nakshatra &#8212; between 10&#176; and 23&#176;20&#8242; of Capricorn it falls in Shravana, whose ruler is the Moon and whose symbol is an ear. A Saturn of listening, in the house of teachers: the links agree, so the reading firms up.",
+      "Dignity &#8212; own sign, so nothing to correct. Had the same Saturn been in Aries, its sign of debilitation, the identical lordship would be read as delivering more slowly.",
+      "Drishti &#8212; from the 9th, Saturn looks at the 3rd, the 6th and the 11th: effort, rivals, gains. It does not look at the 10th, which it owns &#8212; a detail no lookup table would ever tell you.",
+      "Company &#8212; whoever shares Capricorn with it shifts the tone, and a graha exchanging signs with it would bind those two houses together."]},
+    {h:"The link that decides"},
+    {graphic:"dasha-timeline"},
+    {p:"Then the last link, which settles whether any of the above is live. A yogakaraka Saturn is a promise; its mahadasha or antardasha is when tradition reads that promise as being paid out. Two people with this identical placement &#8212; one thirty years from their Saturn period, one in the middle of it &#8212; hold the same chart and are living very different years. Transits do the same job on a shorter clock."},
+    {h:"Two further weights"},
+    {term:"Vargottama", means:"a graha holding the same sign in the birth chart and in the navamsa &#8212; traditionally read as steadying whatever it touches"},
+    {term:"Shadbala", means:"six-fold strength &#8212; a numeric score across position, time, direction, motion, nature and aspect"},
+    {p:"Two refinements sit on top of the same chain rather than replacing it: whether a graha holds its sign in the divisional charts as well, and where it ranks by shadbala among the seven. Both appear on every graha's page in Universe, underneath the plain-language reading rather than in place of it."},
+    {h:"Why the chain is always shown"},
+    {p:"An interpretation you cannot inspect is a claim you have to take on faith. So every reading here is built to be opened. See why on any life area in Today lists the actual placements behind it. A graha's page names its sign, house, lordships, nakshatra, dignity, conjunctions and aspects, in that order. Every divisional chart will show you its own arithmetic."},
+    {p:"You are allowed to disagree with a reading. That is what the chain is for. Traditions differ on a great deal of this &#8212; which is exactly why the evidence matters more than the verdict."},
+    {try:"Open Today, tap See why on any life area, then open one of the grahas it names in Universe. You are walking the same chain in both directions &#8212; from the conclusion back to the placement, and from the placement forward."}
   ]},
 ]},
 ];

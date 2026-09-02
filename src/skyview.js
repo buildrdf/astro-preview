@@ -25,6 +25,8 @@ import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from 
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
+import { drawGraha, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
+preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
   "Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
@@ -66,12 +68,20 @@ const GLOW={Sun:"255,196,110",Moon:"214,226,255",Mars:"255,128,96",
 const IMG={};
 for(const g of GRAHAS){ IMG[g]=new Image(); IMG[g].src=`assets/graha/${g.toLowerCase()}.png`; }
 const RASHI_ART={};
-/* the rashi art layer is optional until the assets land: probe one file
-   and only fetch the rest if it exists (no twelve 404s per open) */
-{ const probe=new Image();
-  probe.onload=()=>{ RASHI_ART[1]=probe;
-    for(let i=2;i<=12;i++){ RASHI_ART[i]=new Image(); RASHI_ART[i].src=`assets/rashi/${i}.svg`; } };
-  probe.src="assets/rashi/1.svg"; }
+/* the rashi art layer reads the asset manifest: only APPROVED assets ship;
+   a review state (artPending) may show pending ones so they can be judged in situ */
+const RASHI_ID={mesha:1,vrishabha:2,mithuna:3,karka:4,simha:5,kanya:6,tula:7,vrischika:8,dhanu:9,makara:10,kumbha:11,meena:12};
+let ART_PENDING=false, artLoaded=false;
+function loadRashiArt(){
+  if(artLoaded) return; artLoaded=true;
+  fetch("assets/gen/manifest.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(m=>{
+    const list=Array.isArray(m)?m:(m&&(m.assets||m.entries))||[];
+    for(const a of list){ if(a.kind!=="rashi"||!RASHI_ID[a.id]) continue;
+      if(a.status!=="approved"&&!(ART_PENDING&&a.status==="pending-review")) continue;
+      if(!a.file) continue;
+      const im=new Image(); im.src=a.file.replace(/^prototype\//,""); RASHI_ART[RASHI_ID[a.id]]=im; }
+  }).catch(()=>{});
+}
 
 /* ---- timezone-true local time (kept; validated 31 Aug) ---- */
 export function offsetAtTz(tz, utcMs){
@@ -158,6 +168,7 @@ function nearestCity(lat,lon){
    ==================================================================== */
 let el=null, ctx=null, running=false, watch=null, reduced=false;
 let viewAz=180, viewAlt=25, wantAz=180, wantAlt=25, sensing=false, followSky=true;
+let QUIET=false;   /* test states: no toasts, no motion pill (screenshots must compare) */
 let vFov=62;                            /* vertical field of view, degrees */
 const FOV_MIN=10, FOV_MAX=112;
 let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
@@ -168,7 +179,11 @@ let birthSeek=null;   /* Birth mode: a scrubbed absolute Date, or null = natal *
 let ghostBirth=false, trackTarget=false;
 let lastFrame=0, layers=null, uiTimer=null, hintStep=0;
 let tween=null;       /* {from:{g:L}, t0, ms} for the Birth->Now fast-forward */
-const LAYER_DEFAULT={planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,natal:false};
+const LAYER_DEFAULT={planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,sanskrit:false};
+/* display radius per body (px): a controlled informational scale, not angular size;
+   grows gently as the field narrows so close views stay balanced */
+const R_BASE={Sun:26,Moon:22,Rahu:15,Ketu:15};
+const grahaR=(g,fov)=>Math.round((R_BASE[g]||19)*Math.max(0.78,Math.min(1.6,Math.pow(62/(fov||62),0.3))));
 function loadLayers(){ try{ layers={...LAYER_DEFAULT,...JSON.parse(localStorage.getItem("astro.sky.layers")||"{}")}; }catch(_){ layers={...LAYER_DEFAULT}; } }
 function saveLayers(){ try{ localStorage.setItem("astro.sky.layers",JSON.stringify(layers)); }catch(_){} }
 
@@ -202,6 +217,7 @@ function computeSky(){
     asts:ASTERISMS.map(A=>({lines:A.lines,
       pts:A.stars.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)}))})),
     amb:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz(s.ra, s.dec, d, sp.lat, sp.lon)})),
+    amb2:AMBIENT.map(s=>({m:s.m, ...raDecToAltAz((s.ra+137.5)%360, -s.dec*0.93, d, sp.lat, sp.lon)})),
     ecl:Array.from({length:181},(_,i)=>{ const L=i*2; return {L, ...siderealPointAltAz(L, d, sp.lat, sp.lon)}; }),
     rashiMid:Array.from({length:12},(_,i)=>siderealPointAltAz(i*30+15, d, sp.lat, sp.lon)),
     nakMid:Array.from({length:27},(_,i)=>siderealPointAltAz(i*NSPAN+NSPAN/2, d, sp.lat, sp.lon)),
@@ -254,9 +270,9 @@ function starSprite(c,x,y,m,a){
   c.fillStyle=`rgba(240,244,255,${.92*a})`;
   c.beginPath(); c.arc(x,y,r,0,7); c.fill();
 }
-function haloText(c,txt,x,y,fill,font,align="center"){
+function haloText(c,txt,x,y,fill,font,align="center",halo="rgba(6,7,20,.75)"){
   c.font=font; c.textAlign=align; c.textBaseline="middle";
-  c.lineWidth=3; c.strokeStyle="rgba(6,7,20,.75)"; c.lineJoin="round";
+  c.lineWidth=3; c.strokeStyle=halo; c.lineJoin="round";
   c.strokeText(txt,x,y); c.fillStyle=fill; c.fillText(txt,x,y);
 }
 /* the Moon with its real phase: bright limb toward the Sun's screen direction */
@@ -342,11 +358,22 @@ function draw(){
 
   /* --- sky: darkest at the zenith; daylight washes in when the Sun is up --- */
   const day=Math.max(0,Math.min(1,(cache.sunAlt+6)/12));
-  const B=mode==="birth";
-  const top=B?[10,5,24]:[4,5,14], mid=B?[36,22,64]:[23,27,56], bot=B?[12,7,32]:[8,9,26];
   const mixc=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
-  const dayTop=[54,86,150], dayMid=[120,150,205], dayBot=[176,196,228];
-  const t0=mixc(top,dayTop,day), t1=mixc(mid,dayMid,day), t2=mixc(bot,dayBot,day);
+  /* keyframes by solar altitude: [zenith, mid-sky, horizon] */
+  const SKY_KEYS=[
+    [-90,[3,4,14],[13,17,44],[26,30,66]],       /* deep night: indigo depth, faint skyglow at the horizon */
+    [-18,[3,4,14],[13,17,44],[26,30,66]],       /* astronomical twilight begins */
+    [-12,[5,7,22],[22,26,62],[54,48,96]],       /* nautical: a violet breath at the horizon */
+    [-6,[11,17,50],[50,64,126],[176,118,108]],  /* civil: rose and peach */
+    [0,[38,72,148],[108,138,198],[238,168,118]],/* the Sun on the horizon */
+    [6,[48,94,174],[126,160,216],[208,212,230]],
+    [15,[42,98,190],[118,158,222],[198,212,236]],/* day: deep blue zenith, pale scattering at the horizon */
+    [90,[40,96,192],[116,156,222],[196,210,236]]];
+  const skyAt=alt=>{ let i=0; while(i<SKY_KEYS.length-2&&alt>SKY_KEYS[i+1][0]) i++;
+    const A=SKY_KEYS[i], Bk=SKY_KEYS[i+1]; let t=(alt-A[0])/(Bk[0]-A[0]); t=Math.max(0,Math.min(1,t)); t=t*t*(3-2*t);
+    return [mixc(A[1],Bk[1],t),mixc(A[2],Bk[2],t),mixc(A[3],Bk[3],t)]; };
+  const [t0,t1,t2]=skyAt(cache.sunAlt);
+  const starFade=Math.max(0,Math.min(1,(-cache.sunAlt-4)/8));   /* stars gone by civil dawn */
   /* the horizon line on screen: two far-apart points and the unit normal toward the ground */
   const hz=(()=>{
     const pts=[]; for(let az=0;az<360;az+=3){ const p=project({alt:0,az}); if(Number.isFinite(p[0])) pts.push({x:p[0],y:p[1],az}); }
@@ -370,8 +397,13 @@ function draw(){
     const sg=c.createLinearGradient(hz.cx,hz.cy,hz.cx-hz.nx*D,hz.cy-hz.ny*D);
     sg.addColorStop(0,rgb(t2)); sg.addColorStop(0.06,rgb(mixc(t2,t1,0.55))); sg.addColorStop(0.32,rgb(t1)); sg.addColorStop(1,rgb(t0));
     c.fillStyle=sg; c.fillRect(0,0,W,H);
-    /* dawn and dusk: warmth pooled where the Sun meets the horizon */
+    /* daylight scattering: a broad, pale aureole toward the Sun's direction */
     const sunG=cache.grahas.find(x=>x.g==="Sun");
+    if(sunG&&day>0.05){ const sp=project(sunG);
+      if(Number.isFinite(sp[0])){ const ag=c.createRadialGradient(sp[0],sp[1],0,sp[0],sp[1],Math.max(W,H)*1.9);
+        ag.addColorStop(0,`rgba(255,250,235,${0.55*day})`); ag.addColorStop(0.09,`rgba(235,240,250,${0.24*day})`); ag.addColorStop(0.45,`rgba(225,234,250,${0.10*day})`); ag.addColorStop(1,"rgba(225,234,250,0)");
+        c.fillStyle=ag; c.fillRect(0,0,W,H); } }
+    /* dawn and dusk: warmth pooled where the Sun meets the horizon */
     if(sunG&&Math.abs(cache.sunAlt)<9){
       const sp=project({alt:0,az:sunG.az});
       if(Number.isFinite(sp[0])){ const k=1-Math.abs(cache.sunAlt)/9;
@@ -400,8 +432,22 @@ function draw(){
       c.fillStyle=gg;
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
       c.lineTo(p2.x+dx*L+nx*L,p2.y+dy*L+ny*L); c.lineTo(p1.x-dx*L+nx*L,p1.y-dy*L+ny*L); c.closePath(); c.fill();
+      /* atmospheric edge: haze rising from the line into the sky */
+      const hzg=c.createLinearGradient(cx,cy,cx-nx*H*0.16,cy-ny*H*0.16);
+      hzg.addColorStop(0,`rgba(${t2.join(",")},${0.42-0.18*day})`); hzg.addColorStop(1,`rgba(${t2.join(",")},0)`);
+      c.fillStyle=hzg;
+      c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L);
+      c.lineTo(p2.x+dx*L-nx*H*0.16,p2.y+dy*L-ny*H*0.16); c.lineTo(p1.x-dx*L-nx*H*0.16,p1.y-dy*L-ny*H*0.16); c.closePath(); c.fill();
+      /* a faint land silhouette that follows the horizon line (place, not scenery) */
+      if(horizon.length>4){
+        const hh=az=>ppd*(0.55+0.45*Math.sin(az*0.31*D2R*8)+0.28*Math.sin(az*0.87*D2R*8+1.3)+0.15*Math.sin(az*2.1*D2R*8+0.4));
+        c.fillStyle=`rgba(4,5,14,${0.55-0.25*day})`; c.beginPath(); let pen0=false;
+        for(const p of horizon){ const h=Math.max(0,hh(p.az)); const x=p.x-nx*h, y=p.y-ny*h; pen0?c.lineTo(x,y):(c.moveTo(x,y),pen0=true); }
+        const e=horizon[horizon.length-1], f=horizon[0];
+        c.lineTo(e.x+nx*L,e.y+ny*L); c.lineTo(f.x+nx*L,f.y+ny*L); c.closePath(); c.fill();
+      }
       /* a soft glow along the horizon, then the crisp line */
-      c.strokeStyle=`rgba(190,205,245,${0.10+0.18*day})`; c.lineWidth=9; c.lineCap="round";
+      c.strokeStyle=`rgba(190,205,245,${0.08+0.16*day})`; c.lineWidth=7; c.lineCap="round";
       c.beginPath(); c.moveTo(p1.x-dx*L,p1.y-dy*L); c.lineTo(p2.x+dx*L,p2.y+dy*L); c.stroke();
     } else if(viewAlt<0){ c.fillStyle="rgba(4,5,14,0.94)"; c.fillRect(0,0,W,H); }
     c.restore();
@@ -412,14 +458,24 @@ function draw(){
     c.stroke();
     for(const [az,t] of [[0,"N"],[45,"NE"],[90,"E"],[135,"SE"],[180,"S"],[225,"SW"],[270,"W"],[315,"NW"]]){
       const p=project({alt:-1.6,az}); if(!onScreen(p[0],p[1],20)) continue;
-      haloText(c,t,p[0],p[1]+8,"rgba(170,185,240,.7)",`${t.length>1?10:11.5}px -apple-system,system-ui,sans-serif`);
+      haloText(c,t.split("").join("\u2009"),p[0],p[1]+9,"rgba(170,185,240,.55)",`600 ${t.length>1?9:10.5}px -apple-system,system-ui,sans-serif`);
     }
   }
 
+  /* --- vignette: corners recede a little (more at night) --- */
+  { const vg=c.createRadialGradient(W/2,H*0.46,Math.min(W,H)*0.45,W/2,H*0.46,Math.max(W,H)*0.78);
+    vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,`rgba(2,3,10,${0.22-0.14*day})`);
+    c.fillStyle=vg; c.fillRect(0,0,W,H); }
   /* --- stars: atmosphere, fading in daylight --- */
-  const starA=(1-day*0.92)*(layers.stars?1:0);
+  const starA=starFade*(layers.stars?1:0);
+  const slip=(viewAz-180)*0.015;                                 /* plane 1 parallax: restrained */
   if(starA>0.02){
-    for(const s of cache.amb){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,6)) continue;
+    if(vFov>56){ /* wide view: a second, fainter plane of stars (the same seeded field, turned) */
+      const k=Math.min(1,(vFov-56)/30);
+      for(const s of cache.amb2){ if(!s.up) continue; const [x,y]=project({alt:s.alt,az:s.az+slip*1.4}); if(!onScreen(x,y,4)) continue;
+        c.fillStyle=`rgba(215,224,255,${0.12*starA*k})`; c.beginPath(); c.arc(x,y,0.75,0,7); c.fill(); }
+    }
+    for(const s of cache.amb){ if(!s.up) continue; const [x,y]=project({alt:s.alt,az:s.az+slip}); if(!onScreen(x,y,6)) continue;
       const a=(s.m>5?.15:s.m>4.4?.22:.32)*starA;
       c.fillStyle=`rgba(225,232,255,${a})`; c.beginPath(); c.arc(x,y,s.m>4.6?0.7:1.05,0,7); c.fill(); }
     for(const A of cache.asts){
@@ -436,10 +492,15 @@ function draw(){
     for(const s of cache.stars){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,30)) continue;
       starSprite(c,x,y,s.m,starA*dim); }
   }
+  if(day>0.5&&layers.stars){ /* daylight: the bright yogataras as quiet ink points */
+    for(const s of cache.stars){ if(!s.up||s.m>2.6) continue; const [x,y]=project(s); if(!onScreen(x,y,10)) continue;
+      c.fillStyle=`rgba(255,252,244,${0.5*day*dim})`; c.beginPath(); c.arc(x,y,2.6,0,7); c.fill();
+      c.fillStyle=`rgba(38,40,70,${0.55*day*dim})`; c.beginPath(); c.arc(x,y,1.3,0,7); c.fill(); }
+  }
 
   /* --- the CELESTIAL RIBBON --- */
   const eclPts=cache.ecl.map(p=>{ const [x,y,z]=project(p); return {L:p.L,x,y,z,up:p.up}; });
-  const bandW=Math.max(24,Math.min(76,5.4*ppd));         /* the rashi band: an engraved tape on the sphere */
+  const bandW=Math.max(32,Math.min(96,6.4*ppd));         /* the rashi band: an engraved tape on the sphere */
   const ribbon=(lw,style,upOnly)=>{
     c.strokeStyle=style; c.lineWidth=lw; c.lineCap="butt"; c.lineJoin="round";
     c.beginPath(); let pen=false,last=null;
@@ -454,14 +515,17 @@ function draw(){
     for(let s=0;s<12;s++){
       const seg=eclPts.slice(s*15, s*15+16);
       const on=focusSign===s;
-      const a=(on?0.30:(s%2?0.085:0.06))*(layers.rashis?1:0.4);
-      c.strokeStyle=`rgba(194,155,78,${a*(on?1:dim)})`; c.lineWidth=bandW; c.lineCap="butt";
+      const a=(on?0.22:(s%2?0.05:0.032))*(layers.rashis?1:0.4)*(on?1:dim)*(1-0.15*day)+(day>0.5?0.012:0);
+      c.lineCap="butt";
       c.beginPath(); let pen=false,last=null;
       for(const p of seg){ if(!Number.isFinite(p.x)||(last&&Math.hypot(p.x-last.x,p.y-last.y)>W*0.6)){pen=false;last=p;continue;}
         pen?c.lineTo(p.x,p.y):(c.moveTo(p.x,p.y),pen=true); last=p; }
-      c.stroke();
+      /* feathered edges: three strokes, wide and faint to narrow and full */
+      c.strokeStyle=`rgba(194,155,78,${a*0.22})`; c.lineWidth=bandW*1.7; c.stroke();
+      c.strokeStyle=`rgba(194,155,78,${a*0.45})`; c.lineWidth=bandW*1.28; c.stroke();
+      c.strokeStyle=`rgba(194,155,78,${a})`;      c.lineWidth=bandW;      c.stroke();
     }
-    ribbon(1.2,`rgba(214,180,110,${0.55*(0.6+0.4*dim)})`);   /* the ecliptic line itself */
+    ribbon(0.9,day>0.5?`rgba(120,96,50,${0.28*(0.6+0.4*dim)})`:`rgba(214,180,110,${0.3*(0.6+0.4*dim)})`);   /* the ecliptic line itself, quiet; ink in daylight */
     /* boundary ticks: rashi across the band, nakshatra on its lower half, pada when close */
     const tickAt=(p,len,side,style,lw)=>{
       const i=Math.round(p.L/2), a=eclPts[Math.max(0,i-1)], b=eclPts[Math.min(180,i+1)];
@@ -473,10 +537,10 @@ function draw(){
       else { c.moveTo(x,y); c.lineTo(x+nx*len,y+ny*len); }
       c.stroke();
     };
-    if(layers.rashis) for(let s=0;s<12;s++) tickAt(cache.ecl[s*15],bandW/2+3,0,`rgba(214,180,110,${0.7*dim})`,1.2);
+    if(layers.rashis) for(let s=0;s<12;s++) tickAt(cache.ecl[s*15],bandW/2+2,0,day>0.5?`rgba(110,88,44,${0.34*dim})`:`rgba(214,180,110,${0.36*dim})`,1);
     if(layers.naks) for(let i=0;i<27;i++){ const e=cache.nakEdge[i]; if(!e.up&&mode!=="birth") continue;
-      tickAt({...e,L:i*NSPAN},bandW/2,1,`rgba(160,150,214,${(focusNak===i||focusNak===i-1?0.9:0.5)*dim})`,1); }
-    if(layers.naks&&vFov<40) for(let i=0;i<108;i++){ if(i%4===0) continue;
+      tickAt({...e,L:i*NSPAN},bandW/2,1,`rgba(160,150,214,${(focusNak===i||focusNak===i-1?0.85:0.28)*dim})`,0.9); }
+    if(layers.naks&&vFov<30) for(let i=0;i<108;i++){ if(i%4===0) continue;
       const L=i*NSPAN/4; const p=siderealPointAltAz(L, cache.d, cache.sp.lat, cache.sp.lon);
       tickAt({...p,L},bandW/5,1,`rgba(160,150,214,${0.35*dim})`,0.8); }
     /* the focused nakshatra: a violet highlight on the lower edge */
@@ -497,7 +561,7 @@ function draw(){
     const e1=project(cache.ecl[s*15+2]), e2=project(cache.ecl[s*15+13]);
     if(!Number.isFinite(e1[0])||!Number.isFinite(e2[0])) continue;
     const sz=Math.hypot(e2[0]-e1[0],e2[1]-e1[1])*1.3; if(sz<50) continue;
-    c.save(); c.globalAlpha=(focusSign===s?0.34:0.12)*dim; c.translate(m[0],m[1]);
+    c.save(); c.globalAlpha=(focusSign===s?0.42:(day>0.5?0.2:0.15))*dim; c.translate(m[0],m[1]);
     c.rotate(Math.atan2(e2[1]-e1[1],e2[0]-e1[0])); c.drawImage(img,-sz/2,-sz/2,sz,sz); c.restore();
   }
 
@@ -507,25 +571,25 @@ function draw(){
   const devF=px=>`600 ${px}px "Devanagari Sangam MN","Kohinoor Devanagari","Noto Sans Devanagari",-apple-system,system-ui,sans-serif`;
   /* graha discs claim first so no caption ever sits on a planet */
   const discs=cache.grahas.map(p=>{ const [x,y]=project(p);
-    const R=p.g==="Sun"?19:p.g==="Moon"?16:(p.g==="Rahu"||p.g==="Ketu")?11:13;
-    const vis=onScreen(x,y,60); if(vis) L.claim(x,y,2*R+6,2*R+6); return {p,x,y,R,vis}; });
+    const R=grahaR(p.g,vFov), Re=Math.round(R*((GRAHA_BASE[p.g]?.extent||1.34)-0.34));   /* rings / corona reach */
+    const vis=onScreen(x,y,60); if(vis) L.claim(x,y,2*Re+6,2*Re+6); return {p,x,y,R,Re,vis}; });
   const tgt=targetPos(); const tgtXY=tgt?project(tgt):null;
   if(tgtXY&&Number.isFinite(tgtXY[0])) L.claim(tgtXY[0],tgtXY[1],60,60);
   /* 1. the selected target label + 2. grahas */
   const grahaLabels=[];
-  for(const {p,x,y,R,vis} of discs){
+  for(const {p,x,y,R,Re,vis} of discs){
     if(!vis||!layers.planets) continue;
     const isT=target&&target.t==="graha"&&target.g===p.g;
     if(!p.up&&!isT&&mode!=="birth") continue;
     const txt=p.g+(p.retro&&p.g!=="Rahu"&&p.g!=="Ketu"?" ℞":"");
-    grahaLabels.push({p,x,y,R,isT,txt});
+    grahaLabels.push({p,x,y,R:Re,isT,txt});
   }
   grahaLabels.sort((a,b)=>(b.isT?1:0)-(a.isT?1:0));
   const drawnLabels=[];
   for(const g of grahaLabels){
     const font=sysF(g.isT?14.5:12.5,g.isT?700:600); c.font=font;
     const w=c.measureText(g.txt).width+4;
-    const pos=L.place(g.x,g.y,w,15,[[0,g.R+13],[0,-g.R-12],[g.R+w/2+4,0],[-g.R-w/2-4,0]]);
+    const pos=L.place(g.x,g.y,w,15,[[0,g.R+19],[0,-g.R-18],[g.R+w/2+12,0],[-g.R-w/2-12,0]]);
     if(pos) drawnLabels.push({...g,font,pos,w});
   }
   /* 3 + 4. the tape is engraved: rashi glyph + name set into the upper
@@ -535,8 +599,14 @@ function draw(){
      the focused item always falls back to a floating caption. */
   const engrave=(txt,x,y,ang,font,light,alpha)=>{
     c.save(); c.translate(x,y); c.rotate(ang); c.font=font; c.textAlign="center"; c.textBaseline="middle";
-    c.fillStyle=`rgba(18,14,8,${0.55*alpha})`; c.fillText(txt,0.7,0.9);
-    c.fillStyle=light.replace(/[\d.]+\)$/,`${alpha})`); c.fillText(txt,0,0); c.restore();
+    if(day>0.5){ /* daylight: ink pressed into the pale band, light relief above */
+      c.fillStyle=`rgba(255,250,240,${0.55*alpha})`; c.fillText(txt,-0.6,-0.7);
+      c.fillStyle=`rgba(58,46,24,${0.9*alpha})`; c.fillText(txt,0,0);
+    } else {
+      c.fillStyle=`rgba(18,14,8,${0.55*alpha})`; c.fillText(txt,0.7,0.9);
+      c.fillStyle=light.replace(/[\d.]+\)$/,`${alpha})`); c.fillText(txt,0,0);
+    }
+    c.restore();
   };
   const laneAt=(mid,e1,e2)=>{               /* screen frame of a sector: centre, tangent angle, up-normal */
     const [x,y]=project(mid); const a=project(e1), b=project(e2);
@@ -547,20 +617,23 @@ function draw(){
     const ux=ny>0?-nx:nx, uy=ny>0?-ny:ny;            /* unit vector toward screen-up */
     return {x,y,wid,ang,ux,uy};
   };
-  const RASHI_GLYPH=["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u2650","\u264F","\u2650","\u2651","\u2652","\u2653"].map(g=>g+"\uFE0E");
-  RASHI_GLYPH[6]="\u264E\uFE0E";
+  /* LOD by field of view: wide = Devanagari alone; medium adds the second line
+     (English by default, Sanskrit when the layer is on); no glyph on the band */
+  const midLOD=vFov<75;
   if(layers.rashis) for(let s=0;s<12;s++){
     const m=cache.rashiMid[s]; if(!m.up&&mode!=="birth"&&s!==focusSign) continue;
     const f=laneAt(m,cache.ecl[s*15],cache.ecl[s*15+15]); if(!f) continue;
-    const on=s===focusSign, alpha=(on?1:0.82)*(on?1:dim);
-    const px=f.x+f.ux*bandW*0.25, py=f.y+f.uy*bandW*0.25;
-    const big=on?15:Math.min(15,Math.max(11.5,bandW*0.3));
-    const full=`${RASHI_GLYPH[s]}  ${SIGNS_DEV[s]}  ${SIGNS_SK[s]}`, mid=`${RASHI_GLYPH[s]} ${SIGNS_DEV[s]}`;
-    c.font=devF(big);
-    const wFull=c.measureText(full).width, wMid=c.measureText(mid).width;
-    const txt=f.wid>wFull+22?full:f.wid>wMid+16?mid:f.wid>34?RASHI_GLYPH[s]:null;
-    if(txt&&L.place(px,py,Math.min(f.wid-8,c.measureText(txt).width),big+4,[[0,0]])){
-      engrave(txt,px,py,f.ang,devF(big),"rgba(241,231,201,1)",alpha);
+    const on=s===focusSign, alpha=(on?1:0.86)*(on?1:dim);
+    const big=on?19:Math.min(19,Math.max(13.5,bandW*0.3));
+    const dev=SIGNS_DEV[s]; c.font=devF(big); const wDev=c.measureText(dev).width;
+    const sub=layers.sanskrit?SIGNS_SK[s]:SIGNS_EN[s];
+    const showSub=midLOD&&(on||f.wid>wDev+70);
+    const px=f.x+f.ux*bandW*(showSub?0.31:0.24), py=f.y+f.uy*bandW*(showSub?0.31:0.24);
+    if(f.wid>wDev+14&&L.place(px,py,Math.min(f.wid-8,wDev),big+4,[[0,0]])){
+      engrave(dev,px,py,f.ang,devF(big),"rgba(241,231,201,1)",alpha);
+      if(showSub){ const sx=f.x+f.ux*bandW*0.08, sy=f.y+f.uy*bandW*0.08;
+        c.font=sysF(10,500); const wSub=c.measureText(sub).width;
+        if(L.place(sx,sy,wSub,11,[[0,0]])) engrave(sub,sx,sy,f.ang,sysF(10,500),"rgba(224,206,160,1)",alpha*0.9); }
     } else if(on){                                        /* focused but cramped: floating caption */
       c.font=devF(17); const w=c.measureText(SIGNS_DEV[s]).width+6;
       const pos=L.place(f.x,f.y,w,20,[[0,-bandW/2-14],[0,bandW/2+16]]);
@@ -569,11 +642,12 @@ function draw(){
   }
   const track=t=>t.toUpperCase().split("").join("\u2009");   /* letter-spaced small caps look */
   if(layers.naks) for(let i=0;i<27;i++){
+    const on=i===focusNak; if(!midLOD&&!on) continue;
     const m=cache.nakMid[i]; if(!m.up&&mode!=="birth") continue;
     const f=laneAt(m,cache.nakEdge[i],cache.nakEdge[(i+1)%27]); if(!f) continue;
-    const on=i===focusNak, txt=track(NAKS[i]);
+    const txt=track(NAKS[i]);
     const px=f.x-f.ux*bandW*0.27, py=f.y-f.uy*bandW*0.27;
-    const size=on?10.5:Math.min(10,Math.max(8,bandW*0.19));
+    const size=on?10.5:Math.min(9.5,Math.max(7.5,bandW*0.15));
     c.font=sysF(size,on?700:600); const w=c.measureText(txt).width;
     if(f.wid>w+12&&L.place(px,py,Math.min(f.wid-6,w),size+3,[[0,0]])){
       engrave(txt,px,py,f.ang,sysF(size,on?700:600),"rgba(196,188,236,1)",(on?1:0.8)*(on?1:dim));
@@ -597,20 +671,25 @@ function draw(){
     const isT=target&&target.t==="graha"&&target.g===p.g;
     const a=(p.up?1:0.32)*(isT?1:(target?0.55+0.45*(1-focusK):1));
     c.globalAlpha=a;
-    if(p.g==="Rahu"||p.g==="Ketu"){ nodeGlyph(c,x,y,R,a,p.g==="Ketu"); }
-    else{
-      const halo=p.g==="Sun"?3.4:2.1;
-      glowDot(c,x,y,R*halo*(isT?1.35:1),GLOW[p.g],(p.g==="Sun"?.55:.32)*(isT?1.4:1));
-      if(p.g==="Moon"){ const sun=cache.grahas[0], moon=p;
-        const e=((moon.L-sun.L)%360+360)%360, kk=(1-Math.cos(e*D2R))/2;
-        moonDisc(c,x,y,R,[sunD.x,sunD.y],kk,e<180); }
-      else { const im=IMG[p.g]; if(im.complete) c.drawImage(im,x-R,y-R,2*R,2*R); }
+    const ground=day>0.5?"light":"dark";
+    const sunOK=sunD&&Number.isFinite(sunD.x)&&p.g!=="Sun";
+    let light; if(sunOK){ const dx=sunD.x-x, dy=sunD.y-y, d=Math.hypot(dx,dy)||1; light={x:dx/d,y:dy/d}; }
+    const q=(isT||R>=22)?"high":"low";
+    if(p.g==="Moon"){
+      const sun=cache.grahas[0]; const e=((p.L-sun.L)%360+360)%360, kk=(1-Math.cos(e*D2R))/2, waxing=e<180;
+      /* the renderer lights a waxing Moon from +x: turn the frame so that side faces the Sun */
+      const th=sunOK?Math.atan2(sunD.y-y,sunD.x-x):(waxing?0:Math.PI);
+      c.save(); c.translate(x,y); c.rotate(waxing?th:th-Math.PI);
+      drawGraha(c,"Moon",0,0,R,{phase:{illum:kk,waxing},quality:q,focus:isT,ground}); c.restore();
+    } else {
+      drawGraha(c,p.g,x,y,R,{light,quality:q,focus:isT,ground,tilt:22});
     }
     c.globalAlpha=1;
   }
   for(const g of drawnLabels){
     const a=(g.p.up?1:0.45)*(g.isT?1:(target?0.55+0.45*(1-focusK):1));
-    haloText(c,g.txt,g.pos[0],g.pos[1],`rgba(245,246,252,${a})`,g.font);
+    if(day>0.5) haloText(c,g.txt,g.pos[0],g.pos[1],`rgba(22,20,40,${a})`,g.font,"center",`rgba(255,252,244,${0.8*a})`);
+    else haloText(c,g.txt,g.pos[0],g.pos[1],`rgba(245,246,252,${a})`,g.font);
   }
   /* birth ghost: where the selected graha stood at birth */
   if(cache.ghost){ const [x,y]=project(cache.ghost); if(onScreen(x,y,20)){
@@ -848,10 +927,10 @@ function fmtMoment(){
       w.dataset.act="birthreturn";
     }
   }else if(custom){
-    w.innerHTML=`<span>${esc(t)} · ${esc(dd)} · ${esc(custom.place.split(",")[0])}</span><b class="skreturn">Live</b>`;
+    w.innerHTML=`<span>${esc(t)} · ${esc(dd)} · ${esc(custom.place.split(",")[0])}</span><b class="skreturn">\u21ba Now</b>`;
     w.dataset.act="live";
   }else if(seek){
-    w.innerHTML=`<span>${esc(t)} · ${esc(dd)} · ${esc(placeName())}</span><b class="skreturn">Live</b>`;
+    w.innerHTML=`<span>${esc(t)} · ${esc(dd)} · ${esc(placeName())}</span><b class="skreturn">\u21ba Now</b>`;
     w.dataset.act="live";
   }else{
     w.innerHTML=`<span>Now · ${esc(t)}${ab?" "+esc(ab):""} · ${esc(placeName())}</span><i class="skpen" aria-hidden="true">✎</i>`;
@@ -879,7 +958,7 @@ function setSkyMode(m,opts={}){
   fmtMoment(); setFoot(); syncFind(); buildSeeker();
 }
 let toastT=null;
-function toast(msg){
+function toast(msg){ if(QUIET) return;
   const t=el.root.querySelector("#sktoast"); if(!t) return;
   t.textContent=msg; t.hidden=false; t.classList.remove("in"); void t.offsetWidth; t.classList.add("in");
   clearTimeout(toastT); toastT=setTimeout(()=>{ t.classList.remove("in"); setTimeout(()=>t.hidden=true,350); },2600);
@@ -958,23 +1037,28 @@ function returnToAnchor(){ if(mode==="birth") birthSeek=null; else { seek=null; 
 /* ====================================================================
    LAYERS SHEET
    ==================================================================== */
-const PRESETS={clean:{planets:true,rashis:true,naks:false,art:false,horizon:true,stars:true,starNames:false,natal:false},
-  jyotish:{planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,natal:false},
-  astronomy:{planets:true,rashis:false,naks:false,art:false,horizon:true,stars:true,starNames:true,natal:false}};
+const PRESETS={essential:{planets:true,rashis:true,naks:true,art:false,horizon:true,stars:false,starNames:false},
+  jyotish:{planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false},
+  sky:{planets:true,rashis:true,naks:false,art:false,horizon:true,stars:true,starNames:true}};
+const PRESET_LABEL={essential:"Essential",jyotish:"Jyotish",sky:"Sky"};
+let layersCustom=false;
 function paintLayers(){
   const sh=el.root.querySelector("#svlayers"); if(!sh) return;
   const row=(k,label,note)=>`<div class="sklrow"><div><b>${label}</b>${note?`<span>${note}</span>`:""}</div>
     <button class="switch${layers[k]?" on":""}" data-l="${k}" role="switch" aria-checked="${layers[k]}"><i></i></button></div>`;
-  const preset=Object.entries(PRESETS).find(([,v])=>Object.keys(v).every(k=>v[k]===layers[k]))?.[0]||"";
+  const preset=Object.entries(PRESETS).find(([,val])=>Object.keys(val).every(kk=>val[kk]===layers[kk]))?.[0]||"";
   sh.innerHTML=`<div class="sklhead"><b>Layers</b><button class="skx" id="svlclose" aria-label="Close">✕</button></div>
-    <div class="sklpre">${[["clean","Clean"],["jyotish","Jyotish"],["astronomy","Astronomy"]].map(([k,l])=>`<button data-p="${k}" class="${preset===k?"on":""}">${l}</button>`).join("")}</div>
-    <div class="skkey"><span><b>Saturn</b> planet</span><span><span class="dev">मेष</span> rashi</span><span><span class="nk">P U S H Y A</span> nakshatra</span></div>
+    <div class="sklpre" role="tablist">${Object.keys(PRESETS).map(kk=>`<button data-p="${kk}" role="tab" aria-selected="${preset===kk}" class="${preset===kk?"on":""}">${PRESET_LABEL[kk]}</button>`).join("")}</div>
+    <p class="sklnote">${preset==="essential"?"Planets, rashis, nakshatras and the horizon.":preset==="jyotish"?"Adds the rashi artwork and a quiet field of stars.":preset==="sky"?"The physical sky: stars and their names, the zodiac kept light.":"Your own mix."}</p>
+    <button class="sklcust" id="svlcust" aria-expanded="${layersCustom}">Customize <span>${layersCustom?"▴":"▾"}</span></button>
+    <div class="sklrows" ${layersCustom?"":"hidden"}>
     ${row("planets","Planets")}${row("rashis","Rashis","the twelve regions of the ribbon")}${row("naks","Nakshatras","twenty-seven finer sectors")}
-    ${row("art","Rashi artwork","zodiac art — not constellation boundaries")}${row("horizon","Horizon")}${row("stars","Stars","atmosphere, unlabelled")}
-    ${row("starNames","Star names","the bright yogataras")}`;
+    ${row("art","Rashi artwork","symbolic figures — not constellation boundaries")}${row("horizon","Horizon")}${row("stars","Stars","atmosphere, unlabelled")}
+    ${row("starNames","Star names","the bright yogataras")}${row("sanskrit","Sanskrit names","Kanya instead of Virgo under the Devanagari")}</div>`;
   sh.onclick=e=>{
     const sw=e.target.closest("[data-l]"); if(sw){ layers[sw.dataset.l]=!layers[sw.dataset.l]; saveLayers(); paintLayers(); buzz(4); return; }
     const pr=e.target.closest("[data-p]"); if(pr){ layers={...layers,...PRESETS[pr.dataset.p]}; saveLayers(); paintLayers(); buzz(5); return; }
+    if(e.target.closest("#svlcust")){ layersCustom=!layersCustom; paintLayers(); return; }
     if(e.target.closest("#svlclose")){ sh.hidden=true; }
   };
 }
@@ -1084,7 +1168,8 @@ function showHints(){
    ==================================================================== */
 export function openSkyView(opts={}){
   reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  loadLayers();
+  QUIET=!!opts.quiet; ART_PENDING=!!opts.artPending;
+  loadLayers(); loadRashiArt();
   if(opts.lat!=null) spot={lat:opts.lat,lon:opts.lon,from:opts.from||"your location",tz:opts.tz||Intl.DateTimeFormat().resolvedOptions().timeZone};
   birthOpts=opts.birth||null; proUser=!!opts.pro;
   mode="now"; custom=null; seek=null; birthSeek=null; followSky=true; target=null; ghostBirth=false; trackTarget=false; tween=null;
@@ -1196,12 +1281,32 @@ export function openSkyView(opts={}){
   if(!aim||(!aim.up&&target.t!=="asc")){ const upG=cache.grahas.filter(x=>x.up&&x.g!=="Rahu"&&x.g!=="Ketu");
     aim=upG.find(x=>x.g===(opts.focus||""))||upG.find(x=>x.g==="Sun")||upG.find(x=>x.g==="Moon")||upG.sort((a,b)=>b.alt-a.alt)[0]||aim||null; }
   if(aim){ wantAz=aim.az; wantAlt=clampAlt(Math.max(8,Math.min(65,aim.alt))); viewAz=reduced?wantAz:wantAz-14; viewAlt=wantAlt; }
+  /* ---- reproducible test states (phase gates + phone testers):
+     az/alt/fov pin the camera, sel selects without re-aiming, preset picks
+     a layer set, state forces manual | find:<graha> | seek | layers | below ---- */
+  if(opts.az!=null){ wantAz=viewAz=((+opts.az)%360+360)%360; }
+  if(opts.alt!=null){ wantAlt=viewAlt=clampAlt(+opts.alt); }
+  if(opts.fov){ vFov=Math.max(FOV_MIN,Math.min(FOV_MAX,+opts.fov)); }
+  if(opts.preset&&PRESETS[opts.preset]){ layers={...layers,...PRESETS[opts.preset]}; }
+  const selOf=s=>{ if(!s) return null; const m=String(s).match(/^(rashi|nak):(\d+)$/);
+    if(m) return m[1]==="rashi"?{t:"rashi",i:+m[2],label:SIGNS_SK[+m[2]],kind:"rashi",seen:false}:{t:"nakshatra",i:+m[2],label:NAKS[+m[2]],kind:"nakshatra",seen:false};
+    if(s==="asc") return cache.asc?{t:"asc",label:`${birthOpts?.sign||""} Lagna`,kind:"lagna",seen:false}:null;
+    return cache.grahas.find(x=>x.g===s)?{t:"graha",g:s,label:s,kind:"graha",seen:false}:null; };
+  const st=String(opts.state||"");
+  if(opts.sel){ const t=selOf(opts.sel); if(t){ target=t; if(opts.az==null){ const p=targetPos(); if(p&&p.up){ wantAz=viewAz=p.az; wantAlt=viewAlt=clampAlt(p.alt); } } } }
+  if(st.startsWith("find:")){ const t=selOf(st.slice(5)); if(t){ target=t; followSky=false; if(opts.az==null){ const p=targetPos(); if(p){ wantAz=viewAz=(p.az+150)%360; wantAlt=viewAlt=20; } } } }
+  if(st==="below"){ const down=cache.grahas.filter(x=>!x.up&&x.g!=="Rahu"&&x.g!=="Ketu").sort((a,b)=>b.alt-a.alt)[0]; if(down){ target={t:"graha",g:down.g,label:down.g,kind:"graha",seen:false}; followSky=false; } }
+  if(st==="manual"){ followSky=false; }
   fmtMoment(); setFoot(); syncFind(); buildSeeker(); wakeUI(); showHints();
+  if(st==="seek"){ const s=el.root.querySelector("#svseek"); if(s){ s.classList.add("open"); seekActive=true; paintSeeker(); } }
+  if(st==="layers"){ const s=el.root.querySelector("#svlayers"); if(s){ s.hidden=false; paintLayers(); } }
+  if(st==="manual"||st.startsWith("find:")||st==="below"){ setTimeout(syncRecenter,0); setTimeout(syncFind,0); }
   running=true; lastFrame=0; draw();
   if(mode==="birth") toast("The sky you were born under.");
   const canAsk=typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function";
   const fb=el.root.querySelector("#svmotion");
-  if(!canAsk||opts.motion===true){ armSensors(); fb.hidden=true; }
+  if(QUIET){ fb.hidden=true; }
+  else if(!canAsk||opts.motion===true){ armSensors(); fb.hidden=true; }
   else { fb.hidden=false; fb.onclick=()=>{ DeviceOrientationEvent.requestPermission().then(r=>{ if(r==="granted"){ armSensors(); fb.hidden=true; }
       else toast("Motion access is off — allow it in Settings › Safari › Motion & Orientation."); }).catch(()=>{}); }; }
   setTimeout(()=>{ if(running&&!sensing) toast(canAsk&&fb&&!fb.hidden?"Drag to explore — or tap Follow my phone":"Motion tracking unavailable · drag to explore"); },2500);
@@ -1214,7 +1319,7 @@ function hitTest(cx,cy){
     /* the ribbon: nearest ecliptic sample within the band; upper half = rashi, lower = nakshatra */
     let bi=-1,bdd=1e9,by=0;
     cache.ecl.forEach((p,i)=>{ const [x,y]=project(p); if(!Number.isFinite(x)) return; const d=Math.hypot(x-cx,y-cy); if(d<bdd){bdd=d;bi=i;by=y;} });
-    const bandW=Math.max(24,Math.min(76,5.4*ppdCenter()));
+    const bandW=Math.max(32,Math.min(96,6.4*ppdCenter()));
     if(bi>=0&&bdd<bandW/2+16){ const L=cache.ecl[bi].L;
       if(cy<=by&&layers.rashis) best={t:"rashi",i:sgOf(L),label:`${SIGNS_SK[sgOf(L)]} · ${SIGNS_EN[sgOf(L)]}`,kind:"rashi"};
       else if(layers.naks) best={t:"nakshatra",i:nkOf(L),label:NAKS[nkOf(L)],kind:"nakshatra"};

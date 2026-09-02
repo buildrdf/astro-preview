@@ -44,7 +44,7 @@ const HOUSE_DEV = ["", "प्रथम", "द्वितीय", "तृती
 const ACT_ICON = {
   chart: `<svg class="acti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.4"/><path d="M3.6 3.6l16.8 16.8M20.4 3.6L3.6 20.4M12 3.6l8.4 8.4-8.4 8.4-8.4-8.4z"/></svg>`,
   sky: `<svg class="acti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7V5.4a2 2 0 012-2H7M17 3.4h1.5a2 2 0 012 2V7M20.5 17v1.6a2 2 0 01-2 2H17M7 20.6H5.5a2 2 0 01-2-2V17"/><path d="M12 7.4l3.6 2v5.2l-3.6 2-3.6-2V9.4z"/><path d="M12 12.2l3.6-2.1M12 12.2l-3.6-2.1M12 12.2v4.4"/></svg>`,
-  guide: `<svg class="acti moon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M8.6 5.2a8.4 8.4 0 000 13.6 8.4 8.4 0 010-13.6z" fill="currentColor" stroke="none" opacity=".5"/></svg>`,
+  guide: `<img class="acti moonimg" src="assets/moon/phase_15_full_moon.png" alt="" aria-hidden="true">`,
 };
 
 let open = null;   /* the one mounted page */

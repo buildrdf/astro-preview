@@ -3077,3 +3077,40 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
    day lord away from its name. */
 .laplanets{gap:4px}
 .laplanets .gico{margin-right:0}
+
+/* Ask Guide carries the Guide's own full moon, not a drawn glyph */
+.acti.moonimg{width:20px;height:20px;border-radius:50%;
+  filter:drop-shadow(0 1px 3px rgba(20,25,60,.28))}
+
+/* Transits: the rows already separate themselves with hairlines, so the box around
+   them was one container earning nothing */
+.list.ings{border:0;border-radius:0}
+
+/* Festivals: a month at a time. Single arrow steps a month, double steps a year. */
+.monthbar{display:flex;align-items:center;justify-content:center;gap:4px;margin:10px 0 14px}
+.monthbar b{flex:1;text-align:center;font-size:16px;font-weight:660;letter-spacing:-.015em;
+  font-variant-numeric:tabular-nums}
+.mnav{width:38px;height:38px;flex:0 0 auto;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(23,26,51,.05);color:var(--ink-2);font-size:16px;line-height:1;
+  font-family:var(--ff);transition:background .2s var(--ease)}
+.mnav:active{background:rgba(23,26,51,.12)}
+.festlist{display:flex;flex-direction:column}
+.festrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 2px;
+  border:0;border-top:.5px solid var(--line);background:none;cursor:pointer;
+  color:var(--ink);font-family:var(--ff)}
+.festrow:first-child{border-top:0}
+.festrow:active{opacity:.6}
+.festrow.today .festday b{color:var(--brass)}
+.festday{flex:0 0 34px;text-align:center}
+.festday b{display:block;font-size:17px;font-weight:660;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.festday span{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);margin-top:1px}
+.festbody{flex:1;min-width:0}
+.festname{display:block;font-size:14.5px;font-weight:620;letter-spacing:-.01em}
+.festwhat{display:block;font-size:12px;line-height:1.45;color:var(--ink-3);margin-top:2px}
+.festrow .festkind{flex:0 0 auto;font-family:var(--fm);font-size:9px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);
+  border-radius:99px;padding:2px 7px}
+.festrow .chev{flex:0 0 auto;color:var(--ink-3);font-size:17px}
+.hiname{font-size:12px;font-weight:500;color:var(--ink-3)}

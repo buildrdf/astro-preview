@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903i";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260903k";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903i";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260903k";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260903k";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -4179,59 +4179,97 @@ function muhurtaScore(d){
 }
 /* ---- FESTIVALS & VRATS (src/festivals.js) — the luni-solar calendar the
    engine derives from its own ephemeris; nothing here is looked up ---- */
-let festFilter="all", festDays=90;
+let festFilter="all";
+/* browsed a month at a time rather than in fixed windows: a single arrow steps the month,
+   a double arrow steps the year, the way a calendar behaves */
+let festMonth=(()=>{const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); return d;})();
+const festShift=(n,unit)=>{ const d=new Date(festMonth);
+  if(unit==="y") d.setFullYear(d.getFullYear()+n); else d.setMonth(d.getMonth()+n);
+  d.setDate(1); d.setHours(0,0,0,0); festMonth=d; };
 function subFestivals(){
   const sp=liveSpot()||BIRTHPLACE;
-  const from=new Date(); from.setHours(0,0,0,0);
-  const to=new Date(from.getTime()+festDays*864e5);
-  let list=festivalsBetween(from,to,sp.lat,sp.lon).filter(x=>!x.minor);
-  if(festFilter==="festival") list=list.filter(x=>x.kind==="festival"||x.kind==="solar");
-  if(festFilter==="vrat") list=list.filter(x=>x.kind==="vrat");
-  if(festFilter==="all") list=list.filter(x=>x.kind!=="observance");
+  const from=new Date(festMonth);
+  const to=new Date(festMonth.getFullYear(),festMonth.getMonth()+1,1);
+  const list=festivalsBetween(from,to,sp.lat,sp.lon).filter(x=>!x.minor&&x.kind!=="observance"||x.kind==="observance");
   const hi=PREFS().lang!=="en";
-  const months=[];
-  for(const x of list){
-    const key=x.date.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
-    let m=months.find(y=>y.key===key); if(!m){ m={key,items:[]}; months.push(m); }
-    m.items.push(x);
-  }
   const KIND={festival:"festival",solar:"sankranti",vrat:"vrat",observance:"observance"};
-  const RULE={sunrise:"tithi at sunrise",noon:"tithi at midday",afternoon:"tithi in the afternoon",
-    evening:"tithi at pradosh",night:"tithi at moonrise",midnight:"tithi at midnight",sankranti:"the Sun enters the sign"};
+  const label=festMonth.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+  const thisMonth=(()=>{const d=new Date(); return d.getFullYear()===festMonth.getFullYear()&&d.getMonth()===festMonth.getMonth();})();
+  FESTLIST=list;
   return `
-    <p class="skylead">The next ${festDays} days at ${sp.name?sp.name.split(",")[0]:"your place"},
-      derived from the same ephemeris as your chart &#8212; each date says which rule fixed it.</p>
-    <div class="feelseg" style="margin-bottom:10px" id="festkind">
-      ${[["all","Festivals & vrats"],["festival","Festivals"],["vrat","Vrats"]].map(([k,v])=>
-        `<button data-k="${k}" class="${festFilter===k?"on":""}">${v}</button>`).join("")}
+    <div class="monthbar" id="festnav">
+      <button class="mnav" data-step="-1" data-unit="y" aria-label="Previous year">&#171;</button>
+      <button class="mnav" data-step="-1" data-unit="m" aria-label="Previous month">&#8249;</button>
+      <b>${label}</b>
+      <button class="mnav" data-step="1" data-unit="m" aria-label="Next month">&#8250;</button>
+      <button class="mnav" data-step="1" data-unit="y" aria-label="Next year">&#187;</button>
     </div>
-    <div class="feelseg" style="margin-bottom:16px" id="festrange">
-      ${[30,90,365].map(n=>`<button data-n="${n}" class="${festDays===n?"on":""}">${n===365?"Year":n+" days"}</button>`).join("")}
-    </div>
-    ${months.map(m=>`
-      <div class="eyebrow festmonth">${m.key}</div>
-      <div class="card festcard">
-        ${m.items.map(x=>{
-          const today=isToday(x.date);
-          return `<div class="festrow${today?" today":""}">
-            <div class="festday"><b>${x.date.getDate()}</b><span>${x.date.toLocaleDateString("en-GB",{weekday:"short"})}</span></div>
-            <div class="festbody">
-              <div class="festname">${x.name}${hi&&x.hi?` <small class="hiname">${x.hi}</small>`:""}
-                <span class="festkind ${x.kind}">${KIND[x.kind]}</span></div>
-              <div class="festmeta">${x.masa?`${hi?x.masaHi:x.masa}${x.paksha?` &#183; ${x.paksha==="S"?"Shukla":"Krishna"} ${x.tithi===15?(x.paksha==="S"?"Purnima":"Amavasya"):x.tithi}`:""}`:""}
-                &#183; ${RULE[x.rule]||x.rule}</div>
-              ${x.note?`<div class="festnote">${x.note}</div>`:""}
-            </div></div>`;}).join("")}
-      </div>`).join("")}
+    ${list.length?`<div class="festlist">
+      ${list.map((x,i)=>{
+        const today=thisMonth&&isToday(x.date);
+        return `<button class="festrow${today?" today":""}" data-fi="${i}">
+          <span class="festday"><b>${x.date.getDate()}</b><span>${x.date.toLocaleDateString("en-GB",{weekday:"short"})}</span></span>
+          <span class="festbody">
+            <span class="festname">${x.name}${hi&&x.hi?` <small class="hiname">${x.hi}</small>`:""}</span>
+            <span class="festwhat">${whatIs(x.name)||`${x.masa||""}${x.paksha?` &#183; ${x.paksha==="S"?"Shukla":"Krishna"} ${x.tithi===15?(x.paksha==="S"?"Purnima":"Amavasya"):x.tithi}`:""}`}</span>
+          </span>
+          <span class="festkind ${x.kind}">${KIND[x.kind]}</span>
+          <span class="chev">&#8250;</span>
+        </button>`;}).join("")}
+    </div>`
+    :`<p class="note" style="margin-top:22px">No festivals or vrats fall in ${label} at
+        ${sp.name?sp.name.split(",")[0]:"your place"}. Step a month either way.</p>`}
     <p class="note">Dates follow the amanta month reckoning used across Maharashtra, Gujarat and the
-      south; the north names the same days by purnimanta months, so an Ekadashi&#8217;s name here
-      follows that wider convention. Regional almanacs can still differ by a day where a tithi
-      straddles two sunrises or where moonrise, bhadra or local sunrise is judged differently.</p>`;
+      south; the north names the same days by purnimanta months. Regional almanacs can differ by a
+      day where a tithi straddles two sunrises, or where moonrise, bhadra or local sunrise is
+      judged differently. Tap any day for how its date was fixed.</p>`;
+}
+let FESTLIST=[];
+/* one day, explained: what it is, when it lands, and the rule that put it there. The rule
+   is the part no almanac app shows, and it is the part our own engine computed. */
+function openFestival(i,card){
+  const x=FESTLIST[i]; if(!x) return;
+  const RULE={sunrise:"the tithi had to be running at sunrise",
+    noon:"the tithi had to be running at midday",
+    afternoon:"the tithi had to be running in the afternoon (aparahna)",
+    evening:"the tithi had to be running at dusk (pradosh)",
+    night:"the tithi had to be running at moonrise",
+    midnight:"the tithi had to be running at midnight (nishita)",
+    sankranti:"the Sun crossed into a new sidereal sign"};
+  const hi=PREFS().lang!=="en";
+  const tithiName=x.tithi===15?(x.paksha==="S"?"Purnima":"Amavasya"):x.tithi;
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${x.name}</span></header>
+    <div class="awscroll">
+      <div class="awinfhead" style="margin:6px 0 10px">
+        <div><b style="font-size:20px">${x.name}${hi&&x.hi?` <small class="hiname">${x.hi}</small>`:""}</b>
+          <span>${x.date.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span></div>
+      </div>
+      ${whatIs(x.name)?`<p class="tellme">${whatIs(x.name)}</p>`:""}
+      ${rows([["Falls on",x.date.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})],
+        x.masa?["Month",`${hi&&x.masaHi?x.masaHi:x.masa}${x.adhika?" (adhika)":""}`]:null,
+        x.paksha?["Fortnight",x.paksha==="S"?"Shukla, the waxing half":"Krishna, the waning half"]:null,
+        x.tithi?["Tithi",String(tithiName)]:null,
+        ["Kind",x.kind==="solar"?"sankranti":x.kind]].filter(Boolean))}
+      <h2 class="awh2">Why this date</h2>
+      <p class="because">${x.note?`${x.note}. `:""}${RULE[x.rule]||"the tithi rule for this day"}, computed for
+        ${(liveSpot()||BIRTHPLACE).name?((liveSpot()||BIRTHPLACE).name.split(",")[0]):"your place"} from the same
+        ephemeris as your chart${x.avoidBhadra?", and the bhadra half of the tithi was excluded":""}.</p>
+      <p class="awfoot">A calendar, not a verdict. Where a tithi straddles two sunrises, regional
+        almanacs may name a different day.</p>
+    </div>`;
+  const src=awOpen(ov,card);
+  ov.querySelector(".awback").onclick=()=>awClose(ov,src);
 }
 function wireFestivals(){
-  const k=document.getElementById("festkind"), r=document.getElementById("festrange");
-  if(k) k.onclick=e=>{ const b=e.target.closest("[data-k]"); if(!b)return; festFilter=b.dataset.k; buzz(6); renderSub(); };
-  if(r) r.onclick=e=>{ const b=e.target.closest("[data-n]"); if(!b)return; festDays=+b.dataset.n; buzz(6); renderSub(); };
+  const nav=document.getElementById("festnav");
+  if(nav) nav.onclick=e=>{ const b=e.target.closest("[data-step]"); if(!b) return;
+    festShift(+b.dataset.step,b.dataset.unit); buzz(6); renderSub(); };
+  const host=document.querySelector(".festlist");
+  if(host) host.onclick=e=>{ const b=e.target.closest("[data-fi]"); if(!b) return;
+    buzz(8); openFestival(+b.dataset.fi,b); };
 }
 
 function subMuhurta(){

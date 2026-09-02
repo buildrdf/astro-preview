@@ -280,3 +280,61 @@ export function todayObservance(day, lat, lon) {
   const rank = { festival: 0, solar: 1, vrat: 2, observance: 3 };
   return list.sort((a, b) => rank[a.kind] - rank[b.kind])[0] || null;
 }
+
+/* One plain line for what each day IS, so a row can say something before the reader has to
+   know the vocabulary. Widely attested descriptions only — nothing invented, no claims about
+   outcomes, no scripture cited. Anything not listed falls back to its tithi reckoning. */
+export const WHAT = {
+  "Gudi Padwa / Ugadi": "New year in the amanta reckoning, kept in Maharashtra as Gudi Padwa and in the Deccan as Ugadi.",
+  "Ram Navami": "Marks the birth of Rama, observed at midday.",
+  "Hanuman Jayanti": "Marks the birth of Hanuman.",
+  "Akshaya Tritiya": "A day traditionally treated as auspicious for beginnings and for buying gold.",
+  "Buddha Purnima": "Full moon kept as the birth, awakening and passing of the Buddha.",
+  "Vat Purnima": "A married women's vrat kept around the banyan tree, in Maharashtra and Gujarat.",
+  "Ganga Dussehra": "Marks the descent of the Ganga.",
+  "Rath Yatra": "The chariot procession of Jagannath at Puri.",
+  "Guru Purnima": "Full moon given to teachers and to Vyasa.",
+  "Nag Panchami": "Serpent worship on the fifth of the bright fortnight.",
+  "Raksha Bandhan": "Sisters tie a thread on their brothers' wrists.",
+  "Janmashtami": "Marks the birth of Krishna, kept at midnight.",
+  "Hartalika Teej": "A women's vrat to Parvati, kept without food or water.",
+  "Ganesh Chaturthi": "The arrival of Ganesha, installed at midday.",
+  "Anant Chaturdashi": "Closes the Ganesh festival with the immersion.",
+  "Pitru Paksha begins": "A fortnight given to remembering ancestors.",
+  "Sarva Pitru Amavasya": "The last day of the ancestral fortnight, for all forebears together.",
+  "Navratri begins": "Nine nights of the Goddess open.",
+  "Durga Ashtami": "The eighth night of Navratri.",
+  "Vijayadashami / Dussehra": "Closes Navratri; kept as Rama's victory and as Durga's.",
+  "Sharad Purnima": "The autumn full moon, kept as Kojagiri.",
+  "Karva Chauth": "A wives' vrat broken at moonrise.",
+  "Dhanteras": "Opens the Diwali days; traditionally a day for buying metal.",
+  "Naraka Chaturdashi": "Chhoti Diwali, the day before the main night.",
+  "Diwali / Lakshmi Puja": "The new moon night of lamps, with Lakshmi worshipped at dusk.",
+  "Govardhan Puja": "Marks Krishna lifting Govardhan; kept as Annakut.",
+  "Bhai Dooj": "Brothers visit their sisters, two days after Diwali.",
+  "Tulsi Vivah": "The ceremonial marriage of the tulsi plant, opening the wedding season.",
+  "Kartik Purnima / Guru Nanak Jayanti": "Kartik full moon, also kept as the birth of Guru Nanak.",
+  "Vasant Panchami": "Spring opens; the day of Saraswati.",
+  "Ratha Saptami": "Marks the Sun turning north on his chariot.",
+  "Maha Shivratri": "The great night of Shiva, kept awake at midnight.",
+  "Holika Dahan": "The bonfire on the eve of Holi.",
+  "Holi (Dhulivandan)": "The day of colour, the morning after the bonfire.",
+  "Makar Sankranti": "The Sun enters Capricorn and begins its northward half.",
+  "Mesha Sankranti (Baisakhi / Vishu)": "The Sun enters Aries; solar new year in several regions.",
+  "Ekadashi": "The eleventh tithi, kept as a fast in both fortnights.",
+  "Pradosh": "The thirteenth tithi at dusk, given to Shiva.",
+  "Sankashti Chaturthi": "The fourth of the dark fortnight, kept for Ganesha and broken at moonrise.",
+  "Purnima": "The full moon.",
+  "Amavasya": "The new moon.",
+};
+export const whatIs = name => {
+  if (!name) return "";
+  if (WHAT[name]) return WHAT[name];
+  if (/Ekadashi$/.test(name)) return WHAT["Ekadashi"];             /* Indira, Kamada, … */
+  if (/Pradosh/i.test(name)) return WHAT["Pradosh"];
+  if (/Sankashti|Chaturthi$/.test(name)) return WHAT["Sankashti Chaturthi"];
+  if (/Sankranti$/.test(name)) return "The Sun enters a new sidereal sign.";
+  if (/Purnima$/.test(name)) return WHAT["Purnima"];
+  if (/Amavasya$/.test(name)) return WHAT["Amavasya"];
+  return "";
+};

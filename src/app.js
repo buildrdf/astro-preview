@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902o";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260902p";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
 import { festivalsBetween, todayObservance } from "./festivals.js?v=20260902c";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902o";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260902p";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -5675,105 +5675,15 @@ function wireSigns(){
       document.getElementById("zdeg").classList.toggle("solid",szDeg);
       document.getElementById("ztable").innerHTML=signsTable(); return; }
     const zn=e.target.closest("[data-zn]");
-    if(zn){ e.stopPropagation(); buzz(8); openNakPage(+zn.dataset.zn, zn.closest(".zrow")); return; }
+    if(zn){ e.stopPropagation(); buzz(8); openObject({kind:"nakshatra",id:+zn.dataset.zn,mode:"birth",from:"directory",emphasis:"birth",origin:rectOrigin(zn)}); return; }
     const zr=e.target.closest(".zrow");
-    if(zr){ buzz(8); openSignPage(+zr.dataset.zs, zr); return; }
+    if(zr){ buzz(8); openObject({kind:"rashi",id:+zr.dataset.zs,mode:"birth",from:"directory",emphasis:"birth",origin:rectOrigin(zr)}); return; }
   };
   const q=document.getElementById("zq");
   if(q) q.oninput=()=>{ szQ=q.value; document.getElementById("ztable").innerHTML=signsTable(); };
 }
 
-/* ---- sign page (part 36) ---- */
-function openSignPage(s,card){
-  const parts=signNakshatras(s), a=(s-1)*30;
-  const here=myPoints().filter(p=>p.g.sign===s);
-  const ov=document.createElement("div");
-  ov.className="awpage";
-  ov.innerHTML=`
-    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${SIGNS[s-1]} &#183; ${SIGNS_SK[s-1]}</span></header>
-    <div class="awscroll">
-      <div class="awinfhead" style="margin:6px 0 2px">
-        <span class="zglyph">${SIGN_GLYPH[s-1]}</span>
-        <div><b style="font-size:20px">${SIGNS[s-1]} &#183; ${SIGNS_SK[s-1]}</b>
-          <span>${a}&#176;00&#8242; &#8211; ${s*30}&#176;00&#8242; of the sidereal zodiac</span></div>
-      </div>
-      ${rows([["Ruler",SIGN_LORD[s]],["Element",SIGN_ELEMENT[s-1]],["Modality",SIGN_MODALITY[s-1]],
-        ["In your chart",`${ordinal(CHART.houseOfSign(s))} house`]])}
-      <h2 class="awh2">Its nakshatra portions</h2>
-      <div class="zstrip" role="img" aria-label="${parts.map(p=>`${p.name} ${fmtDMS(p.from-a)} to ${fmtDMS(p.to-a)}`).join(", ")}">
-        <div class="zstripscale"><span>${a}&#176;</span><span>${s*30}&#176;</span></div>
-        <div class="zstripbar">${parts.map((p,i)=>`<i style="width:${((p.to-p.from)/30*100).toFixed(2)}%" class="c${p.index%3}"><span>${p.name}</span></i>`).join("")}</div>
-        <div class="zstriplbl">${parts.map(p=>`<span style="width:${((p.to-p.from)/30*100).toFixed(2)}%">padas ${p.padas.length===1?p.padas[0]:`${p.padas[0]}&#8211;${p.padas[p.padas.length-1]}`}</span>`).join("")}</div>
-      </div>
-      <p class="because">${parts.filter(p=>p.padas.length<4).length?`${parts.filter(p=>p.padas.length<4).map(p=>p.name).join(" and ")} spill across the sign boundary &#8212; the rest of their padas belong to the neighbouring sign.`:"All of these nakshatras sit wholly inside the sign."}</p>
-      <h2 class="awh2">In your chart</h2>
-      ${here.length?here.map(p=>`<div class="awrow"><b>${p.name}</b><span>${fmtDMS(p.g.degInSign)} &#183; ${p.g.nakName} pada ${p.g.pada}</span></div>`).join("")
-        :`<p class="because">No natal point sits in ${SIGNS[s-1]}; it is your ${ordinal(CHART.houseOfSign(s))} house, read through its lord ${SIGN_LORD[s]}.</p>`}
-      <div class="awctas" style="margin-top:14px">
-        <button class="awcta" data-act="house">Open your ${ordinal(CHART.houseOfSign(s))} house</button>
-        <button class="awcta" data-act="guide">Ask Guide</button>
-      </div>
-    </div>`;
-  const src=awOpen(ov,card);
-  const close=(then)=>awClose(ov,src,then);
-  ov.querySelector(".awback").onclick=()=>close();
-  ov.onclick=e=>{
-    const nk=e.target.closest(".zstripbar i");
-    if(nk){ const idx=parts[[...nk.parentElement.children].indexOf(nk)].index; buzz(7); openNakPage(idx,nk); return; }
-    const b=e.target.closest(".awcta"); if(!b) return;
-    buzz(9);
-    if(b.dataset.act==="house") close(()=>{ go(CHART_INDEX); setMode("birth"); openHouse(CHART.houseOfSign(s)); });
-    else close(()=>askGuide(`What does ${SIGNS[s-1]} mean in my chart?`,
-      {source:"sign",sign:SIGNS[s-1],house:CHART.houseOfSign(s),ruler:SIGN_LORD[s],pointsHere:here.map(p=>p.name)}));
-  };
-}
-
-/* ---- nakshatra page (parts 35, 41) ---- */
-function openNakPage(i,card){
-  const r=nakshatraRange(i), m=NAK_META[i];
-  const here=myPoints().filter(p=>p.g.nak===i);
-  const ov=document.createElement("div");
-  ov.className="awpage";
-  ov.innerHTML=`
-    <header class="awtop"><button class="awback" aria-label="Back">&#8249;</button><span>${r.name}</span></header>
-    <div class="awscroll">
-      <div class="awinfhead" style="margin:6px 0 2px">
-        <img class="awart" style="width:52px;height:52px" src="assets/graha/${nakLord(i).toLowerCase()}.png" alt="">
-        <div><b style="font-size:20px">${r.name}</b>
-          <span>${fmtDMS(r.start)} &#8211; ${fmtDMS(r.end)} &#183; ${r.signs.map(s=>SIGNS[s-1]).join(" and ")}</span></div>
-      </div>
-      <p class="tellme">Traditionally associated with ${m.means}.</p>
-      ${rows([["Ruler (Vimshottari)",nakLord(i)],["Deity",m.deity],["Symbol",m.symbol],
-        ["Span",`13&#176;20&#8242; &#183; four padas of 3&#176;20&#8242;`]])}
-      <h2 class="awh2">Its four padas</h2>
-      <div class="zpadas4" role="img" aria-label="${r.padas.map(p=>`pada ${p.pada} in ${SIGNS[p.sign-1]}`).join(", ")}">
-        ${r.padas.map(p=>`<div class="zp s${p.sign}"><b>Pada ${p.pada}</b><span>${SIGNS[p.sign-1]}</span><small>${fmtDMS(p.start-(p.sign-1)*30)}&#8211;${fmtDMS(p.end-(p.sign-1)*30)}</small></div>`).join("")}
-      </div>
-      <p class="because">${r.straddles
-        ?`${r.name} straddles two signs: its padas fall in ${r.signs.map(s=>SIGNS[s-1]).join(" and ")}. One nakshatra, two rashis &#8212; a point here belongs to both grids at once.`
-        :`All four padas of ${r.name} sit inside ${SIGNS[r.signs[0]-1]}.`}</p>
-      <h2 class="awh2">In your chart</h2>
-      ${here.length?here.map(p=>`<div class="awrow"><b>${p.name}</b><span>${p.g.signName} ${fmtDMS(p.g.degInSign)} &#183; pada ${p.g.pada}</span></div>`).join("")
-        :`<p class="because">No major natal point falls in ${r.name}.</p>`}
-      <div class="awctas" style="margin-top:14px">
-        ${here.filter(p=>p.k!=="Asc").length?`<button class="awcta" data-act="natal" data-g="${here.find(p=>p.k!=="Asc").k}">See ${here.find(p=>p.k!=="Asc").k} in birth chart</button>`:""}
-        <button class="awcta" data-act="guide">${here.some(p=>p.k==="Moon")?"Ask why my Moon is in "+r.name:"Ask Guide about "+r.name}</button>
-      </div>
-      <p class="awfoot">Deity, symbol and keywords are the widely attested Parashari associations &#8212; offered as tradition, not as verdict.</p>
-    </div>`;
-  const src=awOpen(ov,card);
-  const close=(then)=>awClose(ov,src,then);
-  ov.querySelector(".awback").onclick=()=>close();
-  ov.onclick=e=>{
-    const b=e.target.closest(".awcta"); if(!b) return;
-    buzz(9);
-    if(b.dataset.act==="natal") close(()=>{ navUnwindAll(); go(CHART_INDEX); setMode("birth"); openPlanet(b.dataset.g); });
-    else close(()=>askGuide(here.some(p=>p.k==="Moon")?`Why is my Moon in ${r.name}, and what does it mean?`:`What does ${r.name} mean?`,
-      {source:"nakshatra",nakshatra:r.name,lord:nakLord(i),deity:m.deity,symbol:m.symbol,signs:r.signs.map(s=>SIGNS[s-1]),
-       pointsHere:here.map(p=>`${p.name} pada ${p.g.pada}`)}));
-  };
-}
-
+/* the sign and nakshatra pages retired 2 Sep 2026 — objectdetail.js answers every kind */
 function wireBirth(){
   if(bdTab==="vargas") wireVargasTab();
   document.querySelector("#bdrail button.on")?.scrollIntoView({inline:"center",block:"nearest"});
@@ -6862,8 +6772,9 @@ addEventListener("astra:opentransit",e=>{          /* current influence, warm-li
   go(0); setTimeout(()=>openTransitWhy(e.detail,null),200);
 });
 addEventListener("astra:askguide",e=>{ const {q,ctx}=e.detail||{}; if(q) askGuide(q,ctx); });
-addEventListener("astra:opensign",e=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openSignPage(+e.detail,null),200); });
-addEventListener("astra:opennak",e=>{ go(YOU_INDEX); subView="signs"; renderSub(); setTimeout(()=>openNakPage(+e.detail,null),200); });
+/* legacy events from older surfaces: the universal detail answers them now */
+addEventListener("astra:opensign",e=>openObject({kind:"rashi",id:+e.detail,mode:"birth",from:"event",emphasis:"birth"}));
+addEventListener("astra:opennak",e=>openObject({kind:"nakshatra",id:+e.detail,mode:"birth",from:"event",emphasis:"birth"}));
 addEventListener("astra:openhouse",e=>{ go(CHART_INDEX); setMode("birth"); setTimeout(()=>openHouse(+e.detail),260); });
 addEventListener("astra:openbirth",()=>{ go(YOU_INDEX); bdTab="overview"; subView="birth"; renderSub(); });
 /* the sky's moment editor knocks on the Pro door */

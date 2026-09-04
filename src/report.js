@@ -33,7 +33,11 @@ import { vargaChart, SUPPORTED } from "./vargas.js";
 import { bhinnashtakavarga, sarvashtakavarga, AV_GRAHAS } from "./ashtakavarga.js";
 import { detectYogas, detectDoshas, buildYogaChart } from "./yogas.js";
 import { ashtakoota, manglik } from "./match.js";
-import { ASTERISMS } from "./asterisms.js";
+/* the Avakhada tables and their identity block live in their own module now: app.js
+   needs avakhadaOf for two glossary lines and used to import this whole file (and,
+   through it, report-hi.js) to get it. One copy of each validated table, shared. */
+import { avakhadaOf, NAK_NAMES, VARNA_OF_SIGN, VASHYA_OF_SIGN, YONI_OF, GANA_OF,
+  NADI_OF, TATVA_OF_SIGN, NAME_SYL, YUNJA_OF_NAK } from "./avakhada.js";
 import { DASHA_THEME, ANTAR_FLAVOR } from "./narrative.js";
 import { PLANET_STORY, GRAHA_MEANING } from "./interpret.js";
 import { HOUSE_STORY, GRAHA_IN_SIGN, LORD_IN_HOUSE, CONJUNCTION_BLEND, conjKey } from "./lore.js";
@@ -63,77 +67,6 @@ const SEVEN = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
 const EXALT = { Sun:1, Moon:2, Mars:10, Mercury:6, Jupiter:4, Venus:12, Saturn:7 };
 const DEBIL = { Sun:7, Moon:8, Mars:4, Mercury:12, Jupiter:10, Venus:6, Saturn:1 };
 
-const NAK_NAMES = ASTERISMS.map(a => a.nak);          /* validated catalog order */
-
-/* Avakhada tables - these mirror the module-private tables inside
-   src/match.js (the same standard Parashari tables the koota scoring
-   was validated against); duplicated here only because match.js keeps
-   them private. Order: Aries.. / Ashwini.. */
-const VARNA_OF_SIGN = ["Kshatriya","Vaishya","Shudra","Brahmin","Kshatriya","Vaishya",
-  "Shudra","Brahmin","Kshatriya","Vaishya","Shudra","Brahmin"];
-const VASHYA_OF_SIGN = ["Chatushpada","Chatushpada","Manava","Jalachara","Vanachara","Manava",
-  "Manava","Keeta","Manava","Jalachara","Manava","Jalachara"];
-const YONI_OF = ["horse","elephant","sheep","serpent","serpent","dog","cat","sheep","cat",
-  "rat","rat","cow","buffalo","tiger","buffalo","tiger","deer","deer","dog",
-  "monkey","mongoose","monkey","lion","horse","lion","cow","elephant"];
-const GANA_OF = ["Deva","Manushya","Rakshasa","Manushya","Deva","Manushya","Deva","Deva","Rakshasa",
-  "Rakshasa","Manushya","Manushya","Deva","Rakshasa","Deva","Rakshasa","Deva","Rakshasa","Rakshasa",
-  "Manushya","Manushya","Deva","Rakshasa","Rakshasa","Manushya","Manushya","Deva"];
-const NADI_OF = ["Adi","Madhya","Antya","Antya","Madhya","Adi","Adi","Madhya","Antya",
-  "Antya","Madhya","Adi","Adi","Madhya","Antya","Antya","Madhya","Adi","Adi",
-  "Madhya","Antya","Antya","Madhya","Adi","Adi","Madhya","Antya"];
-
-/* Extended Avakhada - only attributes whose rule we can validate against
-   the printed benchmark charts are added (COMPARISON.md §1 item 12):
-     Tatva      - element of the Moon sign (Fire/Earth/Air/Water cycle from
-                  Aries). Validated: Sagittarius->Fire (Astrotalk, and AAP's
-                  "Hansak Agni"), Libra->Air (Astrotalk partner).
-     Namakshara - the naming syllable of the Moon's nakshatra-pada, from the
-                  standard 108-syllable avakahada chakra. Validated: Mula 4
-                  -> Bhi ("Bhee"/"Bi" in both vendors), Swati 2 -> Re.
-     Yunja      - the nakshatra's third of the 27 (1-9 Adi, 10-18 Madhya,
-                  19-27 Antya). Validated against both Astrotalk charts
-                  (Mula #19 -> Antya, Swati #15 -> Madhya); AAP prints a
-                  different scheme ("Sheeta") that contradicts Astrotalk.
-   Paya is deliberately NOT added: the two vendors print different schemes
-   (Astrotalk "Copper", AAP "Iron - Copper") and no single rule reproduces
-   both, so we do not guess (same discipline as the D5 varga skip). */
-const TATVA_OF_SIGN = ["Fire","Earth","Air","Water"];        /* index sign-1 mod 4 */
-const NAME_SYL = [
-  ["Chu","Che","Cho","La"],["Li","Lu","Le","Lo"],["A","I","U","E"],
-  ["O","Va","Vi","Vu"],["Ve","Vo","Ka","Ki"],["Ku","Gha","Nga","Chha"],
-  ["Ke","Ko","Ha","Hi"],["Hu","He","Ho","Da"],["Di","Du","De","Do"],
-  ["Ma","Mi","Mu","Me"],["Mo","Ta","Ti","Tu"],["Te","To","Pa","Pi"],
-  ["Pu","Sha","Na","Tha"],["Pe","Po","Ra","Ri"],["Ru","Re","Ro","Ta"],
-  ["Ti","Tu","Te","To"],["Na","Ni","Nu","Ne"],["No","Ya","Yi","Yu"],
-  ["Ye","Yo","Bha","Bhi"],["Bhu","Dha","Pha","Dha"],["Bhe","Bho","Ja","Ji"],
-  ["Khi","Khu","Khe","Kho"],["Ga","Gi","Gu","Ge"],["Go","Sa","Si","Su"],
-  ["Se","So","Da","Di"],["Du","Tha","Jha","Na"],["De","Do","Cha","Chi"],
-];
-const YUNJA_OF_NAK = i => i < 9 ? "Adi" : i < 18 ? "Madhya" : "Antya";
-
-/* The Avakhada identity block for a (sidereal) Moon longitude -
-   exported for the app's Birth-details sheet, which used to carry
-   these values transcribed from a vendor PDF (those constants died in
-   a refactor and the sheet crashed on a live tap, 31 Aug). Same
-   validated tables the printed reports use. */
-export function avakhadaOf(moonL) {
-  const s = signOf(moonL), n = nakOf(moonL), p = padaOf(moonL);
-  return {
-    "Rashi (Moon sign)": SIGNS[s - 1],
-    "Rashi lord": SIGN_LORD[s - 1],
-    "Nakshatra": `${NAK_NAMES[n]} · pada ${p}`,
-    "Nakshatra lord": nakLord(n),
-    "Varna": VARNA_OF_SIGN[s - 1],
-    "Vashya": VASHYA_OF_SIGN[s - 1],
-    "Yoni": YONI_OF[n],
-    "Gana": GANA_OF[n],
-    "Nadi": NADI_OF[n],
-    "Tatva": TATVA_OF_SIGN[(s - 1) % 4],
-    "Namakshara": NAME_SYL[n][p - 1],
-    "Yunja": YUNJA_OF_NAK(n),
-  };
-}
 
 const VARA_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const VARA_LORD  = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
@@ -1161,4 +1094,4 @@ function renderLove(a, b) {
 
 /* ------------------------------------------------ api ------------- */
 
-export { computeChart, renderKundali, renderLove };
+export { computeChart, renderKundali, renderLove, avakhadaOf };

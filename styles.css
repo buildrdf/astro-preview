@@ -3254,21 +3254,27 @@ body.tabmin .tabthumb{opacity:0}
 .ygcheck{margin:6px 0 0;font-size:12px;line-height:1.5;color:var(--ink-3)}
 
 .alab{margin:14px 0 6px}
-.alabstrip{display:flex;gap:7px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
-.alabstrip::-webkit-scrollbar{display:none}
-.alabg{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border-radius:99px;
-  border:1px solid var(--edge-soft);background:none;color:var(--ink-2);cursor:pointer;
-  font-family:var(--ff);font-size:13px;padding:7px 12px;transition:background .18s var(--ease),
-  color .18s var(--ease),border-color .18s var(--ease)}
-.alabg i{width:11px;height:11px;border-radius:50%;display:inline-block}
-.alabg.on{background:var(--ink);color:var(--void);border-color:var(--ink)}
-.alabnote{margin:0 0 10px;font-size:11.5px;color:var(--ink-3)}
-.alabchart .lgfig{width:100%;height:auto;max-width:320px;display:block;margin:0 auto}
+.alabchart .labfig{width:100%;height:auto;max-width:340px;display:block;margin:0 auto}
 .alabchart .ahs{cursor:pointer;outline:none}
-.alabchart .ahs:focus-visible{stroke:var(--brass);stroke-width:1.6}
-.alabsay{margin-top:10px;min-height:44px}
-.alabsay b{display:block;font-size:15px;line-height:1.5;color:var(--ink);font-weight:600}
-.alabsay span{display:block;font-size:12.5px;line-height:1.5;color:var(--ink-3);margin-top:4px}
+.alabchart .ahs:focus-visible{stroke:var(--brass);stroke-width:1.4}
+/* nine grahas, all visible at once — a grid reads faster than a scrolling strip */
+.alabstrip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 0}
+.alabg{display:block;width:100%;border-radius:13px;border:1px solid var(--edge-soft);
+  background:none;color:var(--ink-2);cursor:pointer;font-family:var(--ff);font-size:14px;
+  font-weight:600;padding:11px 6px;min-height:44px;
+  transition:background .18s var(--ease),color .18s var(--ease),border-color .18s var(--ease)}
+.alabg.on{color:var(--gc);border-color:var(--gc);background:color-mix(in srgb,var(--gc) 12%,transparent)}
+.alabnote{margin:12px 0 0;font-size:11.5px;color:var(--ink-3)}
+.alabsay{margin-top:14px;min-height:40px}
+.labhint{margin:0;font-size:14px;color:var(--ink-3)}
+.labcard{border:1px solid color-mix(in srgb,var(--gc) 34%,transparent);border-radius:16px;
+  padding:14px 15px;background:color-mix(in srgb,var(--gc) 6%,transparent)}
+.labcard h4{margin:0;font-size:19px;font-weight:660;letter-spacing:-.02em;color:var(--ink)}
+.labeyebrow{font-family:var(--fm);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gc);margin-top:3px}
+.labtell{margin:11px 0 0;font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+.labwhy{margin:9px 0 0;font-size:12.5px;line-height:1.55;color:var(--ink-3)}
+.labwhy b{color:var(--ink-2);font-weight:600}
 @media (prefers-reduced-motion: reduce){ .alabg{transition:none} }
 .ygg.role{color:var(--ink-3);border:1px solid var(--edge-soft);border-radius:99px;padding:2px 9px;font-size:12px}
 

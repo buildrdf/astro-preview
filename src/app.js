@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904k";
+import { LEARN_LEVELS } from "./learn.js?v=20260904l";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904k";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904l";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904k";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904k";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904l";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904l";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -4158,36 +4158,67 @@ const labTarget=(h,o)=>((h-1+o-1)%12)+1;
 function labClear(){ labTimers.forEach(clearTimeout); labTimers=[]; }
 function aspectLab(){
   return `<div class="alab">
-    <div class="alabstrip" id="alabstrip" role="radiogroup" aria-label="Choose a graha">
-      ${GRAHA9.map(g=>`<button class="alabg" data-g="${g}" role="radio" aria-checked="false">
-        <i style="background:${COLOUR(g)}"></i>${g}</button>`).join("")}
-    </div>
-    <p class="alabnote">A practice chart &#8212; place a graha anywhere. Your own chart is in Universe.</p>
     <div class="alabchart" id="alabchart">${labChart()}</div>
-    <div class="alabsay" id="alabsay" aria-live="polite"><b>Pick a graha.</b></div>
+    <div class="alabstrip" id="alabstrip" role="radiogroup" aria-label="Choose a graha">
+      ${GRAHA9.map(g=>`<button class="alabg" data-g="${g}" role="radio" aria-checked="false"
+        style="--gc:${COLOUR(g)}">${g}</button>`).join("")}
+    </div>
+    <p class="alabnote">Pick a graha, then tap a house. A practice chart &#8212; your own is in Universe.</p>
+    <div class="alabsay" id="alabsay" aria-live="polite"></div>
   </div>`;
 }
+const LAB_HOUSE=["Self","Wealth","Courage","Home","Creativity","Daily life",
+  "Partners","Change","Fortune","Career","Gains","Release"];
 function labChart(){
   const offs=lab.g&&lab.h?aspectOffsets(lab.g,{nodal:false}):[];
-  const aim=lab.h?offs.map(o=>labTarget(lab.h,o)):[];
-  return miniChart(h=>String(h),{cells:true,lit:lab.h?[lab.h]:[],aim,
-    seat:lab.g&&lab.h?{graha:lab.g,house:lab.h}:null,
-    aria:lab.g&&lab.h?`${lab.g} in house ${lab.h}, aspecting houses ${aim.join(", ")}`
-      :"A practice chart of twelve houses"});
+  const aim=lab.h?offs.map(o=>({h:labTarget(lab.h,o),o})):[];
+  const A=h=>ANCHOR[h]||[50,50];
+  const seatC=lab.g?COLOUR(lab.g):"var(--brass)";
+  return `<svg class="labfig" viewBox="-4 -8 108 116" role="img"
+      aria-label="${lab.g&&lab.h?`${lab.g} in house ${lab.h}, aspecting ${aim.map(x=>x.h).join(", ")}`:"A practice chart of twelve houses"}">
+    ${aim.map(x=>`<path d="${HOUSE_PATH[x.h]}" fill="${seatC}" opacity=".13"/>`).join("")}
+    ${lab.h?`<path d="${HOUSE_PATH[lab.h]}" fill="${seatC}" opacity=".30"/>`:""}
+    <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.1"/>
+    <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width=".9"/>
+    <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width=".9"/>
+    <path d="${RHOMBUS_D}" fill="none" stroke="var(--line-2)" stroke-width=".9"/>
+    ${aim.map(x=>{const [x1,y1]=A(lab.h), [x2,y2]=A(x.h);
+      const mx=(x1+x2)/2, my=(y1+y2)/2;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${seatC}"
+        stroke-width=".9" stroke-dasharray="2.6 2.2" opacity=".85"/>
+      <rect x="${mx-5.2}" y="${my-3}" width="10.4" height="6" rx="3" fill="var(--void)" opacity=".92"/>
+      <text x="${mx}" y="${my}" font-size="4" fill="${seatC}" text-anchor="middle"
+        dominant-baseline="central" font-family="var(--ff)" font-weight="600">${ordinal(x.o)}</text>`;}).join("")}
+    ${Object.keys(HOUSE_PATH).map(h=>{const [tx,ty]=A(+h);
+      const off=lab.h===+h?-7:0;
+      return `<text x="${tx}" y="${ty+off}" font-size="3.6" fill="var(--ink-3)" text-anchor="middle"
+        dominant-baseline="central" font-family="var(--ff)">${LAB_HOUSE[+h-1]}</text>`;}).join("")}
+    ${lab.g&&lab.h?`<g transform="translate(${A(lab.h)[0]},${A(lab.h)[1]+3})">
+      <circle r="5.4" fill="${seatC}"/>
+      <rect x="-11" y="7" width="22" height="7.4" rx="3.7" fill="var(--ink)"/>
+      <text y="10.9" font-size="4.2" fill="var(--void)" text-anchor="middle" dominant-baseline="central"
+        font-family="var(--ff)" font-weight="700">${lab.g.toUpperCase()}</text></g>`:""}
+    ${Object.keys(HOUSE_PATH).map(h=>`<path class="ahs" data-h="${h}" d="${HOUSE_PATH[h]}"
+      fill="transparent" stroke="none" tabindex="0" role="button"
+      aria-label="House ${h}, ${LAB_HOUSE[+h-1]}"></path>`).join("")}
+  </svg>`;
 }
 function labSay(){
   const n=document.getElementById("alabsay"); if(!n) return;
-  if(!lab.g){ n.innerHTML="<b>Pick a graha.</b>"; return; }
-  if(!lab.h){ n.innerHTML=`<b>Now tap a house to seat ${lab.g}.</b>
-    <span>${(GRAHA_MEANING[lab.g]||{}).is||""}</span>`; return; }
+  if(!lab.g){ n.innerHTML=`<p class="labhint">Pick a graha below.</p>`; return; }
+  if(!lab.h){ n.innerHTML=`<p class="labhint">Now tap a house to seat ${lab.g}.</p>`; return; }
   const offs=aspectOffsets(lab.g,{nodal:false});
   const hs=offs.map(o=>labTarget(lab.h,o));
   const extra=offs.filter(o=>o!==7);
-  n.innerHTML=`<b>${lab.g} in the ${ordinal(lab.h)} looks at the
-    ${hs.map(ordinal).join(", the ")}.</b>
-    <span>${offs.length?`Every graha aspects the 7th from itself.${extra.length
-      ?` ${lab.g} adds the ${extra.map(ordinal).join(" and the ")}.`:""}`
-      :`${lab.g} is left without drishti here &#8212; the schools disagree, and Astra leaves the nodes out.`}</span>`;
+  const story=(PLANET_STORY[lab.g]||{}).inHouse||{};
+  n.innerHTML=`<div class="labcard" style="--gc:${COLOUR(lab.g)}">
+    <h4>${lab.g} in house ${lab.h}</h4>
+    <div class="labeyebrow">${LAB_HOUSE[lab.h-1]}</div>
+    <p class="labtell">${story[lab.h]||`${lab.g} sits in the ${ordinal(lab.h)}.`}</p>
+    <p class="labwhy"><b>It looks at the ${hs.map(ordinal).join(", the ")}.</b>
+      Every graha aspects the 7th from itself.${extra.length
+      ?` ${lab.g} adds the ${extra.map(ordinal).join(" and the ")}.`:""}</p>
+  </div>`;
 }
 function labPaint(){
   const c=document.getElementById("alabchart"); if(c) c.innerHTML=labChart();

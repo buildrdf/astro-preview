@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904l";
+import { LEARN_LEVELS } from "./learn.js?v=20260904m";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904l";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904m";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904l";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904l";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904m";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904m";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2029,7 +2029,7 @@ function showYoga(i){
       <b>${y.name}${y.sanskrit?` <small class="hiname">${y.sanskrit}</small>`:""}</b>
       ${y.strength?`<span class="ygtag">${y.strength}</span>`:""}</div>
     <div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
-      ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+      ? `<span class="ygg">${gIcon(g,20)}${g}</span>`
       : `<span class="ygg role">${g}</span>`).join("")}</div>
     ${where.length?`<p class="ygwhere">${where.map(p=>
       `${p.graha} in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}`).join(" &#183; ")}</p>`:""}
@@ -4135,10 +4135,8 @@ function miniChart(label,opts={}){
     ${lit.map(h=>`<path d="${HOUSE_PATH[h]||""}" fill="rgba(194,155,78,.20)" stroke="none"/>`).join("")}
     ${opts.cells?Object.keys(HOUSE_PATH).map(h=>`<path class="ahs" data-h="${h}" d="${HOUSE_PATH[h]}"
       fill="transparent" stroke="none" tabindex="0" role="button"></path>`).join(""):""}
-    ${seat&&ANCHOR[seat.house]?`<g class="aseat" transform="translate(${ANCHOR[seat.house][0]},${ANCHOR[seat.house][1]})">
-      <circle r="9" fill="${COLOUR(seat.graha)}" opacity=".95"/>
-      <text y="0.5" font-size="7" font-weight="700" fill="#0E1130" text-anchor="middle"
-        dominant-baseline="middle" font-family="var(--ff)">${seat.graha.slice(0,2)}</text></g>`:""}
+    ${seat&&ANCHOR[seat.house]?`<image class="aseat" href="assets/graha/${seat.graha.toLowerCase()}.png"
+      x="${ANCHOR[seat.house][0]-11}" y="${ANCHOR[seat.house][1]-11}" width="22" height="22"/>`:""}
     ${Object.keys(LABEL).map(h=>`<text x="${LABEL[h][0]}" y="${LABEL[h][1]}"
       font-size="7.5" fill="${lit.includes(+h)?"var(--brass)":"var(--ink-3)"}"
       text-anchor="middle" dominant-baseline="middle"
@@ -4161,7 +4159,7 @@ function aspectLab(){
     <div class="alabchart" id="alabchart">${labChart()}</div>
     <div class="alabstrip" id="alabstrip" role="radiogroup" aria-label="Choose a graha">
       ${GRAHA9.map(g=>`<button class="alabg" data-g="${g}" role="radio" aria-checked="false"
-        style="--gc:${COLOUR(g)}">${g}</button>`).join("")}
+        style="--gc:${COLOUR(g)}">${gIcon(g,22)}<span>${g}</span></button>`).join("")}
     </div>
     <p class="alabnote">Pick a graha, then tap a house. A practice chart &#8212; your own is in Universe.</p>
     <div class="alabsay" id="alabsay" aria-live="polite"></div>
@@ -4194,9 +4192,9 @@ function labChart(){
       return `<text x="${tx}" y="${ty+off}" font-size="3.6" fill="var(--ink-3)" text-anchor="middle"
         dominant-baseline="central" font-family="var(--ff)">${LAB_HOUSE[+h-1]}</text>`;}).join("")}
     ${lab.g&&lab.h?`<g transform="translate(${A(lab.h)[0]},${A(lab.h)[1]+3})">
-      <circle r="5.4" fill="${seatC}"/>
-      <rect x="-11" y="7" width="22" height="7.4" rx="3.7" fill="var(--ink)"/>
-      <text y="10.9" font-size="4.2" fill="var(--void)" text-anchor="middle" dominant-baseline="central"
+      <image href="assets/graha/${lab.g.toLowerCase()}.png" x="-8" y="-8" width="16" height="16"/>
+      <rect x="-11" y="8" width="22" height="7.4" rx="3.7" fill="var(--ink)"/>
+      <text y="11.9" font-size="4.2" fill="var(--void)" text-anchor="middle" dominant-baseline="central"
         font-family="var(--ff)" font-weight="700">${lab.g.toUpperCase()}</text></g>`:""}
     ${Object.keys(HOUSE_PATH).map(h=>`<path class="ahs" data-h="${h}" d="${HOUSE_PATH[h]}"
       fill="transparent" stroke="none" tabindex="0" role="button"
@@ -4246,7 +4244,7 @@ function yogaCard(y){
   /* a real graha gets its own colour; "the 2nd lord" is a role, not a body, so it gets none */
   const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
   const gr=(y.grahas||[]).map(g=>REAL.has(g)
-    ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+    ? `<span class="ygg">${gIcon(g,20)}${g}</span>`
     : `<span class="ygg role">${g}</span>`).join("");
   const chip=y.houses?houseChip(y.houses,{seat:y.from?{graha:y.from,house:y.houses[0]}:null}):"";
   return `<div class="yg">
@@ -4575,7 +4573,7 @@ function subYogas(){
           ${y.strength?`<span class="atone ${y.strength==="strong"?"favourable":"balanced"}">${y.strength}</span>`:""}</div>
         ${y.sanskrit?`<p class="ameta" style="margin:2px 0 6px">${y.sanskrit}</p>`:""}
         ${(y.planets||[]).length?`<div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
-          ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+          ? `<span class="ygg">${gIcon(g,20)}${g}</span>`
           : `<span class="ygg role">${g}</span>`).join("")}</div>`:""}
         ${seats.length?`<p class="ygwhere">${seats.join(" &#183; ")}</p>`:""}
         <p class="interp" style="margin:9px 0 0">${y.because}</p>

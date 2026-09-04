@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904s";
+import { LEARN_LEVELS } from "./learn.js?v=20260904t";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904s";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904t";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904s";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904s";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904t";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904t";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -90,6 +90,16 @@ const spokenDeg=L=>{const d=degIn(L),i=Math.floor(d);
   return `${i} degrees ${Math.floor((d-i)*60)} minutes`};
 const fmtDeg=L=>{const d=degIn(L),i=Math.floor(d);
   return `${String(i).padStart(2,"0")}&#176;${String(Math.floor((d-i)*60)).padStart(2,"0")}'`};
+/* Anything handed to setAttribute("aria-label", ...) is a RAW string: unlike an HTML
+   attribute, it is never entity-decoded. A planet label built from fmtDeg therefore made
+   VoiceOver read "twelve ampersand hash one seven six zero one" instead of a position.
+   Every spoken string goes through here, and degrees are spelled out because "12°01'" is
+   not a thing a screen reader says well. */
+const speak=s=>String(s??"")
+  .replace(/&#176;/g,"\u00B0").replace(/&#183;/g," \u00B7 ").replace(/&#8217;/g,"\u2019")
+  .replace(/&#8212;/g," \u2014 ").replace(/&#8211;/g,"\u2013").replace(/&#\d+;/g," ")
+  .replace(/(\d+)\u00B0\s*(\d+)'/g,"$1 degrees $2 minutes")
+  .replace(/\s+/g," ").trim();
 const adv=(s,n)=>((s-1+n-1)%12+12)%12+1;
 const own=g=>Object.keys(SIGN_LORD).filter(s=>SIGN_LORD[s]===g).map(Number);
 const shadow=g=>g==="Rahu"||g==="Ketu";
@@ -1872,9 +1882,9 @@ function renderUniverse(){
     const sg=CHART.signOfHouse(h), occ=CHART.occupants(h);
     const sf=el("polygon",{points:HOUSES[h].map(p=>p.join(",")).join(" "),
       class:"hs","data-h":h,tabindex:"0",role:"button"});
-    sf.setAttribute("aria-label",
+    sf.setAttribute("aria-label", speak(
       `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
-      (occ.length?`${occ.map(o=>o.graha).join(", ")} at birth.`:"No graha here at birth."));
+      (occ.length?`${occ.map(o=>o.graha).join(", ")} at birth.`:"No graha here at birth.")));
     chart.appendChild(sf);
     const L=LABEL[h], t=el("text",{class:"sn",x:L[0],y:L[1],"data-h":h});
     t.textContent=String(sg); chart.appendChild(t);
@@ -1935,9 +1945,9 @@ function paintUniverse(instant){
     b.style.setProperty("--y", xy[1]/100);
     b._pos=[xy[0]/100, xy[1]/100];
     b.classList.toggle("retro", !!p.retro);
-    b.setAttribute("aria-label",
+    b.setAttribute("aria-label", speak(
       `${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
-      (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":""));
+      (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":"")));
   });
   paintGhosts();
   paintHouseSigns(list);
@@ -1973,9 +1983,9 @@ function paintHouseSigns(list){
     const s=document.querySelector(`.hs[data-h="${h}"]`);
     if(s){
       const occ=list.filter(p=>p.house===h).map(p=>p.graha);
-      s.setAttribute("aria-label",
+      s.setAttribute("aria-label", speak(
         `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
-        (occ.length?`${occ.join(", ")} here.`:"No graha here."));
+        (occ.length?`${occ.join(", ")} here.`:"No graha here.")));
     }
   }
 }

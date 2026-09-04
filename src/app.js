@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905c";
+import { LEARN_LEVELS } from "./learn.js?v=20260905d";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905c";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905d";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260905c";
-import { themeOf } from "./yoga-themes.js?v=20260905c";
+import * as YF from "./yoga-formation.js?v=20260905d";
+import { themeOf } from "./yoga-themes.js?v=20260905d";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905c";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905d";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260905c";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905c";
-import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905c";
+import { avakhadaOf } from "./avakhada.js?v=20260905d";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905d";
+import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905d";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -503,6 +503,83 @@ function pathPos(h,deg){
     return {x:P.X[0]+(P.gX[0]-P.X[0])*k, y:P.X[1]+(P.gX[1]-P.X[1])*k}; }
   return pathPoint(h,(deg-BLEND)/(30-2*BLEND));
 }
+/* ---- keep a graha off the lines ---------------------------------
+   The travel path insets its endpoints 5.2 units from the entry gate, which
+   was written when every disc was smaller than that. Saturn's radius is 5.6
+   units on a 350px stage and more on a narrower phone, so the biggest grahas
+   overlapped the cell edge — measured: Sun -2.0, Rahu -1.1, Saturn -0.8, while
+   Jupiter sat with 10.6 units of clearance. Uneven, and exactly what Sangram
+   described: planets on the borders while the house has room going spare.
+
+   This clamps against the REAL polygon rather than one gate: it walks the
+   point toward the cell's anchor until the whole disc clears every edge. The
+   small triangles cannot always fit the largest disc — when they cannot, the
+   point lands on the anchor, which is the best the cell allows. */
+function segDist(px,py,ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
+  const t=L2?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/L2)):0;
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+function clearOf(h,x,y){
+  const poly=HOUSES[h]; let m=Infinity;
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    m=Math.min(m,segDist(x,y,a[0],a[1],b[0],b[1]));
+  }
+  return m;
+}
+/* The DEEPEST point of each cell — the one furthest from every edge. Walking
+   toward the anchor was not enough: for the thin triangles the anchor itself
+   sits about 5.2 units from an edge while Saturn's disc needs 5.6, so the
+   clamp converged and still clipped. House 11's anchor clears 5.2; its deep
+   point clears 10.4. Sampled once at load, not per frame. */
+const DEEP={};
+for(let h=1;h<=12;h++){
+  const poly=HOUSES[h];
+  const xs=poly.map(v=>v[0]), ys=poly.map(v=>v[1]);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const inside=(px,py)=>{ let o=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      if(((poly[i][1]>py)!==(poly[j][1]>py)) &&
+         (px<(poly[j][0]-poly[i][0])*(py-poly[i][1])/(poly[j][1]-poly[i][1])+poly[i][0])) o=!o;
+    } return o; };
+  let best=ANCHOR[h], bestD=-1;
+  const N=28;
+  for(let i=0;i<=N;i++)for(let j=0;j<=N;j++){
+    const px=x0+(x1-x0)*i/N, py=y0+(y1-y0)*j/N;
+    if(!inside(px,py)) continue;
+    let m=Infinity;
+    for(let k=0;k<poly.length;k++){
+      const a=poly[k], b=poly[(k+1)%poly.length];
+      m=Math.min(m,segDist(px,py,a[0],a[1],b[0],b[1]));
+    }
+    if(m>bestD){ bestD=m; best=[px,py]; }
+  }
+  DEEP[h]={pt:best, clear:bestD};
+}
+function keepInside(h,x,y,r){
+  const need=r+0.6;
+  if(clearOf(h,x,y)>=need) return [x,y];
+  const D=DEEP[h]||{pt:ANCHOR[h],clear:0};
+  let px=x, py=y;
+  for(let i=0;i<30;i++){
+    px+=(D.pt[0]-px)*0.16; py+=(D.pt[1]-py)*0.16;
+    if(clearOf(h,px,py)>=need) break;
+  }
+  /* a cell can be genuinely too small for the largest disc; then the deepest
+     point is the honest answer rather than a position half over a line */
+  return clearOf(h,px,py)>=clearOf(h,D.pt[0],D.pt[1]) ? [px,py] : [D.pt[0],D.pt[1]];
+}
+/* a graha's radius in the chart's 0-100 space, which depends on the stage's
+   pixel width — the same disc is relatively larger on a narrower phone */
+function grahaR(g){
+  const st=document.getElementById("stage");
+  const w=st?st.getBoundingClientRect().width:350;
+  const el=PEL[g];
+  const d=el?parseFloat(getComputedStyle(el).getPropertyValue("--d"))||34:34;
+  return (d/2)/(w||350)*100;
+}
+
 function placeByDegree(list){
   /* Continuous by construction: each graha rides its house's path at its
      exact degree; crowded neighbours merge into blocks centred on their
@@ -514,7 +591,7 @@ function placeByDegree(list){
     const group=byHouse[h].slice().sort((a,b)=>degIn(a.L)-degIn(b.L));
     if(group.length===1){
       const p=group[0], pt=pathPos(+h,degIn(p.L));
-      out[p.graha]=[pt.x,pt.y];
+      out[p.graha]=keepInside(+h,pt.x,pt.y,grahaR(p.graha));
       continue;
     }
     const P=PATH_CACHE[h];
@@ -539,10 +616,32 @@ function placeByDegree(list){
       c=Math.max(half,Math.min(1-half,c));
       for(let i2=0;i2<bl.n;i2++) t.push(c-half+i2*gap);
     }
-    group.forEach((p,i2)=>{
+    const seats=group.map((p,i2)=>{
       const pt=pathPoint(+h,Math.max(0,Math.min(1,t[i2])));
-      out[p.graha]=[pt.x,pt.y];
+      return {g:p.graha, r:grahaR(p.graha), xy:keepInside(+h,pt.x,pt.y,grahaR(p.graha))};
     });
+    /* Pulling everyone toward the cell's deep point fixed the borders and then
+       stacked co-tenants on top of each other — Mercury all but vanished
+       behind the Sun. A few relaxation passes push overlapping discs apart
+       along the line joining them and re-clamp, so they separate without
+       anyone drifting back onto an edge. Conjunct grahas still read as
+       together; they just stop hiding one another. */
+    for(let pass=0;pass<8;pass++){
+      let moved=false;
+      for(let a=0;a<seats.length;a++)for(let b=a+1;b<seats.length;b++){
+        const A=seats[a], B=seats[b];
+        const dx=B.xy[0]-A.xy[0], dy=B.xy[1]-A.xy[1];
+        const d=Math.hypot(dx,dy)||0.001;
+        const want=(A.r+B.r)*0.72;            /* allow a little overlap: they share a sign */
+        if(d>=want) continue;
+        const push=(want-d)/2, ux=dx/d, uy=dy/d;
+        A.xy=keepInside(+h,A.xy[0]-ux*push,A.xy[1]-uy*push,A.r);
+        B.xy=keepInside(+h,B.xy[0]+ux*push,B.xy[1]+uy*push,B.r);
+        moved=true;
+      }
+      if(!moved) break;
+    }
+    seats.forEach(s2=>{ out[s2.g]=s2.xy; });
   }
   return out;
 }

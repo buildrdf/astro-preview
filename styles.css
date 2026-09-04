@@ -3333,3 +3333,20 @@ body.tabmin .tabthumb{opacity:0}
 .cod .codhero{position:absolute;left:0;right:0;z-index:6;
   top:calc(52px + env(safe-area-inset-top));height:clamp(240px,42vh,320px)}
 .cod .codscroll{padding-top:clamp(240px,42vh,320px)}
+
+/* REDUCE MOTION — the object still reaches the bar, it just does not travel there.
+   The old rule killed the transform and stopped there, so the hero stayed full size in
+   the middle of the page while the reading scrolled underneath it: with Reduce Motion on,
+   a 234px Saturn sat on top of its own degree and nakshatra. Constitution §85 asks for a
+   substitution, not a removal — so the big object dissolves as the reading rises and the
+   small copy in the bar takes over. Same information, no travel, nothing occluded.
+   Placed last so it wins over .cod.collapsed .codheroslot{opacity:1}. */
+@media (prefers-reduced-motion: reduce){
+  .cod .codheroslot{transform:none!important;transition:opacity .18s linear;
+    opacity:calc(1 - var(--p,0))}
+  .cod.collapsed .codheroslot{opacity:0}
+  /* the bar's copy is the destination now, so it has to be visible and the space that
+     was being held for the arriving object is no longer needed */
+  .cod .codminihero{display:grid;place-items:center}
+  .cod .codmini{padding-left:4px}
+}

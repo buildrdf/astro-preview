@@ -3228,3 +3228,62 @@ body.light .tabthumb{background:rgba(23,26,51,.075)}
 .tab::before{display:none}
 body.tabmin .tabthumb{opacity:0}
 @media (prefers-reduced-motion: reduce){ .tabthumb{transition:opacity .2s} }
+
+/* ---- Learn: chips, rows, yoga cards and the aspect lab ---------------- */
+.lgchip{flex:0 0 auto;width:34px;height:34px;display:block}
+.lgchip .lgfig{width:34px;height:34px;display:block}
+.hrows{display:flex;flex-direction:column;margin:10px 0 4px}
+.hrow{display:flex;align-items:center;gap:12px;padding:9px 0;
+  border-top:.5px solid var(--line)}
+.hrow:first-child{border-top:0}
+.hrowk{display:block;font-size:14.5px;font-weight:640;letter-spacing:-.01em}
+.hrowv{display:block;font-size:12.5px;line-height:1.45;color:var(--ink-3);margin-top:2px}
+
+.yg{border:1px solid var(--edge-soft);border-radius:16px;padding:13px 14px;margin:12px 0}
+.yghead{display:flex;align-items:baseline;gap:8px}
+.yghead b{font-size:15.5px;font-weight:660;letter-spacing:-.015em}
+.ygtag{font-family:var(--fm);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3)}
+.yggr{display:flex;flex-wrap:wrap;gap:8px;margin:9px 0 0}
+.ygg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+.ygg i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.ygplace{display:flex;align-items:center;gap:11px;margin:11px 0 0}
+.ygplace span{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+.ygrule{margin:11px 0 0;font-size:14px;line-height:1.55;color:var(--ink)}
+.ygread{margin:6px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.ygcheck{margin:6px 0 0;font-size:12px;line-height:1.5;color:var(--ink-3)}
+
+.alab{margin:14px 0 6px}
+.alabstrip{display:flex;gap:7px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+.alabstrip::-webkit-scrollbar{display:none}
+.alabg{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border-radius:99px;
+  border:1px solid var(--edge-soft);background:none;color:var(--ink-2);cursor:pointer;
+  font-family:var(--ff);font-size:13px;padding:7px 12px;transition:background .18s var(--ease),
+  color .18s var(--ease),border-color .18s var(--ease)}
+.alabg i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.alabg.on{background:var(--ink);color:var(--void);border-color:var(--ink)}
+.alabnote{margin:0 0 10px;font-size:11.5px;color:var(--ink-3)}
+.alabchart .lgfig{width:100%;height:auto;max-width:320px;display:block;margin:0 auto}
+.alabchart .ahs{cursor:pointer;outline:none}
+.alabchart .ahs:focus-visible{stroke:var(--brass);stroke-width:1.6}
+.alabsay{margin-top:10px;min-height:44px}
+.alabsay b{display:block;font-size:15px;line-height:1.5;color:var(--ink);font-weight:600}
+.alabsay span{display:block;font-size:12.5px;line-height:1.5;color:var(--ink-3);margin-top:4px}
+@media (prefers-reduced-motion: reduce){ .alabg{transition:none} }
+.ygg.role{color:var(--ink-3);border:1px solid var(--edge-soft);border-radius:99px;padding:2px 9px;font-size:12px}
+
+/* the yoga control sits on the chart, not in the sentence above it */
+.yogapill{position:absolute;left:0;top:2px;z-index:6;display:inline-flex;align-items:center;
+  gap:7px;border-radius:99px;border:1px solid var(--edge-soft);background:rgba(255,255,255,.06);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  color:var(--ink-2);font-family:var(--ff);font-size:12.5px;font-weight:600;
+  padding:7px 13px;min-height:34px;cursor:pointer}
+.yogapill i{width:7px;height:7px;border-radius:50%;background:var(--brass);display:inline-block}
+.yogapill:active{opacity:.65}
+.yogapill[hidden]{display:none!important}
+.stagewrap{position:relative}
+.ygtop{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.ygtop b{flex:1;font-size:17px;font-weight:660;letter-spacing:-.015em}
+.ygback{width:32px;height:32px;flex:0 0 auto;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(255,255,255,.08);color:var(--ink);font-size:19px;line-height:1;font-family:var(--ff)}
+.ygwhere{margin:10px 0 0;font-size:12.5px;color:var(--ink-3);line-height:1.5}

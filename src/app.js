@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260902";
+import { LEARN_LEVELS } from "./learn.js?v=20260904j";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,18 +14,18 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904e";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904j";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904e";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904e";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904j";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904j";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
    the screenshot matrix always opens the same app; the built-in reference chart is used */
 try{ if(new URLSearchParams(location.search).get("sky")) localStorage.setItem("astro.onboarded","1"); }catch(_){}
 import { placementRecord, comparePlacement, transitToNatal, timingContext, functionalNature,
-         bindu as avBindu, houseClass } from "./objectmodel.js?v=20260902e";
+         bindu as avBindu, houseClass, aspectOffsets } from "./objectmodel.js?v=20260902e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
          moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260902e";
 const julian = jd;
@@ -1843,6 +1843,8 @@ function renderUniverse(){
   pg.innerHTML=`
     <p class="unihint" id="unihint"></p>
     <div class="stagewrap" id="sw">
+      <button class="yogapill" id="ychip" hidden aria-haspopup="dialog"
+        aria-label="Yogas in your chart"><i></i><span>Yogas</span></button>
       <div class="stage" id="stage">
         <div class="orbit" id="orbit">
           <svg class="chart" viewBox="0 0 100 100" id="chart"
@@ -1941,17 +1943,20 @@ function paintUniverse(instant){
   paintHouseSigns(list);
   const vi=VARGA_INFO.find(v=>v[0]===uniVarga)||VARGA_INFO[0];
   document.getElementById("unihint").innerHTML = uniMode==="birth"
-    ? ``+
-      (uniVarga===1
-        ? `<button class="vchip" id="ychip" aria-haspopup="dialog"
-             aria-label="Show the yogas in your chart">Yogas &#183; ${engine().yogas.length}</button> `+
-          `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
+    ? (uniVarga===1
+        ? `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
         : `${cap(vi[2])} &#8212; house 1 is the ${vi[1]} lagna.`)
     : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
   const vc=document.getElementById("vchip");
   if(vc) vc.onclick=openVargaSheet;
   const yc=document.getElementById("ychip");
-  if(yc) yc.onclick=openYogaSheet;
+  if(yc){
+    /* only your birth chart has yogas to show, and only the rashi chart is read for them */
+    const n=engine().yogas.length;
+    yc.hidden=!(uniMode==="birth"&&uniVarga===1&&n>0);
+    yc.querySelector("span").textContent=`Yogas &#183; ${n}`.replace("&#183;","·");
+    yc.onclick=openYogaSheet;
+  }
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
 }
@@ -1980,28 +1985,58 @@ function paintHouseSigns(list){
    yoga and the grahas that make it light up, joined by a drawn line,
    with the classical rule's working underneath. Rashi chart only - a
    yoga is a D1 pattern, so the chip hides under a varga lens. */
-function openYogaSheet(){
-  if(mode) resetChart();
-  mode="yogas"; buzz(9);
+function yogaListBody(){
   const ys=engine().yogas;
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock("Yogas in your chart", `${ys.length} active &#183; tap one to see it`)}
+  return `${peekBlock("Yogas in your chart", `${ys.length} active &#183; tap one to see it`)}
     <div>
       ${ys.map((y,i)=>`
         <button class="vrow" data-y="${i}">
           <b>${y.name}${y.strength?` &#183; ${y.strength}`:""}</b>
           <span>${y.planets?y.planets.join(" + "):""}</span>
         </button>`).join("")}
-      <p class="note" style="margin-top:10px">Every yoga here fired from the classical
-        rule run against your actual placements &#8212; open one and the chart shows the
-        planets that make it. Doshas and the agree/disagree ledger stay in
-        You &#8594; Yogas &amp; doshas.</p>
+      <p class="note" style="margin-top:10px">Every yoga here fired from the classical rule run
+        against your actual placements &#8212; open one and the chart shows the planets that make
+        it. Doshas and the agree/disagree ledger stay in You &#8594; Yogas &amp; doshas.</p>
     </div>`;
+}
+function openYogaSheet(){
+  if(mode) resetChart();
+  mode="yogas"; buzz(9);
+  document.getElementById("sheetbody").innerHTML=yogaListBody();
   showSheetPeek(); expandSheet();
-  document.getElementById("sheetbody").onclick=e=>{
+  wireYogaSheet();
+}
+/* the sheet machinery clears sheetbody.onclick as it opens, so the handler is re-attached
+   with every body we render rather than once at the start */
+function wireYogaSheet(){
+  const sb=document.getElementById("sheetbody"); if(!sb) return;
+  sb.onclick=e=>{
+    if(e.target.closest("#ygback")){ buzz(6); clearMarks();
+      sb.innerHTML=yogaListBody(); wireYogaSheet(); return; }
     const b=e.target.closest(".vrow"); if(!b) return;
-    focusYoga(engine().yogas[+b.dataset.y]);
+    showYoga(+b.dataset.y);
   };
+}
+/* one yoga: the chart lights the planets that make it, and the sheet says which planets,
+   under what rule, and how the tradition reads it — with a way back to the list. */
+function showYoga(i){
+  const y=engine().yogas[i]; if(!y) return;
+  buzz(9); focusYoga(y);
+  const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
+  const where=uniPlacements().filter(p=>(y.planets||[]).includes(p.graha));
+  document.getElementById("sheetbody").innerHTML=`
+    <div class="ygtop"><button class="ygback" id="ygback" aria-label="Back to all yogas">&#8249;</button>
+      <b>${y.name}${y.sanskrit?` <small class="hiname">${y.sanskrit}</small>`:""}</b>
+      ${y.strength?`<span class="ygtag">${y.strength}</span>`:""}</div>
+    <div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
+      ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+      : `<span class="ygg role">${g}</span>`).join("")}</div>
+    ${where.length?`<p class="ygwhere">${where.map(p=>
+      `${p.graha} in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}`).join(" &#183; ")}</p>`:""}
+    <p class="ygrule">${y.because||""}</p>
+    <p class="note">Highlighted on the chart above. Doshas and the agree/disagree ledger stay in
+      You &#8594; Yogas &amp; doshas.</p>`;
+  wireYogaSheet();
 }
 function focusYoga(y){
   clearMarks(); buzz(12);
@@ -4082,20 +4117,115 @@ const ELEMENTS=[["Fire","Aries, Leo, Sagittarius","var(--mars)"],
                 ["Water","Cancer, Scorpio, Pisces","var(--venus)"]];
 
 /* a miniature of the real chart geometry, with optional per-house label */
+/* One chart primitive for the whole app. It could only ever highlight house 1; it can now
+   light any set of cells, wash aspect targets differently, seat a graha at a cell's own
+   anchor, and hand back addressable cells for an interactive figure. */
 function miniChart(label,opts={}){
   const cell=h=>label?label(h):"";
-  return `<svg class="lgfig" viewBox="-3 -3 106 106" aria-hidden="true">
+  const arr=v=>v==null?[]:(Array.isArray(v)?v:[v]);
+  const lit=arr(opts.lagna?1:opts.lit), aim=arr(opts.aim);
+  const seat=opts.seat||null;
+  const a11y=opts.aria?`role="img" aria-label="${opts.aria}"`:`aria-hidden="true"`;
+  return `<svg class="lgfig ${opts.cls||""}" viewBox="-3 -3 106 106" ${a11y}>
     <rect x="0" y="0" width="100" height="100" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
     <line x1="0" y1="0" x2="100" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
     <line x1="100" y1="0" x2="0" y2="100" stroke="var(--line-2)" stroke-width="1.2"/>
     <path d="${RHOMBUS_D}" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
-    ${opts.lagna?`<path d="${LAGNA_D}"
-      fill="rgba(194,155,78,.14)" stroke="none"/>`:""}
+    ${aim.map(h=>`<path d="${HOUSE_PATH[h]||""}" fill="rgba(176,90,60,.16)" stroke="none"/>`).join("")}
+    ${lit.map(h=>`<path d="${HOUSE_PATH[h]||""}" fill="rgba(194,155,78,.20)" stroke="none"/>`).join("")}
+    ${opts.cells?Object.keys(HOUSE_PATH).map(h=>`<path class="ahs" data-h="${h}" d="${HOUSE_PATH[h]}"
+      fill="transparent" stroke="none" tabindex="0" role="button"></path>`).join(""):""}
+    ${seat&&ANCHOR[seat.house]?`<g class="aseat" transform="translate(${ANCHOR[seat.house][0]},${ANCHOR[seat.house][1]})">
+      <circle r="9" fill="${COLOUR(seat.graha)}" opacity=".95"/>
+      <text y="0.5" font-size="7" font-weight="700" fill="#0E1130" text-anchor="middle"
+        dominant-baseline="middle" font-family="var(--ff)">${seat.graha.slice(0,2)}</text></g>`:""}
     ${Object.keys(LABEL).map(h=>`<text x="${LABEL[h][0]}" y="${LABEL[h][1]}"
-      font-size="7.5" fill="${opts.lagna&&+h===1?"var(--brass)":"var(--ink-3)"}"
+      font-size="7.5" fill="${lit.includes(+h)?"var(--brass)":"var(--ink-3)"}"
       text-anchor="middle" dominant-baseline="middle"
       font-family="var(--fm)">${cell(+h)}</text>`).join("")}
   </svg>`;
+}
+
+/* ---- THE ASPECT LAB ------------------------------------------------
+   The one interactive figure in Learn. Pick a graha, seat it in any house,
+   watch what it reaches. The rule is derived by doing before it is read:
+   the 7th draws first and alone, because every graha has it, then the
+   special gazes stagger in. Changing the graha keeps the seat — same house,
+   different reach — which is the most instructive tap on the page. */
+let lab={g:null,h:null}, labTimers=[];
+const GRAHA9=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+const labTarget=(h,o)=>((h-1+o-1)%12)+1;
+function labClear(){ labTimers.forEach(clearTimeout); labTimers=[]; }
+function aspectLab(){
+  return `<div class="alab">
+    <div class="alabstrip" id="alabstrip" role="radiogroup" aria-label="Choose a graha">
+      ${GRAHA9.map(g=>`<button class="alabg" data-g="${g}" role="radio" aria-checked="false">
+        <i style="background:${COLOUR(g)}"></i>${g}</button>`).join("")}
+    </div>
+    <p class="alabnote">A practice chart &#8212; place a graha anywhere. Your own chart is in Universe.</p>
+    <div class="alabchart" id="alabchart">${labChart()}</div>
+    <div class="alabsay" id="alabsay" aria-live="polite"><b>Pick a graha.</b></div>
+  </div>`;
+}
+function labChart(){
+  const offs=lab.g&&lab.h?aspectOffsets(lab.g,{nodal:false}):[];
+  const aim=lab.h?offs.map(o=>labTarget(lab.h,o)):[];
+  return miniChart(h=>String(h),{cells:true,lit:lab.h?[lab.h]:[],aim,
+    seat:lab.g&&lab.h?{graha:lab.g,house:lab.h}:null,
+    aria:lab.g&&lab.h?`${lab.g} in house ${lab.h}, aspecting houses ${aim.join(", ")}`
+      :"A practice chart of twelve houses"});
+}
+function labSay(){
+  const n=document.getElementById("alabsay"); if(!n) return;
+  if(!lab.g){ n.innerHTML="<b>Pick a graha.</b>"; return; }
+  if(!lab.h){ n.innerHTML=`<b>Now tap a house to seat ${lab.g}.</b>
+    <span>${(GRAHA_MEANING[lab.g]||{}).is||""}</span>`; return; }
+  const offs=aspectOffsets(lab.g,{nodal:false});
+  const hs=offs.map(o=>labTarget(lab.h,o));
+  const extra=offs.filter(o=>o!==7);
+  n.innerHTML=`<b>${lab.g} in the ${ordinal(lab.h)} looks at the
+    ${hs.map(ordinal).join(", the ")}.</b>
+    <span>${offs.length?`Every graha aspects the 7th from itself.${extra.length
+      ?` ${lab.g} adds the ${extra.map(ordinal).join(" and the ")}.`:""}`
+      :`${lab.g} is left without drishti here &#8212; the schools disagree, and Astra leaves the nodes out.`}</span>`;
+}
+function labPaint(){
+  const c=document.getElementById("alabchart"); if(c) c.innerHTML=labChart();
+  document.querySelectorAll("#alabstrip .alabg").forEach(b=>{
+    const on=b.dataset.g===lab.g; b.classList.toggle("on",on); b.setAttribute("aria-checked",String(on)); });
+  labSay();
+}
+
+/* a 34px kundali badge: the cell under discussion, in the chart's real ogee shape, so the
+   reader learns WHICH cell a house number means instead of being told a number */
+function houseChip(lit,opts={}){
+  return `<span class="lgchip">${miniChart(null,{lit,aim:opts.aim,seat:opts.seat,cls:"chipfig"})}</span>`;
+}
+/* a stack of rows: badge, name, one muted line. One renderer, every "which house is that?" */
+function houseRow(rows){
+  return `<div class="hrows">${rows.map(r=>`<div class="hrow">
+    ${houseChip(r.lit,{aim:r.aim,seat:r.seat})}
+    <div><b class="hrowk">${r.k}</b>${r.v?`<span class="hrowv">${r.v}</span>`:""}</div>
+  </div>`).join("")}</div>`;
+}
+/* A yoga, always the same four parts in the same order: the planets, the place, the rule
+   (dark, it is geometry), the implication (muted, it is tradition). The two voices are the
+   point — the card shows a calculation and an interpretation as different kinds of claim. */
+function yogaCard(y){
+  /* a real graha gets its own colour; "the 2nd lord" is a role, not a body, so it gets none */
+  const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
+  const gr=(y.grahas||[]).map(g=>REAL.has(g)
+    ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+    : `<span class="ygg role">${g}</span>`).join("");
+  const chip=y.houses?houseChip(y.houses,{seat:y.from?{graha:y.from,house:y.houses[0]}:null}):"";
+  return `<div class="yg">
+    <div class="yghead"><b>${y.name}</b>${y.tag?`<span class="ygtag">${y.tag}</span>`:""}</div>
+    <div class="yggr">${gr}</div>
+    ${chip?`<div class="ygplace">${chip}<span>${y.where||""}</span></div>`:""}
+    <p class="ygrule">${y.rule}</p>
+    <p class="ygread">Traditionally read as ${y.reading}.</p>
+    ${y.check?`<p class="ygcheck">Judged by ${y.check}.</p>`:""}
+  </div>`;
 }
 
 const GRAPHIC={
@@ -4208,7 +4338,10 @@ function subLearn(){
 function learnSection(sec){
   if(sec.h) return `<h3>${sec.h}</h3>`;
   if(sec.p) return `<p>${sec.p}</p>`;
-  if(sec.graphic) return GRAPHIC[sec.graphic]?GRAPHIC[sec.graphic]():"";
+  if(sec.graphic) return GRAPHIC[sec.graphic]?GRAPHIC[sec.graphic](sec.arg||{}):"";
+  if(sec.houseRow) return houseRow(sec.houseRow);
+  if(sec.yoga) return yogaCard(sec.yoga);
+  if(sec.lab==="aspects") return aspectLab();
   if(sec.list) return `<ul>${sec.list.map(x=>`<li>${x}</li>`).join("")}</ul>`;
   if(sec.term) return `<div class="lterm"><b>${sec.term}</b><span>${sec.means}</span></div>`;
   if(sec.try) return `<div class="ltry"><span class="ltryk">Try it</span><p>${sec.try}</p></div>`;
@@ -4231,12 +4364,29 @@ function subLearnTopic(){
   </article>`;
 }
 function wireLearn(){
+  const labSeat=h=>{
+    if(!lab.g) return;
+    labClear();
+    if(lab.h===h){ lab.h=null; buzz(5); labPaint(); return; }   /* tapping the seat clears it */
+    lab.h=h; buzz(9); labPaint();
+  };
   document.getElementById("pg-you").onclick=e=>{
+    const gb=e.target.closest(".alabg");
+    if(gb){ labClear(); lab.g=gb.dataset.g; buzz(7); labPaint(); return; }
+    const cellEl=e.target.closest(".ahs");
+    if(cellEl){ labSeat(+cellEl.dataset.h); return; }
     if(e.target.closest(".lsigns")){ subView="signs"; buzz(7); renderSub();
       document.getElementById("pg-you").scrollTop=0; return; }
     const b=e.target.closest(".lrnitem,.lrnnext"); if(!b) return;
+    lab={g:null,h:null}; labClear();          /* a new topic starts the lab clean */
     learnTopic=b.dataset.l; subView="learntopic"; buzz(7); renderSub();
     document.getElementById("pg-you").scrollTop=0;
+  };
+  /* the cells are paths, so they need their own key handling to stay reachable */
+  document.getElementById("pg-you").onkeydown=e=>{
+    if(e.key!=="Enter"&&e.key!==" ") return;
+    const cellEl=e.target.closest&&e.target.closest(".ahs");
+    if(cellEl){ e.preventDefault(); labSeat(+cellEl.dataset.h); }
   };
 }
 

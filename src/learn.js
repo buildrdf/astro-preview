@@ -10,6 +10,22 @@ export const LEARN_LEVELS = [
   intro:"Everything you need to look at your own chart and know what you are seeing.",
   topics:[
 
+{ id:"two-zodiacs", title:"Sun sign, Moon sign",
+  one:"Why your Vedic sign is not the one you grew up with", read:"5 min",
+  sections:[
+    {h:"Two ways to name the sky"},
+    {p:"Western astrology asks where the <b>Sun</b> stood when you were born and calls that your sign. Vedic astrology asks where the <b>Moon</b> stood and calls that your <b>rashi</b>. Same sky, two different questions."},
+    {p:"There is a second difference underneath. Western astrology measures from the spring equinox, which drifts slowly against the stars. Vedic astrology measures against the fixed stars themselves. The two starting points have pulled about 24&#176; apart &#8212; most of a whole sign."},
+    {term:"Rashi", means:"sign &#8212; one of twelve 30&#176; stretches of the zodiac"},
+    {term:"Ayanamsa", means:"the gap between the two zodiacs, about 24&#176; today and slowly widening"},
+    {h:"So your sign usually moves"},
+    {p:"Because of that gap, most people find their Vedic sun sign sits one sign earlier than the western one they grew up with. Neither is a mistake. They are answers to different questions, counted from different places."},
+    {h:"What Astra reads"},
+    {p:"Astra is Vedic throughout. Every reading here begins from your <b>Moon</b> &#8212; your rashi and the nakshatra it sits in &#8212; measured against the fixed stars with the Lahiri ayanamsa. The Sun still matters, but as one graha among nine rather than as your sign."},
+    {p:"The Moon is chosen because this tradition reads it as the mind: how you actually feel and respond, rather than how you present. Your daily reading is largely a reading of where the Moon is now against where it stood when you were born."},
+    {try:"Open You &#183; Birth details and find your Moon. Its sign is your rashi &#8212; the sign this whole app reads you from."}
+  ]},
+
 { id:"what-is-a-kundali", title:"What is a Kundali?",
   one:"A photograph of the sky, taken at your birth", read:"3 min",
   sections:[
@@ -32,19 +48,26 @@ export const LEARN_LEVELS = [
     {graphic:"houses-wheel"},
     {term:"Bhava", means:"house &#8212; literally a state of being; one of the twelve life areas"},
     {h:"The twelve, in order"},
-    {list:[
-      "1st &#8212; the self: your body, temperament, and the face you show the world",
-      "2nd &#8212; wealth and speech: money, family, food, and the voice you speak in",
-      "3rd &#8212; courage: younger siblings, nerve, short journeys",
-      "4th &#8212; home: mother, land, vehicles, and where you rest",
-      "5th &#8212; creativity: children, romance, intelligence, what you make",
-      "6th &#8212; obstacles: work pressure, health routines, debts and rivals",
-      "7th &#8212; partnership: spouse, business partners, whoever stands opposite you",
-      "8th &#8212; the hidden: shared money, upheaval, things that arrive unannounced",
-      "9th &#8212; belief: father, teachers, philosophy, long journeys",
-      "10th &#8212; career: work, authority, and the mark you leave publicly",
-      "11th &#8212; gains: income, friends, and desires that come good",
-      "12th &#8212; release: expenses, solitude, foreign lands, sleep, letting go"]},
+    {houseRow:[
+      {lit:1, k:"1st &#183; the self", v:"your body, temperament, and the face you show the world"},
+      {lit:2, k:"2nd &#183; wealth and speech", v:"money, family, food, the voice you speak in"},
+      {lit:3, k:"3rd &#183; courage", v:"younger siblings, nerve, short journeys"},
+      {lit:4, k:"4th &#183; home", v:"mother, land, vehicles, and where you rest"},
+      {lit:5, k:"5th &#183; creativity", v:"children, romance, intelligence, what you make"},
+      {lit:6, k:"6th &#183; obstacles", v:"work pressure, health routines, debts and rivals"},
+      {lit:7, k:"7th &#183; partnership", v:"marriage, business partners, open dealings"},
+      {lit:8, k:"8th &#183; the hidden", v:"inheritance, upheaval, research, what is not shown"},
+      {lit:9, k:"9th &#183; belief", v:"father, teachers, philosophy, long journeys"},
+      {lit:10, k:"10th &#183; career", v:"work, authority, and the mark you leave publicly"},
+      {lit:11, k:"11th &#183; gains", v:"income, friends, and desires that come good"},
+      {lit:12, k:"12th &#183; release", v:"expenses, solitude, foreign lands, sleep, letting go"}
+    ]},
+    {h:"Grouped three ways"},
+    {houseRow:[
+      {lit:[1,4,7,10], k:"Kendra &#183; the angles", v:"the four pillars, traditionally read as the strongest positions"},
+      {lit:[1,5,9], k:"Trikona &#183; the trines", v:"the fortunate three, where a graha sits most at ease"},
+      {lit:[6,8,12], k:"Dusthana &#183; the difficult", v:"friction, upheaval and loss &#8212; the work of the chart"}
+    ]},
     {p:"Houses are also grouped. The kendras (1, 4, 7, 10) are the angles, traditionally read as the strongest positions. The trikonas (1, 5, 9) are the most fortunate. The dusthanas (6, 8, 12) are the demanding ones &#8212; though within Vedic astrology, demanding is not the same as bad. They are where discipline is learned."},
     {try:"Open Universe and tap your 10th house. Whatever sits there is traditionally read as colouring your work and public standing."}
   ]},
@@ -96,6 +119,27 @@ export const LEARN_LEVELS = [
     {p:"Rahu and Ketu are the lunar nodes &#8212; the two points where the Moon's path crosses the Sun's. They are mathematical points, not bodies, which is why eclipses happen exactly there. Vedic tradition calls them chhaya grahas, shadow grahas, and treats them as a matched pair: always opposite each other, always retrograde."},
     {p:"Uranus, Neptune and Pluto belong to Western practice. Classical Vedic astrology uses these nine and no others."},
     {try:"Open Universe and tap Saturn. Note which house holds it &#8212; that is traditionally where patience is asked of you."}
+  ]},
+
+{ id:"aspects-drishti", title:"Aspects &#8212; drishti",
+  one:"How grahas reach across the chart", read:"4 min",
+  sections:[
+    {h:"The gaze"},
+    {p:"Drishti means gaze. A graha influences not only the house it occupies but the houses it looks at. Every graha aspects the 7th house from itself &#8212; the position directly opposite."},
+    {lab:"aspects"},
+    {h:"Three special gazes"},
+    {houseRow:[
+      {lit:1, aim:[4,7,8], seat:{graha:"Mars",house:1}, k:"Mars &#183; the 4th, 7th and 8th",
+        v:"seated in the 1st, it reaches the 4th, the 7th and the 8th"},
+      {lit:1, aim:[5,7,9], seat:{graha:"Jupiter",house:1}, k:"Jupiter &#183; the 5th, 7th and 9th",
+        v:"seated in the 1st, it reaches the 5th, the 7th and the 9th"},
+      {lit:1, aim:[3,7,10], seat:{graha:"Saturn",house:1}, k:"Saturn &#183; the 3rd, 7th and 10th",
+        v:"seated in the 1st, it reaches the 3rd, the 7th and the 10th"}
+    ]},
+    {term:"Drishti", means:"aspect &#8212; literally 'sight'; a graha's influence on houses it looks at"},
+    {p:"Notice the asymmetry: Saturn may aspect a graha that does not aspect it back. Western aspects are angles between two points and always mutual; Vedic drishti is directional, like a gaze actually is."},
+    {p:"Traditionally, Jupiter's gaze is read as protective wherever it lands, and Saturn's as sobering &#8212; less a misfortune than a demand for structure. Whether Rahu and Ketu aspect at all is genuinely disputed between schools; this app leaves their aspects off by default."},
+    {try:"Open Universe, tap Jupiter, and see which houses its aspect lines reach. Those areas are traditionally read as receiving its protection."}
   ]},
 
 { id:"reading-your-chart", title:"Reading your chart",
@@ -221,20 +265,6 @@ export const LEARN_LEVELS = [
     {p:"Within this framework, a graha ruling your period does not act from a script. It acts from your chart: the houses it owns, the house it sits in, its dignity, its aspects. The question to ask of any dasha is not what is Saturn like, but what is Saturn doing in my chart. The same Saturn period is a very different decade for two different people."},
     {list:["Each mahadasha subdivides into nine antardashas, same order, same proportions","Antardashas subdivide again &#8212; the texture shifts every year or two","A period tends to emphasise the themes its lord already carries natally"]},
     {try:"Open You and find your current mahadasha and antardasha. Then find the ruling graha in Universe and see which houses answer to it."}
-  ]},
-
-{ id:"aspects-drishti", title:"Aspects &#8212; drishti",
-  one:"How grahas reach across the chart", read:"4 min",
-  sections:[
-    {h:"The gaze"},
-    {p:"Drishti means gaze. A graha influences not only the house it occupies but the houses it looks at. Every graha aspects the 7th house from itself &#8212; the position directly opposite."},
-    {graphic:"aspect-lines"},
-    {h:"Three special gazes"},
-    {list:["Mars also aspects the 4th and 8th from itself","Jupiter also aspects the 5th and 9th from itself","Saturn also aspects the 3rd and 10th from itself"]},
-    {term:"Drishti", means:"aspect &#8212; literally 'sight'; a graha's influence on houses it looks at"},
-    {p:"Notice the asymmetry: Saturn may aspect a graha that does not aspect it back. Western aspects are angles between two points and always mutual; Vedic drishti is directional, like a gaze actually is."},
-    {p:"Traditionally, Jupiter's gaze is read as protective wherever it lands, and Saturn's as sobering &#8212; less a misfortune than a demand for structure. Whether Rahu and Ketu aspect at all is genuinely disputed between schools; this app leaves their aspects off by default."},
-    {try:"Open Universe, tap Jupiter, and see which houses its aspect lines reach. Those areas are traditionally read as receiving its protection."}
   ]},
 
 { id:"dignity", title:"Dignity &#8212; strong and weak placements",
@@ -395,10 +425,24 @@ export const LEARN_LEVELS = [
     {h:"Patterns with names"},
     {p:"A yoga is a named combination of placements &#8212; two grahas together, a lord in a particular house, an exchange of signs &#8212; that tradition has catalogued and attached a reading to. The classical literature names hundreds. Three families matter most in practice."},
     {term:"Yoga", means:"union &#8212; a named planetary combination with a traditional interpretation"},
-    {list:[
-      "Gajakesari yoga &#8212; Jupiter in a kendra (1st, 4th, 7th or 10th) from the Moon; traditionally associated with wisdom, standing, and a protected mind",
-      "Raja yogas &#8212; a kendra lord combining with a trikona lord; traditionally read as authority and rise in the world",
-      "Dhana yogas &#8212; wealth-house lords (2nd, 5th, 9th, 11th) combining; traditionally associated with accumulation"]},
+    {yoga:{name:"Gajakesari", tag:"kendra from the Moon",
+      grahas:["Jupiter","Moon"], houses:[1,4,7,10], from:"Moon",
+      where:"counted from the Moon, not from the lagna",
+      rule:"This yoga occurs when Jupiter sits in the 1st, 4th, 7th or 10th house counted from the Moon.",
+      reading:"a protected mind, standing, and good counsel",
+      check:"the condition of both grahas, and whether a Jupiter or Moon period ever arrives to wake it"}},
+    {yoga:{name:"Raja yoga", tag:"kendra meets trikona",
+      grahas:["Kendra lord","Trikona lord"], houses:[1,4,7,10],
+      where:"an angle lord joining a trine lord &#8212; 1, 5 or 9",
+      rule:"This yoga occurs when the lord of an angle (1, 4, 7, 10) and the lord of a trine (1, 5, 9) sit together, look at each other, or exchange signs.",
+      reading:"authority and a rise in the world",
+      check:"which houses the two lords own, and how strong each is where it sits"}},
+    {yoga:{name:"Dhana yoga", tag:"the wealth houses",
+      grahas:["2nd lord","5th lord","9th lord","11th lord"], houses:[2,5,9,11],
+      where:"the lords of the earning houses, connected",
+      rule:"This yoga occurs when the lords of the 2nd, 5th, 9th or 11th houses combine with one another.",
+      reading:"accumulation &#8212; money that gathers rather than passes through",
+      check:"whether those lords are themselves well placed, and when their periods run"}},
     {h:"Read the print before the headline"},
     {p:"Yogas are where astrology software is at its most breathless &#8212; some charts technically contain dozens. Tradition is stricter: a yoga's promise depends on the strength of the grahas forming it, the houses involved, and whether the dasha of a participating graha ever arrives to activate it. A yoga is a seed, not a certificate. Treat any list of your yogas as an index of themes worth examining, not a scorecard."},
     {try:"Check whether Jupiter sits 1st, 4th, 7th or 10th from your Moon in Universe. If so, you carry Gajakesari &#8212; then judge Jupiter's own condition before celebrating."}

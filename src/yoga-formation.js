@@ -249,6 +249,40 @@ export function bucketWithAlt(marks) {
   return c;
 }
 
+/* ---- PARTS -------------------------------------------------------
+   A yoga is not always one relationship. Kendra-Trikona Raja Yoga is a
+   CLASS: on a Taurus chart it can be three separate qualifying
+   relationships, and reporting them as one five-planet yoga is simply
+   wrong — the founder caught this, and the engine had the structure all
+   along in `group`.
+
+   parts() surfaces those groups as first-class formations the UI can
+   list and focus one at a time. A yoga with no groups returns a single
+   part covering everything, so the caller never branches. */
+export function parts(f) {
+  const order = [], byGroup = new Map();
+  for (const x of f.facts) {
+    if (!x.ok) continue;
+    const g = x.group;
+    if (g == null) continue;
+    if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g); }
+    byGroup.get(g).push(x);
+  }
+  if (!order.length) return [{ id: "all", facts: f.facts.filter(x => x.ok), whole: true,
+    grahas: [...new Set(f.cast.map(r => r.g))], marks: f.facts.flatMap(x => x.ok ? x.draw : []) }];
+  return order.map(id => {
+    const facts = byGroup.get(id);
+    const grahas = [...new Set(facts.flatMap(x => x.draw)
+      .filter(m => m.m === "graha" && m.tone !== "ref").map(m => m.g))];
+    return { id, facts, grahas, marks: facts.flatMap(x => x.draw),
+      /* the clause that says WHERE or HOW they meet, for the row's second line */
+      how: (facts.find(x => ["conjunction", "exchange", "drishti", "count"].includes(x.t))
+        || facts[facts.length - 1]).says,
+      /* the lordship clauses, for the row's first line */
+      lords: facts.filter(x => x.t === "lordship").map(x => ({ g: x.g, houses: x.houses })) };
+  });
+}
+
 /** @typedef {{i:number, says:string, marks:Mark[], facts:Fact[], group:string|null}} Step */
 
 /** The formation story (§74). Free for every yoga; `f.story` only

@@ -54,7 +54,7 @@ const COMBUST={Mercury:12,Venus:10,Mars:17,Jupiter:11,Saturn:15};
 const DRISHTI={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
 
 import { F, P as MP, H, L as LK, collapse, story, formed, scoreOf,
-  assertFormation, MODEL, SHAPES } from "./yoga-formation.js?v=20260904y";
+  assertFormation, MODEL, SHAPES } from "./yoga-formation.js?v=20260904z";
 export { MODEL, SHAPES, collapse, story, formed };
 
 const norm=d=>((d%360)+360)%360;

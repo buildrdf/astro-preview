@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904y";
+import { LEARN_LEVELS } from "./learn.js?v=20260904z";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904y";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904z";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260904y";
-import { themeOf } from "./yoga-themes.js?v=20260904y";
+import * as YF from "./yoga-formation.js?v=20260904z";
+import { themeOf } from "./yoga-themes.js?v=20260904z";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904y";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904z";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260904y";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904y";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904y";
+import { avakhadaOf } from "./avakhada.js?v=20260904z";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904z";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904z";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1902,12 +1902,16 @@ function renderUniverse(){
       </div>
     </div>
     <section class="yglayer" id="yglayer" hidden aria-label="Yogas in your chart">
-      <div class="yghead">
-        <b>Your Yogas</b><span class="ygn" id="ygcount"></span>
-        <button class="yglink" id="ygall">See all</button>
+      <div class="ygsheet">
+        <span class="yggrab" aria-hidden="true"></span>
+        <div class="yghead">
+          <b>Your Yogas</b><span class="ygn"><span id="ygcount"></span></span>
+          <button class="yglink" id="ygall">See all</button>
+          <button class="ygx" id="ygclose" aria-label="Close yogas">&#10005;</button>
+        </div>
+        <div class="ygstrip" id="ygstrip" role="listbox" aria-label="Your yogas"></div>
+        <div class="ygsel" id="ygsel" hidden aria-live="polite"></div>
       </div>
-      <div class="ygstrip" id="ygstrip" role="listbox" aria-label="Your yogas"></div>
-      <div class="ygsel" id="ygsel" hidden aria-live="polite"></div>
     </section>
     <div class="reading" id="reading" hidden></div>
     <div class="scrubwrap" id="scrubwrap">
@@ -2097,124 +2101,178 @@ function showYoga(i){
   wireYogaSheet();
 }
 /* ===================================================================
-   THE YOGA LAYER — three states on one screen
+   THE YOGA LAYER — a map layer and a bottom sheet
    -------------------------------------------------------------------
-   A  hidden      the birth chart, clean. No cards, no reserved space.
-   B  browsing    a carousel of the chart's yogas, ranked, under a chart
-                  that has NOT shrunk.
-   C  selected    one yoga drawn into the chart, everything else receded,
-                  and a short caption with the two ways onward.
+   Rebuilt 5 Sep 2026 after Sangram killed the first version:
 
-   It is a LAYER, not a destination: tapping Yogas never leaves the birth
-   chart, because the whole point is watching your own chart answer.
+     "See why became a 9-step Back/Next wizard. That is the opposite of
+      what we want. Astra's philosophy is show the reasoning spatially,
+      not make users page through it."
+
+   He is right. The first build made the user tap Next nine times to
+   read facts the chart could have shown them at once. There is no
+   wizard here, no step counter, and no Next.
+
+   Four states, and the chart NEVER moves:
+
+     1  Birth        the chart, with a Yogas control
+     2  Browser      a bottom sheet rises OVER the lower screen with the
+                     carousel. The chart keeps its exact size, position
+                     and geometry — the sheet is an overlay, not new
+                     document content that reflows the page.
+     3  Selected     the chart draws the yoga. The sheet grows to show
+                     every formation AT ONCE, each row tappable to focus
+                     that one relationship on the chart.
+     4  Detail       the full light reading page.
+
+   The sheet is fixed to the viewport, so opening it cannot crop the
+   chart — the previous version pushed the chart up until its top was
+   cut off, which destroyed the object being explained.
    =================================================================== */
-let ygOpen=false, ygKey=null;
+let ygOpen=false, ygKey=null, ygPart=null;
 
-/* Rank, never alphabetise (§16). Formation confidence first — a yoga whose
-   required clauses all held outranks one carried by a single branch — then
-   band, then how much of the chart it involves. Deterministic: no sampling,
-   no LLM, same order every render. */
+/* Rank, never alphabetise. Formation confidence first, then band, then how
+   much of the chart it reaches. Deterministic: same order every render. */
 function ygRank(list){
   const bandN={strong:3,moderate:2,weak:1};
-  return list.map((y,i)=>({y,i})).sort((a,b)=>{
-    const A=a.y, B=b.y;
-    const reach=y=>y.formation?(YF.collapse(y.formation).fill.size+YF.collapse(y.formation).edge.size):(y.planets||[]).length;
-    return (bandN[B.strength]||0)-(bandN[A.strength]||0)
-      || (B.formation?1:0)-(A.formation?1:0)
-      || reach(B)-reach(A)
-      || a.i-b.i;
-  }).map(o=>o.y);
+  const reach=y=>{ if(!y.formation) return (y.planets||[]).length;
+    const c=YF.collapse(y.formation); return c.fill.size+c.edge.size; };
+  return list.map((y,i)=>({y,i})).sort((a,b)=>
+    (bandN[b.y.strength]||0)-(bandN[a.y.strength]||0)
+    || (b.y.formation?1:0)-(a.y.formation?1:0)
+    || reach(b.y)-reach(a.y) || a.i-b.i).map(o=>o.y);
 }
 
 const ygKeyOf=y=>y.key||y.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const ygOf=key=>(engine().yogas||[]).find(x=>ygKeyOf(x)===key);
+const ygParts=y=>(y&&y.formation)?YF.parts(y.formation):[];
 
 function ygCard(y){
-  const t=themeOf(y);
-  const who=(y.planets||[]).slice(0,4);
+  const t=themeOf(y), who=(y.planets||[]).slice(0,4);
+  const n=ygParts(y).length;
   return `<button class="ygcard${ygKey===ygKeyOf(y)?" on":""}" data-k="${ygKeyOf(y)}"
       role="option" aria-selected="${ygKey===ygKeyOf(y)}"
       aria-label="${escText(y.name)}. ${escText(y.strength)}. ${escText(who.join(" and "))}. Show it on the chart.">
-    <span class="ygart">${who.map(g=>gIcon(g,26)).join("")}</span>
-    <b class="ygname">${escText(y.name.replace(/ Yoga.*$/,m=>m.includes("(")?m.replace(" Yoga",""):""))}</b>
-    <span class="ygstr s-${y.strength}">${escText(y.strength)}</span>
+    <span class="ygart">${who.map(g=>gIcon(g,24)).join("")}</span>
+    <b class="ygname">${escText(y.name)}</b>
+    <span class="ygmeta"><span class="ygstr s-${y.strength}">${escText(y.strength)}</span>${
+      n>1?`<span class="ygn">${n} formations</span>`:""}</span>
     <span class="ygtheme">${escText(t.words)}</span>
   </button>`;
 }
 
-function renderYogaStrip(){
-  const list=ygRank(engine().yogas||[]);
-  const strip=document.getElementById("ygstrip"), n=document.getElementById("ygcount");
-  if(!strip) return;
-  strip.innerHTML=list.map(ygCard).join("");
-  if(n) n.textContent=`${list.length} detected`;
+/* One row per validated relationship, ALL visible together. The founder's
+   words: "All visible together. The user can tap any row to focus that
+   specific relationship on the chart. That's much more powerful than nine
+   Next taps." */
+function ygFormationRows(y){
+  const ps=ygParts(y);
+  if(ps.length<2 && !(ps.length===1&&!ps[0].whole)) return "";
+  return `
+    <div class="ygforms" role="listbox" aria-label="Formations in this yoga">
+      ${ps.map(p=>`
+        <button class="ygform${ygPart===p.id?" on":""}" data-p="${escText(p.id)}"
+          role="option" aria-selected="${ygPart===p.id}">
+          <span class="ygfart">${p.grahas.map(g=>gIcon(g,22)).join("")}</span>
+          <b class="ygflords">${p.lords.length
+            ? p.lords.map(l=>`${escText(l.g)} · ${l.houses.map(ordinal).join(" + ")} lord`).join("  +  ")
+            : escText(p.grahas.join(" + "))}</b>
+          <span class="ygfhow">${escText(p.how)}</span>
+        </button>`).join("")}
+    </div>
+    ${ygPart?`<button class="ygalllink" id="ygall-f">Show all formations</button>`:""}`;
 }
 
-/* State C. The caption says what was drawn and offers the two ways deeper;
-   it never carries the interpretation itself (§23). */
-function ygSelect(key,opts){
-  opts=opts||{};
-  const y=(engine().yogas||[]).find(x=>ygKeyOf(x)===key);
-  if(!y) return;
-  ygKey=key;
-  qa(".ygcard").forEach(b=>{const on=b.dataset.k===key;
-    b.classList.toggle("on",on); b.setAttribute("aria-selected",String(on));});
-  if(y.formation) drawFormation(y.formation); else focusYoga(y);
-  const t=themeOf(y);
+function renderYogaSheet(){
+  const list=ygRank(engine().yogas||[]);
+  const strip=document.getElementById("ygstrip");
+  const n=document.getElementById("ygcount");
+  if(strip) strip.innerHTML=list.map(ygCard).join("");
+  if(n) n.textContent=String(list.length);
   const sel=document.getElementById("ygsel");
-  if(sel){
+  const y=ygKey&&ygOf(ygKey);
+  if(!sel) return;
+  if(!y){ sel.hidden=true; sel.innerHTML=""; }
+  else {
     sel.hidden=false;
     sel.innerHTML=`
-      <div class="ygseltop">
-        <span class="ygart">${(y.planets||[]).slice(0,4).map(g=>gIcon(g,20)).join("")}</span>
-        <b>${escText(y.name)}</b><span class="ygstr s-${y.strength}">${escText(y.strength)}</span>
-      </div>
-      <p class="ygsay" id="ygsay">${escText(ygLead(y))}</p>
-      <div class="ygacts">
-        <button class="tb-btn txt" id="ygwhy">See why</button>
-        <button class="tb-btn go" id="ygopen">Explore Yoga &#8594;</button>
-      </div>`;
-    if(!opts.quiet) buzz(9);
+      <div class="ygseltop"><b>${escText(y.name)}</b>
+        <span class="ygstr s-${y.strength}">${escText(y.strength)}</span></div>
+      <h3 class="ygwhy">Why it forms in your chart</h3>
+      ${ygFormationRows(y)||`<p class="ygsay">${escText(ygLead(y))}</p>`}
+      <button class="ygopen" id="ygopen">Explore ${escText(y.name.replace(/\s*\(.*\)$/,""))} &#8594;</button>`;
   }
-  const smooth=matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
-  const card=document.querySelector(`.ygcard[data-k="${key}"]`);
-  if(card&&!opts.quiet) card.scrollIntoView({behavior:smooth,inline:"center",block:"nearest"});
-  /* The caption carries the only two ways deeper and, on a 390x844 screen, its
-     buttons land under the tab bar. scrollIntoView({block:"nearest"}) will not
-     move at all here — the caption's TOP is already visible, which is all
-     "nearest" checks — so the shortfall is measured and scrolled explicitly.
-     The chart is what is being explained, so nothing scrolls further than the
-     amount that makes the buttons tappable. */
-  if(sel&&!opts.quiet) requestAnimationFrame(()=>{
-    const pg=document.getElementById("pg-universe"); if(!pg) return;
-    const bar=document.querySelector(".tabs");
-    const limit=bar?bar.getBoundingClientRect().top:innerHeight;
-    const short=sel.getBoundingClientRect().bottom-limit+12;
-    if(short>2) pg.scrollBy({top:short,behavior:smooth});
-  });
+  ygDetent();
 }
 
-/* one sentence, from the formation's own required facts — never a second
-   hand-written description that can drift from the chart */
+/* one sentence for a yoga with a single formation — the chart is doing the
+   explaining, so the sheet only has to name what it drew */
 function ygLead(y){
-  if(!y.formation) return y.because.split(". ")[0]+".";
+  if(!y.formation) return (y.because||"").split(". ")[0]+".";
   const req=y.formation.facts.filter(f=>f.ok&&f.req);
-  return (req[0]?req[0].says:y.because.split(". ")[0]+".");
+  return req.length?req[0].says:(y.because||"").split(". ")[0]+".";
+}
+
+/* Two detents. Peek is the carousel; medium adds the selected yoga and its
+   formations. The tab bar hides at medium — a focused mode should not carry
+   two navigations competing at the bottom of the screen. */
+function ygDetent(){
+  const L=document.getElementById("yglayer"); if(!L) return;
+  const med=!!ygKey;
+  L.classList.toggle("med",med);
+  document.body.classList.toggle("ygfocus",med);
+  /* The sheet must not cover the chart. The chart is the explanatory surface
+     here — a formation sitting in the lower houses would otherwise be hidden
+     behind the very thing describing it. The chart never moves, so the SHEET
+     is what gives way: it is capped at the space below the chart, measured,
+     with a floor so it stays usable on a short screen. */
+  const st=document.getElementById("stage");
+  if(st){
+    const room=Math.round(innerHeight-st.getBoundingClientRect().bottom-8);
+    L.style.setProperty("--ygmax",Math.max(Math.round(innerHeight*0.34),room)+"px");
+  }
+}
+
+function ygSelect(key,opts){
+  opts=opts||{};
+  const y=ygOf(key); if(!y) return;
+  ygKey=key; ygPart=null;
+  if(y.formation) drawFormation(y.formation); else focusYoga(y);
+  renderYogaSheet();
+  if(!opts.quiet) buzz(9);
+  const card=document.querySelector(`.ygcard[data-k="${key}"]`);
+  if(card&&!opts.quiet) card.scrollIntoView({behavior:ygSmooth(),inline:"center",block:"nearest"});
+}
+const ygSmooth=()=>matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
+
+/* Tapping a formation row focuses THAT relationship on the chart. Tapping it
+   again, or "Show all formations", returns to the whole yoga. */
+function ygFocusPart(id){
+  const y=ygOf(ygKey); if(!y||!y.formation) return;
+  const ps=ygParts(y);
+  const p=ps.find(x=>x.id===id);
+  ygPart=(ygPart===id||!p)?null:id;
+  if(ygPart&&p) drawFormation(y.formation,{marks:p.marks, says:p.facts.map(f=>f.says).join(" ")});
+  else drawFormation(y.formation);
+  buzz(6);
+  renderYogaSheet();
 }
 
 function openYogaLayer(){
   const L=document.getElementById("yglayer"); if(!L) return;
   ygOpen=true; L.hidden=false; buzz(9);
-  renderYogaStrip();
-  document.getElementById("ychip").classList.add("on");
-  document.getElementById("ychip").setAttribute("aria-expanded","true");
+  renderYogaSheet();
+  const c=document.getElementById("ychip");
+  c.classList.add("on"); c.setAttribute("aria-expanded","true");
   requestAnimationFrame(()=>L.classList.add("in"));
 }
 function closeYogaLayer(){
   const L=document.getElementById("yglayer"); if(!L) return;
-  ygOpen=false; ygKey=null; buzz(6);
-  L.classList.remove("in");
-  const done=()=>{ L.hidden=true; const s=document.getElementById("ygsel"); if(s) s.hidden=true; };
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches) done(); else setTimeout(done,220);
+  ygOpen=false; ygKey=null; ygPart=null; buzz(6);
+  L.classList.remove("in","med");
+  document.body.classList.remove("ygfocus");
+  const done=()=>{ L.hidden=true; };
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) done(); else setTimeout(done,240);
   clearMarks();
   const c=document.getElementById("ychip");
   c.classList.remove("on"); c.setAttribute("aria-expanded","false");
@@ -2223,84 +2281,32 @@ function closeYogaLayer(){
 }
 function toggleYogaLayer(){ ygOpen?closeYogaLayer():openYogaLayer(); }
 
-/* deselect without leaving the layer (§28) */
 function ygDeselect(){
-  ygKey=null; clearMarks();
-  qa(".ygcard").forEach(b=>{b.classList.remove("on"); b.setAttribute("aria-selected","false");});
-  const s=document.getElementById("ygsel"); if(s) s.hidden=true;
+  ygKey=null; ygPart=null; clearMarks();
+  renderYogaSheet();
   const chart=document.getElementById("chart");
   if(chart) chart.setAttribute("aria-label","North Indian chart, twelve houses");
 }
 
-/* SEE WHY — the formation story, walked one step at a time (§24, §74).
-   Each step redraws the chart with only that step's marks and states the one
-   fact it asserts. This is the strongest teaching moment in the feature: the
-   reader does not get told the rule, they watch it assemble. */
-let ygStep=-1;
-function ygStory(){
-  const y=(engine().yogas||[]).find(x=>ygKeyOf(x)===ygKey);
-  if(!y||!y.formation) return;
-  const steps=YF.story(y.formation);
-  if(!steps.length) return;
-  ygStep=0; ygPaintStep(y,steps);
-}
-function ygPaintStep(y,steps){
-  const st=steps[ygStep];
-  /* Cumulative, not one-at-a-time. Each step ADDS to what is already on the
-     chart, so the formation visibly assembles instead of flickering between
-     fragments — and a step whose fact carries no marks (a grading clause, an
-     eligibility clause) leaves the picture standing rather than blanking it. */
-  const upto=steps.slice(0,ygStep+1).flatMap(x=>x.marks);
-  drawFormation(y.formation,{marks:upto, says:st.says});
-  buzz(5);
-  const sel=document.getElementById("ygsel");
-  const last=ygStep>=steps.length-1;
-  sel.innerHTML=`
-    <div class="ygseltop">
-      <button class="ygxback" id="ygxb" aria-label="Back to the yoga">&#8249;</button>
-      <b>${escText(y.name)}</b>
-      <span class="ygstepn">${ygStep+1} of ${steps.length}</span>
-    </div>
-    <p class="ygsay">${escText(st.says)}</p>
-    <div class="ygacts">
-      <button class="tb-btn txt" id="ygprev"${ygStep?"":" disabled"}>Back</button>
-      <button class="tb-btn go" id="ygnext">${last?"Done":"Next"}</button>
-    </div>`;
-  sel.onclick=e=>{
-    if(e.target.closest("#ygxb")) { ygStep=-1; return ygSelect(ygKey,{quiet:true}); }
-    if(e.target.closest("#ygprev")&&ygStep>0){ ygStep--; return ygPaintStep(y,steps); }
-    if(e.target.closest("#ygnext")){
-      if(last){ ygStep=-1; return ygSelect(ygKey,{quiet:true}); }
-      ygStep++; return ygPaintStep(y,steps);
-    }
-  };
-}
-
-/* EXPLORE — the full reading page. Until the yoga model lands in
-   objectdetail.js this hands off to the existing sheet, which already
-   carries the rule and the participants. */
 function ygExplore(){
-  const y=(engine().yogas||[]).find(x=>ygKeyOf(x)===ygKey);
-  if(!y) return;
+  const y=ygOf(ygKey); if(!y) return;
   const card=document.querySelector(`.ygcard[data-k="${ygKey}"] .ygart`);
   openObject({kind:"yoga", id:ygKey, mode:"birth", from:"chart",
     emphasis:"birth", origin:rectOrigin(card||document.getElementById("stage"))});
 }
 
 function wireYogaLayer(){
-  const strip=document.getElementById("ygstrip");
-  if(strip) strip.onclick=e=>{
-    const b=e.target.closest(".ygcard"); if(!b) return;
-    if(b.dataset.k===ygKey) return ygDeselect();     /* tapping the open one closes it */
-    ygSelect(b.dataset.k);
-  };
-  const sel=document.getElementById("ygsel");
-  if(sel) sel.onclick=e=>{
-    if(e.target.closest("#ygwhy")) return ygStory();
+  const L=document.getElementById("yglayer"); if(!L) return;
+  L.onclick=e=>{
+    const card=e.target.closest(".ygcard");
+    if(card) return card.dataset.k===ygKey?ygDeselect():ygSelect(card.dataset.k);
+    const row=e.target.closest(".ygform");
+    if(row) return ygFocusPart(row.dataset.p);
+    if(e.target.closest("#ygall-f")) return ygFocusPart(null);
     if(e.target.closest("#ygopen")) return ygExplore();
+    if(e.target.closest("#ygall")) return openYogaSheet();
+    if(e.target.closest("#ygclose")) return closeYogaLayer();
   };
-  const all=document.getElementById("ygall");
-  if(all) all.onclick=()=>{ openYogaSheet(); };
 }
 
 /* ===================================================================
@@ -2361,6 +2367,16 @@ function fmHead(asp,[x,y],[cx,cy],col,delay){
   t.style.animationDelay=delay+"s";
   if(fmReduced()) t.classList.add("on"); else requestAnimationFrame(()=>t.classList.add("on"));
 }
+/* A conjunction's two endpoints are nearly the same point, so the arc midpoint
+   lands ON the planets — "conjunct in Pisces" was printed across Mercury. Push
+   the label outward along the ray from the chart centre, away from the bodies. */
+function fmOut(a,b,push){
+  const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+  const dx=mx-50, dy=my-50, d=Math.hypot(dx,dy)||1;
+  const near=Math.hypot(a[0]-b[0],a[1]-b[1])<16;   /* a conjunction */
+  const k=(push||0)+(near?11:5);
+  return [mx+dx/d*k, my+dy/d*k];
+}
 function fmLabel(asp,at,text,delay){
   /* keep the word inside the square: a label on a cell at the rim ran off the
      right edge of the chart entirely */
@@ -2386,7 +2402,7 @@ function fmLink(asp,m,i,showLabel){
     const pts=(m.via||[]).map(h=>ANCHOR[h]).filter(Boolean);
     const chain=[a,...pts.slice(1),b];
     for(let k=0;k+1<chain.length;k++) fmArc(asp,chain[k],chain[k+1],.12,col,d0+k*.1,true);
-    if(m.label&&showLabel) fmLabel(asp,[(a[0]+b[0])/2,(a[1]+b[1])/2-4.5],m.label,d0+.3);
+    if(m.label&&showLabel) fmLabel(asp,fmOut(a,b,3),m.label,d0+.3);
     return;
   }
   const bows = m.style==="swap" ? [.26,-.26] : [.25];
@@ -2395,7 +2411,7 @@ function fmLink(asp,m,i,showLabel){
     const c=fmArc(asp,from,to,bow,col,d0+k*.06);
     if(m.style==="arrow"||m.style==="swap") fmHead(asp,to,c,col,d0+.34+k*.06);
   });
-  if(m.label&&showLabel) fmLabel(asp,[(a[0]+b[0])/2,(a[1]+b[1])/2-4.5],m.label,d0+.38);
+  if(m.label&&showLabel) fmLabel(asp,fmOut(a,b,0),m.label,d0+.38);
 }
 
 /* draw a formation, or one step of its story */
@@ -2422,7 +2438,12 @@ function drawFormation(f,opts){
      cannot, and there is already a sentence under the chart. Two or three
      links still get their word, because that is where a label genuinely
      names the relationship rather than repeating it. */
-  const label = opts.marks ? true : c.links.length<=3;
+  /* No words on the chart. The sheet under it already says "Sun · 4th lord +
+     Mercury · 5th lord — conjunct in Pisces", and printing that sentence again
+     across the two planets it describes is exactly the clutter that made the
+     first version unreadable. The chart shows the relationship as geometry;
+     the sheet says what it is. */
+  const label = false;
   const seen=new Set();
   c.links.forEach((m,i)=>{
     const k=m.style+":"+(m.label||"")+":"+(m.from.g||m.from.h)+">"+(m.to.g||m.to.h);

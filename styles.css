@@ -2769,8 +2769,10 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .cod.collapsed .codmini{opacity:1;transform:none}
 .codmini b{font-size:17px;font-weight:650}
 .codminihero{width:30px;height:30px;display:grid;place-items:center}
-.codscroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(env(safe-area-inset-bottom) + 40px)}
-.codhero{height:clamp(240px,42vh,320px);display:grid;place-items:center;position:sticky;top:0;z-index:1;pointer-events:none}
+/* no -webkit-overflow-scrolling here: it is the iOS default since 13, and in Safari it
+   creates a stacking context that traps anything inside this scroller UNDER the bar */
+.codscroll{flex:1;overflow-y:auto;padding:0 20px calc(env(safe-area-inset-bottom) + 40px)}
+.codhero{height:clamp(240px,42vh,320px);display:grid;place-items:center;pointer-events:none}
 .codheroslot{transform-origin:center;transition:opacity .3s;
   transform:translate(calc(var(--hx,0px) * var(--p,0)),calc(var(--hy,0px) * var(--p,0)))
     scale(calc(1 + (var(--hsT,.13) - 1) * var(--p,0)));
@@ -3295,3 +3297,10 @@ body.tabmin .tabthumb{opacity:0}
   background:rgba(255,255,255,.08);color:var(--ink);font-size:19px;line-height:1;font-family:var(--ff)}
 .ygwhere{margin:10px 0 0;font-size:12.5px;color:var(--ink-3);line-height:1.5}
 .alabg .gico{width:22px;height:22px;margin-right:0;flex:0 0 auto}
+
+/* The hero is a sibling of the bar, not a child of the scroller, and sits above it. That is
+   the only arrangement where the object can fly INTO the bar on every browser: inside the
+   scroller Safari boxes it into its own stacking context and it disappears underneath. */
+.cod .codhero{position:absolute;left:0;right:0;z-index:6;
+  top:calc(52px + env(safe-area-inset-top));height:clamp(240px,42vh,320px)}
+.cod .codscroll{padding-top:clamp(240px,42vh,320px)}

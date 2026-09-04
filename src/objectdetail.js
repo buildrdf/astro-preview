@@ -66,8 +66,8 @@ export function openObjectDetail(spec, ctx) {
       <button class="codback" aria-label="Back">‹</button>
       <div class="codmini" aria-hidden="true"><span class="codminihero"></span><b>${esc(model.title)}</b></div>
     </header>
+    <div class="codhero" aria-hidden="true"><div class="codheroslot"></div></div>
     <div class="codscroll">
-      <div class="codhero" aria-hidden="true"><div class="codheroslot"></div></div>
       <div class="codtitle">
         <div class="codeyebrow">${esc(model.eyebrow)}</div>
         <h1>${esc(model.title)} <small>${esc(model.dev)}</small></h1>

@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904j";
+import { LEARN_LEVELS } from "./learn.js?v=20260904k";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904j";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904k";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904j";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904j";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904k";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904k";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -4532,13 +4532,23 @@ function subYogas(){
     <p class="skylead">Every combination below was detected by the rule engine, and
       every one shows the rule that fired it &#8212; the &#8220;because&#8221; no
       other app prints.</p>
-    ${E.yogas.map(y=>`
+    ${E.yogas.map(y=>{
+      /* the same four parts as everywhere else: which planets, where they sit, the rule,
+         then the reading — a yoga is never just a name and a paragraph */
+      const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
+      const inv=(y.planets||[]).filter(g=>REAL.has(g));
+      const seats=inv.map(g=>{ const p=CHART.get(g); return p?`${g} in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}`:null; }).filter(Boolean);
+      return `
       <div class="card" style="margin-bottom:10px;padding:13px 15px">
         <div class="areahead"><span class="aname">${y.name}</span>
           ${y.strength?`<span class="atone ${y.strength==="strong"?"favourable":"balanced"}">${y.strength}</span>`:""}</div>
         ${y.sanskrit?`<p class="ameta" style="margin:2px 0 6px">${y.sanskrit}</p>`:""}
-        <p class="interp" style="margin:4px 0 0">${y.because}</p>
-      </div>`).join("")}
+        ${(y.planets||[]).length?`<div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
+          ? `<span class="ygg"><i style="background:${COLOUR(g)}"></i>${g}</span>`
+          : `<span class="ygg role">${g}</span>`).join("")}</div>`:""}
+        ${seats.length?`<p class="ygwhere">${seats.join(" &#183; ")}</p>`:""}
+        <p class="interp" style="margin:9px 0 0">${y.because}</p>
+      </div>`}).join("")}
     <div class="eyebrow" style="margin:22px 0 10px">Doshas</div>
     ${E.doshas.map(d=>`
       <div class="card" style="margin-bottom:10px;padding:13px 15px">

@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905a";
+import { LEARN_LEVELS } from "./learn.js?v=20260905c";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905a";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905c";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260905a";
-import { themeOf } from "./yoga-themes.js?v=20260905a";
+import * as YF from "./yoga-formation.js?v=20260905c";
+import { themeOf } from "./yoga-themes.js?v=20260905c";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905a";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905c";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260905a";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905a";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260905a";
+import { avakhadaOf } from "./avakhada.js?v=20260905c";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905c";
+import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905c";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -1368,10 +1368,30 @@ function awOpen(ov,card){
         {transformOrigin:"0 0",borderRadius:"0px",transform:"none"}
       ],{duration:360,easing:"cubic-bezier(.22,1,.36,1)"});
     }catch(_){}
-    return {rect:r};
+    /* keep the ELEMENT, not only its rectangle. The rect is measured again on
+       the way out, because the page underneath scrolls while you read and a
+       rectangle captured on open sends the closing page to where the card used
+       to be — off the bottom of the screen, behind the tab bar. */
+    return {rect:r, el:card};
   }
   ov.classList.add("in","fade");
   return null;
+}
+/* Where should the page fly back to? Only to a card the reader can actually
+   see. A shared-element transition earns its keep by answering "where did this
+   come from"; if the source has scrolled away there is nothing to answer, and
+   flying to a point off-screen reads as the page being thrown away. In that
+   case it fades — which is also what Reduce Motion gets. */
+function awReturnRect(src){
+  if(!src) return null;
+  const el=src.el;
+  if(el&&el.isConnected){
+    const r=el.getBoundingClientRect();
+    const onScreen = r.bottom>8 && r.top<innerHeight-8 && r.width>8 && r.height>8;
+    if(onScreen) return r;
+    return null;
+  }
+  return src.rect||null;
 }
 function awClose(ov,src,then){
   /* a tap on the page's own back arrow: let history drive the close so the
@@ -1382,12 +1402,21 @@ function awClose(ov,src,then){
   const idx=NAV.stack.findIndex(e=>e.ov===ov); if(idx>=0&&!NAV.closing) NAV.stack.splice(idx,1);
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const done=()=>{ ov.remove(); if(then) then(); };
-  if(src&&!reduced){
-    const r=src.rect;
+  const r=reduced?null:awReturnRect(src);
+  if(r){
+    /* the SAME keyframes as the open, played backwards, on the same engine.
+       Opening animated through the Web Animations API while closing set an
+       inline transform and hoped a CSS transition would pick it up — two
+       mechanisms, two curves, and one of them dependent on a style flush. */
     ov.classList.add("out");
-    ov.style.transform=`translate(${r.left}px,${r.top}px) scale(${r.width/innerWidth},${r.height/innerHeight})`;
-    ov.style.borderRadius="22px";
-    setTimeout(done,340);
+    const from={transformOrigin:"0 0",borderRadius:"0px",transform:"none"};
+    const to={transformOrigin:"0 0",borderRadius:"22px",
+      transform:`translate(${r.left}px,${r.top}px) scale(${(r.width/innerWidth).toFixed(4)},${(r.height/innerHeight).toFixed(4)})`};
+    try{
+      const a=ov.animate([from,to],{duration:320,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"});
+      a.onfinish=done;
+      setTimeout(()=>{ if(ov.isConnected) done(); },420);   /* belt and braces */
+    }catch(_){ done(); }
   } else { ov.classList.add("fadeout"); setTimeout(done,190); }
   buzz(5);
 }
@@ -1841,8 +1870,28 @@ function wireRuler(){
 /* The mode pill lives in the bar, not the page: it is the identity of this
    tab, it must stay reachable while a house sheet is open, and the bar is the
    one surface nothing is ever allowed to scroll over. */
+/* The bar renders before the chart does, and the engine can throw while a
+   profile is switching, so the count is asked for defensively. 0 means the
+   control is not rendered at all. */
+function safeYogaCount(){
+  if(uniMode!=="birth"||uniVarga!==1) return 0;
+  try{ return (engine().yogas||[]).length; }catch(_){ return 0; }
+}
+
 function setUniverseBar(){
-  setTopBar("",{actions:`
+  const yn=safeYogaCount();
+  setTopBar("",{lead: yn?`
+    <button class="tb-btn ychip${ygOpen?" on":""}" id="ychip" aria-haspopup="dialog"
+      aria-expanded="${ygOpen}" aria-label="Yogas in your chart, ${yn} detected">
+      <!-- three connected points: a formation, not a sparkle. It reads as a
+           chart layer opposite the sky control rather than as decoration. -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="6" cy="7.5" r="2.1"/><circle cx="17.6" cy="6.4" r="2.1"/>
+        <circle cx="11.4" cy="17.6" r="2.1"/>
+        <path d="M7.9 8.4l7.8-1M6.9 9.5l3.6 6.2M16.6 8.3l-4.2 7.5"/>
+      </svg>
+      <span class="ycount">${yn}</span>
+    </button>`:"", actions:`
     <button class="tb-btn" id="tbsky" aria-label="Open the sky view">
       <!-- the AR badge form people know: viewfinder corners around a
            cube (Sangram, 31 Aug: "use the icon Apple uses, not a
@@ -1861,6 +1910,8 @@ function setUniverseBar(){
         aria-selected="${uniMode==="today"}">Today&#8217;s sky</button>
     </div>`});
   requestAnimationFrame(()=>placeThumb(true)); setTimeout(()=>placeThumb(true),80);
+  const yc0=document.getElementById("ychip");
+  if(yc0) yc0.onclick=toggleYogaLayer;
   const sk=document.getElementById("tbsky");
   if(sk) sk.onclick=()=>{buzz(9);
     /* iOS grants motion access only inside the raw tap - ask BEFORE any
@@ -1889,8 +1940,6 @@ function renderUniverse(){
   pg.innerHTML=`
     <p class="unihint" id="unihint"></p>
     <div class="stagewrap" id="sw">
-      <button class="yogapill" id="ychip" hidden aria-haspopup="dialog"
-        aria-label="Yogas in your chart"><i></i><span>Yogas</span></button>
       <div class="stage" id="stage">
         <div class="orbit" id="orbit">
           <svg class="chart" viewBox="0 0 100 100" id="chart"
@@ -2010,13 +2059,12 @@ function paintUniverse(instant){
   if(vc) vc.onclick=openVargaSheet;
   const yc=document.getElementById("ychip");
   if(yc){
-    /* only your birth chart has yogas to show, and only the rashi chart is read for them */
-    const n=engine().yogas.length;
-    yc.hidden=!(uniMode==="birth"&&uniVarga===1&&n>0);
-    /* Today's sky has no natal yogas to show, so the control does not exist
-       there — not disabled, absent (§2). If the layer was open, it closes. */
+    /* only your birth chart has yogas, and only the rashi chart is read for them.
+       In Today's sky the control does not EXIST — not disabled, absent. */
+    const n=safeYogaCount();
+    yc.hidden=!n;
     if(yc.hidden&&ygOpen) closeYogaLayer();
-    yc.querySelector("span").textContent=`Yogas &#183; ${n}`.replace("&#183;","·");
+    const c=yc.querySelector(".ycount"); if(c) c.textContent=String(n);
     yc.onclick=toggleYogaLayer;
   }
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
@@ -3208,7 +3256,7 @@ const langName=()=>({en:"English",
   [PREFS().lang||"en"]);
 
 const GUIDE_KEY=()=>"astro.guide."+(ACTIVE.p?ACTIVE.name:"me");
-let GUIDE={msgs:[],incognito:false,snapshot:null,busy:false};
+let GUIDE={msgs:[],incognito:false,snapshot:null,busy:false,reading:null};
 let GUIDE_SEED=null;
 function guideLoad(){
   try{GUIDE.msgs=JSON.parse(localStorage.getItem(GUIDE_KEY())||"[]")}catch(_){GUIDE.msgs=[]}
@@ -3221,6 +3269,7 @@ function guideExit(){
   /* leaving the room. Incognito discards the session and switches off
      (spec 8/73); the stored history returns untouched. */
   voiceStop(true);
+  if(GUIDE.reading!=null){ try{speechSynthesis.cancel();}catch(_){} GUIDE.reading=null; }
   if(GUIDE.incognito){
     GUIDE.msgs=GUIDE.snapshot||[]; GUIDE.snapshot=null; GUIDE.incognito=false;
   }
@@ -3354,7 +3403,10 @@ function codCtx(){
     actions:{
       seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g,{focusOnly:true}),260); }); },
       showInSky:(g,mode,at)=>{ closeDetailThen(()=>{ if(mode==="birth") openSkyAt(g,CHART.birthDate,{mode:"birth"}); else openSkyAt(g,at||new Date(),{mode:"now"}); }); },
-      askGuide:(q,ctx)=>{ closeDetailThen(()=>askGuide(q,ctx)); },
+      /* remember the PAGE, not just the tab: Ask Guide leaves a reading page and
+         the cross should bring the reader back to it. */
+      askGuide:(q,ctx)=>{ const back=currentSpec();
+        closeDetailThen(()=>{ guideReturnSpec=back; askGuide(q,ctx); }); },
       /* a yoga row on a graha's page hands the reader to the chart, which lights the
          planets that make it — the rule is shown rather than recited */
       /* a key, never an index: the index changes when the catalogue does, and a
@@ -3449,9 +3501,14 @@ function guideMsgHTML(m,i,prev){
     ${long?`<button class="gshowmore">Show more</button>`:""}
     ${m.actions?actChips(m.actions,i):""}
     <div class="gfb">
+      <button class="gfbb${GUIDE.reading===i?" on":""}" data-fb="say" data-i="${i}"
+        aria-label="${GUIDE.reading===i?"Stop reading aloud":"Read this answer aloud"}"><svg viewBox="0 0 24 24">${
+        GUIDE.reading===i
+          ? `<rect x="6.5" y="6.5" width="11" height="11" rx="2"/>`
+          : `<path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z"/><path d="M15.6 9.2a4 4 0 010 5.6M18.2 6.8a7.5 7.5 0 010 10.4"/>`}</svg></button>
       <button class="gfbb" data-fb="copy" data-i="${i}" aria-label="Copy this answer"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15.5 5.8V5A2 2 0 0013.5 3h-8A2.5 2.5 0 003 5.5v8A2 2 0 005 15.5h.8"/></svg></button>
-      <button class="gfbb" data-fb="up" data-i="${i}" aria-label="Good answer"><svg viewBox="0 0 24 24"><path d="M7 10.5v9M7 10.5l3.6-6.8a1.7 1.7 0 013.1 1.2l-.8 3.7h4.6a2 2 0 011.95 2.45l-1.35 6A2 2 0 0116.1 18.6H7"/></svg></button>
-      <button class="gfbb" data-fb="down" data-i="${i}" aria-label="Report a problem with this answer"><svg viewBox="0 0 24 24"><path d="M7 13.5v-9M7 13.5l3.6 6.8a1.7 1.7 0 003.1-1.2l-.8-3.7h4.6a2 2 0 001.95-2.45l-1.35-6A2 2 0 0016.1 5.4H7"/></svg></button>
+      <button class="gfbb${m.fb==="up"?" on":""}" data-fb="up" data-i="${i}" aria-label="Good answer"><svg viewBox="0 0 24 24"><path d="M7 10.5v9M7 10.5l3.6-6.8a1.7 1.7 0 013.1 1.2l-.8 3.7h4.6a2 2 0 011.95 2.45l-1.35 6A2 2 0 0116.1 18.6H7"/></svg></button>
+      <button class="gfbb${m.fb==="down"?" on":""}" data-fb="down" data-i="${i}" aria-label="Report a problem with this answer"><svg viewBox="0 0 24 24"><path d="M7 13.5v-9M7 13.5l3.6 6.8a1.7 1.7 0 003.1-1.2l-.8-3.7h4.6a2 2 0 001.95-2.45l-1.35-6A2 2 0 0016.1 5.4H7"/></svg></button>
     </div>
   </div>`;
 }
@@ -3522,7 +3579,10 @@ function setGuideBar(){
     <button class="tb-btn" id="gclose" aria-label="Close Guide">
       <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`});
   const c=document.getElementById("gclose");
-  if(c) c.onclick=()=>{ buzz(6); go(guideFrom); if(guideFrom===YOU_INDEX) renderYou(); };
+  if(c) c.onclick=()=>{ buzz(6);
+    const back=guideReturnSpec; guideReturnSpec=null;
+    go(guideFrom); if(guideFrom===YOU_INDEX) renderYou();
+    if(back) setTimeout(()=>openObject(back),300); };
   const mn=document.getElementById("gmenu");
   if(mn) mn.onclick=()=>{ buzz(6); toggleGuideMenu(); };
 }
@@ -3669,9 +3729,14 @@ function renderGuide(){
   pg.scrollTop=pg.scrollHeight;
   /* reading older messages must never be interrupted (spec 45): new
      replies show a quiet pill instead of yanking the scroll */
+  /* The jump control now appears whenever the reader is away from the bottom,
+     not only when a new reply arrives behind them — scrolling up through a long
+     answer and having no way back down was the complaint. */
   const gj=document.getElementById("gjump");
-  pg.onscroll=()=>{ if(gj&&!gj.hidden &&
-    pg.scrollHeight-pg.scrollTop-pg.clientHeight<90) gj.hidden=true; };
+  const gjSync=()=>{ if(!gj) return;
+    gj.hidden = pg.scrollHeight-pg.scrollTop-pg.clientHeight < 90; };
+  pg.onscroll=gjSync;
+  requestAnimationFrame(gjSync);
   if(gj) gj.onclick=()=>{ gj.hidden=true; buzz(5);
     pg.scrollTo({top:pg.scrollHeight,behavior:"smooth"}); };
   const chat=document.getElementById("chat");
@@ -3679,7 +3744,12 @@ function renderGuide(){
     const fb=e.target.closest(".gfbb");
     if(fb){ const i2=+fb.dataset.i, m2=GUIDE.msgs[i2];
       if(fb.dataset.fb==="copy"){ try{ navigator.clipboard.writeText(m2?m2.content:""); toastG("Copied"); buzz(5); }catch(_){}; return; }
-      if(fb.dataset.fb==="up"){ fb.classList.add("on"); buzz(6); sendFeedback({kind:"up",i:i2}); toastG("Thank you"); return; }
+      if(fb.dataset.fb==="say"){ buzz(5); guideReadAloud(i2); return; }
+      /* the verdict lives on the MESSAGE, not on the button: it was a DOM class
+         only, so leaving the tab and coming back lost every thumb */
+      if(fb.dataset.fb==="up"){ if(m2) m2.fb="up"; fb.classList.add("on"); buzz(6);
+        sendFeedback({kind:"up",i:i2}); toastG("Thank you"); return; }
+      if(m2) m2.fb="down";
       openFeedback(i2); return; }
     const sm=e.target.closest(".gshowmore");
     if(sm){ const t=sm.previousElementSibling; t.classList.toggle("clamp"); sm.textContent=t.classList.contains("clamp")?"Show more":"Show less"; buzz(4); return; }
@@ -3728,9 +3798,20 @@ function renderGuide(){
     }
   };
   if(VOICE.on){ voiceUI(true); gMoonState(VOICE.state); }
+  /* An Ask Guide button TYPES the question; it does not send it. Sending on the
+     user's behalf takes the decision away — they may want to reword it, or may
+     have tapped it to see what Astra would ask. The composer is focused with
+     the cursor at the end, so one tap on Send still finishes it. */
   if(GUIDE_SEED&&GUIDE_SEED.q){
     const q=GUIDE_SEED.q; GUIDE_SEED.q=null;   /* ctx stays for the send */
-    setTimeout(()=>{ guideSend(q); },320);
+    setTimeout(()=>{
+      const box=document.getElementById("cmpin");
+      if(!box) return guideSend(q);
+      box.value=q;
+      box.dispatchEvent(new Event("input",{bubbles:true}));
+      try{ box.focus({preventScroll:true}); box.setSelectionRange(q.length,q.length); }catch(_){}
+      box.scrollIntoView({block:"nearest"});
+    },320);
   }
 }
 
@@ -3914,7 +3995,21 @@ async function rtStart(){
   const pc=new RTCPeerConnection();
   const audio=document.createElement("audio");
   audio.autoplay=true; audio.setAttribute("playsinline","");
-  pc.ontrack=e=>{ audio.srcObject=e.streams[0]; audio.play().catch(()=>{}); };
+  pc.ontrack=e=>{ audio.srcObject=e.streams[0]; audio.play().catch(()=>{});
+    /* Listen to ASTRA's voice, not just yours. The orb only ever metered the
+       microphone, so while Astra spoke it pulsed on a fixed sine — the same
+       gentle breathing whatever was said. Now the reply drives it, and the
+       Moon moves with the words the way a voice interface should. */
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      const ac=VOICE.outAc||(VOICE.outAc=new AC());
+      if(ac.state==="suspended") ac.resume().catch(()=>{});
+      const src=ac.createMediaStreamSource(e.streams[0]);
+      const an=ac.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.6;
+      src.connect(an);
+      VOICE.outAn=an; VOICE.outBuf=new Uint8Array(an.frequencyBinCount);
+    }catch(_){}
+  };
   pc.addTrack(mic.getTracks()[0],mic);
   const dc=pc.createDataChannel("oai-events");
   dc.onmessage=ev=>{ try{ rtEvent(JSON.parse(ev.data)); }catch(_){} };
@@ -4009,6 +4104,15 @@ function micLevel(){
   const rms=Math.sqrt(s/VOICE.buf.length);
   return Math.min(1,Math.max(0,(rms-0.015)*7));
 }
+/* the level of the voice Astra is speaking with, 0..1 */
+function replyLevel(){
+  if(!VOICE.outAn||!VOICE.outBuf) return null;
+  VOICE.outAn.getByteTimeDomainData(VOICE.outBuf);
+  let s=0; for(let i=0;i<VOICE.outBuf.length;i++){ const d=(VOICE.outBuf[i]-128)/128; s+=d*d; }
+  const rms=Math.sqrt(s/VOICE.outBuf.length);
+  return Math.min(1,Math.max(0,(rms-0.012)*8));
+}
+
 function voiceLoop(){
   cancelAnimationFrame(VOICE.raf);
   const orb=()=>document.getElementById("gvorb");
@@ -4018,13 +4122,21 @@ function voiceLoop(){
     if(VOICE.state==="listening"&&!VOICE.muted){
       const lv=micLevel(); target=lv==null?VOICE.bump:Math.max(lv,VOICE.bump);
     } else if(VOICE.state==="speaking"){
-      target=0.16+0.10*Math.sin(t/150)+VOICE.bump;
+      const rl=replyLevel();
+      /* a floor so the orb never looks dead between syllables, and a ceiling
+         well under 1 so it swells rather than lunges (§75: restraint) */
+      target = rl==null ? 0.16+0.10*Math.sin(t/150)+VOICE.bump
+                        : Math.min(0.92, 0.12 + rl*0.85 + VOICE.bump*0.4);
     } else if(VOICE.state==="thinking"){
       target=0.05+0.04*Math.sin(t/650);
     }
     VOICE.bump*=0.88;
     VOICE.amp+=(target-VOICE.amp)*(target>VOICE.amp?0.32:0.10);
-    const o=orb(); if(o) o.style.setProperty("--amp",Math.min(1,VOICE.amp).toFixed(3));
+    /* both moons: the big orb in voice mode AND the small one in the chat
+       header, which was never written to and so never moved */
+    const a=Math.min(1,VOICE.amp).toFixed(3);
+    const o=orb(); if(o) o.style.setProperty("--amp",a);
+    const gm=document.getElementById("gmoon"); if(gm) gm.style.setProperty("--amp",a);
     VOICE.raf=requestAnimationFrame(step);
   };
   VOICE.raf=requestAnimationFrame(step);
@@ -4074,6 +4186,30 @@ function voiceListen(){
   VOICE.rec=rec;
   try{rec.start()}catch(_){}
 }
+/* Read one answer aloud, outside voice mode. The same engine the voice mode
+   uses, but it does not enter voice mode and does not start listening — the
+   reader asked for this message to be spoken, nothing more. Tapping again
+   stops it, and so does leaving the tab. */
+function guideReadAloud(i){
+  const m=GUIDE.msgs[i]; if(!m||m.role==="user") return;
+  const stop=()=>{ try{speechSynthesis.cancel();}catch(_){} GUIDE.reading=null; renderGuide(); };
+  if(GUIDE.reading===i) return stop();
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(
+      String(m.content||"").replace(/@@ACTIONS[\s\S]*?@@/,"").replace(/[*_`#>]/g,""));
+    const vs=speechSynthesis.getVoices();
+    u.voice=(PREFS().lang==="hi"
+      ? vs.find(v=>/hi[-_]IN/i.test(v.lang))||vs.find(v=>/en[-_]IN/i.test(v.lang))
+      : vs.find(v=>/en[-_]IN/i.test(v.lang)))||vs.find(v=>/en/i.test(v.lang))||null;
+    u.rate=1;
+    u.onend=()=>{ if(GUIDE.reading===i){ GUIDE.reading=null; renderGuide(); } };
+    u.onerror=()=>{ GUIDE.reading=null; renderGuide(); };
+    GUIDE.reading=i; renderGuide();
+    speechSynthesis.speak(u);
+  }catch(_){ GUIDE.reading=null; }
+}
+
 function voiceSpeak(text){
   if(!VOICE.on){ gMoonState("idle"); return; }
   try{
@@ -4115,6 +4251,8 @@ function voiceStop(silent){
   try{VOICE.stream&&VOICE.stream.getTracks().forEach(x=>x.stop())}catch(_){}
   try{VOICE.ac&&VOICE.ac.close()}catch(_){}
   VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
+  try{ if(VOICE.outAc) VOICE.outAc.close(); }catch(_){}
+  VOICE.outAc=null; VOICE.outAn=null; VOICE.outBuf=null;
   rtStop();
   const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
   voiceInterim("");
@@ -6654,10 +6792,17 @@ function wireBirth(){
     const tm=e.target.closest(".term");
     if(tm){ const d=tm.nextElementSibling;
       if(d&&d.classList.contains("termdef")) d.hidden=!d.hidden; return; }
+    /* Reading about a planet is not the same as showing it on the chart. These
+       used to jump to the Universe tab first and open the page over it, so Back
+       from a planet opened in Birth details landed on Universe instead of where
+       the reader actually was. The detail page is a full-screen overlay — it
+       needs no particular tab underneath, and only "See on chart" navigates. */
     const pl=e.target.closest("[data-planet]");
-    if(pl){ buzz(8); go(CHART_INDEX); setMode("birth"); openPlanet(pl.dataset.planet); return; }
+    if(pl){ buzz(8); openObject({kind:"planet", id:pl.dataset.planet, mode:"birth",
+      from:"birth-details", emphasis:"birth", origin:rectOrigin(pl)}); return; }
     const ho=e.target.closest("[data-house]");
-    if(ho){ buzz(8); go(CHART_INDEX); setMode("birth"); openHouse(+ho.dataset.house); return; }
+    if(ho){ buzz(8); openObject({kind:"house", id:+ho.dataset.house, mode:"birth",
+      from:"birth-details", emphasis:"birth", origin:rectOrigin(ho)}); return; }
     if(e.target.closest("#bd2chart")){ buzz(8); go(CHART_INDEX); setMode("birth"); return; }
     if(e.target.closest("#bd2tl")){ buzz(8); go(TIMELINE_INDEX); return; }
     if(e.target.closest("#bd2rep")){ buzz(8); subView="report"; renderSub(); return; }
@@ -7618,12 +7763,15 @@ const TABS=[
 ];
 
 const YOU_INDEX=4, CHART_INDEX=2, TIMELINE_INDEX=1;
-function setTopBar(title,{back=false,actions="",sub="",centre=""}={}){
+function setTopBar(title,{back=false,actions="",sub="",centre="",lead=""}={}){
   document.getElementById("tbtitle").innerHTML=
     !title ? "" : sub?`<b>${title}</b><span>${sub}</span>`:`<b>${title}</b>`;
   document.getElementById("tbback").classList.toggle("on",back);
   document.getElementById("tbact").innerHTML=actions;
   document.getElementById("tbcentre").innerHTML=centre;
+  /* the left slot mirrors the right one, so a screen can carry a layer control
+     opposite its destination control without either touching the chart */
+  const ld=document.getElementById("tblead"); if(ld) ld.innerHTML=lead;
 }
 document.getElementById("tbback").onclick=()=>{
   buzz(5);
@@ -7696,7 +7844,7 @@ function wireUniParallax(){
     st.style.removeProperty("--px"); st.style.removeProperty("--py"); uniParStop=null; };
 }
 
-let activeTab=0, guideFrom=0;
+let activeTab=0, guideFrom=0, guideReturnSpec=null;
 function go(i){
   if(mode) resetChart();
   /* iOS convention: tapping the tab you are already on pops to its root */
@@ -7715,7 +7863,12 @@ function go(i){
   else if(i===CHART_INDEX) setUniverseBar();
   else if(i===3) renderGuide();
   /* Guide is a room, not a tab: the nav bows out and a close returns you */
-  if(i===3){ if(from!==3) guideFrom=from; document.body.classList.add("guidefull"); }
+  if(i===3){ if(from!==3) guideFrom=from; document.body.classList.add("guidefull");
+    /* landing at the end, twice: once now and once after late layout, because
+       art and fonts grow the scroll height after the first pass */
+    const pg=document.getElementById("pg-guide");
+    if(pg){ const end=()=>{pg.scrollTop=pg.scrollHeight;};
+      requestAnimationFrame(end); setTimeout(end,140); setTimeout(end,420); } }
   else { document.body.classList.remove("guidefull");
     if(from===3) guideExit(); }
   /* query the buttons, never nav.children: the travelling pill is a child too, and

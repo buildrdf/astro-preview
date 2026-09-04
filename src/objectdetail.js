@@ -276,6 +276,10 @@ function closeDetail(fromHistory) {
 }
 function closeNow() { if (open) { open.ov.remove(); document.body.classList.remove("indetail"); open = null; } }
 export function isDetailOpen() { return !!open; }
+/* what page is on screen, so a caller that navigates away can offer to come
+   back to it — Ask Guide leaves a reading page, and the cross should return
+   to that page rather than merely to the tab it was sitting on */
+export function currentSpec() { return open ? { ...open.spec } : null; }
 
 /* ---- PLANET ------------------------------------------------------- */
 function planetModel(spec, ctx) {

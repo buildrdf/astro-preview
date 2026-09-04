@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904a";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904a";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904a";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904e";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904e";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -3391,11 +3391,25 @@ function rtEvent(m){
       if(m.delta) voiceInterim((document.getElementById("gvlive")?.textContent||"")+m.delta); break;
     case "conversation.item.input_audio_transcription.completed": {
       const said=(m.transcript||"").trim(); voiceInterim("");
-      if(said){ GUIDE.msgs.push({role:"user",content:said,t:Date.now()}); guideSave();
-        const chat=document.getElementById("chat");
-        if(chat) chat.insertAdjacentHTML("beforeend",
-          guideMsgHTML(GUIDE.msgs[GUIDE.msgs.length-1],GUIDE.msgs.length-1,GUIDE.msgs[GUIDE.msgs.length-2]));
-        const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight; }
+      if(!said) break;
+      /* the model usually starts answering before the transcript of YOUR words comes back,
+         so appending here put your line under the answer. It belongs above it, in both the
+         thread and the saved history. */
+      const chat=document.getElementById("chat"), pend=document.getElementById("gpending");
+      let at=GUIDE.msgs.length;
+      if(!pend&&at&&GUIDE.msgs[at-1].role==="assistant") at=at-1;
+      GUIDE.msgs.splice(at,0,{role:"user",content:said,t:Date.now()});
+      guideSave();
+      const html=guideMsgHTML(GUIDE.msgs[at],at,GUIDE.msgs[at-1]);
+      if(chat){
+        if(pend) pend.insertAdjacentHTML("beforebegin",html);
+        else if(at<GUIDE.msgs.length-1){
+          const nodes=chat.querySelectorAll(".gasr,.bubble.me");
+          const last=nodes[nodes.length-1];
+          if(last) last.insertAdjacentHTML("beforebegin",html); else chat.insertAdjacentHTML("beforeend",html);
+        } else chat.insertAdjacentHTML("beforeend",html);
+      }
+      const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
       break; }
     case "response.created": gMoonState("thinking"); break;
     case "response.output_audio_transcript.delta":

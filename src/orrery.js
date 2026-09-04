@@ -217,11 +217,17 @@ export function drawOrrery(c,W,H,k,env){
 
   /* geometry: the globe shrinks from underfoot to the centre; the ring
      opens from edge-on around you to the tilted zodiac */
-  const R1=Math.min(W,H)*0.175, cy1=H*0.47;
-  const RE=lerp(Math.max(W,H)*2.4,R1,e);
-  const topY=lerp(H*0.66,cy1-R1,e);
+  /* Distance is a real dimension, not two states. The globe shrinks along an eased curve so
+     the middle of the pinch is a usable low orbit — a whole Earth you can turn — rather than
+     a giant arc on its way to a small disc. The ring rides the same curve so the two never
+     cut through each other. */
+  const R1=Math.min(W,H)*0.175, cy1=H*0.47, BIG=Math.max(W,H)*1.15;
+  const eR=Math.pow(e,0.45);
+  const RE=lerp(BIG,R1,eR);
+  const topY=lerp(H*0.66,cy1-R1,eR);
   const ecx=W/2, ecy=topY+RE;
-  const geo={cx:W/2, cy:lerp(H*0.64,cy1,e), R:lerp(Math.max(W,H)*1.15,Math.min(W,H)*0.47,e), sy:lerp(0.05,clamp(0.44+pitch/70,0.10,0.92),e), asc};
+  const geo={cx:W/2, cy:lerp(H*0.64,cy1,eR), R:lerp(Math.max(W,H)*1.6,Math.min(W,H)*0.47,eR),
+    sy:lerp(0.05,clamp(0.44+pitch/70,0.10,0.92),e), asc};
   const geoM={...geo,R:geo.R*0.60};
   const pt=(L,g=geo)=>{ const th=Math.PI+(L-g.asc)*D2R; return {x:g.cx+g.R*Math.cos(th), y:g.cy-g.R*g.sy*Math.sin(th), d:Math.sin(th), th}; };
   const band=clamp(geo.R*0.16,14,48);

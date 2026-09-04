@@ -3490,3 +3490,41 @@ body.tabmin .tabthumb{opacity:0}
   border:1px solid rgba(194,155,78,.45);border-radius:50%}
 .yogapill.on{background:rgba(194,155,78,.16);border-color:rgba(194,155,78,.5);
   color:var(--ink)}
+
+/* ---- the yoga reading page ---------------------------------------
+   A single-position object: no At birth / Now columns, because a natal
+   yoga is not in two places at once. What replaces them is the thing a
+   practitioner actually needs — who forms it, where, and why the band
+   came out the way it did. */
+.codfacts{margin-top:20px}
+.codwho{display:flex;flex-direction:column;gap:2px}
+.codwhorow{display:grid;grid-template-columns:auto auto 1fr;align-items:center;
+  gap:2px 9px;padding:9px 0;border-bottom:1px solid rgba(20,22,43,.08)}
+.codwhorow:last-child{border-bottom:0}
+.codwhoart{grid-row:span 2;display:flex;align-items:center}
+.codwhoart .gico{margin-right:0}
+.codwhorow b{font-size:15px;font-weight:650}
+.codwhopart{font-size:11px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);justify-self:start}
+.codwholine{grid-column:2/-1;font-size:12.5px;color:var(--ink-3);line-height:1.45}
+
+.codhouses{display:flex;flex-wrap:wrap;gap:8px}
+.codhrow{display:flex;align-items:baseline;gap:8px;padding:9px 13px;min-height:44px;
+  border-radius:13px;background:#fff;border:1px solid rgba(20,22,43,.16);
+  font-family:var(--ff);color:var(--ink);cursor:pointer;text-align:left}
+.codhrow b{font-size:14.5px;font-weight:660}
+.codhrow span{font-size:12px;color:var(--ink-3)}
+.codhrow:active{background:rgba(20,22,43,.04)}
+
+/* Strengthening and moderating, as words. No score, no bar, no colour
+   scale — the number that produced the band is internal and stays that
+   way; what the reader gets is the reasons. */
+.codterms{display:flex;flex-direction:column;gap:5px}
+.codtermh{margin:10px 0 2px;font-size:11.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-3)}
+.codterm{margin:0;font-size:13.5px;line-height:1.5;color:var(--ink-2);
+  padding-left:16px;position:relative}
+.codterm::before{content:"";position:absolute;left:2px;top:.62em;width:6px;height:6px;
+  border-radius:50%;background:var(--ink-3);opacity:.5}
+.codterm.up::before{background:var(--cta);opacity:.9}
+.codterm.down::before{background:none;border:1px solid var(--ink-3);opacity:.7}

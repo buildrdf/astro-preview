@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904x";
+import { LEARN_LEVELS } from "./learn.js?v=20260904y";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904x";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904y";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260904x";
-import { themeOf } from "./yoga-themes.js?v=20260904x";
+import * as YF from "./yoga-formation.js?v=20260904y";
+import { themeOf } from "./yoga-themes.js?v=20260904y";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904x";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904y";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260904x";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904x";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904x";
+import { avakhadaOf } from "./avakhada.js?v=20260904y";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904y";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904y";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2280,10 +2280,11 @@ function ygPaintStep(y,steps){
    objectdetail.js this hands off to the existing sheet, which already
    carries the rule and the participants. */
 function ygExplore(){
-  const list=engine().yogas||[];
-  const i=list.findIndex(x=>ygKeyOf(x)===ygKey);
-  if(i<0) return;
-  openYogaSheet(); showYoga(i);
+  const y=(engine().yogas||[]).find(x=>ygKeyOf(x)===ygKey);
+  if(!y) return;
+  const card=document.querySelector(`.ygcard[data-k="${ygKey}"] .ygart`);
+  openObject({kind:"yoga", id:ygKey, mode:"birth", from:"chart",
+    emphasis:"birth", origin:rectOrigin(card||document.getElementById("stage"))});
 }
 
 function wireYogaLayer(){
@@ -3303,6 +3304,9 @@ function codCtx(){
        HOUSE_TRANSIT_SENSE:INTERP.HOUSE_TRANSIT_SENSE, HOUSE_STORY:LORE.HOUSE_STORY, GRAHA_IN_SIGN:LORE.GRAHA_IN_SIGN,
        LORD_IN_HOUSE:LORE.LORD_IN_HOUSE, DASHA_THEME},
     housePath:h=>HOUSE_PATH[h]||HOUSE_PATH[1], houseAnchor:h=>ANCHOR[h]||[50,50],
+    /* the yoga page reads the SAME formation objects the chart draws, so the
+       page and the picture can never describe different things */
+    yogas:()=>engine().yogas||[], YF, themeOf, gIcon,
     nav:{push:navPush,replace:navReplace}, buzz,
     actions:{
       seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g,{focusOnly:true}),260); }); },
@@ -3310,8 +3314,10 @@ function codCtx(){
       askGuide:(q,ctx)=>{ closeDetailThen(()=>askGuide(q,ctx)); },
       /* a yoga row on a graha's page hands the reader to the chart, which lights the
          planets that make it — the rule is shown rather than recited */
-      openYoga:i=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode("birth");
-        setTimeout(()=>{ openYogaSheet(); showYoga(i); },300); }); },
+      /* a key, never an index: the index changes when the catalogue does, and a
+         detail page reopened after a profile switch would land on another yoga */
+      openYoga:key=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode("birth");
+        setTimeout(()=>{ if(!ygOpen) openYogaLayer(); ygSelect(String(key)); },320); }); },
       openHouse:(h,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openHouse(h,{focusOnly:true}),260); }); },
       show:(k,id,spec)=>{
         if(k==="planet") openObject({kind:"planet",id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});

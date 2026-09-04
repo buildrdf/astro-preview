@@ -56,6 +56,7 @@ export function openObjectDetail(spec, ctx) {
   const model = spec.kind === "house" ? houseModel(spec, ctx)
     : spec.kind === "rashi" ? rashiModel(spec, ctx)
     : spec.kind === "nakshatra" ? nakshatraModel(spec, ctx)
+    : spec.kind === "yoga" ? yogaModel(spec, ctx)
     : planetModel(spec, ctx);
   if (!model) return null;
   const emphasis = spec.emphasis || (spec.mode === "now" ? "now" : "birth");
@@ -73,7 +74,7 @@ export function openObjectDetail(spec, ctx) {
         <h1>${esc(model.title)} <small>${esc(model.dev)}</small></h1>
         <p class="codsub">${model.sub}</p>
       </div>
-      <section class="codglance" aria-label="At birth and now">
+      ${model.single ? "" : `<section class="codglance" aria-label="At birth and now">
         <div class="codgrid">
           <div class="codhead"></div>
           <div class="codhead${emphasis === "birth" ? " emph" : ""}">At birth</div>
@@ -83,18 +84,19 @@ export function openObjectDetail(spec, ctx) {
             <div class="codv${emphasis === "now" ? " emph" : ""}${r.changed ? " chg" : ""}">${r.now}</div>`).join("")}
         </div>
         ${model.changes.length ? `<p class="codchanges">${esc(model.changes.join(" · "))}</p>` : `<p class="codchanges quiet">Nothing has moved since birth on these counts.</p>`}
-      </section>
+      </section>`}
+      ${model.single ? `<section class="codfacts">${model.facts || ""}</section>` : ""}
       <section class="codabout">
         <h2>${esc(model.aboutTitle)}</h2>
         <p>${model.about}</p>
       </section>
       <section class="codread">
-        <div class="codpill" role="tablist" aria-label="Which position">
+        ${model.single ? "" : `<div class="codpill" role="tablist" aria-label="Which position">
           <button role="tab" data-tab="birth" aria-selected="${emphasis === "birth"}" class="${emphasis === "birth" ? "on" : ""}">At birth</button>
           <button role="tab" data-tab="now" aria-selected="${emphasis === "now"}" class="${emphasis === "now" ? "on" : ""}">Now</button>
-        </div>
-        <div class="codpanel" data-panel="birth" ${emphasis === "birth" ? "" : "hidden"}>${panelHTML(model.birth)}</div>
-        <div class="codpanel" data-panel="now" ${emphasis === "now" ? "" : "hidden"}>${panelHTML(model.now)}</div>
+        </div>`}
+        <div class="codpanel" data-panel="birth" ${model.single || emphasis === "birth" ? "" : "hidden"}>${panelHTML(model.birth)}</div>
+        ${model.single ? "" : `<div class="codpanel" data-panel="now" ${emphasis === "now" ? "" : "hidden"}>${panelHTML(model.now)}</div>`}
       </section>
       <section class="codacts">${(() => {
         const rest = model.actions.filter(a => a.id !== "guide");
@@ -156,7 +158,8 @@ export function openObjectDetail(spec, ctx) {
   sc.addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
   /* tabs, actions, see-why */
-  ov.querySelector(".codpill").onclick = e => {
+  const pill = ov.querySelector(".codpill");
+  if (pill) pill.onclick = e => {
     const b = e.target.closest("[data-tab]"); if (!b) return;
     ov.querySelectorAll(".codpill [data-tab]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
     ov.querySelectorAll(".codpanel").forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab);
@@ -174,7 +177,7 @@ export function openObjectDetail(spec, ctx) {
   };
   ov.addEventListener("click", e => {
     const w = e.target.closest(".codwhy"); if (w) { const box = w.nextElementSibling; box.hidden = !box.hidden; w.setAttribute("aria-expanded", !box.hidden); return; }
-    const y = e.target.closest("[data-yoga]"); if (y) { ctx.actions.openYoga && ctx.actions.openYoga(+y.dataset.yoga); return; }
+    const y = e.target.closest("[data-yoga]"); if (y) { ctx.actions.openYoga && ctx.actions.openYoga(y.dataset.yoga); return; }
     const s = e.target.closest("[data-show]"); if (s) { const [k, id] = s.dataset.show.split(":"); ctx.actions.show && ctx.actions.show(k, id, spec); return; }
     const a = e.target.closest("[data-act]"); if (a) { const act = model.actions.find(x => x.id === a.dataset.act); if (act) act.run(); return; }
   });
@@ -359,7 +362,9 @@ function planetModel(spec, ctx) {
   const deeper = (() => {
     const E = safe(() => ctx.engine()); if (!E) return "";
     const d9 = safe(() => E.varga(9)[g]), d10 = safe(() => E.varga(10)[g]);
-    const yg = (E.yogas || []).map((y, i) => ({ y, i })).filter(o => o.y.planets && o.y.planets.includes(g));
+    /* no index is threaded any more: a yoga is addressed by its stable key, which
+       survives a recompute and a profile switch where an array position does not */
+    const yg = (E.yogas || []).filter(y => y.planets && y.planets.includes(g)).map(y => ({ y }));
     const S = T.SIGNS;
     let rupas = "";
     if (E.sb && E.sb.grahas && E.sb.grahas[g]) {
@@ -378,8 +383,8 @@ function planetModel(spec, ctx) {
        participating planets light up. The words live where they can be shown. */
     const yogas = yg.length
       ? `<h3 class="codsub2">Yogas it takes part in</h3>
-         <div class="codyg">${yg.map(({ y, i }) => `
-           <button class="codygrow" data-yoga="${i}"
+         <div class="codyg">${yg.map(({ y }) => `
+           <button class="codygrow" data-yoga="${esc(slugOf(y))}"
              aria-label="${esc(y.name)}${y.strength ? `, ${esc(y.strength)}` : ""}, made by ${esc(spoken(y.planets || []))}. Show it on the chart">
              <b>${esc(y.name)}</b>${y.strength ? `<span class="codygtag">${esc(y.strength)}</span>` : ""}
              <span class="codygwho">${esc((y.planets || []).join(" + "))}</span>
@@ -485,6 +490,173 @@ function houseModel(spec, ctx) {
     },
     foot: "A house is read through its sign, its lord and its occupants — never in isolation. Traditional associations, not predictions.",
   };
+}
+
+/* ---- YOGA ----------------------------------------------------------
+   The reading page for a named pattern. It is a "single" model: a natal
+   yoga is not in two places at once, so the At birth / Now columns are
+   suppressed rather than filled with the same value twice.
+
+   Order follows Sangram's spec deliberately: what it may mean for you
+   FIRST, the Sanskrit rule after. Nobody arrives wanting the definition.
+
+   Every section is derived from the formation. Nothing here is a second
+   hand-written description that could drift from what the chart drew.  */
+function yogaModel(spec, ctx) {
+  const y = (safe(() => ctx.yogas()) || []).find(x => (x.key || x.name) === spec.id
+    || slugOf(x) === spec.id);
+  if (!y) return null;
+  const f = y.formation, ord = ctx.ordinal, T = ctx.T;
+  const YF = ctx.YF;
+  const cast = f ? f.cast : (y.planets || []).map(g => ({ g, part: "actor" }));
+  const who = [...new Set(cast.map(r => r.g))];
+  const steps = f && YF ? YF.story(f) : [];
+  const c = f && YF ? YF.collapse(f) : null;
+
+  /* Houses involved, and WHY each one is involved — a seat is a different
+     claim from a lordship, and the page should not blur them (§43). */
+  const houses = [];
+  if (c) {
+    for (const [h, tone] of c.fill) houses.push({ h, why: tone === "seat" ? "a participant sits here"
+      : tone === "ref" ? "the count starts here" : "the count passes through" });
+    for (const [h, tone] of c.edge) if (!c.fill.has(h) && tone === "rule")
+      houses.push({ h, why: "ruled by a participant standing elsewhere" });
+  }
+  houses.sort((a, b) => a.h - b.h);
+
+  const strength = f ? f.strength : null;
+  const helps = strength ? strength.terms.filter(t => t.delta > 0) : [];
+  const hurts = strength ? strength.terms.filter(t => t.delta < 0) : [];
+
+  const rows = who.map(g => {
+    const r = cast.find(x => x.g === g) || {};
+    const bits = [r.sign ? T.SIGNS[r.sign - 1] : null, r.house ? `${ord(r.house)} house` : null,
+      r.dignity || null, r.combust ? "combust" : null].filter(Boolean);
+    return { g, part: r.part, line: bits.join(" · "),
+      rules: (r.rules || []).length ? `rules the ${r.rules.map(ord).join(" and ")}` : "" };
+  });
+
+  const PART = { actor: "forms it", frame: "what it is counted from", subject: "the graha affected",
+    witness: "lifts it", afflicter: "weakens it" };
+
+  return {
+    kind: "yoga", id: spec.id, single: true,
+    title: y.name, dev: y.sanskrit || "", eyebrow: who.join(" · "),
+    sub: esc(safe(() => ctx.themeOf(y).words) || ""),
+    rows: [], changes: [],
+    aboutTitle: `What ${shortName(y.name)} is`,
+    about: aboutOf(y, f, ord, T),
+
+    /* the glance replaced: participants and places, as a table a
+       practitioner can check without re-deriving the chart (§95) */
+    facts: `
+      <h3 class="codsub2">Who forms it</h3>
+      <div class="codwho">${rows.map(r => `
+        <div class="codwhorow">
+          <span class="codwhoart">${ctx.gIcon ? ctx.gIcon(r.g, 26) : ""}</span>
+          <b>${esc(r.g)}</b><span class="codwhopart">${esc(PART[r.part] || "")}</span>
+          <span class="codwholine">${esc(r.line)}${r.rules ? " · " + esc(r.rules) : ""}</span>
+        </div>`).join("")}</div>
+      ${houses.length ? `<h3 class="codsub2">Houses involved</h3>
+        <div class="codhouses">${houses.map(h => `
+          <button class="codhrow" data-show="house:${h.h}">
+            <b>${ord(h.h)}</b><span>${esc(h.why)}</span>
+          </button>`).join("")}</div>` : ""}
+      ${strength ? `<h3 class="codsub2">Why Astra rates it ${esc(strength.band)}</h3>
+        <div class="codterms">
+          ${helps.length ? `<p class="codtermh">Strengthening</p>` : ""}
+          ${helps.map(t => `<p class="codterm up">${esc(t.says)}</p>`).join("")}
+          ${hurts.length ? `<p class="codtermh">Moderating</p>` : ""}
+          ${hurts.map(t => `<p class="codterm down">${esc(t.says)}</p>`).join("")}
+          ${!helps.length && !hurts.length ? `<p class="codterm">The rule forms cleanly, with nothing in the chart strengthening or moderating it.</p>` : ""}
+        </div>` : ""}`,
+
+    birth: {
+      lead: esc(meansOf(y, f, ord)),
+      more: "",
+      tech: esc(clean(y.because || "")),
+      chain: steps.map(st => ({ fact: st.says,
+        note: null,
+        show: showFor(st.marks), showLabel: "Show" })),
+    },
+    now: { lead: "", more: "", tech: "", chain: [] },
+
+    actions: [
+      { id: "chart", label: "Show in chart", primary: true,
+        run: () => ctx.actions.openYoga && ctx.actions.openYoga(spec.id) },
+      { id: "guide", label: "Ask Guide",
+        run: () => ctx.actions.askGuide(`How does my ${shortName(y.name)} affect me?`,
+          { source: "yoga_detail", yoga_id: spec.id, strength: y.strength }) },
+    ],
+    foot: f
+      ? `Detected by rule from your actual placements, not chosen from a list. `
+        + `Houses are whole-sign from the lagna; aspects are full drishti only. `
+        + `A yoga describes a pattern the tradition names — it does not predict an outcome.`
+      : `A yoga describes a pattern the tradition names — it does not predict an outcome.`,
+    heroSVG: (px) => yogaHero(who, px, ctx),
+  };
+}
+
+const slugOf = y => (y.key || y.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+/* No shortening. Every rule I tried mangled something: stripping from " Yoga"
+   turned "Raja Yoga (Kendra-Trikona)" into "Raja", and stripping only a trailing
+   " Yoga" left "Raja (Kendra-Trikona)" and "Neecha Bhanga Raja". A yoga's
+   qualifier is part of its identity, so the name is used whole. */
+const shortName = n => n;
+
+/* the one sentence that opens the page: the yoga's own required facts,
+   joined — never a second description authored beside them */
+/* The opening paragraph. Two sentences, never nine: Raja Yoga has nine
+   required facts and joining them all produced a wall of text at the top of
+   the page. The rest are not lost — every one of them is a row in See why,
+   where they arrive one at a time with the chart lighting up beside them. */
+function meansOf(y, f, ord) {
+  if (!f) return clean((y.because || "").split(". ")[0] + ".");
+  const req = f.facts.filter(x => x.ok && x.req);
+  const lead = req.slice(0, 2).map(x => x.says).join(" ");
+  const rest = req.length - 2;
+  return rest > 0 ? `${lead} ${rest} more condition${rest > 1 ? "s" : ""} complete${rest > 1 ? "" : "s"} it.` : lead;
+}
+/* What the yoga IS, before what it means for you. Assembled from the
+   formation rather than authored again: the rule's own required clauses say
+   what the combination is, the frame says what it is counted from, and the
+   variant says which grade of it this chart carries. */
+function aboutOf(y, f, ord, T) {
+  if (!f) return esc(clean(y.because || ""));
+  const rule = f.facts.filter(x => x.req && x.ok);
+  const bits = [];
+  /* the clause that states the rule itself, if the detector wrote one */
+  const stated = rule.find(x => x.id === "rule" || /whole rule|is the rule/i.test(x.says))
+    || rule[rule.length - 1];   /* the clause that completes it says what it is */
+  if (stated) bits.push(stated.says);
+  bits.push(f.frame.from === "lagna"
+    ? "It is counted from the lagna, the rising sign."
+    : `It is counted from your ${f.frame.graha}, not from the lagna — the same four cells would mean something else measured from the rising sign.`);
+  if (f.variant) bits.push(`This chart carries the ${f.variant} grade of it.`);
+  return esc(bits.join(" "));
+}
+/* a step's first mark decides what "Show" jumps to */
+function showFor(marks) {
+  const m = (marks || [])[0];
+  if (!m) return null;
+  if (m.m === "graha") return `planet:${m.g}`;
+  if (m.m === "house") return `house:${m.h}`;
+  if (m.m === "link") return m.from.g ? `planet:${m.from.g}` : `house:${m.from.h}`;
+  return null;
+}
+/* the hero: the participants together, at the size the page asks for */
+function yogaHero(who, px, ctx) {
+  const n = Math.max(1, Math.min(5, who.length));
+  const r = n > 3 ? 21 : n > 2 ? 26 : 32, gap = 5;
+  const span = n * r * 2 + (n - 1) * gap;
+  const k = Math.min(1, 96 / span);
+  const w = span * k, x0 = 50 - w / 2;
+  return `<svg viewBox="0 0 100 100" width="${px}" height="${px}" role="img"
+      aria-label="${esc(who.join(" and "))} form this yoga">
+    ${who.slice(0, 5).map((g, i) => `<image href="assets/graha/${String(g).toLowerCase()}.png"
+      x="${(x0 + i * (r * 2 + gap) * k).toFixed(1)}" y="${(50 - r * k).toFixed(1)}"
+      width="${(r * 2 * k).toFixed(1)}" height="${(r * 2 * k).toFixed(1)}"/>`).join("")}
+  </svg>`;
 }
 
 /* ---- RASHI --------------------------------------------------------- */

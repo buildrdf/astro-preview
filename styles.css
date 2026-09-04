@@ -3135,6 +3135,35 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
 .codsub2{font-size:12.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:var(--ink-3);margin:18px 0 8px}
 .codq{color:var(--ink-3);font-weight:500}
+/* Yogas on a graha's page: rows, not paragraphs. Each one carries its name, its strength
+   and who makes it, and hands the reader to the chart where those planets light up. Reading
+   the rule is the chart's job — this list only has to say which rules apply. Colours follow
+   .codact so the page keeps one card material. */
+/* Once the object has landed in the bar, the reading is sliding underneath it — so the bar
+   needs a surface of its own. Without it the eyebrow and the big title pass straight
+   through the back button. It arrives only on collapse: at rest the bar is glass over the
+   hero and should stay invisible. */
+.cod .codbar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:rgba(250,249,246,.88);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  box-shadow:0 1px 0 rgba(20,22,43,.08);opacity:0;transition:opacity .2s var(--ease)}
+.cod.collapsed .codbar::before{opacity:1}
+@supports not (backdrop-filter:blur(1px)){.cod .codbar::before{background:#FAF9F6}}
+.codyg{display:flex;flex-direction:column;gap:8px;margin:2px 0 4px}
+.codygrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;
+  width:100%;min-height:52px;padding:9px 38px 9px 14px;box-sizing:border-box;
+  background:#fff;border:1px solid rgba(20,22,43,.16);border-radius:14px;
+  text-align:left;font:inherit;color:var(--ink);cursor:pointer;position:relative;
+  transition:background .18s var(--ease),transform .18s var(--ease)}
+.codygrow:active{transform:scale(.985);background:rgba(20,22,43,.04)}
+.codygrow b{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.codygtag{justify-self:end;font-size:11px;font-weight:650;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-3);border:1px solid rgba(20,22,43,.16);
+  border-radius:999px;padding:2px 8px;white-space:nowrap}
+.codygwho{grid-column:1/-1;font-size:12.5px;color:var(--ink-3);letter-spacing:.01em}
+/* the chevron says this row goes somewhere, without a word */
+.codygrow::after{content:"\203A";position:absolute;right:15px;top:50%;
+  transform:translateY(-52%);font-size:19px;line-height:1;color:var(--ink-3);opacity:.7}
+.codygrow:focus-visible{outline:2px solid var(--cta);outline-offset:2px}
 /* the hero lands beside the back button and the name arrives next to it */
 .cod .codmini{display:flex;padding-left:46px}
 .cod .codminihero{display:none}

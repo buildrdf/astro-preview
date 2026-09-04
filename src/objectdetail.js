@@ -125,17 +125,20 @@ export function openObjectDetail(spec, ctx) {
      measured ONCE, at rest, and then driven by scroll progress alone: measuring a moving,
      transformed element every frame feeds back on itself. */
   const measureHero = () => {
-    const slot = ov.querySelector(".codheroslot"), bar = ov.querySelector(".codbar");
-    if (!slot || !bar) return;
-    const prev = ov.style.getPropertyValue("--p");
-    ov.style.setProperty("--p", "0");
-    const s0 = slot.getBoundingClientRect(), b = bar.getBoundingClientRect();
-    if (s0.width > 60) {
-      ov.style.setProperty("--hx", ((b.left + 66) - (s0.left + s0.width / 2)).toFixed(1) + "px");
-      ov.style.setProperty("--hy", ((b.top + b.height / 2) - (s0.top + s0.height / 2)).toFixed(1) + "px");
-      ov.style.setProperty("--hsT", (30 / s0.width).toFixed(4));
-    }
-    ov.style.setProperty("--p", prev || "0");
+    const hero = ov.querySelector(".codhero"), bar = ov.querySelector(".codbar");
+    if (!hero || !bar) return;
+    /* Measure the FRAME, never the object. The slot carries both the entry morph and the
+       scroll transform, so its bounding box is whatever those animations are doing at the
+       instant we look — that read the planet at 39px (art still loading) and the house at
+       179px (mid-morph), and the trip was either skipped or measured against a lie. The
+       frame is absolutely positioned and never animated, the slot sits centred inside it,
+       and the object's rest size is heroPx by construction. */
+    const h = hero.getBoundingClientRect(), b = bar.getBoundingClientRect();
+    if (h.width < 60) return;
+    const cx = h.left + h.width / 2, cy = h.top + h.height / 2;
+    ov.style.setProperty("--hx", ((b.left + 72) - cx).toFixed(1) + "px");
+    ov.style.setProperty("--hy", ((b.top + b.height / 2) - cy).toFixed(1) + "px");
+    ov.style.setProperty("--hsT", (30 / heroPx).toFixed(4));
   };
   /* the object holds its ground while the reading scrolls up to meet it, and only then
      shrinks and travels to the bar. Holding first is what makes the trip read as one
@@ -148,9 +151,8 @@ export function openObjectDetail(spec, ctx) {
   };
   requestAnimationFrame(measureHero);
   addEventListener("resize", measureHero);
-  /* the hero's art arrives after first layout, so measure again whenever it resizes —
-     a trip measured against a 38px placeholder lands nowhere near the title */
-  try { new ResizeObserver(measureHero).observe(ov.querySelector(".codheroslot")); } catch (_) {}
+  /* nothing to re-measure when the art loads any more: the frame's box does not depend on
+     what is drawn inside it, so one measurement at rest holds until the viewport changes */
   sc.addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
   /* tabs, actions, see-why */
@@ -172,6 +174,7 @@ export function openObjectDetail(spec, ctx) {
   };
   ov.addEventListener("click", e => {
     const w = e.target.closest(".codwhy"); if (w) { const box = w.nextElementSibling; box.hidden = !box.hidden; w.setAttribute("aria-expanded", !box.hidden); return; }
+    const y = e.target.closest("[data-yoga]"); if (y) { ctx.actions.openYoga && ctx.actions.openYoga(+y.dataset.yoga); return; }
     const s = e.target.closest("[data-show]"); if (s) { const [k, id] = s.dataset.show.split(":"); ctx.actions.show && ctx.actions.show(k, id, spec); return; }
     const a = e.target.closest("[data-act]"); if (a) { const act = model.actions.find(x => x.id === a.dataset.act); if (act) act.run(); return; }
   });
@@ -356,7 +359,7 @@ function planetModel(spec, ctx) {
   const deeper = (() => {
     const E = safe(() => ctx.engine()); if (!E) return "";
     const d9 = safe(() => E.varga(9)[g]), d10 = safe(() => E.varga(10)[g]);
-    const yg = (E.yogas || []).filter(y => y.planets && y.planets.includes(g));
+    const yg = (E.yogas || []).map((y, i) => ({ y, i })).filter(o => o.y.planets && o.y.planets.includes(g));
     const S = T.SIGNS;
     let rupas = "";
     if (E.sb && E.sb.grahas && E.sb.grahas[g]) {
@@ -369,9 +372,18 @@ function planetModel(spec, ctx) {
       ? `<p class="because">In the navamsa (D9) — the chart read for marriage and inner strength —
           your ${g} sits in <b>${d9 ? S[d9 - 1] : "—"}</b>. In the dashamsa (D10) — career and public
           work — in <b>${d10 ? S[d10 - 1] : "—"}</b>.${rupas}</p>` : "";
+    /* Yogas used to arrive here as three paragraphs of rule text — the single densest
+       thing on a graha's page, and unreadable in the lead slot. They are now rows: the
+       name, who makes it, and a tap that takes the chart itself to the yoga, where the
+       participating planets light up. The words live where they can be shown. */
     const yogas = yg.length
-      ? `<h3 class="codsub2">Yogas it takes part in</h3>` + yg.map(y =>
-          `<p class="tellme"><b>${esc(y.name)}</b>${y.strength ? ` <span class="codq">· ${esc(y.strength)}</span>` : ""} — ${clean(y.because || "")}</p>`).join("")
+      ? `<h3 class="codsub2">Yogas it takes part in</h3>
+         <div class="codyg">${yg.map(({ y, i }) => `
+           <button class="codygrow" data-yoga="${i}"
+             aria-label="${esc(y.name)}${y.strength ? `, ${esc(y.strength)}` : ""}, made by ${esc(spoken(y.planets || []))}. Show it on the chart">
+             <b>${esc(y.name)}</b>${y.strength ? `<span class="codygtag">${esc(y.strength)}</span>` : ""}
+             <span class="codygwho">${esc((y.planets || []).join(" + "))}</span>
+           </button>`).join("")}</div>`
       : "";
     return charts + yogas;
   })();

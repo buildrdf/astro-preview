@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904u";
+import { LEARN_LEVELS } from "./learn.js?v=20260904v";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904u";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904v";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260904u";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904u";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904u";
+import { avakhadaOf } from "./avakhada.js?v=20260904v";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904v";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904v";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -302,7 +302,39 @@ function setActiveUser(p){
 const gIcon=(g,sz=18)=>`<img class="gico" src="assets/graha/${g.toLowerCase()}.png" width="${sz}" height="${sz}" alt="" draggable="false">`;
 const COLOUR=g=>`var(--${g.toLowerCase()})`;
 const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
-const buzz=ms=>{try{if(PREFS().haptics!==false&&navigator.vibrate)navigator.vibrate(ms)}catch(_){}}
+/* HAPTICS.
+   Safari has never implemented the Vibration API — not on iOS, not on the desktop, not in
+   any version (caniuse: unsupported through 26.6 / TP). So every buzz() in this app has
+   been a silent no-op on the iPhone it is built for, while working on Android.
+
+   The only route to the Taptic Engine from the web is a side effect of the switch control
+   Safari added in 17.4: a click that PROPAGATES THROUGH A LABEL to an
+   <input type="checkbox" switch> makes the system play its tick. Clicking the input
+   directly does nothing — the label is the whole trick. Reports differ on whether recent
+   iOS still allows it, and it cannot be tested in any browser that can be driven here, so
+   it is added as a pure enhancement: where it works there is feedback, where it does not
+   nothing changes. The switch carries one feel, so intensity cannot be expressed — every
+   buzz is one tick, and the millisecond argument stays meaningful only for Android. */
+let TAP=null;
+function tapNode(){
+  if(TAP) return TAP;
+  const wrap=document.createElement("label");
+  wrap.setAttribute("aria-hidden","true");
+  wrap.style.cssText="position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none";
+  const box=document.createElement("input");
+  box.type="checkbox"; box.setAttribute("switch",""); box.tabIndex=-1;
+  wrap.appendChild(box); document.body.appendChild(wrap);
+  return (TAP={wrap,box});
+}
+const buzz=ms=>{try{
+  if(PREFS().haptics===false) return;
+  if(navigator.vibrate) navigator.vibrate(ms);
+  else { const t=tapNode(), was=document.activeElement;
+    t.wrap.click();                              /* iOS: the tick rides the label click */
+    /* a label click can take focus with it; the detail page and the sheets manage their
+       own focus and must not lose it to an invisible checkbox */
+    if(was&&document.activeElement!==was&&was.focus) was.focus({preventScroll:true}); }
+}catch(_){}}
 const el=(t,a={})=>{const e=document.createElementNS("http://www.w3.org/2000/svg",t);
   for(const k in a)e.setAttribute(k,a[k]);return e};
 const fmtDate=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});

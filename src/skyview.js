@@ -26,7 +26,7 @@ import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
-import { drawOrrery, orreryHit } from "./orrery.js?v=20260904u";
+import { drawOrrery, orreryHit } from "./orrery.js?v=20260904v";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
@@ -234,7 +234,20 @@ const cacheKey=()=>mode+"|"+(mode==="birth"?(birthSeek?birthSeek.getTime():"b")
   :(seek?seek.getTime():custom?custom.iso+custom.lat:"live"));
 const wrap=a=>((a+180)%360+360)%360-180;
 const clampAlt=a=>Math.max(-60,Math.min(85,a));
-const buzz=n=>{ try{ navigator.vibrate&&navigator.vibrate(n); }catch(_){} };
+/* Safari has no Vibration API on any version, so the sky was silent on iPhone too.
+   Same label-through-switch route as app.js: an enhancement where it works, a no-op
+   where it does not. */
+let SKYTAP=null;
+const buzz=n=>{ try{
+  if(navigator.vibrate) return void navigator.vibrate(n);
+  if(!SKYTAP){ const l=document.createElement("label");
+    l.setAttribute("aria-hidden","true");
+    l.style.cssText="position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none";
+    const b=document.createElement("input"); b.type="checkbox"; b.setAttribute("switch",""); b.tabIndex=-1;
+    l.appendChild(b); document.body.appendChild(l); SKYTAP=l; }
+  const was=document.activeElement; SKYTAP.click();
+  if(was&&document.activeElement!==was&&was.focus) was.focus({preventScroll:true});
+}catch(_){} };
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
 /* ====================================================================

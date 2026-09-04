@@ -171,17 +171,12 @@ export function openObjectDetail(spec, ctx) {
   if (ctx.nav && ctx.nav.push) ov._navToken = (replacing && ctx.nav.replace) ? ctx.nav.replace(ov, closeFn) : ctx.nav.push(ov, closeFn);
   ov.querySelector(".codback").onclick = () => closeDetail(false);
 
-  /* the entry: the object lifts from where it was into the hero; the surface frosts in */
-  if (spec.origin && !reduced) {
-    const r = slot.getBoundingClientRect();
-    const sx = spec.origin.r * 2 / heroPx;
-    slot.style.transition = "none";
-    slot.style.transform = `translate(${spec.origin.x - (r.left + r.width / 2)}px, ${spec.origin.y - (r.top + r.height / 2)}px) scale(${sx})`;
-    void slot.offsetHeight;
-    slot.style.transition = "";
-    requestAnimationFrame(() => { slot.style.transform = ""; });
-  }
+  /* The entry is one morph: the page grows out of the object you touched while the object
+     flies from its place on the chart into the hero. Driven by the Web Animations API, not a
+     CSS transition — the hero's transform belongs to the scroll handler and the two would
+     fight over the same property. */
   requestAnimationFrame(() => ov.classList.add("in"));
+  if (spec.origin && !reduced) morphIn(ov, slot, spec.origin);
   ov.querySelector(".codback").focus({ preventScroll: true });
   return ov;
 }
@@ -217,19 +212,48 @@ function panelHTML(p) {
     </ol>`;
 }
 
+/* one geometry, used forwards on open and backwards on close, so they mirror exactly */
+function morphFrames(ov, slot, o) {
+  const box = Math.max(64, o.r * 2 * 1.9);
+  const page = [
+    { transformOrigin: "0 0", borderRadius: "26px", opacity: 0.35,
+      transform: `translate(${(o.x - box / 2).toFixed(1)}px,${(o.y - box / 2).toFixed(1)}px) scale(${(box / innerWidth).toFixed(4)},${(box / innerHeight).toFixed(4)})` },
+    { transformOrigin: "0 0", borderRadius: "0px", opacity: 1, transform: "none" },
+  ];
+  const r = slot ? slot.getBoundingClientRect() : { width: 1, left: 0, top: 0, height: 1 };
+  const w = r.width || 1;
+  const hero = [
+    { transform: `translate(${(o.x - (r.left + r.width / 2)).toFixed(1)}px,${(o.y - (r.top + r.height / 2)).toFixed(1)}px) scale(${(o.r * 2 / w).toFixed(4)})` },
+    { transform: "none" },
+  ];
+  return { page, hero };
+}
+const MORPH = { duration: 420, easing: "cubic-bezier(.22,1,.36,1)" };
+function morphIn(ov, slot, o) {
+  try {
+    const f = morphFrames(ov, slot, o);
+    ov.animate(f.page, MORPH);
+    if (slot) slot.animate(f.hero, MORPH);
+  } catch (_) {}
+}
 function closeDetail(fromHistory) {
   if (!open) return;
   const { ov, spec, ctx } = open;
   if (!fromHistory && ov._navToken && history.state && history.state.astra === ov._navToken) { history.back(); return; }
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const slot = ov.querySelector(".codheroslot");
+  const done = () => { ov.remove(); document.body.classList.remove("indetail"); if (open && open.ov === ov) open = null; ctx.buzz && ctx.buzz(5); };
   if (spec.origin && !reduced && slot) {
-    const r = slot.getBoundingClientRect();
-    const heroPx = r.width || 1;
-    slot.style.transform = `translate(${spec.origin.x - (r.left + r.width / 2)}px, ${spec.origin.y - (r.top + r.height / 2)}px) scale(${spec.origin.r * 2 / heroPx})`;
+    /* the page shrinks back onto the very object it came from */
+    try {
+      const f = morphFrames(ov, slot, spec.origin);
+      slot.animate([f.hero[1], f.hero[0]], { ...MORPH, duration: 340, fill: "forwards" });
+      const a = ov.animate([f.page[1], f.page[0]], { ...MORPH, duration: 340, fill: "forwards" });
+      a.onfinish = done; a.oncancel = done;
+      return;
+    } catch (_) {}
   }
   ov.classList.remove("in"); ov.classList.add("out");
-  const done = () => { ov.remove(); document.body.classList.remove("indetail"); if (open && open.ov === ov) open = null; ctx.buzz && ctx.buzz(5); };
   setTimeout(done, reduced ? 160 : 360);
 }
 function closeNow() { if (open) { open.ov.remove(); document.body.classList.remove("indetail"); open = null; } }
@@ -273,7 +297,7 @@ function planetModel(spec, ctx) {
   const chainB = [
     { fact: `Placement · ${sName} ${birth.degText}`, note: "sidereal, Lahiri", show: `chart:${g}`, showLabel: "See on chart" },
     { fact: `Sign · ${sName}, ruled by ${birth.signLord}`, note: (T.SIGNS_DEV || [])[birth.sign - 1] || "", show: `sign:${birth.sign}` },
-    { fact: `House · ${ord(h)} — ${clean((T.BHAVA[h] || {}).head || T.BHAVA[h] || "")}`.trim(), show: `house:${h}` },
+    { fact: `House · ${ord(h)} — ${clean((T.BHAVA[h-1] || {}).head || T.BHAVA[h-1] || "")}`.trim(), show: `house:${h}` },
     rules.length ? { fact: `Lordship · rules the ${rules.map(ord).join(" and ")}`, note: (fn.rules || []).map(r => r.effect || r.rule).filter(Boolean).slice(0, 2).join(" ") } : null,
     { fact: `Nakshatra · ${birth.nakName} pada ${birth.pada}`, note: `lord ${birth.nakLord}`, show: `nak:${birth.nak}` },
     birth.dignity ? { fact: `Dignity · ${birth.dignity.label}`, note: birth.dignity.why || "" } : null,
@@ -305,7 +329,7 @@ function planetModel(spec, ctx) {
   ].filter(Boolean);
   const chainN = [
     { fact: `Transit · ${now.signName} ${now.degText}`, show: `sky:${g}`, showLabel: "Show in sky" },
-    { fact: `House · ${ord(hh)} from your lagna — ${clean((T.BHAVA[hh] || {}).head || T.BHAVA[hh] || "")}`.trim(), show: `house:${hh}` },
+    { fact: `House · ${ord(hh)} from your lagna — ${clean((T.BHAVA[hh-1] || {}).head || T.BHAVA[hh-1] || "")}`.trim(), show: `house:${hh}` },
     skyRow ? { fact: `From your Moon · ${ord(skyRow.houseFromMoon)}`, note: skyRow.favourable ? "listed among this graha's supportive transit seats" : "not among this graha's supportive transit seats" } : null,
     { fact: `Nakshatra · ${now.nakName} pada ${now.pada}`, show: `nak:${now.nak}` },
     toNatal && toNatal.conjunctNatal && toNatal.conjunctNatal.length ? { fact: `Conjunct natal · ${toNatal.conjunctNatal.map(x => `${x.graha} (${x.sep.toFixed(1)}°)`).join(", ")}` } : null,
@@ -370,7 +394,7 @@ function houseModel(spec, ctx) {
   const day = safe(() => ctx.dayFacts(at)); const transiting = day ? day.sky.filter(x => x.house === h).map(x => x.graha) : [];
   const dashaNow = C.dasha && C.dasha.at ? C.dasha.at(at) : null;
   const active = dashaNow ? [dashaNow.maha && dashaNow.maha.lord, dashaNow.antar && dashaNow.antar.lord].filter(Boolean).filter(l => l === lord || occ.includes(l)) : [];
-  const bh = T.BHAVA[h] || {};
+  const bh = T.BHAVA[h-1] || {};
   const head = clean(bh.head || (typeof bh === "string" ? bh : "")), body = clean(bh.body || "");
   const cls = ctx.houseClass ? ctx.houseClass(h) : {};
   const klass = [cls.kendra && "kendra", cls.trikona && "trikona", cls.dusthana && "dusthana", cls.upachaya && "upachaya"].filter(Boolean).join(" · ") || "—";
@@ -454,7 +478,7 @@ function rashiModel(spec, ctx) {
   const aspB = C.aspecting(h), aspN = day ? day.sky.filter(x => x.aspects && x.aspects.includes(h)).map(x => x.graha) : [];
   const parts = signNakshatras(s);
   const el = SIGN_ELEMENT[s - 1], mo = SIGN_MODALITY[s - 1];
-  const bh = T.BHAVA[h] || {}; const head = clean(bh.head || (typeof bh === "string" ? bh : ""));
+  const bh = T.BHAVA[h-1] || {}; const head = clean(bh.head || (typeof bh === "string" ? bh : ""));
   const moonRow = day ? day.sky.find(x => x.graha === "Moon") : null;
   const rows = [
     { label: "Your house", birth: esc(`${ord(h)} house`), now: esc(`${ord(h)} house`), changed: false },

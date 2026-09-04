@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904n";
+import { LEARN_LEVELS } from "./learn.js?v=20260904o";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904n";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904o";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./report.js?v=20260902e";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904n";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904n";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904o";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904o";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2228,7 +2228,11 @@ function showSheet(){
   document.getElementById("pg-universe").classList.add("zoomed");
 }
 
-function openHouse(h){
+/* Focus the chart on a house, then hand the reading to the one detail page every other
+   surface uses. Twenty call sites reached the old blue in-page sheet; routing here fixes
+   them all at once. opts.focusOnly is for "See on chart", which must not reopen a page.
+   Divisional charts keep their own sheet — the detail page reads the rashi chart. */
+function openHouse(h,opts={}){
   if(mode==="house"&&current===h)return;
   mode="house";current=h;clearMarks();buzz(9);
   /* The chart leans toward the touched house but never leaves the frame:
@@ -2243,7 +2247,12 @@ function openHouse(h){
   qa(".hs").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   qa(".sn").forEach(e=>e.classList.add(+e.dataset.h===h?"sel":"dim"));
   uniPlacements().forEach(p=>{if(p.house!==h)PEL[p.graha].classList.add("dim")});
-  if(uniMode==="birth"&&uniVarga>1) sheetVargaHouse(h); else sheetHouse(h);
+  if(uniMode==="birth"&&uniVarga>1){ sheetVargaHouse(h); return; }
+  if(opts.focusOnly) return;
+  openObject({kind:"house",id:h,mode:uniMode==="birth"?"birth":"now",
+    at:uniMode==="birth"?null:uniDate,from:"chart",
+    emphasis:uniMode==="birth"?"birth":"now",
+    origin:rectOrigin(document.querySelector(`.hs[data-h="${h}"]`))});
 }
 
 /* Compact sheets for taps while a divisional chart is showing: the
@@ -2302,8 +2311,13 @@ function openPlanet(g,opts={}){
   /* natal drishti lines belong to the rashi chart - drawing them over
      a varga would point at the wrong houses */
   if(!vargaLens) drawAspects(CHART.get(g)||p);
-  if(vargaLens) sheetVargaPlanet(p); else sheetPlanet(p,opts);
-  requestAnimationFrame(()=>setThumb(document.getElementById("psheetseg"),true));
+  if(vargaLens){ sheetVargaPlanet(p);
+    requestAnimationFrame(()=>setThumb(document.getElementById("psheetseg"),true)); return; }
+  if(opts.focusOnly) return;
+  openObject({kind:"planet",id:g,mode:uniMode==="birth"?"birth":"now",
+    at:uniMode==="birth"?null:uniDate,from:"chart",
+    emphasis:uniMode==="birth"?"birth":"now",
+    origin:rectOrigin(PEL[g])});
 }
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1)
 
@@ -2911,14 +2925,14 @@ function codCtx(){
     housePath:h=>HOUSE_PATH[h]||HOUSE_PATH[1], houseAnchor:h=>ANCHOR[h]||[50,50],
     nav:{push:navPush,replace:navReplace}, buzz,
     actions:{
-      seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g),260); }); },
+      seeOnChart:(g,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(g,{focusOnly:true}),260); }); },
       showInSky:(g,mode,at)=>{ closeDetailThen(()=>{ if(mode==="birth") openSkyAt(g,CHART.birthDate,{mode:"birth"}); else openSkyAt(g,at||new Date(),{mode:"now"}); }); },
       askGuide:(q,ctx)=>{ closeDetailThen(()=>askGuide(q,ctx)); },
-      openHouse:(h,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openHouse(h),260); }); },
+      openHouse:(h,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openHouse(h,{focusOnly:true}),260); }); },
       show:(k,id,spec)=>{
         if(k==="planet") openObject({kind:"planet",id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
         else if(k==="house") openObject({kind:"house",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
-        else if(k==="chart") closeDetailThen(()=>{ go(CHART_INDEX); setMode(spec.mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(id),260); });
+        else if(k==="chart") closeDetailThen(()=>{ go(CHART_INDEX); setMode(spec.mode==="now"?"today":"birth"); setTimeout(()=>openPlanet(id,{focusOnly:true}),260); });
         else if(k==="sky") closeDetailThen(()=>openSkyAt(id,spec.at||new Date(),{mode:spec.mode==="birth"?"birth":"now"}));
         else if(k==="sign") openObject({kind:"rashi",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
         else if(k==="nak") openObject({kind:"nakshatra",id:+id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});
@@ -7271,10 +7285,14 @@ function go(i){
   if(i===3){ if(from!==3) guideFrom=from; document.body.classList.add("guidefull"); }
   else { document.body.classList.remove("guidefull");
     if(from===3) guideExit(); }
+  /* query the buttons, never nav.children: the travelling pill is a child too, and
+     indexing past it lit the tab before the one that was tapped */
+  const tabBtns=nav.querySelectorAll(".tab");
   TABS.forEach((t,j)=>{
     document.getElementById("pg-"+t.id).classList.toggle("on",j===i);
-    nav.children[j].classList.toggle("on",j===i);
-    nav.children[j].setAttribute("aria-selected",j===i);
+    if(!tabBtns[j]) return;
+    tabBtns[j].classList.toggle("on",j===i);
+    tabBtns[j].setAttribute("aria-selected",j===i);
   });
   buzz(5);
 }

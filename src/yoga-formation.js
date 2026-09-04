@@ -270,16 +270,33 @@ export function parts(f) {
   }
   if (!order.length) return [{ id: "all", facts: f.facts.filter(x => x.ok), whole: true,
     grahas: [...new Set(f.cast.map(r => r.g))], marks: f.facts.flatMap(x => x.ok ? x.draw : []) }];
+  const meta = f.partMeta || {};
   return order.map(id => {
     const facts = byGroup.get(id);
+    const m = meta[id] || {};
     const grahas = [...new Set(facts.flatMap(x => x.draw)
       .filter(m => m.m === "graha" && m.tone !== "ref").map(m => m.g))];
     return { id, facts, grahas, marks: facts.flatMap(x => x.draw),
+      /* PURITY and STRENGTH are two axes and must never be collapsed into one
+         word. A pair can be lordship-pure and weak, or impure and beautifully
+         placed — Sangram's own chart carries one of each, which is why a
+         single band for "the yoga" was hiding the interesting part. */
+      verdict: m.verdict || null,          /* clean | formed | contested */
+      strength: m.strength || null,        /* its own band, its own terms */
+      relation: m.relation || null,
+      classicalName: m.classicalName || null,
+      denial: !!m.denial,
+      blemish: m.blemish || {},
       /* the clause that says WHERE or HOW they meet, for the row's second line */
       how: (facts.find(x => ["conjunction", "exchange", "drishti", "count"].includes(x.t))
         || facts[facts.length - 1]).says,
       /* the lordship clauses, for the row's first line */
-      lords: facts.filter(x => x.t === "lordship").map(x => ({ g: x.g, houses: x.houses })) };
+      /* `qual` is why the pair qualifies; `houses` is everything it rules. Both
+         travel, because the row must stay scannable and the co-lordships must
+         not be hidden — they get their own line rather than being dropped. */
+      lords: facts.filter(x => x.t === "lordship").map(x => ({ g: x.g,
+        houses: x.houses, qual: x.qual || x.houses, blemish: x.blemish || null,
+        also: (x.houses || []).filter(h => !(x.qual || x.houses).includes(h)) })) };
   });
 }
 

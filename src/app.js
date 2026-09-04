@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904z";
+import { LEARN_LEVELS } from "./learn.js?v=20260905a";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904z";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905a";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260904z";
-import { themeOf } from "./yoga-themes.js?v=20260904z";
+import * as YF from "./yoga-formation.js?v=20260905a";
+import { themeOf } from "./yoga-themes.js?v=20260905a";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904z";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905a";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260904z";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904z";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904z";
+import { avakhadaOf } from "./avakhada.js?v=20260905a";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905a";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260905a";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2172,15 +2172,37 @@ function ygFormationRows(y){
     <div class="ygforms" role="listbox" aria-label="Formations in this yoga">
       ${ps.map(p=>`
         <button class="ygform${ygPart===p.id?" on":""}" data-p="${escText(p.id)}"
-          role="option" aria-selected="${ygPart===p.id}">
+          role="option" aria-selected="${ygPart===p.id}"
+          aria-label="${escText(ygPartLabel(p))}. ${escText(p.how)} ${
+            p.verdict==="contested"?"Disputed between authorities.":""} Show it on the chart.">
           <span class="ygfart">${p.grahas.map(g=>gIcon(g,22)).join("")}</span>
-          <b class="ygflords">${p.lords.length
-            ? p.lords.map(l=>`${escText(l.g)} · ${l.houses.map(ordinal).join(" + ")} lord`).join("  +  ")
-            : escText(p.grahas.join(" + "))}</b>
+          <b class="ygflords">${escText(ygPartLabel(p))}</b>
+          <span class="ygfmeta">
+            ${p.strength?`<span class="ygstr s-${p.strength.band}">${escText(p.strength.band)}</span>`:""}
+            ${p.verdict==="contested"?`<span class="ygdisp">Disputed</span>`:""}
+            ${p.classicalName?`<span class="ygclass">${escText(p.classicalName)}</span>`:""}
+          </span>
           <span class="ygfhow">${escText(p.how)}</span>
+          ${ygAlsoLine(p)?`<span class="ygfalso">${escText(ygAlsoLine(p))}</span>`:""}
         </button>`).join("")}
     </div>
     ${ygPart?`<button class="ygalllink" id="ygall-f">Show all formations</button>`:""}`;
+}
+
+/* the row's headline: who, and which houses they hold. Qualifying houses only
+   here — the FULL lordship, including the inconvenient ones, is in the fact's
+   own sentence and on the reading page, where there is room to weigh it. */
+function ygPartLabel(p){
+  if(!p.lords||!p.lords.length) return p.grahas.join(" + ");
+  return p.lords.map(l=>`${l.g} · ${l.qual.map(ordinal).join(" + ")} lord`).join("  +  ");
+}
+/* the co-lordships, on their own line. Not hidden, not crowding the headline —
+   this is the thing that decides whether the pair is disputed, so it earns a
+   line of its own rather than being crammed into the title. */
+function ygAlsoLine(p){
+  const bits=(p.lords||[]).filter(l=>l.also&&l.also.length)
+    .map(l=>`${l.g} also rules your ${l.also.map(ordinal).join(" and ")}`);
+  return bits.length?bits.join(" · ")+".":"";
 }
 
 function renderYogaSheet(){

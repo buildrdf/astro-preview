@@ -54,7 +54,7 @@ const COMBUST={Mercury:12,Venus:10,Mars:17,Jupiter:11,Saturn:15};
 const DRISHTI={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
 
 import { F, P as MP, H, L as LK, collapse, story, formed, scoreOf,
-  assertFormation, MODEL, SHAPES } from "./yoga-formation.js?v=20260904z";
+  assertFormation, MODEL, SHAPES } from "./yoga-formation.js?v=20260905a";
 export { MODEL, SHAPES, collapse, story, formed };
 
 const norm=d=>((d%360)+360)%360;
@@ -68,6 +68,18 @@ const ord=h=>h+(h===1?"st":h===2?"nd":h===3?"rd":"th");
 const list=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" and "+a.at(-1);
 
 const KENDRA=[1,4,7,10], TRIKONA=[1,5,9], UPACHAYA=[3,6,10,11], DUSTHANA=[6,8,12];
+/* Moolatrikona rashi. Used for ONE purpose only: when a planet rules two
+   houses, deciding which lordship the tradition weights. Santhanam's note on
+   BPHS 34.15 — "In considering two lordships in any context, the Moolatrikona
+   house has prime importance." Never used to grade strength. */
+const MOOLA={Sun:5,Moon:2,Mars:1,Mercury:6,Jupiter:9,Venus:7,Saturn:11};
+/* the houses the tradition counts against a lord: 3, 6, 8, 11 (BPHS 34.2-7
+   names 3/6/11 evil by lordship and the 8th inauspicious). The 2nd is a
+   maraka, NOT a blemish — Laghu Parashari 22 says it "does not cause any
+   change" — so it is reported and never scored. */
+const AGAINST=[3,6,8,11];
+const SEV={NONE:0,MILD:1,MODERATE:2,SEVERE:3};
+const SEVWORD=["clean","mild","counted against it","strongly counted against it"];
 
 /* ---- chart construction ------------------------------------------- */
 
@@ -633,91 +645,275 @@ function mahapurusha(v){
 
 /* Raja yoga - association between kendra lords and trikona lords, plus the
    yogakaraka when one planet lords both classes and is decently placed. */
+/* ===================================================================
+   KENDRA-TRIKONA — the adopted rule set
+   -------------------------------------------------------------------
+   Researched and decided 5 Sep 2026, after Sangram caught the engine
+   reporting five planets as ONE five-planet yoga:
+
+     "Raja Yoga is a class of combinations, not necessarily one
+      five-planet Yoga."
+
+   He is right, and the classical position is sharper than either of us
+   assumed. "Kendra-Trikona Raja Yoga" appears in NO sloka — it is a
+   modern label for a rule that GENERATES yogas (BPHS 34.11-12). The
+   tradition judges them one PAIR at a time: Laghu Parashari's
+   commentary on sloka 14 says that where more than two planets are
+   involved you evaluate "in units of two planets each", each pair
+   delivering in its own dasha. So each pair is a formation with its own
+   verdict, its own strength and its own periods.
+
+   Two findings that invert the popular assumption:
+
+     Conjunction is the WEAKEST of the four links, not the strongest
+     (LP 14 ranks: exchange > mutual aspect > dispositor > conjunction).
+
+     PURITY and STRENGTH are different axes and must never be collapsed.
+     A pair can be lordship-pure and weak, or impure and beautifully
+     placed. Sangram's own chart carries one of each.
+   =================================================================== */
+
+/* How much a planet's OTHER lordships count against it. */
+function blemishOf(g,qualifying,v){
+  const all=v.rules(g), others=all.filter(h=>!qualifying.includes(h));
+  let sev=SEV.NONE, from=null;
+  for(const h of others){
+    const s=(h===8||h===11)?SEV.SEVERE:(h===6||h===3)?SEV.MODERATE:(h===12)?SEV.MILD:SEV.NONE;
+    if(s>sev){ sev=s; from=h; }
+  }
+  const mtHouse=v.houseOfSign(MOOLA[g]);
+  let note=null;
+  if(sev>SEV.NONE&&others.includes(mtHouse)){ sev=Math.min(SEV.SEVERE,sev+1);
+    note=`${sign(MOOLA[g])} is ${g}'s strongest sign and it falls in that ${ord(mtHouse)}, so the tradition weights that lordship.`; }
+  else if(qualifying.includes(mtHouse)&&sev>SEV.NONE){ sev=Math.max(SEV.NONE,sev-1);
+    note=`${sign(MOOLA[g])} is ${g}'s strongest sign and it falls in the ${ord(mtHouse)}, the lordship that forms this yoga.`; }
+  /* BPHS 34.3-4: the lagna lord is not classed a malefic even owning an evil
+     house. One step of relief, not total — Parashara's own worked charts
+     demote Taurus Venus and Aries Mars by name. */
+  if(all.includes(1)&&sev>SEV.NONE){ sev=Math.max(SEV.NONE,sev-1);
+    note=(note?note+" ":"")+`As lord of the lagna it is not counted a malefic outright.`; }
+  return {sev, from, note, others, word:SEVWORD[sev]};
+}
+
+/* mild-by-association: promoted if the partner is blemished, dropped if not */
+function assoc(self,other){
+  if(self.sev!==SEV.MILD) return;
+  if(other.sev>SEV.NONE){ self.sev=SEV.MODERATE;
+    self.note=(self.note?self.note+" ":"")+"Its 12th lordship counts here because its partner is also affected."; }
+  else { self.sev=SEV.NONE; }
+  self.word=SEVWORD[self.sev];
+}
+
+/* Every rulership, every time. The qualifying one is named as such; the others
+   are named too, with the tradition's own weighting attached. Hiding an
+   inconvenient co-lordship was the exact thing Sangram objected to. */
+function rulesLine(g,qualifying,v,bl){
+  const all=v.rules(g);
+  const cls=h=>(KENDRA.includes(h)&&TRIKONA.includes(h))?"an angle and a trine"
+    :KENDRA.includes(h)?"an angle":TRIKONA.includes(h)?"a trine":null;
+  const q=qualifying.map(h=>`your ${ord(h)}${cls(h)?" — "+cls(h):""}`).join(" and ");
+  const others=all.filter(h=>!qualifying.includes(h));
+  if(!others.length) return `Rules ${q}.`;
+  const tail=others.map(h=>{
+    if(h===2) return `your 2nd, a maraka house this rule does not count against it`;
+    if(AGAINST.includes(h)) return `your ${ord(h)}, a house the tradition counts against it`;
+    if(h===12) return `your 12th`;
+    return `your ${ord(h)}`;
+  }).join(" and ");
+  return `Rules ${q} — and also ${tail}.`+(bl&&bl.note?" "+bl.note:"");
+}
+
+/* LP 14's ranking, which is the opposite of the popular assumption. */
+const REL={parivartana:{rank:1,delta:12,word:"exchange signs"},
+  drishti:{rank:2,delta:6,word:"aspect each other fully"},
+  dispositor:{rank:3,delta:4,word:"stand in one another's care"},
+  conjunction:{rank:4,delta:0,word:"share one sign"},
+  yogakaraka:{rank:0,delta:14,word:"are the same planet"}};
+
+/* BPHS 34.12 places the conjunction in a kendra or kona; LP grades the rest.
+   A grade, never a veto. */
+function placeTerm(h){
+  if(KENDRA.includes(h)||TRIKONA.includes(h)) return {code:"place.kendra-trikona",delta:8,
+    says:`They meet in your ${ord(h)}, an angle or trine — the placing the rule asks for.`};
+  if(h===2||h===12) return {code:"place.neutral",delta:2,
+    says:`They meet in your ${ord(h)}, which the tradition counts as neutral ground.`};
+  if(h===8) return {code:"place.eighth",delta:-8,
+    says:`They meet in your 8th, where the tradition reads the result as faint.`};
+  return {code:"place.trishadaya",delta:0,
+    says:`They meet in your ${ord(h)}, which the tradition counts as fair rather than strong.`};
+}
+
 function rajaYoga(v){
   const lordsOf=hs=>{const m=new Map();
     for(const h of hs){const g=v.lordOfHouse(h);
       if(!m.has(g))m.set(g,[]); m.get(g).push(h);}
     return m};
   const kl=lordsOf(KENDRA), tl=lordsOf(TRIKONA);
-  const clauses=[], facts=[], involved=new Set();
-  const seen=new Set();
+  const clauses=[], facts=[], involved=new Set(), meta={}, seen=new Set();
+
+  const addPart=(gid,o)=>{ meta[gid]=o; };
+
   for(const [kg,khs] of kl)for(const [tg,ths] of tl){
-    if(kg===tg) continue;
+    if(kg===tg) continue;                       /* no self-pairing: every link is relational */
     const key=[kg,tg].sort().join("+");
     if(seen.has(key)) continue; seen.add(key);
-    let how=null;
-    if(v.P[kg].sign===v.P[tg].sign) how=`conjunct in ${sign(v.P[kg].sign)}`;
-    else if(v.aspects(kg,v.P[tg].sign)&&v.aspects(tg,v.P[kg].sign)) how=`in mutual aspect`;
-    else if(SIGN_LORD[v.P[kg].sign]===tg&&SIGN_LORD[v.P[tg].sign]===kg) how=`in exchange`;
-    if(!how) continue;
+
+    /* the four adopted links, tried in LP 14's order of strength */
+    let rel=null, where=null;
+    if(SIGN_LORD[v.P[kg].sign]===tg&&SIGN_LORD[v.P[tg].sign]===kg) rel="parivartana";
+    else if(v.aspects(kg,v.P[tg].sign)&&v.aspects(tg,v.P[kg].sign)) rel="drishti";
+    else if(SIGN_LORD[v.P[kg].sign]===tg&&v.aspects(tg,v.P[kg].sign)) rel="dispositor";
+    else if(SIGN_LORD[v.P[tg].sign]===kg&&v.aspects(kg,v.P[tg].sign)) rel="dispositor";
+    else if(v.P[kg].sign===v.P[tg].sign){ rel="conjunction"; where=v.P[kg].house; }
+    if(!rel) continue;
+    if(rel==="dispositor") where=SIGN_LORD[v.P[kg].sign]===tg?v.P[kg].house:v.P[tg].house;
+    if(rel==="drishti") where=[v.P[kg].house,v.P[tg].house]
+      .sort((a,b)=>(placeTerm(a).delta)-(placeTerm(b).delta))[0];   /* the weaker seat */
+
+    /* G1 — the only hard gate. If the meeting house is one the participants
+       themselves rule as a 3rd/6th/8th/11th, the placement activates that
+       lordship and the pair does not form (Laghu Parashari's worked Cancer
+       example: the same pair in the 5th is a yoga, in the 6th it is not). */
+    const gid=`c${Object.keys(meta).length+1}`;
+    const seatBlocked = where!=null && [kg,tg].some(g=>
+      v.rules(g).includes(where) && AGAINST.includes(where));
+    const blK=blemishOf(kg,khs,v), blT=blemishOf(tg,ths,v);
+    /* ASSOCIATION — a 12th lordship alone is mild, and counts only when the
+       PARTNER is already blemished. Laghu Parashari on the Aries case: "the
+       9th and 12th lord Jupiter is not blemished but being associated with the
+       11th lord Saturn ... becomes blemished." A pair-level adjustment, so it
+       can only run once both sides are known. */
+    assoc(blK,blT); assoc(blT,blK);
+    if(seatBlocked){
+      facts.push(F({id:`blocked:${gid}`, t:"company", ok:false, group:gid,
+        sign:v.P[kg].sign, house:where, grahas:[kg,tg], malefic:[],
+        says:`${kg} and ${tg} meet in your ${ord(where)}.`,
+        why:`They meet in a house one of them rules as a 3rd, 6th, 8th or 11th, which activates that lordship — the tradition does not read a yoga here.`}));
+      continue;
+    }
+
+    /* the verdict ladder: purity of lordship, never strength */
+    const bl=[blK,blT].filter(b=>b.sev>SEV.NONE);
+    const verdict = bl.length===0 ? "clean"
+      : bl.length===1 && bl[0].sev<=SEV.MODERATE ? "formed" : "contested";
+    const denial = [blK,blT].some(b=>b.others.some(h=>h===8||h===11));
+
     clauses.push(`${kg} (lord of the ${list(khs.map(ord))}) and ${tg} (lord of the `+
-      `${list(ths.map(ord))}) are ${how}`);
-    /* Each clause becomes its own chapter. Raja Yoga on a real chart runs to
-       five planets across five houses — the case that is unrepresentable as
-       one house id, and unreadable if every mark lands at once. `group` is
-       what lets the story walk it one clause at a time. */
-    const gid=`c${facts.length+1}`;
-    const kSeats=khs.map(h=>H(h,"rule")), tSeats=ths.map(h=>H(h,"rule"));
-    facts.push(F({id:`lord:${kg}:${gid}`, t:"lordship", req:true, g:kg, houses:khs.slice().sort((x,y)=>x-y),
+      `${list(ths.map(ord))}) are ${rel==="conjunction"?`conjunct in ${sign(v.P[kg].sign)}`
+        :rel==="parivartana"?"in exchange":rel==="drishti"?"in mutual aspect"
+        :"in a dispositor relationship"}`);
+
+    facts.push(F({id:`lord:${kg}:${gid}`, t:"lordship", req:true, g:kg, houses:v.rules(kg),
+      qual:khs.slice().sort((a,b)=>a-b), blemish:blK.word,
       signs:khs.map(h=>adv(v.lagna,h)), yogakaraka:false, group:gid,
-      says:`${kg} rules your ${list(khs.map(ord))} — an angle.`,
-      draw:[MP(kg), H(v.P[kg].house,"seat"), ...kSeats,
-        LK({g:kg,h:v.P[kg].house},{h:khs[0]},"arrow","ref",{label:"rules"})]}));
-    facts.push(F({id:`lord:${tg}:${gid}`, t:"lordship", req:true, g:tg, houses:ths.slice().sort((x,y)=>x-y),
+      says:rulesLine(kg,khs,v,blK),
+      draw:[MP(kg), H(v.P[kg].house,"seat"),
+        ...v.rules(kg).map(h=>H(h,"rule")),
+        ...v.rules(kg).map(h=>LK({g:kg,h:v.P[kg].house},{h},"arrow",
+          khs.includes(h)?"ref":"flaw"))]}));
+    facts.push(F({id:`lord:${tg}:${gid}`, t:"lordship", req:true, g:tg, houses:v.rules(tg),
+      qual:ths.slice().sort((a,b)=>a-b), blemish:blT.word,
       signs:ths.map(h=>adv(v.lagna,h)), yogakaraka:false, group:gid,
-      says:`${tg} rules your ${list(ths.map(ord))} — a trine.`,
-      draw:[MP(tg), H(v.P[tg].house,"seat"), ...tSeats,
-        LK({g:tg,h:v.P[tg].house},{h:ths[0]},"arrow","ref",{label:"rules"})]}));
-    facts.push(F({id:`join:${gid}`, t: how.startsWith("conjunct")?"conjunction":how==="in exchange"?"exchange":"drishti",
-      req:true, group:gid, grahas:[kg,tg], sign:v.P[kg].sign, house:v.P[kg].house,
+      says:rulesLine(tg,ths,v,blT),
+      draw:[MP(tg), H(v.P[tg].house,"seat"),
+        ...v.rules(tg).map(h=>H(h,"rule")),
+        ...v.rules(tg).map(h=>LK({g:tg,h:v.P[tg].house},{h},"arrow",
+          ths.includes(h)?"ref":"flaw"))]}));
+    facts.push(F({id:`join:${gid}`, t: rel==="conjunction"?"conjunction"
+        :rel==="parivartana"?"exchange":"drishti",
+      req:true, group:gid, grahas:[kg,tg], sign:v.P[kg].sign, house:where,
       houses:[v.P[kg].house,v.P[tg].house], signs:[v.P[kg].sign,v.P[tg].sign],
-      variant:"Maha", from:kg, toSign:v.P[tg].sign, toHouse:v.P[tg].house, mutual:true, special:false, maxSep:0,
-      says:`The two are ${how}.`,
+      variant:"Maha", from:kg, toSign:v.P[tg].sign, toHouse:v.P[tg].house,
+      mutual:rel==="drishti", special:false, maxSep:0,
+      says:`They ${REL[rel].word}${rel==="conjunction"?` in ${sign(v.P[kg].sign)}`:""}.`,
       draw:[LK({g:kg,h:v.P[kg].house},{g:tg,h:v.P[tg].house},
-        how==="in exchange"?"swap":"pair","lit",{label:how.replace(/^in /,"")})]}));
+        rel==="parivartana"?"swap":"pair","lit")]}));
+
+    const terms=[{code:"relation."+rel, delta:REL[rel].delta,
+      says:`They ${REL[rel].word} — ${["the strongest link the tradition names","a strong link","a supported link","the weakest of the four links"][REL[rel].rank-1]||"a direct link"}.`}];
+    if(where!=null) terms.push(placeTerm(where));
+    if(khs.concat(ths).some(h=>h===9||h===10))
+      terms.push({code:"rank.dharma-karma", delta:2, says:"The pair involves your 9th or 10th."});
+    if(verdict==="clean") terms.push({code:"purity.unblemished", delta:6,
+      says:"Neither planet rules a house the tradition counts against it."});
+    for(const g of [kg,tg]) partTerms(v,g,terms);
+
+    addPart(gid,{gid, grahas:[kg,tg], relation:rel, where, verdict, denial,
+      blemish:{[kg]:blK,[tg]:blT},
+      classicalName: khs.concat(ths).includes(9)&&khs.concat(ths).includes(10)
+        ? "Dharma-Karmadhipati Yoga" : null,
+      strength:scoreOf(58,[],"benefit",terms)});
     involved.add(kg); involved.add(tg);
   }
-  /* yogakaraka: one planet lording a non-lagna kendra AND a non-lagna trikona */
-  let karakaStrong=false;
+
+  /* YOGAKARAKA — one planet holding both sides. Existence is by LORDSHIP;
+     where it stands decides how strongly it delivers, not whether it counts.
+     The old code gated this on placement with the comment "a badly-placed
+     yogakaraka is not evidence of raja yoga", which states a position no
+     authority holds: a debilitated Saturn for Taurus is still the yogakaraka. */
   for(const g of SEVEN){
-    const hs=v.housesOf(g);
+    const hs=v.rules(g);
     if(!hs.some(h=>[4,7,10].includes(h))||!hs.some(h=>[5,9].includes(h))) continue;
-    const ok=!DUSTHANA.includes(v.P[g].house)&&v.dign(g)!=="debilitated"&&!v.combust(g);
-    if(!ok) continue;   /* a badly-placed yogakaraka is not evidence of raja yoga */
-    const d=v.dign(g);
+    const d=v.dign(g), gid=`k${g}`;
     clauses.push(`${g} lords both the ${list(hs.map(ord))} - kendra and trikona at once - `+
       `making it yogakaraka, placed in your ${ord(v.P[g].house)} house`+
       (d?` in ${d==="own sign"?"its own sign":d+" dignity"} (${sign(v.P[g].sign)})`:""));
-    const gid=`k${g}`;
-    facts.push(F({id:`karaka:${g}`, t:"lordship", req:true, g, houses:hs.slice().sort((x,y)=>x-y),
-      signs:hs.map(h=>adv(v.lagna,h)), yogakaraka:true, group:gid,
-      says:`${g} rules an angle and a trine at once — a yogakaraka.`,
+    facts.push(F({id:`karaka:${g}`, t:"lordship", req:true, g, houses:hs, qual:hs,
+      blemish:"clean", signs:hs.map(h=>adv(v.lagna,h)), yogakaraka:true, group:gid,
+      says:rulesLine(g,hs,v,null)+" One planet holding both sides is a yogakaraka.",
       draw:[MP(g), H(v.P[g].house,"seat"), ...hs.map(h=>H(h,"rule")),
-        ...hs.map(h=>LK({g,h:v.P[g].house},{h},"arrow","ref",{label:"rules"}))]}));
+        ...hs.map(h=>LK({g,h:v.P[g].house},{h},"arrow","ref"))]}));
     if(d) facts.push(F({id:`dignity:${g}`, t:"dignity", g, value:d==="own sign"?"own":d,
       sign:v.P[g].sign, group:gid, says:dignitySays(g,d,v.P[g].sign),
       draw:[MP(g,"lit",d==="own sign"?"own sign":d)]}));
+    const terms=[{code:"relation.yogakaraka", delta:14,
+      says:"One planet holds an angle and a trine at once — no partner can spoil it."}];
+    terms.push(placeTerm(v.P[g].house));
+    if(hs.some(h=>h===9||h===10)) terms.push({code:"rank.dharma-karma", delta:2,
+      says:"The pair involves your 9th or 10th."});
+    partTerms(v,g,terms);
+    addPart(gid,{gid, grahas:[g], relation:"yogakaraka", where:v.P[g].house,
+      /* a planet owning a kendra and a trikona owns exactly two signs, both good */
+      verdict:"clean", denial:false, blemish:{},
+      classicalName: hs.includes(9)&&hs.includes(10) ? "Dharma-Karmadhipati Yoga" : null,
+      strength:scoreOf(58,[],"benefit",terms)});
     involved.add(g);
-    if(["own sign","exalted"].includes(d)||KENDRA.includes(v.P[g].house)
-       ||TRIKONA.includes(v.P[g].house)) karakaStrong=true;
   }
-  if(!clauses.length) return null;
-  const afflicted=[...involved].every(g=>v.dign(g)==="debilitated"||v.combust(g));
+
+  if(!Object.keys(meta).length) return null;
   facts.unshift(F({id:"rule", t:"lordship", req:true, g:v.lordOfHouse(1), houses:[1],
     signs:[v.lagna], yogakaraka:false,
-    says:"A lord of an angle and a lord of a trine, joined, is the rule.",
+    says:"A lord of an angle and a lord of a trine, linked, is the rule.",
     draw:[...KENDRA.map(h=>H(h,"alt")), ...TRIKONA.filter(h=>h!==1).map(h=>H(h,"alt"))]}));
+
+  /* The record's band is the band of the STRONGEST part, never an aggregate:
+     Phaladeepika 20.47's accumulation is rhetorical, not arithmetic, and one
+     clean strong formation beside one contested weak one must not average out. */
+  const best=Object.values(meta).sort((a,b)=>b.strength.score-a.strength.score)[0];
   const formation={key:"raja-kendra-trikona", shape:"lordship-web", chart:"D1",
     frame:{from:"lagna"},
     cast:[...involved].map(g=>v.role(g,"actor")),
-    facts,
-    strength:scoreOf(58,facts,"benefit",
-      karakaStrong?[{code:"yogakaraka", delta:14, says:"a yogakaraka stands well placed"}]
-      :clauses.length>=2?[{code:"clauses", delta:14, says:`${clauses.length} separate clauses form it`}]
-      :afflicted?[{code:"afflicted", delta:-24, says:"every participant is debilitated or combust"}]:[])};
+    facts, partMeta:meta,
+    strength:best.strength};
   return yoga("Raja Yoga (Kendra-Trikona)","राजयोग (केन्द्र-त्रिकोण)",
     `Lords of kendra (angle) and trikona (trine) houses join forces: `+list(clauses)+`.`,
     null,null,formation);
+}
+
+/* per-participant strength terms, with the one classical exemption */
+function partTerms(v,g,terms){
+  const d=v.dign(g);
+  if(d==="exalted") terms.push({code:"dignity.exalted",delta:14,says:dignitySays(g,d,v.P[g].sign)});
+  else if(d==="own sign") terms.push({code:"dignity.own",delta:12,says:dignitySays(g,d,v.P[g].sign)});
+  else if(d==="debilitated") terms.push({code:"dignity.debilitated",delta:-16,says:dignitySays(g,d,v.P[g].sign)});
+  /* BPHS 43.9 exempts Venus and Saturn from the loss caused by the Sun's
+     glare. Applied ONLY inside yoga strength — v.combust() stays as it is,
+     because other features read it. */
+  if(v.combust(g)&&g!=="Venus"&&g!=="Saturn"){
+    const deep=v.gap(g,"Sun")<3;
+    terms.push({code:deep?"combustion.deep":"combustion", delta:deep?-22:-14,
+      says:`${g} stands ${deep?"deep ":""}inside the Sun's glare.`});
+  }
 }
 
 /* Saraswati - Jupiter, Venus and Mercury each in a kendra, trikona or the

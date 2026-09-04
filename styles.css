@@ -3398,3 +3398,95 @@ body.tabmin .tabthumb{opacity:0}
 .fmlab{fill:var(--ink-2);font-family:var(--fm);font-size:3.6px;font-weight:600;
   stroke:none;opacity:0}
 .fmlab.on{opacity:.92;animation:none}
+
+/* ===================================================================
+   THE YOGA LAYER — states A, B and C
+   -------------------------------------------------------------------
+   The carousel borrows .lacarousel's rhythm exactly (80% cards, snap,
+   bleed to the page edge) so the app has ONE horizontal-card idiom
+   rather than two that nearly match. About 1.25 cards show, which is
+   the affordance the spec asks for: it must be obvious there is more
+   to the right.
+
+   The chart does not shrink when this opens. The layer takes the space
+   below it, and nothing is reserved when it is closed.
+   =================================================================== */
+.yglayer{margin-top:14px;opacity:0;transform:translateY(8px);
+  transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.yglayer.in{opacity:1;transform:none}
+.yglayer[hidden]{display:none!important}
+@media (prefers-reduced-motion: reduce){
+  .yglayer{transition:opacity .18s linear;transform:none}
+  .yglayer.in{transform:none}
+}
+
+.yghead{display:flex;align-items:baseline;gap:9px;padding:0 2px 9px}
+.yghead b{font-size:15.5px;font-weight:660;letter-spacing:-.015em;color:var(--ink)}
+.yghead .ygn{font-size:12px;color:var(--ink-3);flex:1}
+.yglink{border:0;background:none;padding:4px 2px;cursor:pointer;font-family:var(--ff);
+  font-size:13px;font-weight:650;color:var(--brass);min-height:34px}
+.yglink:active{opacity:.6}
+
+.ygstrip{display:flex;gap:11px;overflow-x:auto;scrollbar-width:none;
+  scroll-snap-type:x mandatory;margin:0 -20px;padding:2px 20px 6px}
+.ygstrip::-webkit-scrollbar{display:none}
+.ygcard{flex:0 0 78%;max-width:300px;scroll-snap-align:start;text-align:left;
+  display:flex;flex-direction:column;gap:6px;cursor:pointer;
+  padding:13px 14px 14px;border-radius:18px;font-family:var(--ff);
+  background:rgba(255,255,255,.055);border:1px solid var(--edge-soft);
+  color:var(--ink);transition:transform .2s var(--ease),background .2s var(--ease),
+    border-color .2s var(--ease)}
+.ygcard .ygart{display:flex;align-items:center;gap:2px;min-height:28px}
+.ygcard .ygart .gico{margin-right:0}
+.ygname{font-size:15.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25}
+.ygtheme{font-size:12.5px;color:var(--ink-3);line-height:1.4}
+/* the selected card lifts and warms — no glow, no neon */
+.ygcard.on{background:rgba(194,155,78,.13);border-color:rgba(194,155,78,.45);
+  transform:scale(1.015)}
+.ygcard:active{transform:scale(.988)}
+.ygcard:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ .ygcard,.ygcard.on{transition:none;transform:none} }
+
+/* Strength is a WORD first. There is no colour scale, and no red: a weak
+   yoga is not a diagnosis (§13). The three read as one family, separated
+   by weight and a hairline, so they survive greyscale. */
+.ygstr{align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;padding:2px 9px;border-radius:99px;
+  border:1px solid var(--edge-soft);color:var(--ink-3)}
+.ygstr.s-strong{color:var(--brass);border-color:rgba(194,155,78,.5)}
+.ygstr.s-moderate{color:var(--ink-2)}
+.ygstr.s-weak{color:var(--ink-3);opacity:.85}
+
+/* State C caption — what was drawn, and the two ways onward. Never the
+   interpretation itself. */
+.ygsel{margin-top:13px;padding:14px 15px 13px;border-radius:18px;
+  background:rgba(255,255,255,.05);border:1px solid var(--edge-soft)}
+.ygsel[hidden]{display:none!important}
+.ygseltop{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ygseltop b{flex:1 1 auto;min-width:0;font-size:16px;font-weight:660;letter-spacing:-.015em;
+  line-height:1.25}
+.ygseltop .ygart{display:flex;gap:1px}
+.ygseltop .ygart .gico{margin-right:0}
+.ygstepn{font-size:11.5px;color:var(--ink-3);font-family:var(--fm)}
+.ygxback{width:30px;height:30px;flex:0 0 auto;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(255,255,255,.08);color:var(--ink);font-size:18px;line-height:1;
+  font-family:var(--ff)}
+.ygsay{margin:9px 0 12px;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.ygacts{display:flex;gap:9px;align-items:stretch}
+.ygacts .tb-btn{flex:1;min-height:44px}
+.ygacts .tb-btn.go{background:var(--brass);color:#1B1405;border-color:transparent;font-weight:650}
+.ygacts .tb-btn[disabled]{opacity:.4;pointer-events:none}
+
+/* The control: three connected points — a formation, not a sparkle. It has
+   to read as a chart layer sitting beside the sky control, which is why it
+   is drawn geometry rather than an emoji or a wand. */
+.yogapill i{width:15px;height:15px;border-radius:0;background:none;position:relative;
+  display:inline-block;flex:0 0 auto}
+.yogapill i::before,.yogapill i::after{content:"";position:absolute;border-radius:50%;
+  background:var(--brass)}
+.yogapill i::before{width:5px;height:5px;left:0;top:1px;
+  box-shadow:9px 3px 0 -.5px var(--brass), 3px 10px 0 -1px var(--brass)}
+.yogapill i::after{width:11px;height:11px;left:1.5px;top:2px;background:none;
+  border:1px solid rgba(194,155,78,.45);border-radius:50%}
+.yogapill.on{background:rgba(194,155,78,.16);border-color:rgba(194,155,78,.5);
+  color:var(--ink)}

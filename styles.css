@@ -3614,8 +3614,11 @@ body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
    changes; on a short one the chart gives up a few points instead of
    the page growing a scrollbar.
    =================================================================== */
-#pg-universe{overflow:hidden;display:flex;flex-direction:column;
-  padding-bottom:calc(var(--tabh) + 8px)}
+/* .on ONLY. Setting display:flex unconditionally overrode .page{display:none}
+   and left the Universe chart rendering behind every other tab — it showed
+   through the Learn pages. An inactive page must still be display:none. */
+#pg-universe{overflow:hidden;padding-bottom:calc(var(--tabh) + 8px)}
+#pg-universe.on{display:flex;flex-direction:column}
 /* start, not centre: centring in the leftover space dropped the chart to the
    middle of the screen and left the yoga sheet nowhere to go. The chart keeps
    its place at the top and simply stops growing when the height runs out. */
@@ -3645,3 +3648,69 @@ body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
   .gmoon.speaking,.gmoon.listening{transform:none;transition:none}
   .gvorb{transform:none!important}
 }
+
+/* ---- the Learn chapter list --------------------------------------
+   Sangram: no border around the chapters, horizontal lines instead; no
+   "5 min"; no explainer under each title. A contents page is a list of
+   names — the moment each line carries a box, a duration and a sentence
+   it stops being scannable and starts being a wall. */
+.lvllist{display:block;background:none;border:0;padding:0}
+.lrnitem{display:flex;align-items:center;gap:10px;width:100%;
+  padding:15px 2px;min-height:52px;cursor:pointer;text-align:left;
+  background:none;border:0;border-bottom:1px solid rgba(20,22,43,.10);
+  font-family:var(--ff);color:var(--ink)}
+.lvllist .lrnitem:last-child{border-bottom:0}
+.lrnitem b{flex:1;font-size:16px;font-weight:560;letter-spacing:-.015em}
+.lrnitem .chev{color:var(--ink-3);font-size:19px;line-height:1}
+.lrnitem:active{opacity:.55}
+
+/* ---- Learn tables -------------------------------------------------
+   Bullets became tables: a list of twelve signs or twenty-seven nakshatras
+   is reference material, and reference material is read by scanning a
+   column, not by reading sentences. */
+.ltblwrap{margin:14px -4px 18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ltbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.ltbl th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);padding:0 8px 7px;white-space:nowrap}
+.ltbl td{padding:9px 8px;border-top:1px solid rgba(20,22,43,.09);vertical-align:middle}
+.ltbl tbody tr:first-child td{border-top:1px solid rgba(20,22,43,.16)}
+.ltbl b{font-weight:600}
+.ltbl .lglyph{font-size:19px;line-height:1;width:26px;color:var(--brass)}
+.ltbl .lglyph2{white-space:nowrap;color:var(--ink-2)}
+.ltbl .lart{width:30px}
+.ltbl .lart .gico{margin-right:0;vertical-align:middle}
+.ltbl .lpl .gico{margin-right:5px;vertical-align:-3px}
+.ltbl .lsk{display:block;font-size:11.5px;color:var(--ink-3)}
+.ltbl .lnum{width:22px;color:var(--ink-3);font-family:var(--fm);font-size:11.5px}
+.ltbl .lho{font-variant-numeric:tabular-nums}
+.ltbl .lup{color:var(--cta);font-weight:600}
+.ltbl .ldn{color:var(--ink-3)}
+.ltbl .lpad{white-space:nowrap}
+.ltbl .lp{display:inline-flex;align-items:center;gap:2px;margin-right:7px;
+  font-size:14px;color:var(--brass)}
+.ltbl .lp i{font-style:normal;font-family:var(--fm);font-size:10px;color:var(--ink-3)}
+.ltblnote{margin:9px 4px 0;font-size:12.5px;color:var(--ink-3);line-height:1.5}
+
+/* ---- the aspect lab ----------------------------------------------
+   Sangram: "'Pick a graha, then tap a house' looks like a paragraph. It
+   doesn't look like you are asking something to do it." So the instruction
+   is a cue, not prose: one short line, centred under the chart, in the
+   chosen graha's own colour, changing as each step is taken. */
+.alabcue{margin:10px 0 12px;text-align:center;font-size:14px;font-weight:650;
+  letter-spacing:-.01em;color:var(--gc,var(--brass));
+  transition:color .2s var(--ease)}
+.alabcue::after{content:"";display:block;width:26px;height:2px;border-radius:2px;
+  margin:7px auto 0;background:var(--gc,var(--brass));opacity:.55;
+  transition:width .24s var(--ease),opacity .24s var(--ease)}
+.alabcue.done::after{width:0;opacity:0}
+
+/* one row per house the gaze reaches, instead of a single sentence listing
+   house numbers and leaving the reader to work out what each one means */
+.labaims{display:flex;flex-direction:column;gap:1px;margin-top:12px}
+.labaim{display:grid;grid-template-columns:auto 1fr auto;gap:2px 9px;
+  align-items:baseline;padding:9px 0;border-top:1px solid rgba(20,22,43,.09)}
+.labaimh{font-size:14px;font-weight:700;color:var(--gc)}
+.labaimn{font-size:14px;font-weight:600}
+.labaimo{font-size:10.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3)}
+.labaimw{grid-column:2/-1;font-size:12.5px;line-height:1.45;color:var(--ink-3)}

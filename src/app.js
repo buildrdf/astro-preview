@@ -2,27 +2,27 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905d";
+import { LEARN_LEVELS } from "./learn.js?v=20260905e";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905d";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905e";
 /* the formation vocabulary — collapse/story/bucket are pure, so the renderer
    and the engine read the same code */
-import * as YF from "./yoga-formation.js?v=20260905d";
-import { themeOf } from "./yoga-themes.js?v=20260905d";
+import * as YF from "./yoga-formation.js?v=20260905e";
+import { themeOf } from "./yoga-themes.js?v=20260905e";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905d";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260905d";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905d";
-import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905d";
+import { avakhadaOf } from "./avakhada.js?v=20260905e";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
+import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905e";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -4841,11 +4841,11 @@ function labClear(){ labTimers.forEach(clearTimeout); labTimers=[]; }
 function aspectLab(){
   return `<div class="alab">
     <div class="alabchart" id="alabchart">${labChart()}</div>
+    <p class="alabcue" id="alabcue" aria-live="polite">Tap a graha</p>
     <div class="alabstrip" id="alabstrip" role="radiogroup" aria-label="Choose a graha">
       ${GRAHA9.map(g=>`<button class="alabg" data-g="${g}" role="radio" aria-checked="false"
         style="--gc:${COLOUR(g)}">${gIcon(g,22)}<span>${g}</span></button>`).join("")}
     </div>
-    <p class="alabnote">Pick a graha, then tap a house. A practice chart &#8212; your own is in Universe.</p>
     <div class="alabsay" id="alabsay" aria-live="polite"></div>
   </div>`;
 }
@@ -4866,8 +4866,17 @@ function labChart(){
     <path d="${RHOMBUS_D}" fill="none" stroke="var(--line-2)" stroke-width=".9"/>
     ${aim.map(x=>{const [x1,y1]=A(lab.h), [x2,y2]=A(x.h);
       const mx=(x1+x2)/2, my=(y1+y2)/2;
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${seatC}"
-        stroke-width=".9" stroke-dasharray="2.6 2.2" opacity=".85"/>
+      /* thinner, and it points: a drishti has a direction, and a plain dashed
+         line was not saying which way it looked */
+      const ang=Math.atan2(y2-y1,x2-x1), back=5.6;
+      const hx=x2-Math.cos(ang)*back, hy=y2-Math.sin(ang)*back;
+      const w=1.9;
+      return `<line x1="${x1}" y1="${y1}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="${seatC}"
+        stroke-width=".6" stroke-dasharray="2.4 2.2" opacity=".9"/>
+      <path d="M ${hx.toFixed(1)} ${hy.toFixed(1)}
+        L ${(hx-Math.cos(ang)*3.4+Math.sin(ang)*w).toFixed(1)} ${(hy-Math.sin(ang)*3.4-Math.cos(ang)*w).toFixed(1)}
+        L ${(hx-Math.cos(ang)*3.4-Math.sin(ang)*w).toFixed(1)} ${(hy-Math.sin(ang)*3.4+Math.cos(ang)*w).toFixed(1)} Z"
+        fill="${seatC}" opacity=".95"/>
       <rect x="${mx-5.2}" y="${my-3}" width="10.4" height="6" rx="3" fill="var(--void)" opacity=".92"/>
       <text x="${mx}" y="${my}" font-size="4" fill="${seatC}" text-anchor="middle"
         dominant-baseline="central" font-family="var(--ff)" font-weight="600">${ordinal(x.o)}</text>`;}).join("")}
@@ -4885,10 +4894,36 @@ function labChart(){
       aria-label="House ${h}, ${LAB_HOUSE[+h-1]}"></path>`).join("")}
   </svg>`;
 }
+/* the cue is the instruction, not a paragraph: one short line, centred under
+   the chart, in the chosen graha's own colour, and it changes as the two steps
+   are taken. Sangram: "it looks like a paragraph, it doesn't look like you are
+   asking something to do it." */
+function labCue(){
+  const c=document.getElementById("alabcue"); if(!c) return;
+  c.style.setProperty("--gc", lab.g?COLOUR(lab.g):"var(--brass)");
+  if(!lab.g){ c.textContent="Tap a graha"; c.classList.remove("done"); return; }
+  if(!lab.h){ c.textContent=`Now tap a house to place ${lab.g}`; c.classList.remove("done"); return; }
+  const nodal=lab.g==="Rahu"||lab.g==="Ketu";
+  c.textContent=nodal?`${lab.g} casts no drishti`:`${lab.g}'s drishti`;
+  c.classList.add("done");
+}
 function labSay(){
   const n=document.getElementById("alabsay"); if(!n) return;
-  if(!lab.g){ n.innerHTML=`<p class="labhint">Pick a graha below.</p>`; return; }
-  if(!lab.h){ n.innerHTML=`<p class="labhint">Now tap a house to seat ${lab.g}.</p>`; return; }
+  labCue();
+  if(!lab.g||!lab.h){ n.innerHTML=""; return; }
+  /* the nodes own no sign and the classical texts give them no drishti of
+     their own — saying so is more useful than drawing nothing and leaving the
+     reader to wonder whether the app broke */
+  if(lab.g==="Rahu"||lab.g==="Ketu"){
+    n.innerHTML=`<div class="labcard" style="--gc:${COLOUR(lab.g)}">
+      <h4>${lab.g} in house ${lab.h}</h4>
+      <div class="labeyebrow">${LAB_HOUSE[lab.h-1]}</div>
+      <p class="labtell">${lab.g} sits in the ${ordinal(lab.h)}, but casts no aspect of its own.</p>
+      <p class="labwhy">The seven grahas each look at the 7th from themselves. Rahu and Ketu
+        own no sign and the classical texts give them no drishti — some later schools add
+        the 5th and 9th, which Astra does not follow.</p></div>`;
+    return;
+  }
   const offs=aspectOffsets(lab.g,{nodal:false});
   const hs=offs.map(o=>labTarget(lab.h,o));
   const extra=offs.filter(o=>o!==7);
@@ -4897,9 +4932,17 @@ function labSay(){
     <h4>${lab.g} in house ${lab.h}</h4>
     <div class="labeyebrow">${LAB_HOUSE[lab.h-1]}</div>
     <p class="labtell">${story[lab.h]||`${lab.g} sits in the ${ordinal(lab.h)}.`}</p>
-    <p class="labwhy"><b>It looks at the ${hs.map(ordinal).join(", the ")}.</b>
-      Every graha aspects the 7th from itself.${extra.length
-      ?` ${lab.g} adds the ${extra.map(ordinal).join(" and the ")}.`:""}</p>
+    <p class="labwhy">Every graha looks at the 7th from itself.${extra.length
+      ?` ${lab.g} is one of the three that look further — it adds the ${extra.map(ordinal).join(" and the ")}.`
+      :""}</p>
+    <div class="labaims">${offs.map(o=>{
+      const t=labTarget(lab.h,o);
+      return `<div class="labaim">
+        <span class="labaimh">${ordinal(t)}</span>
+        <span class="labaimn">${LAB_HOUSE[t-1]}</span>
+        <span class="labaimw">${(HOUSE_TRANSIT_SENSE||{})[t]||""}</span>
+        <span class="labaimo">${ordinal(o)} aspect</span>
+      </div>`;}).join("")}</div>
   </div>`;
 }
 function labPaint(){
@@ -4941,7 +4984,90 @@ function yogaCard(y){
   </div>`;
 }
 
+/* ---- Learn tables -------------------------------------------------
+   Sangram: "you're just giving bullets, show it in a table. Show the planet,
+   how it looks... also show their icons... put that in a table."
+
+   Every one of these is built from the same tables the engine reads, so a
+   lesson cannot drift from the chart it is teaching. */
+/* SIGN_GLYPH already exists above; the elements are new */
+const ELEM=["Fire","Earth","Air","Water"];
+
+function signTable(){
+  return `<div class="ltblwrap"><table class="ltbl">
+    <thead><tr><th></th><th>Sign</th><th>Sanskrit</th><th>Element</th><th>Ruler</th></tr></thead>
+    <tbody>${SIGNS.map((n,i)=>`<tr>
+      <td class="lglyph">${SIGN_GLYPH[i]}</td>
+      <td><b>${n}</b></td>
+      <td class="lsk">${SIGNS_SK[i]}</td>
+      <td>${ELEM[i%4]}</td>
+      <td class="lpl">${gIcon(SIGN_LORD_ARR[i],17)}${SIGN_LORD_ARR[i]}</td>
+    </tr>`).join("")}</tbody></table></div>`;
+}
+
+/* which houses each graha rules FOR THIS CHART, beside the fixed sign rulership */
+function lordTable(){
+  const rules={};
+  for(let h=1;h<=12;h++){ const g=SIGN_LORD_ARR[(CHART.lagna+h-2)%12];
+    (rules[g]=rules[g]||[]).push(h); }
+  const order=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+  return `<div class="ltblwrap"><table class="ltbl">
+    <thead><tr><th></th><th>Graha</th><th>Rules the signs</th><th>Your houses</th></tr></thead>
+    <tbody>${order.map(g=>{
+      const signs=SIGNS.map((n,i)=>SIGN_LORD_ARR[i]===g?n:null).filter(Boolean);
+      const hs=rules[g]||[];
+      return `<tr>
+        <td class="lart">${gIcon(g,24)}</td>
+        <td><b>${g}</b></td>
+        <td>${signs.join(", ")}</td>
+        <td class="lho">${hs.length?hs.map(ordinal).join(", "):"&#8212;"}</td>
+      </tr>`;}).join("")}</tbody></table>
+    <p class="ltblnote">Rahu and Ketu rule no sign, so they hold no houses.</p></div>`;
+}
+
+/* all 27, their four padas, and the sign each pada falls in — a nakshatra can
+   straddle two signs, which is exactly why the padas are worth printing */
+function nakTable(){
+  const SPAN=360/27, PADA=SPAN/4;
+  return `<div class="ltblwrap"><table class="ltbl nak">
+    <thead><tr><th>#</th><th>Nakshatra</th><th>Sign</th><th>Padas fall in</th></tr></thead>
+    <tbody>${NAK.map((n,i)=>{
+      const padaSigns=[0,1,2,3].map(k=>Math.floor((i*SPAN+k*PADA+0.001)/30));
+      const uniq=[...new Set(padaSigns)];
+      return `<tr>
+        <td class="lnum">${i+1}</td>
+        <td><b>${n}</b><span class="lsk">${nakLord(i)}</span></td>
+        <td class="lglyph2">${uniq.map(s=>`${SIGN_GLYPH[s]} ${SIGNS[s]}`).join("<br>")}</td>
+        <td class="lpad">${padaSigns.map((s,k)=>
+          `<span class="lp"><i>${k+1}</i>${SIGN_GLYPH[s]}</span>`).join("")}</td>
+      </tr>`;}).join("")}</tbody></table></div>`;
+}
+
+/* where each graha is strongest and weakest */
+function dignityTable(){
+  const EX={Sun:"Aries",Moon:"Taurus",Mars:"Capricorn",Mercury:"Virgo",
+    Jupiter:"Cancer",Venus:"Pisces",Saturn:"Libra"};
+  const DB={Sun:"Libra",Moon:"Scorpio",Mars:"Cancer",Mercury:"Pisces",
+    Jupiter:"Capricorn",Venus:"Virgo",Saturn:"Aries"};
+  const order=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+  return `<div class="ltblwrap"><table class="ltbl">
+    <thead><tr><th></th><th>Graha</th><th>Own signs</th><th>Strongest</th><th>Weakest</th></tr></thead>
+    <tbody>${order.map(g=>`<tr>
+      <td class="lart">${gIcon(g,24)}</td>
+      <td><b>${g}</b></td>
+      <td>${SIGNS.filter((n,i)=>SIGN_LORD_ARR[i]===g).join(", ")}</td>
+      <td class="lup">${EX[g]}</td>
+      <td class="ldn">${DB[g]}</td>
+    </tr>`).join("")}</tbody></table>
+    <p class="ltblnote">Strongest is <b>exalted</b>, weakest is <b>debilitated</b> &#8212;
+      the sign opposite its exaltation.</p></div>`;
+}
+
 const GRAPHIC={
+  "sign-table":signTable,
+  "lord-table":lordTable,
+  "nak-table":nakTable,
+  "dignity-table":dignityTable,
   "chart-anatomy":()=>`<figure class="lg">
     ${miniChart(h=>h===1?"1":"", {lagna:true})}
     <figcaption>The North Indian chart. The gold diamond at the top is the
@@ -5041,11 +5167,8 @@ function subLearn(){
       <div class="lvlhead"><b>${lv.level}</b><span>${lv.tag}</span></div>
       <p class="lvlintro">${lv.intro}</p>
       <div class="list lvllist">
-        ${lv.topics.map(t=>`<button class="item lrnitem" data-l="${t.id}">
-          <span style="flex:1"><b style="font-weight:600">${t.title}</b>
-            <span class="gdef">${t.one}</span></span>
-          <span class="lrnread">${t.read}</span>
-          <span class="chev">&#8250;</span></button>`).join("")}
+        ${lv.topics.map(t=>`<button class="lrnitem" data-l="${t.id}">
+          <b>${t.title}</b><span class="chev">&#8250;</span></button>`).join("")}
       </div>`).join("")}`;
 }
 function learnSection(sec){
@@ -5067,7 +5190,7 @@ function subLearnTopic(){
   const flat=LEARN_LEVELS.flatMap(l=>l.topics);
   const i=flat.findIndex(x=>x.id===t.id), next=flat[i+1];
   return `<article class="lrnbody">
-    <div class="eyebrow">${lv.level} &#183; ${t.read}</div>
+    <div class="eyebrow">${lv.level}</div>
     <h1>${t.title}</h1>
     ${t.sections.map(learnSection).join("")}
     ${next?`<button class="item lrnnext" data-l="${next.id}">

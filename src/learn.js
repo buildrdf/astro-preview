@@ -10,7 +10,7 @@ export const LEARN_LEVELS = [
   intro:"Everything you need to look at your own chart and know what you are seeing.",
   topics:[
 
-{ id:"two-zodiacs", title:"Sun sign, Moon sign",
+{ id:"two-zodiacs", title:"Sun sign vs moon sign",
   one:"Why your Vedic sign is not the one you grew up with", read:"5 min",
   sections:[
     {h:"Two ways to name the sky"},
@@ -26,7 +26,7 @@ export const LEARN_LEVELS = [
     {try:"Open You &#183; Birth details and find your Moon. Its sign is your rashi &#8212; the sign this whole app reads you from."}
   ]},
 
-{ id:"what-is-a-kundali", title:"What is a Kundali?",
+{ id:"what-is-a-kundali", title:"What is kundli?",
   one:"A photograph of the sky, taken at your birth", read:"3 min",
   sections:[
     {h:"A moment, frozen"},
@@ -40,7 +40,7 @@ export const LEARN_LEVELS = [
     {try:"Open Universe. That diamond is your Kundali &#8212; the sky over your birthplace, at your first minute."}
   ]},
 
-{ id:"the-twelve-houses", title:"The twelve houses",
+{ id:"the-twelve-houses", title:"The 12 houses",
   one:"Twelve areas of life, one chart", read:"5 min",
   sections:[
     {h:"The chart's floor plan"},
@@ -72,9 +72,10 @@ export const LEARN_LEVELS = [
     {try:"Open Universe and tap your 10th house. Whatever sits there is traditionally read as colouring your work and public standing."}
   ]},
 
-{ id:"the-twelve-signs", title:"The twelve signs",
+{ id:"the-twelve-signs", title:"The 12 signs",
   one:"The backdrop the grahas move against", read:"5 min",
   sections:[
+    {graphic:"sign-table"},
     {h:"Twelve flavours of sky"},
     {p:"The zodiac is a 360&#176; band divided into twelve signs, or rashis, of 30&#176; each. If houses are the rooms of the chart, signs are the wallpaper &#8212; they colour how whatever is in the room behaves."},
     {graphic:"sign-glyphs"},
@@ -98,7 +99,7 @@ export const LEARN_LEVELS = [
     {try:"Open Universe and find the number 1 on your chart &#8212; that sign is your rising sign, the lens the rest is read through."}
   ]},
 
-{ id:"the-nine-grahas", title:"The nine grahas",
+{ id:"the-nine-grahas", title:"The 9 grahas",
   one:"The cast of characters, including two shadows", read:"5 min",
   sections:[
     {h:"Graspers, not planets"},
@@ -121,7 +122,7 @@ export const LEARN_LEVELS = [
     {try:"Open Universe and tap Saturn. Note which house holds it &#8212; that is traditionally where patience is asked of you."}
   ]},
 
-{ id:"aspects-drishti", title:"Aspects &#8212; drishti",
+{ id:"aspects-drishti", title:"Aspects or drishti",
   one:"How grahas reach across the chart", read:"4 min",
   sections:[
     {h:"The gaze"},
@@ -142,7 +143,7 @@ export const LEARN_LEVELS = [
     {try:"Open Universe, tap Jupiter, and see which houses its aspect lines reach. Those areas are traditionally read as receiving its protection."}
   ]},
 
-{ id:"reading-your-chart", title:"Reading your chart",
+{ id:"reading-your-chart", title:"Reading the charts",
   one:"How the North Indian diamond works", read:"4 min",
   sections:[
     {h:"Houses fixed, signs rotate"},
@@ -159,6 +160,7 @@ export const LEARN_LEVELS = [
 { id:"house-lordship", title:"House lords",
   one:"Every house has an owner, and where it sits matters", read:"5 min",
   sections:[
+    {graphic:"lord-table"},
     {h:"Every sign has an owner"},
     {p:"Each of the twelve rashis belongs to a graha. The Sun owns Leo and the Moon owns Cancer; the other five own two signs each. Because a sign sits in a house, the owner of that sign becomes the lord of that house &#8212; permanently, in your chart, from the minute you were born."},
     {graphic:"sign-glyphs"},
@@ -240,6 +242,7 @@ export const LEARN_LEVELS = [
 { id:"nakshatras", title:"The 27 nakshatras",
   one:"A finer grid than the signs", read:"5 min",
   sections:[
+    {graphic:"nak-table"},
     {h:"The older sky"},
     {p:"Long before the twelve signs, Indian astronomy divided the sky into 27 lunar mansions &#8212; nakshatras &#8212; each 13&#176;20' wide. They track the Moon, which passes through roughly one per day; 27 of them make a lunar month."},
     {graphic:"nakshatra-belt"},
@@ -270,6 +273,7 @@ export const LEARN_LEVELS = [
 { id:"dignity", title:"Dignity &#8212; strong and weak placements",
   one:"Why the same graha is not equal everywhere", read:"4 min",
   sections:[
+    {graphic:"dignity-table"},
     {h:"Where a graha is at home"},
     {p:"A graha's condition depends heavily on the sign holding it. The traditional grades, from strongest down:"},
     {list:[

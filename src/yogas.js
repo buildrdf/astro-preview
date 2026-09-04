@@ -53,6 +53,10 @@ const COMBUST={Mercury:12,Venus:10,Mars:17,Jupiter:11,Saturn:15};
 /* full special aspects (houses from own position); everything else casts 7 */
 const DRISHTI={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
 
+import { F, P as MP, H, L as LK, collapse, story, formed, scoreOf,
+  assertFormation, MODEL, SHAPES } from "./yoga-formation.js?v=20260904w";
+export { MODEL, SHAPES, collapse, story, formed };
+
 const norm=d=>((d%360)+360)%360;
 const signOf=L=>Math.floor(norm(L)/30)+1;
 const degIn=L=>norm(L)%30;
@@ -105,36 +109,119 @@ function view(chart){
   const housesOf=g=>Object.keys(SIGN_LORD).filter(s=>SIGN_LORD[s]===g)
     .map(s=>countFrom(lagna,Number(s)));
   const at=g=>`${g} (${sign(P[g].sign)}, ${ord(P[g].house)} house)`;
+  /* ---- formation helpers -------------------------------------------
+     Nothing new is COMPUTED here. Every one of these is a value the
+     detectors already work out, interpolate into a sentence and throw
+     away; naming them once is what lets a fact carry the structure. */
+  const rules=g=>SEVEN.includes(g)?housesOf(g).slice().sort((a,b)=>a-b):[];
+  const cls=h=>KENDRA.includes(h)?"kendra":TRIKONA.includes(h)?"trikona"
+    :DUSTHANA.includes(h)?"dusthana":UPACHAYA.includes(h)?"upachaya":null;
+  const houseOfSign=s2=>countFrom(lagna,s2);
+  const nth=(a,b)=>countFrom(a,b);
+  /* the houses a count WALKS THROUGH, so the reader can watch it happen
+     instead of being told the answer */
+  const via=(fromSign,n)=>Array.from({length:Math.min(n,5)},(_,i)=>houseOfSign(adv(fromSign,i)));
+  const gap=(a,b)=>sep(P[a].lon,P[b].lon);          /* raw, never rounded */
+  const role=(g,part)=>({g,part,sign:P[g].sign,house:P[g].house,deg:P[g].deg,
+    dignity:dign(g)==="own sign"?"own":dign(g), combust:combust(g), rules:rules(g)});
   return {lagna,P,inSign,dign,combust,benefic,benefics,malefic,aspects,
-          lordOfHouse,housesOf,at,moonBright};
+          lordOfHouse,housesOf,at,moonBright,
+          rules,cls,houseOfSign,nth,via,gap,role,sign,ord};
 }
 
 /* ---- the detectors ------------------------------------------------ */
 
-const yoga=(name,sanskrit,because,strength,planets)=>
-  ({name,sanskrit,present:true,because,strength,planets});
+/* The record stays additive: without a formation it is byte-identical to
+   what every existing surface already consumes. With one, three fields
+   stop being asserted by hand and start being DERIVED — which is what
+   removes the whole class of bug where `planets` omits a graha the
+   `because` string names. */
+const yoga=(name,sanskrit,because,strength,planets,formation)=>{
+  if(!formation) return {name,sanskrit,present:true,because,strength,planets};
+  return {name,sanskrit,present:true,
+    key:formation.key,
+    because: because ?? formation.facts.filter(x=>x.ok&&x.req).map(x=>x.says).join(" "),
+    strength: formation.strength.band,
+    planets: [...new Set(formation.cast.map(r=>r.g))],
+    formation};
+};
 
 function budhaAditya(v){
   if(v.P.Sun.sign!==v.P.Mercury.sign) return null;
-  const gap=sep(v.P.Sun.lon,v.P.Mercury.lon).toFixed(1);
+  const raw=v.gap("Sun","Mercury"), gap=raw.toFixed(1);
   const deep=Number(gap)<3;
+  const sg=v.P.Sun.sign, hs=v.P.Sun.house;
+  const dg=v.dign("Mercury");
+  const facts=[
+    F({id:"conj", t:"conjunction", req:true, grahas:["Sun","Mercury"], sign:sg, house:hs, maxSep:raw,
+      says:`Sun and Mercury share ${sign(sg)}, your ${ord(hs)} house.`,
+      draw:[MP("Sun"), MP("Mercury", deep?"flaw":"lit"), H(hs,"seat",sign(sg)),
+        LK({g:"Sun",h:hs},{g:"Mercury",h:hs},"pair","lit",{label:`${gap}°`})]}),
+    F({id:"rule", t:"company", req:true, sign:sg, house:hs, grahas:["Sun","Mercury"], malefic:[],
+      says:"One shared sign is the whole rule — no degree, no aspect.", draw:[]}),
+  ];
+  /* The engine's real combustion orb, not the 3° the old grading invented.
+     Only the DEEP case carries weight, which keeps every existing band
+     exactly where it was while letting the practitioner see the true figure. */
+  if(v.combust("Mercury")) facts.push(F({id:"combust:Mercury", t:"combustion", g:"Mercury",
+    sep:raw, orb:COMBUST.Mercury, deep,
+    says:`Mercury stands ${gap}° from the Sun, ${deep?"deep inside its glare":"inside its glare"}.`,
+    draw:[MP("Mercury","flaw",`${gap}° · combust`)]}));
+  if(dg) facts.push(F({id:"dignity:Mercury", t:"dignity", g:"Mercury",
+    value: dg==="own sign"?"own":dg, sign:sg,
+    says:dignitySays("Mercury",dg,sg),
+    draw:[MP("Mercury", dg==="debilitated"?"flaw":"lit", dg)]}));
+  const formation={key:"budha-aditya", shape:"conjunction", chart:"D1",
+    frame:{from:"lagna"},
+    cast:[v.role("Sun","actor"), v.role("Mercury","actor")],
+    facts, story:["conj","rule",...facts.slice(2).map(x=>x.id)],
+    strength:scoreOf(78,facts)};
   return yoga("Budha-Aditya Yoga","बुधादित्य योग",
     `Sun and Mercury share ${sign(v.P.Sun.sign)} in your ${ord(v.P.Sun.house)} house, `+
     `${gap}° apart - the rule asks only that the two occupy one sign.`+
     (deep?` Mercury sits deep in the Sun's glare (combust), which tempers the yoga.`:""),
-    deep?"moderate":"strong",["Sun","Mercury"]);
+    null,null,formation);
 }
 
 function gajakesari(v){
   const n=countFrom(v.P.Moon.sign,v.P.Jupiter.sign);
   if(!KENDRA.includes(n)) return null;
   const d=v.dign("Jupiter");
+  const mH=v.P.Moon.house, jH=v.P.Jupiter.house, mS=v.P.Moon.sign;
+  const facts=[
+    F({id:"frame", t:"seat", g:"Moon", sign:mS, house:mH, deg:v.P.Moon.deg, cls:v.cls(mH),
+      says:"The kendra here is counted from your Moon, not from the lagna.",
+      draw:[MP("Moon","ref"), H(mH,"ref",`${sign(mS)} · count starts here`)]}),
+    F({id:"count:Moon>Jupiter", t:"count", req:true, from:"Moon", fromSign:mS,
+      toSign:v.P.Jupiter.sign, n, cls:"kendra", via:v.via(mS,n),
+      says:`Jupiter in ${sign(v.P.Jupiter.sign)} stands in the ${ord(n)} sign from it.`,
+      draw:[MP("Jupiter"), H(jH,"seat"),
+        LK({g:"Moon",h:mH},{g:"Jupiter",h:jH},"step","lit",
+          {label:`${ord(n)} from the Moon`, via:v.via(mS,n)})]}),
+    /* the alt cells teach the rule's SPACE — they are excluded from the still
+       frame by collapse(), so they can only ever be seen with the sentence */
+    F({id:"rule", t:"count", req:true, from:"Moon", fromSign:mS, toSign:v.P.Jupiter.sign, n, cls:"kendra", via:[],
+      says:"A kendra from the Moon — the 1st, 4th, 7th or 10th — is the whole rule.",
+      draw:KENDRA.map(k=>H(v.houseOfSign(adv(mS,k)),"alt"))}),
+  ];
+  if(d) facts.push(F({id:"dignity:Jupiter", t:"dignity", g:"Jupiter", value:d==="own sign"?"own":d,
+    sign:v.P.Jupiter.sign,
+    says:dignitySays("Jupiter",d,v.P.Jupiter.sign),
+    draw:[MP("Jupiter", d==="debilitated"?"flaw":"lit", d)]}));
+  if(v.combust("Jupiter")) facts.push(F({id:"combust:Jupiter", t:"combustion", g:"Jupiter",
+    sep:v.gap("Jupiter","Sun"), orb:COMBUST.Jupiter, deep:v.gap("Jupiter","Sun")<3,
+    says:"Jupiter stands inside the Sun's glare, which dims it.",
+    draw:[MP("Jupiter","flaw","combust")]}));
+  const formation={key:"gajakesari", shape:"relative-geometry", chart:"D1",
+    frame:{from:"graha", graha:"Moon", sign:mS, house:mH},
+    cast:[v.role("Moon","frame"), v.role("Jupiter","actor")],
+    facts, story:["frame","rule","count:Moon>Jupiter",...facts.slice(3).map(x=>x.id)],
+    strength:scoreOf(62,facts)};
   return yoga("Gajakesari Yoga","गजकेसरी योग",
     `Jupiter in ${sign(v.P.Jupiter.sign)} stands in the ${ord(n)} from your Moon in `+
     `${sign(v.P.Moon.sign)} - a kendra (1/4/7/10) from the Moon, which is the whole rule.`+
     (d?` Jupiter is ${d} there.`:""),
-    d==="exalted"||d==="own sign"?"strong":v.combust("Jupiter")?"weak":"moderate",
-    ["Jupiter","Moon"]);
+    null,null,formation);
 }
 
 function chandraMangala(v){
@@ -149,6 +236,58 @@ function chandraMangala(v){
 
 /* Sunapha / Anapha / Durudhara / Kemadruma - the Moon-flanking family.
    Only real planets other than the Sun count, per the classical rule. */
+/* One phrasing for dignity everywhere. "Cancer is Jupiter's exalted" is not
+   a sentence, and every one of these lines is read aloud by VoiceOver. */
+function dignitySays(g,d,sg){
+  return d==="exalted" ? `${g} is exalted in ${sign(sg)}.`
+    : (d==="own sign"||d==="own") ? `${sign(sg)} is ${g}'s own sign.`
+    : `${sign(sg)} is ${g}'s sign of fall.`;
+}
+
+/* Sunapha and Anapha are the clearest case for a frame being data rather
+   than a sentence: house 9 is only "the 2nd" because the count starts at
+   the Moon. Drawn as a step link, the reader watches the count instead of
+   being told the answer. */
+function flankFormation(v,key,label,gs,n,other){
+  const mSign=v.P.Moon.sign, mHouse=v.P.Moon.house;
+  const toSign=adv(mSign,n), toHouse=v.houseOfSign(toSign);
+  const facts=[
+    F({id:"frame", t:"seat", g:"Moon", sign:mSign, house:mHouse, deg:v.P.Moon.deg, cls:v.cls(mHouse),
+      says:"Everything here is counted from your Moon, not from the lagna.",
+      draw:[MP("Moon","ref"), H(mHouse,"ref",`${sign(mSign)} · count starts here`)]}),
+    F({id:`count:Moon>${n}`, t:"count", req:true, from:"Moon", fromSign:mSign, toSign, n,
+      cls:v.cls(toHouse), via:v.via(mSign,n),
+      says:`${sign(toSign)} is the ${ord(n)} sign from it.`,
+      draw:[H(toHouse,"path"),
+        LK({g:"Moon",h:mHouse},{h:toHouse},"step","lit",
+          {label:`${ord(n)} from the Moon`, via:v.via(mSign,n)})]}),
+    /* `malefic` stays empty on purpose: the rule asks for ANY graha but the Sun,
+       so the actor being a malefic is the yoga working, not an affliction. Only a
+       malefic that is NOT part of the rule dilutes a placement. */
+    F({id:"seat", t:"company", req:true, sign:toSign, house:toHouse, grahas:gs, malefic:[],
+      says:`${list(gs)} ${gs.length>1?"sit":"sits"} there.`,
+      draw:[...gs.map(g=>MP(g)), H(toHouse,"seat")]}),
+    F({id:"eligible", t:"company", req:true, sign:toSign, house:toHouse, grahas:gs, malefic:[],
+      says:`Any graha but the Sun and the nodes in that place is the whole rule.`, draw:[]}),
+    F({id:"other-empty", t:"company", req:true, sign:adv(mSign,n===2?12:2), house:v.houseOfSign(adv(mSign,n===2?12:2)),
+      grahas:other, malefic:[],
+      says:`The ${ord(n===2?12:2)} from the Moon is empty — otherwise this would be Durudhara.`, draw:[]}),
+  ];
+  for(const g of gs){
+    const d=v.dign(g);
+    if(d) facts.push(F({id:`dignity:${g}`, t:"dignity", g, value:d==="own sign"?"own":d, sign:v.P[g].sign,
+      says:dignitySays(g,d,v.P[g].sign),
+      draw:[MP(g, d==="debilitated"?"flaw":"lit", d)]}));
+    if(v.combust(g)) facts.push(F({id:`combust:${g}`, t:"combustion", g, sep:v.gap(g,"Sun"),
+      orb:COMBUST[g], deep:v.gap(g,"Sun")<3,
+      says:`${g} stands inside the Sun's glare.`, draw:[MP(g,"flaw","combust")]}));
+  }
+  return {key, shape:"relative-to-moon", chart:"D1",
+    frame:{from:"graha", graha:"Moon", sign:mSign, house:mHouse},
+    cast:[v.role("Moon","frame"), ...gs.map(g=>v.role(g,"actor"))],
+    facts, strength:scoreOf(62,facts)};
+}
+
 function moonFlanks(v){
   const flankers=s=>SEVEN.filter(g=>g!=="Sun"&&g!=="Moon"&&v.P[g].sign===s);
   const second=flankers(adv(v.P.Moon.sign,2));
@@ -170,7 +309,7 @@ function moonFlanks(v){
       `${seat(second,2)}. A planet other than the Sun in the 2nd from the Moon is the `+
       `entire rule${second.some(g=>v.dign(g)==="own sign")?
         `, and ${second.find(g=>v.dign(g)==="own sign")} stands there in its own sign`:""}.`,
-      strengthOf(second),["Moon",...second]));
+      null,null,flankFormation(v,"sunapha","Sunapha",second,2,twelfth)));
   if(twelfth.length)
     out.push(yoga("Anapha Yoga","अनफा योग",
       `${seat(twelfth,12)}. A planet other than the Sun in the 12th from the Moon is the `+
@@ -280,6 +419,34 @@ function parivartana(v){
     const ha=v.P[a].house, hb=v.P[b].house;
     const kind=(DUSTHANA.includes(ha)||DUSTHANA.includes(hb))?"Dainya"
       :(ha===3||hb===3)?"Khala":"Maha";
+    /* An exchange is the case that most obviously defeats a single house id:
+       two lords, two houses, and the claim is RECIPROCAL. Each cell is
+       simultaneously a seat (someone sits in it) and ruled-from-elsewhere,
+       and that double claim IS the yoga — which is why house marks carry
+       two independent channels. */
+    const facts=[
+      F({id:`seat:${a}`, t:"seat", req:true, g:a, sign:v.P[a].sign, house:ha, deg:v.P[a].deg, cls:v.cls(ha),
+        says:`${a} sits in ${sign(v.P[a].sign)}, which ${b} rules.`,
+        draw:[MP(a), H(ha,"seat",sign(v.P[a].sign)), H(hb,"rule")]}),
+      F({id:`seat:${b}`, t:"seat", req:true, g:b, sign:v.P[b].sign, house:hb, deg:v.P[b].deg, cls:v.cls(hb),
+        says:`${b} sits in ${sign(v.P[b].sign)}, which ${a} rules.`,
+        draw:[MP(b), H(hb,"seat",sign(v.P[b].sign)), H(ha,"rule")]}),
+      F({id:"exchange", t:"exchange", req:true, grahas:[a,b], houses:[ha,hb],
+        signs:[v.P[a].sign,v.P[b].sign], variant:kind,
+        says:`Each stands in the other's sign — your ${ord(ha)} and ${ord(hb)} have swapped lords.`,
+        draw:[LK({g:a,h:ha},{g:b,h:hb},"swap","lit",{label:"exchange"})]}),
+      F({id:"grade", t:"exchange", grahas:[a,b], houses:[ha,hb],
+        signs:[v.P[a].sign,v.P[b].sign], variant:kind,
+        says: kind==="Maha"?"Both are good houses, so this is the Maha grade."
+          :kind==="Khala"?"The 3rd house is involved, so this is the Khala grade."
+          :"A dusthana (6, 8 or 12) is involved, so this is the Dainya grade.",
+        draw:[]}),
+    ];
+    const formation={key:`parivartana:${a}+${b}`, shape:"exchange", chart:"D1",
+      variant:kind, frame:{from:"lagna"},
+      cast:[v.role(a,"actor"), v.role(b,"actor")],
+      facts, story:[`seat:${a}`,`seat:${b}`,"exchange","grade"],
+      strength:scoreOf(60,facts,"grade")};
     out.push(yoga(`Parivartana Yoga (${kind})`,"परिवर्तन योग",
       `${a} occupies ${sign(v.P[a].sign)} - ${b}'s sign - while ${b} occupies `+
       `${sign(v.P[b].sign)} - ${a}'s sign. The two lords have exchanged houses `+
@@ -287,7 +454,7 @@ function parivartana(v){
       (kind==="Maha"?`Both are good houses, making this the Maha (raja-grade) exchange.`
        :kind==="Khala"?`The 3rd house is involved, making this the Khala grade.`
        :`A dusthana (6/8/12) is involved, making this the Dainya grade.`),
-      kind==="Maha"?"strong":kind==="Khala"?"moderate":"weak",[a,b]));
+      null,null,formation));
   }
   return out;
 }
@@ -365,21 +532,57 @@ function neechaBhanga(v){
     const inKendraFrom=x=>KENDRA.includes(v.P[x].house)
       ||KENDRA.includes(countFrom(v.P.Moon.sign,v.P[x].sign));
     const reasons=[];
-    if(inKendraFrom(disp))
+    /* All four classical clauses are evaluated, not just the ones that fire.
+       A clause that does not apply becomes a fact with ok:false and a `why`,
+       so the page can say "not present" instead of implying failure (§25). */
+    const clause=[];
+    const C=(id,hit,says,why,draw,by)=>{ clause.push(F({id, t:"cancels", ok:hit, clause:id,
+      of:`dignity:${g}`, by:by||[], says, ...(hit?{}:{why}), draw:hit?draw:[] })); return hit; };
+    if(C("cancel:dispositor-kendra", inKendraFrom(disp),
+      `Its dispositor ${disp} stands in ${sign(v.P[disp].sign)}, a kendra from the lagna or the Moon.`,
+      `${disp} holds no kendra from either the lagna or the Moon.`,
+      [MP(disp), H(v.P[disp].house,"seat"), LK({g:disp,h:v.P[disp].house},{g,h:v.P[g].house},"arrow","lit",{label:"lifts"})],
+      [disp]))
       reasons.push(`its dispositor ${disp} stands in ${sign(v.P[disp].sign)}, a kendra `+
         `from the lagna or the Moon`);
-    if(exaltedThere&&exaltedThere!==g&&inKendraFrom(exaltedThere))
+    if(exaltedThere&&exaltedThere!==g&&C("cancel:exalted-kendra", inKendraFrom(exaltedThere),
+      `${exaltedThere}, exalted in ${sign(debSign)}, holds a kendra from the lagna or the Moon.`,
+      `${exaltedThere} holds no kendra.`,
+      [MP(exaltedThere), H(v.P[exaltedThere].house,"seat"),
+       LK({g:exaltedThere,h:v.P[exaltedThere].house},{g,h:v.P[g].house},"arrow","lit",{label:"lifts"})],
+      [exaltedThere]))
       reasons.push(`${exaltedThere}, the planet exalted in ${sign(debSign)}, holds a `+
         `kendra from the lagna or the Moon (${sign(v.P[exaltedThere].sign)})`);
-    if(SIGN_LORD[v.P[disp].sign]===g)
+    if(C("cancel:exchange", SIGN_LORD[v.P[disp].sign]===g,
+      `${g} and its dispositor ${disp} stand in mutual exchange.`,
+      `${g} and ${disp} are not in exchange.`,
+      [MP(disp), LK({g,h:v.P[g].house},{g:disp,h:v.P[disp].house},"swap","lit")], [disp]))
       reasons.push(`${g} and its dispositor ${disp} are in mutual exchange`);
-    if(v.aspects(disp,debSign))
+    if(C("cancel:aspect", v.aspects(disp,debSign),
+      `Its dispositor ${disp} aspects it from ${sign(v.P[disp].sign)}.`,
+      `${disp} casts no full aspect on ${sign(debSign)}.`,
+      [MP(disp), LK({g:disp,h:v.P[disp].house},{g,h:v.P[g].house},"arrow","lit",{label:"aspects"})], [disp]))
       reasons.push(`its dispositor ${disp} aspects it from ${sign(v.P[disp].sign)}`);
     if(!reasons.length) continue;
+    const hit=clause.filter(c=>c.ok);
+    const helpers=[...new Set(hit.flatMap(c=>c.by))];
+    const facts=[
+      F({id:`dignity:${g}`, t:"dignity", req:true, g, value:"debilitated", sign:debSign,
+        says:dignitySays(g,"debilitated",debSign),
+        draw:[MP(g,"flaw","debilitated"), H(v.P[g].house,"seat")]}),
+      ...clause,
+      F({id:"rule", t:"cancels", req:true, clause:"any", of:`dignity:${g}`, by:helpers,
+        says:"Any one of the classical cancellations is enough to lift a fall.", draw:[]}),
+    ];
+    const formation={key:`neecha-bhanga:${g}`, shape:"cancellation", chart:"D1",
+      frame:{from:"lagna"},
+      cast:[v.role(g,"subject"), ...helpers.map(x=>v.role(x,"witness"))],
+      facts, story:[`dignity:${g}`,"rule",...clause.map(c=>c.id)],
+      strength:scoreOf(46,facts)};
     out.push(yoga("Neecha Bhanga Raja Yoga","नीचभङ्ग राजयोग",
       `${g} is debilitated in ${sign(debSign)} (your ${ord(v.P[g].house)} house), but the `+
       `debilitation is cancelled: ${list(reasons)}.`,
-      reasons.length>=2?"strong":"moderate",[g,disp]));
+      null,null,formation));
   }
   return out;
 }
@@ -395,11 +598,35 @@ function mahapurusha(v){
     if(!["own sign","exalted"].includes(d)) continue;
     if(!KENDRA.includes(v.P[g].house)) continue;
     const [name,sk]=MAHAPURUSHA[g];
+    const h=v.P[g].house, sg=v.P[g].sign;
+    const facts=[
+      F({id:"frame", t:"seat", g, sign:sg, house:h, deg:v.P[g].deg, cls:"kendra",
+        says:"The kendra here is counted from the lagna — the four angles of the chart.",
+        draw:[H(1,"ref","lagna"), ...KENDRA.filter(k=>k!==h).map(k=>H(k,"alt"))]}),
+      F({id:`dignity:${g}`, t:"dignity", req:true, g, value:d==="own sign"?"own":d, sign:sg,
+        says:dignitySays(g,d,sg),
+        draw:[MP(g,"lit",d==="own sign"?"own sign":"exalted")]}),
+      F({id:`kendra:${g}`, t:"count", req:true, from:"lagna", fromSign:v.lagna, toSign:sg,
+        n:h, cls:"kendra", via:[],
+        says:`It stands in your ${ord(h)} house, one of the four angles.`,
+        draw:[MP(g), H(h,"seat",sign(sg)), LK({h:1},{g,h},"arrow","ref",{label:`${ord(h)} from the lagna`})]}),
+      F({id:"rule", t:"seat", req:true, g, sign:sg, house:h, deg:v.P[g].deg, cls:"kendra",
+        says:`${d==="exalted"?"Exaltation":"Own sign"} in a kendra is the complete rule.`, draw:[]}),
+    ];
+    if(v.combust(g)) facts.push(F({id:`combust:${g}`, t:"combustion", g, sep:v.gap(g,"Sun"),
+      orb:COMBUST[g], deep:v.gap(g,"Sun")<3,
+      says:`${g} stands inside the Sun's glare, which dims it.`,
+      draw:[MP(g,"flaw","combust")]}));
+    const formation={key:`mahapurusha:${g}`, shape:"dignity-kendra", chart:"D1",
+      variant:name.replace(/ Yoga$/,""), frame:{from:"lagna"},
+      cast:[v.role(g,"actor")],
+      facts, story:["frame",`dignity:${g}`,`kendra:${g}`,"rule",...facts.slice(4).map(x=>x.id)],
+      strength:scoreOf(64,facts)};
     out.push(yoga(name,sk,
       `${g} stands ${d} in ${sign(v.P[g].sign)}, which is your ${ord(v.P[g].house)} `+
       `house - a kendra from the lagna. ${d==="exalted"?"Exaltation":"Own sign"} in a `+
       `kendra is the complete Mahapurusha rule for ${g}.`,
-      v.combust(g)?"moderate":"strong",[g]));
+      null,null,formation));
   }
   return out;
 }
@@ -412,7 +639,7 @@ function rajaYoga(v){
       if(!m.has(g))m.set(g,[]); m.get(g).push(h);}
     return m};
   const kl=lordsOf(KENDRA), tl=lordsOf(TRIKONA);
-  const clauses=[], involved=new Set();
+  const clauses=[], facts=[], involved=new Set();
   const seen=new Set();
   for(const [kg,khs] of kl)for(const [tg,ths] of tl){
     if(kg===tg) continue;
@@ -425,6 +652,29 @@ function rajaYoga(v){
     if(!how) continue;
     clauses.push(`${kg} (lord of the ${list(khs.map(ord))}) and ${tg} (lord of the `+
       `${list(ths.map(ord))}) are ${how}`);
+    /* Each clause becomes its own chapter. Raja Yoga on a real chart runs to
+       five planets across five houses — the case that is unrepresentable as
+       one house id, and unreadable if every mark lands at once. `group` is
+       what lets the story walk it one clause at a time. */
+    const gid=`c${facts.length+1}`;
+    const kSeats=khs.map(h=>H(h,"rule")), tSeats=ths.map(h=>H(h,"rule"));
+    facts.push(F({id:`lord:${kg}:${gid}`, t:"lordship", req:true, g:kg, houses:khs.slice().sort((x,y)=>x-y),
+      signs:khs.map(h=>adv(v.lagna,h)), yogakaraka:false, group:gid,
+      says:`${kg} rules your ${list(khs.map(ord))} — an angle.`,
+      draw:[MP(kg), H(v.P[kg].house,"seat"), ...kSeats,
+        LK({g:kg,h:v.P[kg].house},{h:khs[0]},"arrow","ref",{label:"rules"})]}));
+    facts.push(F({id:`lord:${tg}:${gid}`, t:"lordship", req:true, g:tg, houses:ths.slice().sort((x,y)=>x-y),
+      signs:ths.map(h=>adv(v.lagna,h)), yogakaraka:false, group:gid,
+      says:`${tg} rules your ${list(ths.map(ord))} — a trine.`,
+      draw:[MP(tg), H(v.P[tg].house,"seat"), ...tSeats,
+        LK({g:tg,h:v.P[tg].house},{h:ths[0]},"arrow","ref",{label:"rules"})]}));
+    facts.push(F({id:`join:${gid}`, t: how.startsWith("conjunct")?"conjunction":how==="in exchange"?"exchange":"drishti",
+      req:true, group:gid, grahas:[kg,tg], sign:v.P[kg].sign, house:v.P[kg].house,
+      houses:[v.P[kg].house,v.P[tg].house], signs:[v.P[kg].sign,v.P[tg].sign],
+      variant:"Maha", from:kg, toSign:v.P[tg].sign, toHouse:v.P[tg].house, mutual:true, special:false, maxSep:0,
+      says:`The two are ${how}.`,
+      draw:[LK({g:kg,h:v.P[kg].house},{g:tg,h:v.P[tg].house},
+        how==="in exchange"?"swap":"pair","lit",{label:how.replace(/^in /,"")})]}));
     involved.add(kg); involved.add(tg);
   }
   /* yogakaraka: one planet lording a non-lagna kendra AND a non-lagna trikona */
@@ -438,16 +688,36 @@ function rajaYoga(v){
     clauses.push(`${g} lords both the ${list(hs.map(ord))} - kendra and trikona at once - `+
       `making it yogakaraka, placed in your ${ord(v.P[g].house)} house`+
       (d?` in ${d==="own sign"?"its own sign":d+" dignity"} (${sign(v.P[g].sign)})`:""));
+    const gid=`k${g}`;
+    facts.push(F({id:`karaka:${g}`, t:"lordship", req:true, g, houses:hs.slice().sort((x,y)=>x-y),
+      signs:hs.map(h=>adv(v.lagna,h)), yogakaraka:true, group:gid,
+      says:`${g} rules an angle and a trine at once — a yogakaraka.`,
+      draw:[MP(g), H(v.P[g].house,"seat"), ...hs.map(h=>H(h,"rule")),
+        ...hs.map(h=>LK({g,h:v.P[g].house},{h},"arrow","ref",{label:"rules"}))]}));
+    if(d) facts.push(F({id:`dignity:${g}`, t:"dignity", g, value:d==="own sign"?"own":d,
+      sign:v.P[g].sign, group:gid, says:dignitySays(g,d,v.P[g].sign),
+      draw:[MP(g,"lit",d==="own sign"?"own sign":d)]}));
     involved.add(g);
     if(["own sign","exalted"].includes(d)||KENDRA.includes(v.P[g].house)
        ||TRIKONA.includes(v.P[g].house)) karakaStrong=true;
   }
   if(!clauses.length) return null;
   const afflicted=[...involved].every(g=>v.dign(g)==="debilitated"||v.combust(g));
+  facts.unshift(F({id:"rule", t:"lordship", req:true, g:v.lordOfHouse(1), houses:[1],
+    signs:[v.lagna], yogakaraka:false,
+    says:"A lord of an angle and a lord of a trine, joined, is the rule.",
+    draw:[...KENDRA.map(h=>H(h,"alt")), ...TRIKONA.filter(h=>h!==1).map(h=>H(h,"alt"))]}));
+  const formation={key:"raja-kendra-trikona", shape:"lordship-web", chart:"D1",
+    frame:{from:"lagna"},
+    cast:[...involved].map(g=>v.role(g,"actor")),
+    facts,
+    strength:scoreOf(58,facts,"benefit",
+      karakaStrong?[{code:"yogakaraka", delta:14, says:"a yogakaraka stands well placed"}]
+      :clauses.length>=2?[{code:"clauses", delta:14, says:`${clauses.length} separate clauses form it`}]
+      :afflicted?[{code:"afflicted", delta:-24, says:"every participant is debilitated or combust"}]:[])};
   return yoga("Raja Yoga (Kendra-Trikona)","राजयोग (केन्द्र-त्रिकोण)",
     `Lords of kendra (angle) and trikona (trine) houses join forces: `+list(clauses)+`.`,
-    karakaStrong||clauses.length>=2?"strong":afflicted?"weak":"moderate",
-    [...involved]);
+    null,null,formation);
 }
 
 /* Saraswati - Jupiter, Venus and Mercury each in a kendra, trikona or the
@@ -542,6 +812,12 @@ export function detectYogas(chart){
   push(saraswati(v));
   push(bheri(v));
   push(kahala(v));
+  /* Plain JS has no type check, so this is the substitute: it refuses a mark
+     with no sentence, a required fact that did not hold, a story citing a
+     fact that does not exist. Dev-only — the cost is not worth paying on
+     every chart render on a phone. */
+  if(globalThis.ASTRA_DEV)
+    for(const y of out) if(y.formation) assertFormation(y.formation,GRAHAS);
   return out;
 }
 

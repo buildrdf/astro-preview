@@ -3350,3 +3350,51 @@ body.tabmin .tabthumb{opacity:0}
   .cod .codminihero{display:grid;place-items:center}
   .cod .codmini{padding-left:4px}
 }
+
+/* ===================================================================
+   THE FORMATION LAYER
+   -------------------------------------------------------------------
+   A yoga's shape drawn onto the chart. Two things matter here.
+
+   FILL AND OUTLINE ARE DIFFERENT CHANNELS, NOT DIFFERENT BRIGHTNESSES.
+   A cell where a participant SITS is filled; a cell a participant RULES
+   from somewhere else is outlined. In an exchange one cell is both at
+   once, and that double claim is the entire yoga — so it cannot be
+   expressed as "more brass" (§87: never encode meaning in colour alone).
+
+   All of it is drawn into #asp as HOUSE_PATH, the same curved geometry
+   the chart draws its own cells with. .hs is a straight-edged hit
+   target and would not line up.
+   =================================================================== */
+.fm-in{opacity:0;transition:opacity .34s var(--ease)}
+.fm-in.on{opacity:1}
+@media (prefers-reduced-motion: reduce){ .fm-in{transition:none} }
+
+/* FILL — someone is here */
+.fm.fill.seat{fill:rgba(194,155,78,.30);stroke:none}   /* a participant sits here */
+.fm.fill.ref {fill:rgba(150,175,255,.20);stroke:rgba(150,175,255,.34);
+  stroke-width:.6;vector-effect:non-scaling-stroke}   /* the count starts here */
+.fm.fill.path{fill:rgba(194,155,78,.07);stroke:none}   /* the count passes through */
+/* EDGE — someone rules here from elsewhere */
+.fm.edge.rule{fill:none;stroke:var(--brass);stroke-width:.9;
+  stroke-dasharray:2.5 2;opacity:.8;vector-effect:non-scaling-stroke}
+.fm.edge.alt {fill:none;stroke:var(--ink-3);stroke-width:.6;
+  opacity:.55;vector-effect:non-scaling-stroke}
+
+/* the grahas: lit is the yoga, ref is what it is counted FROM, flaw is
+   damaged — desaturated rather than dimmed, so it stays legible */
+/* Names stay off. They are revealed by .focus, for one planet at a time;
+   forcing them on for a formation put five overlapping labels across the
+   right-hand side of Raja Yoga. The art identifies the graha, and the sheet
+   underneath names every participant. */
+.p.p-lit{opacity:1;filter:none}
+.p.p-ref{opacity:.72;filter:saturate(.55)}
+.p.p-flaw{opacity:1}
+.p.p-flaw .art{filter:grayscale(.55) drop-shadow(0 2px 8px rgba(0,0,0,.5))}
+
+.al.fmdash{stroke-dasharray:2.2 2;opacity:.75}
+.al.fmhead{opacity:0}
+.al.fmhead.on{opacity:.9;animation:none}
+.fmlab{fill:var(--ink-2);font-family:var(--fm);font-size:3.6px;font-weight:600;
+  stroke:none;opacity:0}
+.fmlab.on{opacity:.92;animation:none}

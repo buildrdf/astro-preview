@@ -2,23 +2,26 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260904v";
+import { LEARN_LEVELS } from "./learn.js?v=20260904w";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
 import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
-import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260831";
+import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260904w";
+/* the formation vocabulary — collapse/story/bucket are pure, so the renderer
+   and the engine read the same code */
+import * as YF from "./yoga-formation.js?v=20260904w";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904v";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260904w";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
-import { avakhadaOf } from "./avakhada.js?v=20260904v";
-import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904v";
-import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904v";
+import { avakhadaOf } from "./avakhada.js?v=20260904w";
+import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260904w";
+import { openObjectDetail, isDetailOpen } from "./objectdetail.js?v=20260904w";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2080,7 +2083,141 @@ function showYoga(i){
       You &#8594; Yogas &amp; doshas.</p>`;
   wireYogaSheet();
 }
+/* ===================================================================
+   THE FORMATION RENDERER
+   -------------------------------------------------------------------
+   This function contains no yoga name, no shape switch, and no
+   `if (yoga === ...)`. It draws marks. A nineteenth yoga is zero
+   renderer code — which is the whole point of Sangram's correction:
+   the chart cannot be built around "the house where the yoga happens"
+   because for most yogas there is no such house.
+
+   One geometry. `.hs` is a straight-edged polygon used for hit-testing;
+   HOUSE_PATH is the ogee-curved outline the chart actually draws. Fill
+   one and stroke the other and they visibly disagree — on exactly the
+   cells that carry both, which for an exchange is every cell. So every
+   formation treatment is a HOUSE_PATH drawn into #asp, and `.hs` keeps
+   only its two old jobs: catching taps, and dimming.
+   =================================================================== */
+const FM_TONE={lit:"var(--brass)",ref:"var(--hot)",flaw:"var(--ink-3)"};
+
+/* the ONE place the chart's two coordinate spaces are reconciled:
+   planet buttons carry 0..1 fractions, the SVG overlay is 0..100 */
+function fmEndpoint(r){
+  const b=r.g&&PEL[r.g];
+  if(b&&b._pos) return [b._pos[0]*100,b._pos[1]*100];
+  return ANCHOR[r.h]||null;
+}
+function fmReduced(){ return matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+function fmCell(h,cls){
+  const p=el("path",{d:HOUSE_PATH[h]||HOUSE_PATH[1],class:"fm-in "+cls});
+  if(fmReduced()) p.classList.add("on"); else requestAnimationFrame(()=>p.classList.add("on"));
+  return p;
+}
+function fmReveal(path,delay){
+  if(fmReduced()){ path.classList.add("on"); return; }
+  const len=path.getTotalLength();
+  path.style.setProperty("--len",len);
+  path.style.strokeDasharray=len; path.style.strokeDashoffset=len;
+  path.style.animationDelay=delay+"s";
+  requestAnimationFrame(()=>path.classList.add("on"));
+}
+function fmArc(asp,a,b,bow,col,delay,dashed){
+  const [x1,y1]=a,[x2,y2]=b, mx=(x1+x2)/2, my=(y1+y2)/2;
+  const path=el("path",{d:`M ${x1} ${y1} Q ${mx+(mx-50)*bow} ${my+(my-50)*bow} ${x2} ${y2}`,
+    class:"al"+(dashed?" fmdash":""),stroke:col});
+  asp.appendChild(path); fmReveal(path,delay);
+  return [mx+(mx-50)*bow, my+(my-50)*bow];
+}
+/* #asp carries no <defs>, so an arrowhead is a drawn triangle */
+function fmHead(asp,[x,y],[cx,cy],col,delay){
+  const a=Math.atan2(y-cy,x-cx), w=2.1, l=3.4;
+  const p1=[x-l*Math.cos(a)+w*Math.sin(a), y-l*Math.sin(a)-w*Math.cos(a)];
+  const p2=[x-l*Math.cos(a)-w*Math.sin(a), y-l*Math.sin(a)+w*Math.cos(a)];
+  const t=el("path",{d:`M ${x} ${y} L ${p1[0].toFixed(2)} ${p1[1].toFixed(2)} L ${p2[0].toFixed(2)} ${p2[1].toFixed(2)} Z`,
+    class:"al fmhead",fill:col,stroke:"none"});
+  asp.appendChild(t);
+  t.style.animationDelay=delay+"s";
+  if(fmReduced()) t.classList.add("on"); else requestAnimationFrame(()=>t.classList.add("on"));
+}
+function fmLabel(asp,at,text,delay){
+  /* keep the word inside the square: a label on a cell at the rim ran off the
+     right edge of the chart entirely */
+  const w=Math.min(46,3+text.length*1.9);
+  const x=Math.max(w/2+2,Math.min(100-w/2-2,at[0]));
+  const y=Math.max(7,Math.min(95,at[1]));
+  at=[x,y];
+  const t=el("text",{x:at[0].toFixed(1),y:at[1].toFixed(1),class:"al fmlab","text-anchor":"middle"});
+  t.textContent=text; asp.appendChild(t);
+  t.style.animationDelay=delay+"s";
+  if(fmReduced()) t.classList.add("on"); else requestAnimationFrame(()=>t.classList.add("on"));
+}
+function fmLink(asp,m,i,showLabel){
+  const a=fmEndpoint(m.from), b=fmEndpoint(m.to);
+  if(!a||!b) return;
+  const col=FM_TONE[m.tone]||FM_TONE.lit, d0=.16+i*.12;
+  if(m.style==="step"){
+    /* walk the count rather than asserting it: one short arc per cell the
+       rule steps through, so the reader sees WHY it is "the 2nd from the Moon" */
+    const pts=(m.via||[]).map(h=>ANCHOR[h]).filter(Boolean);
+    const chain=[a,...pts.slice(1),b];
+    for(let k=0;k+1<chain.length;k++) fmArc(asp,chain[k],chain[k+1],.12,col,d0+k*.1,true);
+    if(m.label&&showLabel) fmLabel(asp,[(a[0]+b[0])/2,(a[1]+b[1])/2-4.5],m.label,d0+.3);
+    return;
+  }
+  const bows = m.style==="swap" ? [.26,-.26] : [.25];
+  bows.forEach((bow,k)=>{
+    const from = k? b : a, to = k? a : b;
+    const c=fmArc(asp,from,to,bow,col,d0+k*.06);
+    if(m.style==="arrow"||m.style==="swap") fmHead(asp,to,c,col,d0+.34+k*.06);
+  });
+  if(m.label&&showLabel) fmLabel(asp,[(a[0]+b[0])/2,(a[1]+b[1])/2-4.5],m.label,d0+.38);
+}
+
+/* draw a formation, or one step of its story */
+function drawFormation(f,opts){
+  opts=opts||{};
+  if(!f||f.chart!=="D1"||uniVarga!==1||uniMode!=="birth") return;
+  clearMarks(); buzz(12);
+  const asp=document.getElementById("asp");
+  const c=opts.marks?YF.bucketWithAlt(opts.marks):YF.collapse(f);
+
+  uniPlacements().forEach(p=>{
+    const t=c.grahas.get(p.graha);
+    if(PEL[p.graha]) PEL[p.graha].classList.add(t?"p-"+t:"recede");
+  });
+  qa(".hs").forEach(e=>{ const h=+e.dataset.h;
+    if(!c.fill.has(h)&&!c.edge.has(h)) e.classList.add("dim"); });
+  qa(".sn").forEach(e=>{ const h=+e.dataset.h;
+    if(!c.fill.has(h)&&!c.edge.has(h)) e.classList.add("dim"); });
+  for(const [h,t] of c.fill) asp.appendChild(fmCell(h,"fm fill "+t));
+  for(const [h,t] of c.edge) asp.appendChild(fmCell(h,"fm edge "+t));
+  /* Labels are for the STORY, not the still frame. Collapsed, Raja Yoga
+     carries eight links and printed "rules" four times over the top of the
+     planets it was describing. A shape can be read at a glance; a sentence
+     cannot, and there is already a sentence under the chart. Two or three
+     links still get their word, because that is where a label genuinely
+     names the relationship rather than repeating it. */
+  const label = opts.marks ? true : c.links.length<=3;
+  const seen=new Set();
+  c.links.forEach((m,i)=>{
+    const k=m.style+":"+(m.label||"")+":"+(m.from.g||m.from.h)+">"+(m.to.g||m.to.h);
+    if(seen.has(k)) return; seen.add(k);
+    fmLink(asp,m,i,label&&!seen.has("lbl:"+m.label)&&(seen.add("lbl:"+m.label),true));
+  });
+
+  /* every mark came from a fact, and a fact cannot exist without a sentence,
+     so the chart always has something true to say about what it just lit */
+  const said=(opts.marks?[opts.says||""]:YF.story(f).map(x=>x.says)).filter(Boolean).join(" ");
+  const chart=document.getElementById("chart");
+  if(chart&&said) chart.setAttribute("aria-label",speak(said));
+}
+
+/* Un-migrated yogas keep the old behaviour until their detector carries a
+   formation. Delete this the day the last one lands, or it becomes permanent. */
 function focusYoga(y){
+  if(y&&y.formation) return drawFormation(y.formation);
   clearMarks(); buzz(12);
   const list=uniPlacements();
   const inv=new Set(y.planets||[]);
@@ -2088,31 +2225,10 @@ function focusYoga(y){
   list.forEach(p=>{ if(!inv.has(p.graha)) PEL[p.graha].classList.add("recede"); });
   qa(".hs").forEach(e2=>e2.classList.add(houses.has(+e2.dataset.h)?"lit":"dim"));
   qa(".sn").forEach(e2=>{ if(!houses.has(+e2.dataset.h)) e2.classList.add("dim"); });
-  /* join the participants - the relationship drawn, not described */
   const asp=document.getElementById("asp");
   const ps=[...inv].map(g=>PEL[g]?._pos).filter(Boolean);
-  for(let i=0;i+1<ps.length;i++){
-    const [x1,y1]=[ps[i][0]*100,ps[i][1]*100], [x2,y2]=[ps[i+1][0]*100,ps[i+1][1]*100];
-    const mx=(x1+x2)/2, my=(y1+y2)/2;
-    const path=el("path",{d:`M ${x1} ${y1} Q ${mx+(mx-50)*.25} ${my+(my-50)*.25} ${x2} ${y2}`,
-      class:"al",stroke:"var(--brass)"});
-    asp.appendChild(path);
-    const len=path.getTotalLength();
-    path.style.setProperty("--len",len);
-    path.style.strokeDasharray=len; path.style.strokeDashoffset=len;
-    requestAnimationFrame(()=>path.classList.add("on"));
-  }
-  document.getElementById("sheetbody").onclick=null;
-  document.getElementById("sheetbody").innerHTML=`
-    ${peekBlock(y.name, y.planets?y.planets.join(" + "):"")}
-    <div>
-      <div class="eyebrow">${y.sanskrit||""}${y.strength?` &#183; ${y.strength} strength`:""}</div>
-      <p class="interp" style="margin-top:8px">${y.because}</p>
-      <button class="tb-btn txt" id="ybk" style="margin-top:10px;min-height:44px">&#8249; All yogas</button>
-    </div>`;
-  collapseSheet();
-  const bk=document.getElementById("ybk");
-  if(bk) bk.onclick=e2=>{ e2.stopPropagation(); openYogaSheet(); };
+  for(let i=0;i+1<ps.length;i++)
+    fmArc(asp,[ps[i][0]*100,ps[i][1]*100],[ps[i+1][0]*100,ps[i+1][1]*100],.25,"var(--brass)",.16+i*.12);
 }
 
 /* the varga picker rides the standard sheet, so close/reset behave
@@ -2210,7 +2326,7 @@ function clearMarks(){
   qa(".hs").forEach(e=>e.classList.remove("sel","lit","dim"));
   qa(".sn").forEach(e=>e.classList.remove("sel","dim"));
   qa(".p").forEach(e=>{
-    e.classList.remove("dim","hidden","recede","focus");
+    e.classList.remove("dim","hidden","recede","focus","p-lit","p-ref","p-flaw");
     e.style.transform=""; e.style.zIndex="";
   });
   document.getElementById("asp").innerHTML="";

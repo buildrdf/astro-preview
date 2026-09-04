@@ -115,8 +115,8 @@ export function openObjectDetail(spec, ctx) {
   /* hero: a living object, drawn by the same renderer the chart and sky use */
   const slot = ov.querySelector(".codheroslot"), mini = ov.querySelector(".codminihero");
   const heroPx = Math.round(Math.min(innerWidth * 0.6, 260));
-  mountHero(slot, model, heroPx); mountHero(mini, model, 30);
-  if (model.kind === "planet") preloadGrahaArt().then(() => { if (open && open.ov === ov) { mountHero(slot, model, heroPx); mountHero(mini, model, 30); } });
+  mountHero(slot, model, heroPx, emphasis); mountHero(mini, model, 30, emphasis);
+  if (model.kind === "planet") preloadGrahaArt().then(() => { if (open && open.ov === ov) { mountHero(slot, model, heroPx, emphasis); mountHero(mini, model, 30); } });
 
   /* the collapse: scroll 0→160px takes the hero from cinematic to a small object beside the title */
   const sc = ov.querySelector(".codscroll");
@@ -158,6 +158,16 @@ export function openObjectDetail(spec, ctx) {
     const b = e.target.closest("[data-tab]"); if (!b) return;
     ov.querySelectorAll(".codpill [data-tab]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
     ov.querySelectorAll(".codpanel").forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab);
+    /* the hero follows the column: switching to Now shows who is passing through instead
+       of who was born there */
+    const hs = ov.querySelector(".codheroslot"), mn = ov.querySelector(".codminihero");
+    if (hs && model.kind === "house") {
+      mountHero(hs, model, heroPx, b.dataset.tab);
+      /* the small copy in the bar is the same object — it has to carry the same planets,
+         or scrolling up swaps the occupants back behind the reader's back */
+      mountHero(mn, model, 30, b.dataset.tab);
+      try { hs.animate([{ opacity: .35 }, { opacity: 1 }], { duration: 220, easing: "ease-out" }); } catch (_) {}
+    }
     ctx.buzz && ctx.buzz(5);
   };
   ov.addEventListener("click", e => {
@@ -181,14 +191,14 @@ export function openObjectDetail(spec, ctx) {
   return ov;
 }
 
-function mountHero(el, model, px) {
+function mountHero(el, model, px, mode) {
   if (!el) return;
   el.innerHTML = "";
   if (model.kind === "planet") {
     const c = grahaSprite(model.id, px, { ground: "light", quality: px > 60 ? "high" : "low", phase: model.phase, tilt: 22 });
     el.appendChild(c);
   } else {
-    el.innerHTML = model.heroSVG(px);
+    el.innerHTML = model.heroSVG(px, mode);
     /* frame the cell itself, not the whole chart square */
     const svg = el.querySelector("svg"), cell = el.querySelector(".codcell");
     if (svg && cell && cell.getBBox) {
@@ -228,12 +238,14 @@ function morphFrames(ov, slot, o) {
   ];
   return { page, hero };
 }
-const MORPH = { duration: 420, easing: "cubic-bezier(.22,1,.36,1)" };
+const MORPH = { duration: 460, easing: "cubic-bezier(.22,1,.36,1)" };
+/* The object is the thing that moves. The page does NOT scale — scaling it made the whole
+   white sheet look like it was growing out of the chart. It fades in behind while the graha
+   or the house cell travels from where it sat into the hero. */
 function morphIn(ov, slot, o) {
   try {
-    const f = morphFrames(ov, slot, o);
-    ov.animate(f.page, MORPH);
-    if (slot) slot.animate(f.hero, MORPH);
+    ov.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: "ease-out" });
+    if (slot) slot.animate(morphFrames(ov, slot, o).hero, MORPH);
   } catch (_) {}
 }
 function closeDetail(fromHistory) {
@@ -244,11 +256,11 @@ function closeDetail(fromHistory) {
   const slot = ov.querySelector(".codheroslot");
   const done = () => { ov.remove(); document.body.classList.remove("indetail"); if (open && open.ov === ov) open = null; ctx.buzz && ctx.buzz(5); };
   if (spec.origin && !reduced && slot) {
-    /* the page shrinks back onto the very object it came from */
+    /* the object flies home and the page fades out from behind it */
     try {
       const f = morphFrames(ov, slot, spec.origin);
       slot.animate([f.hero[1], f.hero[0]], { ...MORPH, duration: 340, fill: "forwards" });
-      const a = ov.animate([f.page[1], f.page[0]], { ...MORPH, duration: 340, fill: "forwards" });
+      const a = ov.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: "ease-in", fill: "forwards" });
       a.onfinish = done; a.oncancel = done;
       return;
     } catch (_) {}
@@ -439,14 +451,24 @@ function houseModel(spec, ctx) {
     /* the cell the finger touched, curves and all — the chart's own geometry, so the
        object that lifts into the hero is the object that was on screen. mountHero fits
        the viewBox to the path's real bounds, which the ogee edges bulge past. */
-    heroSVG: px => {
+    heroSVG: (px, mode) => {
+      /* the cell as the chart draws it, carrying whoever actually sits in it — and it
+         follows the At birth / Now pill, so the hero always shows the column being read */
       const a = ctx.houseAnchor ? ctx.houseAnchor(h) : [50, 50];
       const d = ctx.housePath ? ctx.housePath(h) : "M50 4 L96 50 L50 96 L4 50 Z";
-      return `<svg class="codhouse" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true">
+      const who = (mode === "now" ? transiting : occ) || [];
+      const n = who.length;
+      const r = n > 2 ? 9 : 11;
+      const spread = n > 1 ? (n - 1) * (r + 3) : 0;
+      return `<svg class="codhouse" viewBox="0 0 100 100" width="${px}" height="${px}"
+          role="img" aria-label="${ord(h)} house${n ? `, ${spoken(who)} here` : ", empty"}">
         <defs><linearGradient id="codhg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7EFDA"/><stop offset="1" stop-color="#D9C79A"/></linearGradient></defs>
         <path class="codcell" d="${d}" fill="url(#codhg)" stroke="#8F6B24" stroke-width="1.1" stroke-linejoin="round"/>
-        <text x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" text-anchor="middle" dominant-baseline="central"
-          font-size="17" font-weight="700" fill="#14162B">${h}</text>
+        <text x="${a[0].toFixed(1)}" y="${(a[1] - (n ? 13 : 0)).toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+          font-size="${n ? 11 : 17}" font-weight="700" fill="#14162B" opacity="${n ? .55 : 1}">${h}</text>
+        ${who.map((g, i) => `<image href="assets/graha/${String(g).toLowerCase()}.png"
+          x="${(a[0] - spread / 2 + i * (r + 3) - r).toFixed(1)}" y="${(a[1] + 1 - r).toFixed(1)}"
+          width="${(r * 2).toFixed(1)}" height="${(r * 2).toFixed(1)}"/>`).join("")}
       </svg>`;
     },
     foot: "A house is read through its sign, its lord and its occupants — never in isolation. Traditional associations, not predictions.",
@@ -597,4 +619,7 @@ function nakshatraModel(spec, ctx) {
 }
 
 function safe(f) { try { return f(); } catch (_) { return null; } }
+/* VoiceOver reads these labels aloud, so three planets have to sound like a list a person
+   would say — "Sun, Mercury and Ketu", never "Sun and Mercury and Ketu" */
+function spoken(a) { return a.length < 2 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]; }
 function fmtShort(d) { try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (_) { return ""; } }

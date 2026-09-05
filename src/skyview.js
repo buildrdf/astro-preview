@@ -426,8 +426,18 @@ function draw(){
   const now=performance.now();
   const dt=Math.min(60,now-(lastFrame||now)); lastFrame=now;
   const W=el.canvas.width/devicePixelRatio, H=el.canvas.height/devicePixelRatio;
-  const k=reduced?1:1-Math.exp(-dt/110);
-  viewAz+=wrap(wantAz-viewAz)*k; viewAlt+=(wantAlt-viewAlt)*k;
+  /* SMOOTH HARDER THE HIGHER YOU POINT.
+     Azimuth is a bearing, so the closer the phone gets to straight up the less
+     ground a degree of it covers — and the more a steady hand's tremor swings
+     it. The old code hid this by FREEZING the heading above 58 degrees, which
+     is the snap that freeze caused. Now that the heading is honest it must be
+     damped instead of frozen: 110ms low down, easing to 300ms near the zenith,
+     so the view still follows the phone everywhere and simply becomes calmer
+     where the maths is most sensitive. */
+  const tau=110+190*Math.min(1,Math.max(0,(Math.abs(viewAlt)-55)/25));
+  const k=reduced?1:1-Math.exp(-dt/tau);
+  const kAlt=reduced?1:1-Math.exp(-dt/110);
+  viewAz+=wrap(wantAz-viewAz)*k; viewAlt+=(wantAlt-viewAlt)*kAlt;
   focusK+=((target?1:0)-focusK)*(reduced?1:1-Math.exp(-dt/160));
   orr+=(wantOrr-orr)*(reduced?1:1-Math.exp(-dt/150)); if(Math.abs(wantOrr-orr)<0.002) orr=wantOrr;
   { const k2=reduced?1:1-Math.exp(-dt/120);
@@ -617,10 +627,25 @@ function draw(){
      of its marks missing is not a frame. */
   if(day>0.5&&layers.stars){
     drawAsterisms(c,W,0,dim,focusNak,day);
+    /* A FIELD, NOT TWENTY-SEVEN DOTS. Sangram: "in the day also the stars
+       should be visible ... in the sky blue you're not able to show ... make
+       those stars brighter or use some other tricks." Only the yogataras were
+       drawn by day, so the sky read as empty with a few marks on it rather
+       than as a sky. The ambient field comes through too now, and every star
+       carries a dark core inside a light halo — on a bright blue ground a
+       light dot alone has almost no contrast, while a dark centre reads at any
+       brightness. That is the trick: contrast both ways, not more alpha. */
+    for(const s2 of cache.amb){ if(!s2.up) continue;
+      const [x,y]=project({alt:s2.alt,az:s2.az+slip}); if(!onScreen(x,y,6)) continue;
+      const a=(s2.m>5?0.20:s2.m>4.4?0.28:0.38)*day*dim;
+      c.fillStyle=`rgba(255,253,246,${(a*0.9).toFixed(3)})`;
+      c.beginPath(); c.arc(x,y,s2.m>4.6?1.15:1.5,0,7); c.fill();
+      c.fillStyle=`rgba(44,48,86,${(a*0.75).toFixed(3)})`;
+      c.beginPath(); c.arc(x,y,s2.m>4.6?0.55:0.75,0,7); c.fill(); }
     for(const s of cache.stars){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,10)) continue;
       const big=s.m<=2.6;
-      c.fillStyle=`rgba(255,252,244,${(big?0.5:0.34)*day*dim})`; c.beginPath(); c.arc(x,y,big?2.6:1.9,0,7); c.fill();
-      c.fillStyle=`rgba(38,40,70,${(big?0.55:0.4)*day*dim})`; c.beginPath(); c.arc(x,y,big?1.3:0.95,0,7); c.fill(); }
+      c.fillStyle=`rgba(255,252,244,${(big?0.78:0.58)*day*dim})`; c.beginPath(); c.arc(x,y,big?3.2:2.3,0,7); c.fill();
+      c.fillStyle=`rgba(30,33,62,${(big?0.72:0.56)*day*dim})`; c.beginPath(); c.arc(x,y,big?1.5:1.1,0,7); c.fill(); }
   }
 
   /* --- the CELESTIAL RIBBON --- */

@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026090
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906x";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907s";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907u";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2058,6 +2058,32 @@ function paintRuler(){
   });
 }
 
+/* THE MODE LABEL TELLS YOU WHEN YOU ARE LOOKING.
+   Sangram: "the two days sky at the top ... is misleading, you know, if we
+   have already changed the date by sliding." Once the rail has moved the
+   segment shows that date and a return arrow, and tapping it — the segment you
+   are already on — comes back to now. The separate "Now" button that used to
+   sit off to the right of the scrubber is gone with it: he did not like where
+   it stood, and the control that states the problem is the right place to
+   solve it. */
+function updateModeLabel(){
+  const b=document.querySelector('#unimode button[data-m="today"]');
+  if(!b) return;
+  const off=Math.abs(dayOffset)>=0.5;
+  b.classList.toggle("dated",off);
+  if(off){
+    const d=uniDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+    b.innerHTML=`${escText(d)}<svg class="segback" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.5 12a7.5 7.5 0 107.5-7.5A7.4 7.4 0 006.4 7.2M4.5 4v3.6h3.6"/></svg>`;
+    b.setAttribute("aria-label",`Showing ${uniDate.toLocaleDateString("en-GB",
+      {day:"numeric",month:"long",year:"numeric"})}. Activate to return to today.`);
+  } else {
+    b.textContent="Today\u2019s sky";
+    b.removeAttribute("aria-label");
+  }
+  placeThumb(true);
+}
+
 function updateScrubLabel(){
   const el2=document.getElementById("scrubdate");
   if(el2) el2.textContent = uniDate.toLocaleDateString("en-GB",
@@ -2068,8 +2094,7 @@ function updateScrubLabel(){
       const p=uniPlacements().find(x=>x.graha===g);
       return `${g} in ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house`;
     }).join(". "));
-  const now=document.getElementById("scrubnow");
-  if(now) now.style.visibility = Math.abs(dayOffset)<0.5 ? "hidden" : "visible";
+  updateModeLabel();
 }
 
 let lastSigns=null, lastDay=null, lastScrubDate=null;
@@ -2177,7 +2202,7 @@ function wireRuler(){
     if(e.key==="ArrowLeft"){setScrubTarget(targetOffset-step);e.preventDefault()}
     if(e.key==="Home"){setScrubTarget(0);e.preventDefault()}
   });
-  document.getElementById("scrubnow").onclick=()=>{buzz(10);setScrubTarget(0)};
+
   requestAnimationFrame(()=>{ paintRuler(); updateScrubLabel(); });
 }
 
@@ -2221,6 +2246,8 @@ function setUniverseBar(){
       <span class="thumb" aria-hidden="true"></span>
       <button class="${uniMode==="birth"?"on":""}" data-m="birth" role="tab"
         aria-selected="${uniMode==="birth"}">Birth</button>
+      <!-- the label says WHEN, not just which mode. "Today's sky" over a chart
+           scrubbed to next March is simply untrue. -->
       <button class="${uniMode==="today"?"on":""}" data-m="today" role="tab"
         aria-selected="${uniMode==="today"}">Today&#8217;s sky</button>
     </div>`});
@@ -2291,8 +2318,7 @@ function renderUniverse(){
       </div>
     </div>
     <div class="scrubwrap" id="scrubwrap">
-      <div class="scrubdatehead"><b id="scrubdate"></b>
-        <button class="tb-btn txt" id="scrubnow">Now</button></div>
+      <div class="scrubdatehead"><b id="scrubdate"></b></div>
       <div class="ruler" id="ruler" role="slider" tabindex="0"
            aria-label="Move through time" aria-valuetext="">
         <div class="rulertrack" id="rulertrack"></div>
@@ -2356,7 +2382,13 @@ function renderUniverse(){
   plane.onclick=e=>{const b=e.target.closest(".p"); if(b){e.stopPropagation(); buzz(12);
     openObject({kind:"planet",id:b.dataset.g,mode:uniMode==="birth"?"birth":"now",at:uniMode==="birth"?null:uniDate,from:"chart",emphasis:uniMode==="birth"?"birth":"now",origin:rectOrigin(b)}); }};
   document.getElementById("tbcentre").onclick=e=>{
-    const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===uniMode)return;
+    const b=e.target.closest("button[data-m]"); if(!b) return;
+    if(b.dataset.m===uniMode){
+      /* the segment you are on is not inert when it is showing a date: it is
+         the way back to now */
+      if(uniMode==="today"&&Math.abs(dayOffset)>=0.5){ buzz(10); setScrubTarget(0); }
+      return;
+    }
     setMode(b.dataset.m);
   };
   wireRuler();
@@ -5104,24 +5136,71 @@ function voiceListen(){
    uses, but it does not enter voice mode and does not start listening — the
    reader asked for this message to be spoken, nothing more. Tapping again
    stops it, and so does leaving the tab. */
-function guideReadAloud(i){
-  const m=GUIDE.msgs[i]; if(!m||m.role==="user") return;
-  const stop=()=>{ try{speechSynthesis.cancel();}catch(_){} GUIDE.reading=null; renderGuide(); };
-  if(GUIDE.reading===i) return stop();
+/* READ ALOUD IN ASTRA'S OWN VOICE.
+   Sangram: "the voice chat is in a beautiful voice and tone, but when you do
+   the read out loud button, then it's very robotic ... can we use the same
+   voice?" The phone's speechSynthesis is a different instrument, and no choice
+   of local voice closes that gap. This asks our own edge function for the
+   audio, in the SAME voice the realtime conversation uses (marin) — verified
+   against the speech endpoint, not assumed — so a read-aloud and a spoken
+   reply sound like one person.
+
+   The phone's engine stays as the fallback and NAMES itself when it takes
+   over, because a silently worse voice reads as Astra having got worse
+   (constitution 104). */
+const SPEAK_URL="https://zjrhtmeyqogriucqkwlq.supabase.co/functions/v1/speak";
+let READ=null;
+function readStop(){
+  try{ if(READ&&READ.audio){ READ.audio.pause(); READ.audio.src=""; } }catch(_){}
+  try{ if(READ&&READ.url) URL.revokeObjectURL(READ.url); }catch(_){}
+  try{ if(READ&&READ.ac) READ.ac.abort(); }catch(_){}
+  try{ speechSynthesis.cancel(); }catch(_){}
+  READ=null; GUIDE.reading=null; renderGuide();
+}
+function readLocal(text,i){
   try{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(
-      String(m.content||"").replace(/@@ACTIONS[\s\S]*?@@/,"").replace(/[*_`#>]/g,""));
+    const u=new SpeechSynthesisUtterance(text);
     const vs=speechSynthesis.getVoices();
     u.voice=(PREFS().lang==="hi"
       ? vs.find(v=>/hi[-_]IN/i.test(v.lang))||vs.find(v=>/en[-_]IN/i.test(v.lang))
       : vs.find(v=>/en[-_]IN/i.test(v.lang)))||vs.find(v=>/en/i.test(v.lang))||null;
     u.rate=1;
-    u.onend=()=>{ if(GUIDE.reading===i){ GUIDE.reading=null; renderGuide(); } };
-    u.onerror=()=>{ GUIDE.reading=null; renderGuide(); };
-    GUIDE.reading=i; renderGuide();
+    u.onend=()=>{ if(GUIDE.reading===i) readStop(); };
+    u.onerror=()=>{ if(GUIDE.reading===i) readStop(); };
     speechSynthesis.speak(u);
-  }catch(_){ GUIDE.reading=null; }
+  }catch(_){ readStop(); }
+}
+function guideReadAloud(i){
+  const m=GUIDE.msgs[i]; if(!m||m.role==="user") return;
+  if(GUIDE.reading===i) return readStop();
+  readStop();
+  const text=String(m.content||"").replace(/@@ACTIONS[\s\S]*?@@/,"").replace(/[*_`#>]/g,"").trim();
+  if(!text) return;
+  GUIDE.reading=i; renderGuide();
+  /* Safari will not play audio that was not started inside the tap, so the
+     element is created NOW and given its source when it arrives. */
+  const audio=new Audio(); audio.preload="auto";
+  const ac=("AbortController" in window)?new AbortController():null;
+  READ={audio,ac,url:null};
+  audio.onended=()=>{ if(GUIDE.reading===i) readStop(); };
+  fetch(SPEAK_URL,{method:"POST",signal:ac?ac.signal:undefined,
+    headers:{"Content-Type":"application/json",Authorization:"Bearer "+GUIDE_ANON,apikey:GUIDE_ANON},
+    body:JSON.stringify({text,voice:"marin"})})
+    .then(r=>{ if(!r.ok) throw new Error("speak "+r.status); return r.blob(); })
+    .then(b=>{
+      if(GUIDE.reading!==i||!READ) return;                /* stopped while waiting */
+      const url=URL.createObjectURL(b); READ.url=url;
+      audio.src=url;
+      return audio.play();
+    })
+    .catch(e=>{
+      if(e&&e.name==="AbortError") return;
+      if(GUIDE.reading!==i) return;
+      console.warn("read-aloud fell back:",e&&e.message);
+      toastG("Astra\u2019s voice couldn\u2019t load \u2014 using your phone\u2019s");
+      readLocal(text,i);
+    });
 }
 
 function voiceSpeak(text){

@@ -819,6 +819,10 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
   transition:color .25s var(--ease)}
 .tbseg button.on{color:var(--ink)}
 @media (prefers-reduced-motion: reduce){ .tbseg .thumb{transition:none} }
+/* the mode segment showing a scrubbed date, with the way back to now */
+.tbseg button.dated{display:inline-flex;align-items:center;gap:5px}
+.tbseg button.dated .segback{width:13px;height:13px;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
 .unihint{font-size:12.5px;line-height:1.45;color:var(--ink-3);margin:0 0 4px;max-width:52ch}
 
 /* the divisional-chart chip and picker (Universe · Birth mode) */
@@ -906,8 +910,7 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 
 .scrubwrap{display:none;position:absolute;inset:0}
 .scrubwrap.on{display:block}
-.scrubdatehead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-  margin-bottom:8px}
+.scrubdatehead{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
 .scrubdatehead b{font-size:15.5px;font-weight:640;letter-spacing:-.015em}
 .ruler{position:relative;height:56px;overflow:hidden;cursor:grab;touch-action:none;
   border-radius:14px;border:1px solid var(--edge-soft);background:rgba(255,255,255,.04);

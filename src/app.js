@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906h";
+import { LEARN_LEVELS } from "./learn.js?v=20260906i";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906h";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906i";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906h";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906i";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -7929,24 +7929,68 @@ function subAddPartner(){
     ${field("f_name","Name","text",ed?ed.name:"","Their name")}
     ${field("f_date","Date of birth","date",b?`${b.getFullYear()}-${pad(b.getMonth()+1)}-${pad(b.getDate())}`:"")}
     ${field("f_time","Time of birth","time",b?`${pad(b.getHours())}:${pad(b.getMinutes())}`:"","",'')}
-    ${field("f_place","Birth place","text",ed?ed.place||"":"","City, country")}
-    <p class="fnote">Birth place is stored for later &#8212; it is needed for their ascendant
-    and houses, which arrive with the licensed ephemeris. It does not affect the Gun Milan
-    score below, which needs only the Moon.</p>
+    ${field("f_place","Birth place","search",ed?ed.place||"":"","Start typing a city")}
+    <div class="svplist" id="f_plist"></div>
+    <p class="fnote" id="f_tznote">${ed&&ed.tz
+      ?`Times read on <b>${ed.tz.replace(/_/g," ")}</b>&#8217;s own clock, daylight saving included.`
+      :`Pick the city from the list so the birth time is read on <b>its</b> clock. Without it
+        Astra has to assume Indian time, and an hour&#8217;s error moves the Moon about half a
+        degree &#8212; enough to change the nakshatra, and with it most of the score below.`}</p>
     <button class="primary" id="fsave">${ed?"Save changes":"Add person"}</button>
     ${ed?`<button class="danger" id="fdel">Remove ${ed.name}</button>`:""}`;
 }
+let fPlace=null;
 function wireAddPartner(){
+  fPlace=null;
+  /* the same geocoder onboarding uses, so a partner's birth place carries
+     coordinates and an IANA zone rather than being a string */
+  const pin=document.getElementById("f_place"), plist=document.getElementById("f_plist"),
+        note=document.getElementById("f_tznote");
+  if(pin){ let seq=0;
+    pin.addEventListener("input",()=>{
+      fPlace=null; const q=pin.value.trim(); const s=++seq;
+      if(note) note.innerHTML=`Pick the city from the list so the birth time is read on
+        <b>its</b> clock. Without it Astra has to assume Indian time.`;
+      if(q.length<2){ plist.innerHTML=""; return; }
+      fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`)
+        .then(r=>r.json()).then(j=>{
+          if(s!==seq) return;
+          const hits=j.results||[];
+          plist.innerHTML=hits.map((x,i)=>`<button class="svpitem" data-i="${i}">
+            ${escText(x.name)} <span class="svpsub">${escText([x.admin1,x.country].filter(Boolean).join(", "))}</span></button>`).join("");
+          plist.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
+            const x=hits[+b.dataset.i];
+            fPlace={lat:x.latitude, lon:x.longitude, tz:x.timezone};
+            pin.value=`${x.name}${[x.admin1,x.country].filter(Boolean).length?", "+[x.admin1,x.country].filter(Boolean).join(", "):""}`;
+            plist.innerHTML=""; buzz(6);
+            if(note) note.innerHTML=`Times read on <b>${String(x.timezone||"").replace(/_/g," ")}</b>&#8217;s
+              own clock, daylight saving included.`;
+          });
+        }).catch(()=>{});
+    });
+  }
   document.getElementById("fsave").onclick=()=>{
     const name=document.getElementById("f_name").value.trim();
     const date=document.getElementById("f_date").value;
     const time=document.getElementById("f_time").value||"12:00";
     const place=document.getElementById("f_place").value.trim();
     if(!name||!date){alert("A name and a date of birth are needed.");return}
-    const d=new Date(`${date}T${time}:00+05:30`);
+    /* The birth time is a LOCAL clock reading. This used to be parsed as
+       `${date}T${time}+05:30` whatever place was typed, so every person born
+       outside India got a chart for a moment they were not born at — up to
+       thirteen hours out, which moves the Moon by seven degrees, changes the
+       nakshatra and therefore five of the eight kootas. */
+    const [yy,mm,dd]=date.split("-").map(Number), [hh,mi]=time.split(":").map(Number);
+    const tz=fPlace?fPlace.tz:(subArg!=null?partners()[subArg]?.tz:null);
+    let d;
+    try{ d=tz?utcFromLocalTz(yy,mm,dd,hh,mi,tz):new Date(`${date}T${time}:00+05:30`); }
+    catch(_){ d=new Date(`${date}T${time}:00+05:30`); }
     if(isNaN(d)){alert("That date could not be read.");return}
     const l=partners();
+    const prev=subArg!=null?l[subArg]:null;
     const rec={name,born:d.toISOString(),place,moonL:moonSidereal(d),
+               lat:fPlace?fPlace.lat:prev?.lat, lon:fPlace?fPlace.lon:prev?.lon,
+               tz:tz||null,
                approx:!document.getElementById("f_time").value};
     if(subArg!=null) l[subArg]={...l[subArg],...rec,demo:false}; else l.push(rec);
     savePartners(l); buzz(12);

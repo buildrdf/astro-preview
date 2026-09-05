@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906b";
+import { LEARN_LEVELS } from "./learn.js?v=20260906e";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260831";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906e";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906b";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906e";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -950,6 +950,25 @@ function liveSpot(){
   return null;
 }
 
+/* Every one of these times is a division of the day between sunrise and
+   sunset, so they are only true for ONE place. The app quietly falls back to
+   the birth city when it has no location fix, which can put sunrise hours out
+   — and said nothing about it. It says so now, and offers to move. */
+let geoDenied=false;
+function sunClockPlace(){
+  const g=liveSpot();
+  if(g) return `<p class="note open">Timed from your current location
+    (${g.lat.toFixed(2)}&#176;, ${g.lon.toFixed(2)}&#176;). Sunrise and sunset divide these
+    windows, so they belong to where you are.</p>`;
+  const where=ACTIVE.p?.place||BIRTHPLACE.name.split(",")[0];
+  return `<p class="note open">Timed from <b>${where}</b>, the birth place &#8212; Astra has no
+    location fix. These windows are divisions of the day between sunrise and sunset, so
+    somewhere else they will be wrong by however much its sunrise differs.
+    ${geoDenied?`<b>Location was not available</b>, so the times still stand at ${where}. Turn
+      location on for this site in Safari&#8217;s settings, or set the place from the sky view.`
+      :`<button class="linkbtn" id="usegps">Use my location instead</button>`}</p>`;
+}
+
 let RHYTHM={key:null,m:null};
 function rhythmModel(date){
   const key=date.toDateString()+"|"+ACTIVE.name+(liveSpot()?"|g":"|b");
@@ -1283,6 +1302,7 @@ function renderToday(){
         ${nightC.map(row).join("")}`:""}
         <p class="note" style="margin-top:8px">Amrit, Shubh, Labh and Char are traditionally
         favourable; Udveg, Kaal and Rog are set aside.</p>
+        ${sunClockPlace()}
       </details>
       <details class="adv soft" style="margin-top:10px">
         <summary>Hora &#8212; the planetary hours</summary>
@@ -1399,6 +1419,20 @@ function renderToday(){
       viewDate=nd; stripKeep=strip.scrollLeft;
       if(+d.dataset.off===0) stripGlide=true;
       buzz(6); renderToday(); return; }
+    if(e.target.closest("#usegps")){ buzz(7);
+      /* the only place in Today that may ask for location, and only because
+         the reader asked for it — getSpot() caches the fix, so every sun-clock
+         time in the app follows from here on */
+      const b=e.target.closest("#usegps"); b.textContent="Locating\u2026"; b.disabled=true;
+      getSpot().then(sp=>{
+        RHYTHM={key:null,m:null};
+        /* When location is refused or unavailable getSpot falls back to the
+           birth city — and re-rendering the identical note makes the tap look
+           like it did nothing at all. Say what happened instead. */
+        if(sp.from!=="your location"){ geoDenied=true; }
+        renderToday();
+      });
+      return; }
     const pr=e.target.closest("#prosee");
     if(pr){ buzz(8); openProSheet(); return; }
     const rp=e.target.closest("#torpts");

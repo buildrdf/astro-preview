@@ -102,7 +102,7 @@ const ROW_SUM = {Sun:48, Moon:49, Mars:39, Mercury:54, Jupiter:56,
    varga, indexed 0..11 = Aries..Pisces, plus the lagna's own varga.
    `variants` optionally overrides disputed sub-tables per
    {graha:{contributor:[houses]}} - see KNOWN_VARIANTS. */
-export function bhinnashtakavarga(placements, variants){
+export function bhinnashtakavarga(placements, variants=null){
   for(const c of AV_CONTRIBUTORS){
     const s=placements[c];
     if(!(Number.isInteger(s)&&s>=1&&s<=12))
@@ -128,7 +128,7 @@ export function bhinnashtakavarga(placements, variants){
 /* Sign-by-sign totals across the seven graha vargas (lagna excluded,
    per the classical definition). Always sums to 337. Accepts either
    raw placements or a bhinnashtakavarga() result. */
-export function sarvashtakavarga(placementsOrBav, variants){
+export function sarvashtakavarga(placementsOrBav, variants=null){
   const bav = Array.isArray(placementsOrBav?.Sun)
     ? placementsOrBav : bhinnashtakavarga(placementsOrBav, variants);
   const sav=new Array(12).fill(0);

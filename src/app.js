@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026090
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906x";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907n";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907s";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2271,6 +2271,13 @@ function renderUniverse(){
          - single or double row". Pills sit under the chart, tapping one lights
          its houses, and the button below opens the reading. Nothing overlays
          the chart and the page never scrolls. -->
+    <!-- ONE RESERVED BLOCK. Sangram: "at no point ... whether it's on birth tab
+         to the sky or when the yogas are activated or deactivated, it should
+         not change the space or size. It should be fixed at the same place."
+         The pills and the scrubber are both absolutely placed inside a box of
+         fixed height, so neither can push the chart and neither can shrink it
+         by appearing. -->
+    <div class="unibottom" id="unibottom">
     <div class="ygpills" id="ygpills" hidden>
       <div class="ygrow" id="ygrow" role="listbox" aria-label="Yogas in your chart"></div>
       <!-- The action row is ALWAYS in the layout, even with nothing selected.
@@ -2283,7 +2290,6 @@ function renderUniverse(){
         <button class="ygdetail" id="ygopen">Check in detail</button>
       </div>
     </div>
-    <div class="reading" id="reading" hidden></div>
     <div class="scrubwrap" id="scrubwrap">
       <div class="scrubdatehead"><b id="scrubdate"></b>
         <button class="tb-btn txt" id="scrubnow">Now</button></div>
@@ -2293,7 +2299,9 @@ function renderUniverse(){
         <div class="rulercentre"></div>
       </div>
       <p class="scrubnote">Drag the scale. The houses hold still; the sky moves.</p>
-    </div>`;
+    </div>
+    </div>
+    <div class="reading" id="reading" hidden></div>`;
 
   const chart=document.getElementById("chart"), plane=document.getElementById("plane");
   for(let h=1;h<=12;h++){
@@ -2399,7 +2407,8 @@ function paintUniverse(instant){
     ? (uniVarga===1
         ? `The sky at your birth &#8212; ${fmtDate(CHART.birthDate)}, ${fmtClock(CHART.birthDate)}.`
         : `${cap(vi[2])} &#8212; house 1 is the ${vi[1]} lagna.`)
-    : `Where the grahas are on the selected date, in your houses. Faint markers are birth positions.`;
+    /* one line: the second sentence pushed the chart down a whole row */
+    : `Where the grahas are now, in your houses \u00b7 faint markers are birth.`;
   const vc=document.getElementById("vchip");
   if(vc) vc.onclick=openVargaSheet;
   const yc=document.getElementById("ychip");
@@ -3967,6 +3976,15 @@ function openFeedback(i){
     sendFeedback({kind:"down",i:fbIdx,issue:fbIssue,
       details:fbHost.querySelector("#fbdet").value,
       thread:fbHost.querySelector("#fbthread").checked});
+    /* MARK IT NOW. The verdict was written to the message but nothing touched
+       the button, so after "Thank you — that helps" the thumb sat there grey
+       as though the report had gone nowhere; it only turned once the thread
+       happened to re-render. */
+    const m3=GUIDE.msgs[fbIdx]; if(m3) m3.fb="down"; guideSave();
+    const btn=document.querySelector(`.gfbb[data-fb="down"][data-i="${fbIdx}"]`);
+    if(btn){ btn.classList.add("on");
+      const up=document.querySelector(`.gfbb[data-fb="up"][data-i="${fbIdx}"]`);
+      if(up) up.classList.remove("on"); }
     buzz(9); closeFeedback(); toastG("Thank you \u2014 that helps");
   };
 }
@@ -4166,7 +4184,9 @@ function renderGuide(){
          only, so leaving the tab and coming back lost every thumb */
       if(fb.dataset.fb==="up"){ if(m2) m2.fb="up"; fb.classList.add("on"); buzz(6);
         sendFeedback({kind:"up",i:i2}); toastG("Thank you"); return; }
-      if(m2) m2.fb="down";
+      /* the thumb is NOT marked here: the report has not been sent yet, and a
+         reader who opens the sheet and closes it has said nothing. It turns
+         red when the report actually goes (see #fbsend). */
       openFeedback(i2); return; }
     const sm=e.target.closest(".gshowmore");
     if(sm){ const t=sm.previousElementSibling; t.classList.toggle("clamp"); sm.textContent=t.classList.contains("clamp")?"Show more":"Show less"; buzz(4); return; }

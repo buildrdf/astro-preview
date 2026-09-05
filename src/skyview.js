@@ -1295,40 +1295,71 @@ function paintLayers(){
 /* ====================================================================
    DEVICE ORIENTATION (validated 30-31 Aug) + Android stream fix
    ==================================================================== */
-let azOff=null, sawAbsolute=false;
+let hdg=null, alphaFix=null, sawAbsolute=false;
 function onOrient(ev){
   if(ev.alpha==null && ev.webkitCompassHeading==null) return;
   if(ev.webkitCompassHeading==null){ if(ev.absolute===true) sawAbsolute=true; else if(sawAbsolute) return; }
   const D=Math.PI/180;
-  const a=(ev.alpha||0)*D, b=(ev.beta||0)*D, g=(ev.gamma||0)*D;
-  const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),cg=Math.cos(g),sg=Math.sin(g);
-  const vx=-(ca*sg+sa*sb*cg), vy=-(sa*sg-ca*sb*cg), vz=-(cb*cg);
-  const azm=Math.atan2(vx,vy)/D;
-  const altm=Math.asin(Math.max(-1,Math.min(1,vz)))/D;
+
+  /* THE HEADING GOES IN AS ALPHA, NOT AS AN OFFSET ON THE ANSWER.
+     This used to north-reference by estimating `webkitCompassHeading - azm`
+     and adding it back. Those are not the same kind of angle.
+     webkitCompassHeading is a YAW — a rotation about the vertical, a function
+     of alpha alone. `azm` is the BEARING OF THE LOOK DIRECTION, which depends
+     on alpha, beta AND gamma. Their difference therefore is not a constant: it
+     carries a tilt term whose size and SIGN are set by how far the hand is
+     rolled. Treating it as a constant, and low-passing it fast, let it absorb
+     the tilt — so raising the phone rotated the sky on its own, one way for a
+     left-rolled hand and the other for a right-rolled one. Sangram: "the AR
+     view snaps in different directions ... it just takes control."
+
+     Simulated against the shipped code on that exact motion — due east
+     throughout, only the tilt changing, twelve degrees of hand roll: the view
+     swung 39 degrees at a peak of 287 deg/s against a 62-degree field, and
+     came back down 33 degrees from where it started.
+
+     WITH THE HAND EXACTLY LEVEL THE OLD ERROR WAS EXACTLY ZERO. That is why
+     it survived every desk test, every simulator run and every screenshot
+     gate, and why the previous fix — a trust taper — could only soften it.
+
+     Referenced here instead, alpha and the compass are both yaws, the
+     subtraction is a genuine constant, and the matrix below is the only thing
+     that decides where the camera looks. */
+  let aDeg;
   if(ev.webkitCompassHeading!=null){
-    if(altm>-40 && altm<70){ const off=wrap(ev.webkitCompassHeading-azm); azOff=azOff==null?off:azOff+wrap(off-azOff)*0.08; }
-  } else if(ev.absolute===true && azOff==null){ azOff=0; }
-  if(azOff==null) return;
+    const h=((360-ev.webkitCompassHeading)%360+360)%360;         /* the W3C alpha for true north */
+    hdg = hdg==null ? h : ((hdg+wrap(h-hdg)*0.25)%360+360)%360;  /* the magnetometer is noisy; smooth it HERE */
+    if(ev.alpha!=null) alphaFix=wrap(hdg-ev.alpha);              /* yaw minus yaw: actually constant */
+    aDeg=hdg;
+  } else if(ev.absolute===true){
+    aDeg=ev.alpha||0;                                            /* Android is already north-referenced */
+  } else if(alphaFix!=null && ev.alpha!=null){
+    aDeg=ev.alpha+alphaFix;                                      /* iOS dropped the compass for a frame: coast */
+  } else return;
+
+  const a=aDeg*D, b=(ev.beta||0)*D, g=(ev.gamma||0)*D;
+  const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),cg=Math.cos(g),sg=Math.sin(g);
+  /* the back camera's look direction = Rz(a)Rx(b)Ry(g) * [0,0,-1], east/north/up */
+  const vx=-(ca*sg+sa*sb*cg), vy=-(sa*sg-ca*sb*cg), vz=-(cb*cg);
+  const azm=((Math.atan2(vx,vy)/D)%360+360)%360;
+  const altm=Math.asin(Math.max(-1,Math.min(1,vz)))/D;
+
   sensing=true; el._lastSensor=performance.now();
   if(!followSky){ syncRecenter(); return; }
-  /* THE ZENITH SNAP. Compass heading is a rotation ABOUT the vertical, so it
-     stops meaning anything as the phone points at the sky — the raw reading
-     wanders and can flip by half a turn. The old guard froze the azimuth above
-     78 degrees, which removed the wander but not the snap: coming back down,
-     the view teleported to whatever heading had accumulated while it was
-     frozen, and the chase took the short way round as a fast spin.
 
-     So the heading is TRUSTED PROPORTIONALLY instead. Full weight below 58
-     degrees, none at 80, eased between — and never more than a few degrees
-     from one sample, so a single bad reading cannot turn the sky. Looking
-     straight up the view simply holds still, and lowering the phone eases
-     back onto the true heading rather than jumping to it. */
-  const trust=1-Math.min(1,Math.max(0,(Math.abs(altm)-58)/22));
-  if(trust>0.001){
-    const next=((azm+azOff)%360+360)%360;
-    const step=wrap(next-wantAz)*trust;
-    wantAz=((wantAz+Math.max(-9,Math.min(9,step)))%360+360)%360;
-  }
+  /* Within a few degrees of straight up the look direction's BEARING is
+     genuinely undefined — every azimuth names the same patch of sky — so it is
+     held there. The window is narrow now (80 to 88) because the azimuth below
+     it is finally correct; the old 58-to-80 taper was hiding the tilt error
+     rather than the pole, and it is what made the last stretch of the climb
+     feel like the view was fighting the hand.
+
+     The per-sample step cap is gone with it. Lag that catches up later IS a
+     snap, which is the failure the freeze produced before; and at iOS's ~60Hz
+     the old nine-degree cap permitted 540 deg/s, so it never bounded anything
+     except a genuinely fast pan. */
+  const trust=1-Math.min(1,Math.max(0,(Math.abs(altm)-80)/8));
+  if(trust>0.001) wantAz=((wantAz+wrap(azm-wantAz)*trust)%360+360)%360;
   wantAlt=Math.max(-60,Math.min(82,altm));
   const fb=el?.root.querySelector("#svrecenter"); if(fb) fb.hidden=true;
 }

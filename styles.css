@@ -904,7 +904,7 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
   left:calc(var(--x) * 100%);top:calc(var(--y) * 100%);
   border-radius:50%;border:1.5px dashed var(--fill);opacity:.45}
 
-.scrubwrap{display:none;margin:14px 0 2px}
+.scrubwrap{display:none;position:absolute;inset:0}
 .scrubwrap.on{display:block}
 .scrubdatehead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
   margin-bottom:8px}
@@ -3406,7 +3406,15 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
   stroke-linecap:round;stroke-linejoin:round}
 .gfbb:active{background:rgba(23,26,51,.07)}
 .gasr:hover .gfbb,.gfbb:focus-visible{opacity:.9}
-.gfbb.on{opacity:1;color:#2A6E45}
+/* Up is green, down is RED. They shared one green rule, so reporting a bad
+   answer lit the same approving colour as praising it. Both carry a tinted
+   ring as well as a colour, because colour alone is not a state (§87) — and
+   the accessible name already says which is which. */
+.gfbb.on{opacity:1}
+.gfbb.on[data-fb="up"]{color:#2A6E45;background:rgba(42,110,69,.10);
+  box-shadow:inset 0 0 0 1px rgba(42,110,69,.45)}
+.gfbb.on[data-fb="down"]{color:#B0392A;background:rgba(176,57,42,.10);
+  box-shadow:inset 0 0 0 1px rgba(176,57,42,.45)}
 
 .fbwrap{position:fixed;inset:0;z-index:90;background:rgba(12,14,30,.34);
   display:flex;align-items:flex-end;opacity:0;pointer-events:none;
@@ -3637,7 +3645,13 @@ body.tabmin .tabthumb{opacity:0}
    flow, so the chart simply takes the height that is left — which is
    also what stops the page ever scrolling.
    =================================================================== */
-.ygpills{flex:0 0 auto;padding:8px 0 2px;display:flex;flex-direction:column;gap:8px}
+/* THE RESERVED BLOCK. Both the yoga strip and the date scrubber are absolutely
+   placed inside a box of FIXED height, so the chart above can never be moved or
+   resized by either of them appearing, changing mode, or being switched off.
+   118px is the taller of the two: strip 44 + gap 8 + action row 44, against the
+   scrubber's date line + 56px rail + note. */
+.unibottom{flex:0 0 auto;position:relative;height:118px;margin-bottom:2px}
+.ygpills{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px}
 .ygpills[hidden]{display:none!important}
 /* ONE strip. The overflow is not hidden information — "See all" opens the lot. */
 .ygrow{display:flex;flex-wrap:wrap;gap:8px;overflow:hidden;padding:4px 0}
@@ -3662,18 +3676,20 @@ body.tabmin .tabthumb{opacity:0}
 
 /* THE ACTION ROW — always in the layout, so selecting a yoga never resizes the
    chart above it. Emptied with `visibility`, never with `display`. */
-.ygact{display:flex;align-items:center;gap:10px;min-height:44px}
+/* the action row fills the width the chart occupies — Sangram: "the check in
+   detail button should be the entire length of the chart" */
+.ygact{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-height:44px}
 .ygact.off{visibility:hidden}
 /* the name WRAPS to at most two lines rather than truncating to
    "Raja Yoga (Ken..." — two lines of 13px still fit inside the row's reserved
    44px, so the chart above still never moves */
-.ygactname{flex:1;min-width:0;display:flex;align-items:baseline;
-  flex-wrap:wrap;gap:2px 8px;line-height:1.25}
+.ygactname{min-width:0;display:flex;align-items:baseline;
+  flex-wrap:wrap;gap:2px 8px;line-height:1.2}
 .ygactname b{font-size:13px;font-weight:640;letter-spacing:-.015em;color:var(--ink);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 /* Sangram: "a white button with black text, and it should look different".
    On the indigo instrument this is the one solid, unambiguous way onward. */
-.ygdetail{flex:0 0 auto;height:44px;padding:0 18px;border-radius:99px;border:0;
+.ygdetail{width:100%;height:42px;padding:0 18px;border-radius:14px;border:0;
   background:#FFFFFF;color:#12142B;cursor:pointer;
   font-family:var(--ff);font-size:13.5px;font-weight:660;letter-spacing:-.01em;
   box-shadow:0 2px 14px rgba(0,0,0,.28);transition:transform .15s var(--ease),opacity .15s}
@@ -3832,7 +3848,11 @@ body.tabmin .tabthumb{opacity:0}
 /* .on ONLY. Setting display:flex unconditionally overrode .page{display:none}
    and left the Universe chart rendering behind every other tab — it showed
    through the Learn pages. An inactive page must still be display:none. */
-#pg-universe{overflow:hidden;padding-bottom:calc(var(--tabh) + 8px)}
+#pg-universe{overflow:hidden;padding-bottom:calc(var(--tabh) + 4px)}
+/* ONE LINE. It wrapped to two on Today's sky, which pushed the chart down and
+   left a band of dead space above it. */
+#pg-universe .unihint{margin:2px 0 4px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-size:13px}
 #pg-universe.on{display:flex;flex-direction:column}
 /* start, not centre: centring in the leftover space dropped the chart to the
    middle of the screen and left the yoga sheet nowhere to go. The chart keeps

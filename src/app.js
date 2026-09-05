@@ -4104,7 +4104,8 @@ function renderGuide(){
     </div>
     <div class="composer glight" id="gcomposer">
       <div class="cmp-pill">
-        <input id="cmpin" placeholder="Ask Guide" aria-label="Message" autocomplete="off">
+        <textarea id="cmpin" rows="1" placeholder="Ask Guide" aria-label="Message"
+          autocomplete="off" enterkeyhint="enter"></textarea>
         <button class="cmp-go" id="cmpgo" aria-label="Talk to Guide">
           <svg class="ico-voice" viewBox="0 0 24 24"><path d="M4.5 10v4M8.25 7v10M12 4.5v15M15.75 8v8M19.5 10.5v3"/></svg>
           <svg class="ico-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
@@ -4179,19 +4180,26 @@ function renderGuide(){
   };
   const inp=document.getElementById("cmpin"), goB=document.getElementById("cmpgo");
   /* one round button: voice when the field is empty, send once you type */
+  /* THE FIELD GROWS WITH WHAT IS IN IT.
+     Ask Guide types a question into this box rather than sending it, and some
+     of those questions run to three lines — in a single-line <input> the
+     reader could only ever see the end of their own question. It is a textarea
+     now, sized to its content up to five lines and scrolling after that. */
+  const grow=()=>{ inp.style.height="auto";
+    inp.style.height=Math.min(inp.scrollHeight,CMP_MAX)+"px"; };
   const swap=()=>{ const has=!!inp.value.trim();
     goB.classList.toggle("has",has);
-    goB.setAttribute("aria-label",has?"Send":"Talk to Guide"); };
+    goB.setAttribute("aria-label",has?"Send":"Talk to Guide");
+    grow(); };
   inp.oninput=swap;
-  inp.onkeydown=e=>{
-    if(e.key==="Enter"&&inp.value.trim()){
-      const q=inp.value.trim(); inp.value=""; swap(); guideSend(q);
-    }
-  };
+  /* Sangram: "the Enter key should not send the message. There's a button for
+     sending." So Return inserts a line, the way it does in every other message
+     box he uses. Sending is the button, and only the button. */
   goB.onclick=()=>{
     if(inp.value.trim()){ const q=inp.value.trim(); inp.value=""; swap(); buzz(6); guideSend(q); }
     else voiceStart();
   };
+  grow();
   document.getElementById("gvmute").onclick=voiceMuteToggle;
   document.getElementById("gvend").onclick=()=>voiceStop();
   const gvin=document.getElementById("gvin");
@@ -4211,13 +4219,14 @@ function renderGuide(){
       const box=document.getElementById("cmpin");
       if(!box) return guideSend(q);
       box.value=q;
-      box.dispatchEvent(new Event("input",{bubbles:true}));
+      box.dispatchEvent(new Event("input",{bubbles:true}));   /* also grows it */
       try{ box.focus({preventScroll:true}); box.setSelectionRange(q.length,q.length); }catch(_){}
       box.scrollIntoView({block:"nearest"});
     },320);
   }
 }
 
+const CMP_MAX=132;   /* about five lines; longer than that scrolls */
 async function guideSend(q,opts={}){
   if(GUIDE.busy) return;
   GUIDE.busy=true;

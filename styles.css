@@ -2162,8 +2162,22 @@ body.guidefull .composer.glight::before{content:"";position:absolute;left:0;righ
   bottom:100%;height:46px;pointer-events:none;
   background:linear-gradient(180deg,rgba(247,245,239,0),rgba(247,245,239,.72))}
 .cmp-pill{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#FFFFFF;
-  border:1px solid rgba(23,26,51,.13);border-radius:99px;padding:5px 5px 5px 18px;
+  border:1px solid rgba(23,26,51,.13);border-radius:26px;padding:5px 5px 5px 18px;
   box-shadow:0 4px 22px rgba(23,26,51,.08)}
+/* A 99px capsule is right at one line and wrong at four — the corners bow into
+   the text. 26px reads as a capsule while the field is short and as a rounded
+   box once it grows, which is what it now is. */
+/* the field is a textarea now, so it can hold the multi-line questions the
+   Ask Guide buttons type into it; it grows to its content and then scrolls */
+.composer .cmp-pill textarea{flex:1;min-width:0;background:none;border:0;border-radius:0;
+  resize:none;overflow-y:auto;max-height:132px;line-height:1.35;padding:9px 0;
+  font-family:var(--ff);font-size:16px;color:#171A33;scrollbar-width:none}
+.composer .cmp-pill textarea::-webkit-scrollbar{display:none}
+.composer .cmp-pill textarea:focus{outline:none;background:none;border:0}
+.composer .cmp-pill textarea::placeholder{color:#9A9DB0}
+/* the field can be tall now, so the send button sits at the BOTTOM of the pill
+   rather than floating in the middle of four lines of text */
+.cmp-pill{align-items:flex-end}
 .composer .cmp-pill input{flex:1;min-width:0;background:none;border:0;border-radius:0;
   padding:9px 4px 9px 0;font-size:16px;color:#171A33}
 .composer .cmp-pill input:focus{outline:none;background:none;border:0}

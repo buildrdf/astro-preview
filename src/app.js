@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906w";
+import { LEARN_LEVELS } from "./learn.js?v=20260906x";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906w";
-import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906w";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906x";
+import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906w";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906w";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906x";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906x";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2363,6 +2363,24 @@ function paintUniverse(instant){
     b.style.setProperty("--y", xy[1]/100);
     b._pos=[xy[0]/100, xy[1]/100];
     b.classList.toggle("retro", !!p.retro);
+    /* THE BADGE HAS TO SIT ON ITS OWN GRAHA. Pinned to the top-right corner it
+       landed on whatever happened to be up and to the right — with Rahu next
+       to the Moon it read as a retrograde Moon, which cannot happen. It now
+       goes to the corner facing AWAY from the nearest neighbour. Everything
+       needed is already in `pos`. */
+    if(p.retro){
+      let bx=0.36, by=-0.36, bd=1e9, near=null;
+      for(const q of list){
+        if(q.graha===p.graha) continue;
+        const o=pos[q.graha]; if(!o) continue;
+        const d=Math.hypot(o[0]-xy[0], o[1]-xy[1]);
+        if(d<bd){ bd=d; near=o; }
+      }
+      /* only when something is genuinely close enough to be confused with */
+      if(near&&bd<14){ bx=(xy[0]-near[0])>=0?0.36:-0.36; by=(xy[1]-near[1])>=0?0.36:-0.36; }
+      b.style.setProperty("--rdx", bx);
+      b.style.setProperty("--rdy", by);
+    }
     b.setAttribute("aria-label", speak(
       `${p.graha}. ${SIGNS[p.sign-1]}, ${ordinal(p.house)} house, ${p.degf}.`+
       (p.dig?` ${p.dig}.`:"")+(p.retro?" Retrograde.":"")));
@@ -3734,16 +3752,45 @@ addEventListener("astra:open",e=>{ const d=e.detail||{}; if(!d.kind||d.id==null)
 
 /* ---- the living Moon (spec 15-18): real phase art, and its state
    always mirrors actual system state - motion teaches. ---- */
+/* ONE AUTHORITATIVE STATE MODEL.
+   Animation must never decide what the system is doing; it only reports it.
+   Before this there were four state words set from fourteen places, and the
+   Moon could be told "listening" while Astra was still audibly talking —
+   which is exactly the contradiction Sangram saw. Network and OpenAI events
+   move this machine; the visual layer only reads it. */
+const VS={DISCONNECTED:"disconnected",ENTERING:"entering",READY:"ready",
+  LISTENING:"listening",USER:"userSpeaking",PROCESSING:"processing",
+  ASTRA:"astraSpeaking",INTERRUPTED:"interrupted",RECONNECTING:"reconnecting",
+  ERROR:"error",EXITING:"exiting"};
+/* The visual family each state belongs to. Several states share one look —
+   listening and userSpeaking differ only in how hard the glow is driven. */
+const VS_CLASS={disconnected:"idle",entering:"idle",ready:"ready",
+  listening:"listening",userSpeaking:"listening",processing:"thinking",
+  astraSpeaking:"speaking",interrupted:"listening",reconnecting:"waiting",
+  error:"waiting",exiting:"idle"};
+/* What a VoiceOver user is told. Sighted users are told nothing — the Moon
+   says it by moving, and a printed word that lags the movement is worse than
+   silence. For a screen-reader user the movement says nothing at all, so the
+   same states are announced there. */
+const VS_SAY={disconnected:"",entering:"Connecting",ready:"Ready",
+  listening:"Listening",userSpeaking:"Listening",processing:"Thinking",
+  astraSpeaking:"Speaking",interrupted:"Listening",reconnecting:"Reconnecting",
+  error:"Voice unavailable",exiting:""};
+const VS_ALIAS={connecting:VS.ENTERING,thinking:VS.PROCESSING,speaking:VS.ASTRA};
 function gMoonState(s){
+  s=VS_ALIAS[s]||(s==="idle"?(VOICE.on?VS.READY:VS.DISCONNECTED):s);
+  if(VOICE.state===s) return;
   VOICE.state=s;
+  const cls=VS_CLASS[s]||"idle";
   for(const id of ["gmoon","gvorb"]){
     const m=document.getElementById(id);
-    if(m){ m.classList.remove("idle","listening","thinking","speaking","connecting");
-      m.classList.add(s==="connecting"?"thinking":s); }
+    if(!m) continue;
+    m.classList.remove("idle","ready","listening","thinking","speaking","waiting");
+    m.classList.add(cls);
   }
   const cap=document.getElementById("gvstate");
-  if(cap) cap.textContent=s==="listening"?"Listening":s==="connecting"?"Connecting":
-    s==="thinking"?"Thinking":s==="speaking"?"Speaking":(VOICE.muted?"Muted":"");
+  if(cap) cap.textContent=(VOICE.muted&&(s===VS.LISTENING||s===VS.READY||s===VS.USER))
+    ?"Muted":(VS_SAY[s]||"");
 }
 
 /* adaptive suggestions (spec 11-12) - drawn from the person's actual
@@ -4000,7 +4047,7 @@ function renderGuide(){
     <div class="gvoice" id="gvoice" hidden>
       <div class="gvstage">
         <div class="gvreply" id="gvreply"></div>
-        <div class="gvorb idle" id="gvorb"><img src="assets/moon/phase_15_full_moon.png" alt=""></div>
+        <div class="gvorb idle" id="gvorb"><i class="g3" aria-hidden="true"></i><i class="g2" aria-hidden="true"></i><i class="g1" aria-hidden="true"></i><img src="assets/moon/phase_15_full_moon.png" alt=""></div>
         <div class="gvstate" id="gvstate" aria-live="polite">Listening</div>
       </div>
       <div class="gvbar">
@@ -4015,6 +4062,7 @@ function renderGuide(){
   try{localStorage.setItem("astro.guide.seen","1")}catch(_){}
   const pg=document.getElementById("pg-guide");
   pg.scrollTop=pg.scrollHeight;
+  FOLLOW.on=true; chatFollowWatch();
   /* reading older messages must never be interrupted (spec 45): new
      replies show a quiet pill instead of yanking the scroll */
   /* The jump control now appears whenever the reader is away from the bottom,
@@ -4181,8 +4229,11 @@ async function guideSend(q,opts={}){
    queued task. Moon states mirror REAL system state only (spec 17):
    listening = recogniser running and unmuted, speaking = synthesis
    actually playing, barge-in cancels speech immediately (spec 24). */
-let VOICE={on:false,muted:false,rec:null,utter:null,state:"idle",
-  amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null};
+let VOICE={on:false,muted:false,rec:null,utter:null,state:"disconnected",
+  amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null,
+  /* entry/exit tween 0..1, glow lags it; duck ramps the reply out on barge-in;
+     reduced is sampled once per session so the loop never queries matchMedia */
+  enter:0,glowin:0,duck:0,reduced:false,reTimer:0,noteTimer:0,cueAc:null};
 const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 function voiceNote(t){ const r=document.getElementById("gvreply"); if(r) r.textContent=t||""; }
 /* what you are saying, shown where your messages live — a pale bubble at the end of
@@ -4193,7 +4244,7 @@ function voiceInterim(text){
   if(!text){ if(b) b.remove(); return; }
   if(!b){ b=document.createElement("div"); b.id="gvlive"; b.className="bubble me live"; chat.appendChild(b); }
   b.textContent=text;
-  const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
+  chatFollow();
 }
 function voiceSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition)
   ||!!(window.RTCPeerConnection&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia); }
@@ -4215,29 +4266,125 @@ function rtStop(){
   try{ if(RT.audio){ RT.audio.pause(); RT.audio.srcObject=null; } }catch(_){}
   RT=null;
 }
-function rtSay(text){                    /* stream the model's words into the thread */
+/* THE REPLY IS PACED BY THE VOICE, NOT BY THE MODEL.
+   The transcript deltas arrive as fast as the model can generate — the whole
+   answer lands inside a second, while the audio of it plays for another
+   fifteen. So the words appeared all at once and then sat there in silence
+   while Astra was still talking. The text now goes into a queue and is
+   revealed only while sound is actually coming out, so it keeps pace with the
+   speaking voice. When the audio finishes, whatever is left is flushed. */
+let SAY={queue:"", shown:"", done:false, frac:0};
+function rtSayEl(){
+  const chat=document.getElementById("chat"); if(!chat) return null;
   let pend=document.getElementById("gpending");
-  const chat=document.getElementById("chat"); if(!chat) return;
   if(!pend){
     chat.insertAdjacentHTML("beforeend",
       `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Guide</div>
        <div class="astratext"></div></div>`);
     pend=document.getElementById("gpending");
   }
-  const t=pend.querySelector(".astratext");
-  t.textContent=(t.textContent||"")+text;
-  const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
+  return pend;
 }
-function rtDone(){
-  const pend=document.getElementById("gpending"); if(!pend) return;
-  const txt=(pend.querySelector(".astratext").textContent||"").trim();
-  pend.removeAttribute("id");
-  if(txt){ GUIDE.msgs.push({role:"assistant",content:txt,t:Date.now()}); guideSave(); }
-  gMoonState("listening");
+function rtSay(text){ SAY.queue+=text||""; }
+
+/* ---- FOLLOWING THE CONVERSATION (§19) -------------------------------
+   Scrolled to the bottom by every token is jitter; scrolled to the bottom
+   while the reader is deliberately looking back is worse. Follow only while
+   they are already near the end, stop the moment they scroll away, resume
+   when they come back — and coalesce to one scroll per frame either way. */
+let FOLLOW={on:true,queued:false};
+function chatFollowWatch(){
+  const pg=document.getElementById("pg-guide");
+  if(!pg||pg.dataset.followWired) return;
+  pg.dataset.followWired="1";
+  pg.addEventListener("scroll",()=>{
+    FOLLOW.on=pg.scrollHeight-pg.scrollTop-pg.clientHeight<120;
+  },{passive:true});
+}
+function chatFollow(){
+  if(!FOLLOW.on||FOLLOW.queued) return;
+  FOLLOW.queued=true;
+  requestAnimationFrame(()=>{
+    FOLLOW.queued=false;
+    const pg=document.getElementById("pg-guide");
+    if(pg&&FOLLOW.on) pg.scrollTop=pg.scrollHeight;
+  });
+}
+/* called from the animation loop: let out roughly as many characters as the
+   voice has had time to say */
+function rtDrain(chars){
+  if(SAY.shown.length>=SAY.queue.length){ SAY.frac=0; return; }
+  /* Carry the fraction between frames. Rounding up to at least one character
+     per frame sounds harmless and is not: it floors the reveal at one char
+     per frame, which at 60fps is 60 a second — four times speaking pace, so
+     the words outrun the voice no matter what rate is asked for. */
+  SAY.frac+=chars;
+  const n=Math.floor(SAY.frac);
+  if(n<1) return;
+  SAY.frac-=n;
+  const next=SAY.queue.slice(0, Math.min(SAY.queue.length, SAY.shown.length+n));
+  SAY.shown=next;
+  const pend=rtSayEl(); if(!pend) return;
+  pend.querySelector(".astratext").textContent=next;
+  chatFollow();
+}
+function rtFlush(){
+  if(SAY.queue.length>SAY.shown.length){ SAY.shown=SAY.queue; const p=rtSayEl();
+    if(p) p.querySelector(".astratext").textContent=SAY.shown; }
+}
+/* `response.done` means the model has finished GENERATING. The audio is still
+   playing at that point, often for another ten or fifteen seconds, so this no
+   longer declares the turn over — it only marks the text complete. The turn
+   closes when the sound actually stops, in voiceLoop. */
+function rtDone(){ SAY.done=true; }
+/* Close the Astra turn. `partial` means the person cut in: keep exactly what
+   was already SPOKEN rather than flushing the rest of a sentence Astra never
+   got to say — the transcript has to match what was heard (§17.7). */
+function rtSettle(partial){
+  const pend=document.getElementById("gpending");
+  if(!partial) rtFlush();
+  if(pend){
+    const txt=(pend.querySelector(".astratext").textContent||"").trim();
+    pend.removeAttribute("id");
+    if(txt){ GUIDE.msgs.push({role:"assistant",content:txt,t:Date.now()}); guideSave(); }
+    else pend.remove();
+  }
+  SAY={queue:"",shown:"",done:false,frac:0};
+  if(!partial&&VOICE.on&&VOICE.state!==VS.EXITING) gMoonState(VS.LISTENING);
+}
+
+/* ---- BARGE-IN (§17) ------------------------------------------------
+   The visual system has to yield as fast as the audio system does. The
+   server stops generating the moment we cancel, but whatever is already in
+   the jitter buffer keeps playing for a beat — so the sound is ramped out
+   over ~130ms rather than left talking over the person who interrupted. */
+function rtBargeIn(){
+  if(!RT) return false;
+  /* Cancelling when nothing is generating comes back as an error from the
+     server, and an error used to kill the whole session — so an interruption
+     a fraction too late would have ended the conversation. */
+  if(RT.active){
+    try{ if(RT.dc&&RT.dc.readyState==="open") RT.dc.send(JSON.stringify({type:"response.cancel"})); }
+    catch(_){}
+    RT.active=false;
+  }
+  VOICE.duck=1;
+  rtSettle(true);                  /* preserve what was actually spoken */
+  gMoonState(VS.INTERRUPTED);
+  buzz(6);
+  return true;
 }
 function rtEvent(m){
   switch(m.type){
-    case "input_audio_buffer.speech_started": gMoonState("listening"); voiceInterim(""); break;
+    /* The server heard you start. If Astra was mid-sentence this IS the
+       interruption — nothing else needs to detect it. */
+    case "input_audio_buffer.speech_started":
+      if(VOICE.state===VS.ASTRA||SAY.queue) rtBargeIn();
+      gMoonState(VS.USER); voiceInterim(""); break;
+    /* You stopped; the server has the audio and a reply is coming. Say so
+       with composure rather than snapping the glow shut. */
+    case "input_audio_buffer.speech_stopped":
+      if(VOICE.state===VS.USER) gMoonState(VS.PROCESSING); break;
     case "conversation.item.input_audio_transcription.delta":
       if(m.delta) voiceInterim((document.getElementById("gvlive")?.textContent||"")+m.delta); break;
     case "conversation.item.input_audio_transcription.completed": {
@@ -4262,13 +4409,31 @@ function rtEvent(m){
       }
       const pg=document.getElementById("pg-guide"); if(pg) pg.scrollTop=pg.scrollHeight;
       break; }
-    case "response.created": gMoonState("thinking"); break;
+    case "response.created":
+      /* a new turn: undo any barge-in duck so this reply is audible */
+      if(RT) RT.active=true;
+      VOICE.duck=0; if(RT&&RT.audio) try{ RT.audio.volume=1; }catch(_){}
+      if(VOICE.state!==VS.USER) gMoonState(VS.PROCESSING); break;
+    /* Text arrives here; it is REVEALED by voiceLoop at the pace the voice is
+       actually speaking. The state is not set from this event — deltas land
+       seconds ahead of the audio, and trusting them is what made the Moon
+       claim to be finished while Astra was still talking. */
     case "response.output_audio_transcript.delta":
-    case "response.audio_transcript.delta": gMoonState("speaking"); rtSay(m.delta||""); break;
+    case "response.audio_transcript.delta": rtSay(m.delta||""); break;
     case "response.output_audio_transcript.done":
     case "response.audio_transcript.done":
-    case "response.done": rtDone(); break;
-    case "error": voiceNote(m.error&&m.error.message?String(m.error.message).slice(0,120):"Voice error"); break;
+    case "response.done": if(RT&&m.type==="response.done") RT.active=false; rtDone(); break;
+    /* Never show the reader a WebSocket, a token or an API name (§24) — and
+       never end a working session over a recoverable one. Only a transport
+       that is genuinely down gets the error state; anything else is a note
+       that clears itself. */
+    case "error": {
+      const gone=!RT||!RT.pc||RT.pc.connectionState==="failed"||RT.pc.connectionState==="closed";
+      if(gone) voiceFail("Couldn\u2019t reconnect.");
+      else { voiceNote("That didn\u2019t come through \u2014 try again."); 
+             clearTimeout(VOICE.noteTimer);
+             VOICE.noteTimer=setTimeout(()=>{ if(VOICE.state!==VS.ERROR) voiceNote(""); },4000); }
+      break; }
   }
 }
 async function rtStart(){
@@ -4279,7 +4444,17 @@ async function rtStart(){
   const j=await r.json();
   const ek=(j.session&&j.session.value)||(j.client_secret&&j.client_secret.value)||j.value;
   if(!ek) throw new Error("nokey");
-  const mic=await navigator.mediaDevices.getUserMedia({audio:true});
+  /* Astra's reply comes out of the phone's speaker and straight back into the
+     microphone. With plain {audio:true} the server's turn detection heard it,
+     opened a turn, and transcribed a fragment of Astra's own words as a new
+     thing the user had said — which is why one "hello" produced a "Hello" and
+     then a phantom "Hey". Echo cancellation is the fix; the stricter turn
+     detection below is the belt to its braces. */
+  const mic=await navigator.mediaDevices.getUserMedia({audio:{
+    echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+  /* METER THIS STREAM. Not a second capture — this is the one the session is
+     already sending, so it works on iOS where opening another one does not. */
+  voiceMeterAttach(mic);
   const pc=new RTCPeerConnection();
   const audio=document.createElement("audio");
   audio.autoplay=true; audio.setAttribute("playsinline","");
@@ -4295,7 +4470,9 @@ async function rtStart(){
       const src=ac.createMediaStreamSource(e.streams[0]);
       const an=ac.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.6;
       src.connect(an);
-      VOICE.outAn=an; VOICE.outBuf=new Uint8Array(an.frequencyBinCount);
+      /* getByteTimeDomainData fills fftSize bytes; frequencyBinCount is half
+         that, so the RMS was being taken over half a window. */
+      VOICE.outAn=an; VOICE.outBuf=new Uint8Array(an.fftSize);
     }catch(_){}
   };
   pc.addTrack(mic.getTracks()[0],mic);
@@ -4308,7 +4485,11 @@ async function rtStart(){
     try{
       dc.send(JSON.stringify({type:"session.update",session:{
         type:"realtime",
-        audio:{ input:{ transcription:{ model:"gpt-4o-transcribe" } },
+        audio:{ input:{ transcription:{ model:"gpt-4o-transcribe" },
+                        /* a short burst of leaked speaker audio should not
+                           count as the user starting to talk */
+                        turn_detection:{ type:"server_vad", threshold:0.62,
+                          prefix_padding_ms:300, silence_duration_ms:700 } },
                 output:{ voice:"marin", speed:1 } },
         instructions:
           "You are Guide, the calm, warm astrology companion in the Astra app. "+
@@ -4331,8 +4512,81 @@ async function rtStart(){
     body:offer.sdp,headers:{Authorization:"Bearer "+ek,"Content-Type":"application/sdp"}});
   if(!sdp.ok) throw new Error("sdp "+sdp.status);
   await pc.setRemoteDescription({type:"answer",sdp:await sdp.text()});
+  /* A dropped connection must not look like ordinary listening (§24). */
+  pc.onconnectionstatechange=()=>{
+    if(!VOICE.on||!RT||RT.pc!==pc) return;
+    const st=pc.connectionState;
+    if(st==="connected"){
+      clearTimeout(VOICE.reTimer); voiceNote("");
+      if(VOICE.state===VS.RECONNECTING) gMoonState(VS.LISTENING);
+    } else if(st==="disconnected"){
+      gMoonState(VS.RECONNECTING);
+      /* a blip should recover in silence; only a real stall gets words */
+      clearTimeout(VOICE.reTimer);
+      VOICE.reTimer=setTimeout(()=>{
+        if(VOICE.on&&VOICE.state===VS.RECONNECTING) voiceNote("Reconnecting\u2026");
+      },2500);
+    } else if(st==="failed"){
+      voiceFail("Couldn\u2019t reconnect.");
+    }
+  };
   RT={pc,dc,mic,audio};
-  gMoonState("listening");
+  gMoonState(VS.LISTENING);
+}
+
+/* ---- ERROR STATE (§25) --------------------------------------------
+   Keep the Moon present, stop pretending to listen, and offer the one thing
+   that helps. No technical vocabulary reaches the reader. */
+function voiceFail(msg){
+  if(!VOICE.on) return;
+  clearTimeout(VOICE.reTimer);
+  gMoonState(VS.ERROR);
+  const r=document.getElementById("gvreply");
+  if(r){
+    r.innerHTML=`${escText(msg||"Couldn\u2019t reconnect.")} <button class="gvretry" id="gvretry">Try again</button>`;
+    const b=document.getElementById("gvretry");
+    if(b) b.onclick=()=>{ voiceNote(""); voiceRetry(); };
+  }
+  buzz(18);
+}
+function voiceRetry(){
+  if(!VOICE.on) return;
+  rtStop();
+  gMoonState(VS.ENTERING);
+  rtStart().catch(()=>voiceFail("Couldn\u2019t reconnect."));
+}
+
+/* ---- ASTRA'S OWN TWO NOTES (§20, §21) -------------------------------
+   Synthesised, not sampled: nothing is borrowed from anyone else's product,
+   and there is no asset to ship. A fifth — the interval a struck bowl settles
+   into — rising to open the session and falling to close it. Short enough
+   (~300ms) to read as a cue rather than a chime, and quiet enough to sit
+   under speech. Off when the reader has turned sound off. */
+function voiceCue(dir){
+  if(PREFS().sound===false) return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ac=VOICE.cueAc||(VOICE.cueAc=new AC());
+    if(ac.state==="suspended") ac.resume().catch(()=>{});
+    const t0=ac.currentTime+0.012;
+    const notes=dir>0?[329.63,493.88]:[493.88,329.63];
+    const bus=ac.createGain();
+    bus.gain.setValueAtTime(0.0001,t0);
+    bus.gain.exponentialRampToValueAtTime(0.075,t0+0.045);
+    bus.gain.exponentialRampToValueAtTime(0.0001,t0+0.30);
+    bus.connect(ac.destination);
+    notes.forEach((f,i)=>{
+      const at=t0+i*0.085;
+      [[f,1],[f*2,0.22]].forEach(([hz,lvl])=>{
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type="sine"; o.frequency.setValueAtTime(hz,at);
+        g.gain.setValueAtTime(0.0001,at);
+        g.gain.exponentialRampToValueAtTime(lvl,at+0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001,at+0.24);
+        o.connect(g); g.connect(bus); o.start(at); o.stop(at+0.28);
+      });
+    });
+  }catch(_){}
 }
 function voiceUI(on){
   const c=document.getElementById("gcomposer"), v=document.getElementById("gvoice");
@@ -4348,15 +4602,21 @@ function voiceStart(){
     return;
   }
   VOICE.on=true; VOICE.muted=false; VOICE.amp=0; VOICE.bump=0;
+  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0;
+  VOICE.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  GLOW.in.v=GLOW.mid.v=GLOW.out.v=0;
   const mb=document.getElementById("gvmute");
   if(mb){ mb.classList.remove("muted"); mb.setAttribute("aria-pressed","false"); }
   voiceUI(true);
   voiceNote("");
-  gMoonState("connecting");
+  gMoonState(VS.ENTERING);
   /* Safari only speaks if synthesis was first touched inside a tap */
   try{ const u0=new SpeechSynthesisUtterance("\u00a0"); u0.volume=0; speechSynthesis.speak(u0); }catch(_){}
-  voiceMeterStart();
   voiceLoop();
+  /* THE SOUND FOLLOWS THE SIGHT, never precedes it: the Moon is already on
+     its way in when Astra's note lands, so the note reads as the Moon
+     arriving rather than as a notification about it. */
+  setTimeout(()=>{ if(VOICE.on) voiceCue(1); },120);
   /* the model's own voice first; the browser's flat engine only if that cannot connect */
   const rtTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),12000));
   Promise.race([rtStart(),rtTimeout]).catch(err=>{
@@ -4364,6 +4624,7 @@ function voiceStart(){
     console.warn("realtime unavailable, falling back:",err&&err.message);
     rtStop();
     gMoonState("listening");
+    voiceMeterStart();
     if(window.SpeechRecognition||window.webkitSpeechRecognition){
       /* The fallback is a DIFFERENT voice — the phone's flat engine, not
          Astra's. Swapping it in silently reads as Astra's voice having got
@@ -4374,66 +4635,255 @@ function voiceStart(){
     else voiceNote("Voice needs a microphone and a connection \u2014 type instead");
   });
 }
-/* The Moon swells with the voice in the room: mic RMS while you talk,
-   word beats while Astra talks. AudioContext is created inside the tap
-   (iOS needs the gesture); the mic stream attaches when it arrives. */
-function voiceMeterStart(){
-  if(IS_IOS) return;      /* a second capture session stops Safari's recogniser; beats come from it instead */
+/* ===================================================================
+   B. THE AUDIO SIGNAL, and C. ITS VISUAL INTERPRETATION.
+   Kept strictly apart from A (system state, above). The meters produce a
+   normalised 0..1 envelope; the renderer decides what light that becomes.
+   Nothing here is allowed to change what the session is doing.
+   =================================================================== */
+
+/* Attach a meter to a stream we ALREADY hold, instead of opening a second
+   microphone capture. This is the fix for the Moon sitting dead still on an
+   iPhone: voiceMeterStart() bailed out on iOS entirely (a second capture
+   stops Safari's recogniser), so on the only device Sangram uses there was
+   never a microphone level at all — the glow had nothing to move to. The
+   realtime path already has a mic stream open; meter that one. */
+function voiceMeterAttach(stream){
   try{
     const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
-    const ac=new AC(); VOICE.ac=ac; try{ac.resume()}catch(_){}
+    if(!AC||!stream) return;
+    const ac=VOICE.ac||(VOICE.ac=new AC());
+    if(ac.state==="suspended") ac.resume().catch(()=>{});
+    const an=ac.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.55;
+    ac.createMediaStreamSource(stream).connect(an);
+    VOICE.an=an; VOICE.buf=new Uint8Array(an.fftSize);
+  }catch(_){}
+}
+/* only the FALLBACK path opens a capture of its own now */
+function voiceMeterStart(){
+  if(IS_IOS) return;      /* a second capture session stops Safari's recogniser */
+  try{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
     navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
       if(!VOICE.on){ stream.getTracks().forEach(t=>t.stop()); return; }
-      const an=ac.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.55;
-      ac.createMediaStreamSource(stream).connect(an);
-      VOICE.an=an; VOICE.buf=new Uint8Array(an.fftSize); VOICE.stream=stream;
+      VOICE.stream=stream; voiceMeterAttach(stream);
     }).catch(()=>{});
   }catch(_){}
 }
+const rmsOf=(an,buf)=>{
+  an.getByteTimeDomainData(buf);
+  let s=0; for(let i=0;i<buf.length;i++){ const d=(buf[i]-128)/128; s+=d*d; }
+  return Math.sqrt(s/buf.length);
+};
 function micLevel(){
-  if(!VOICE.an) return null;
-  VOICE.an.getByteTimeDomainData(VOICE.buf);
-  let s=0; for(let i=0;i<VOICE.buf.length;i++){ const d=(VOICE.buf[i]-128)/128; s+=d*d; }
-  const rms=Math.sqrt(s/VOICE.buf.length);
-  return Math.min(1,Math.max(0,(rms-0.015)*7));
+  if(VDEMO.mic!=null) return VDEMO.mic;
+  if(!VOICE.an||!VOICE.buf) return null;
+  return Math.min(1,Math.max(0,(rmsOf(VOICE.an,VOICE.buf)-0.015)*7));
 }
 /* the level of the voice Astra is speaking with, 0..1 */
 function replyLevel(){
+  if(VDEMO.out!=null) return VDEMO.out;
   if(!VOICE.outAn||!VOICE.outBuf) return null;
-  VOICE.outAn.getByteTimeDomainData(VOICE.outBuf);
-  let s=0; for(let i=0;i<VOICE.outBuf.length;i++){ const d=(VOICE.outBuf[i]-128)/128; s+=d*d; }
-  const rms=Math.sqrt(s/VOICE.outBuf.length);
-  return Math.min(1,Math.max(0,(rms-0.012)*8));
+  return Math.min(1,Math.max(0,(rmsOf(VOICE.outAn,VOICE.outBuf)-0.012)*8));
 }
 
-function voiceLoop(){
-  cancelAnimationFrame(VOICE.raf);
-  const orb=()=>document.getElementById("gvorb");
-  const step=t=>{
-    if(!VOICE.on) return;
+/* A one-pole follower with separate attack and release, in MILLISECONDS
+   rather than per-frame constants — so it behaves identically at 60fps and
+   120fps. Raw amplitude mapped straight onto scale is what makes a voice
+   visualiser twitch; this is what stops it. */
+function follower(attackMs,releaseMs){
+  return {v:0, push(target,dt){
+    const tau=target>this.v?attackMs:releaseMs;
+    this.v+=(target-this.v)*(1-Math.exp(-dt/Math.max(1,tau)));
+    return this.v;
+  }};
+}
+/* Three glow layers, deliberately at three different speeds: the close halo
+   tracks the voice, the atmosphere trails it, the outer bloom drifts. That
+   lag between them is what reads as depth rather than as one circle scaling. */
+const GLOW={
+  in:follower(90,260),      /* inner halo   — fastest */
+  mid:follower(150,380),    /* atmosphere   — trails  */
+  out:follower(230,520)     /* outer bloom  — slowest */
+};
+/* Nature does not repeat on a fixed loop. Two sines whose periods share no
+   common multiple never land on the same frame twice, so the resting Moon
+   breathes without ever looking like a repeating GIF. */
+const breathe=t=>(Math.sin(t/3100)*0.62+Math.sin(t/4730)*0.38+1)/2;
+/* null in normal use; the motion bench below pins it to inspect the light */
+let VDEMO={level:null,mic:null,out:null};
+
+/* One frame of the feedback system, as a plain function of elapsed time.
+   Kept out of the rAF closure on purpose: a frame that can only be produced
+   by a real animation callback can only be tested by watching it, and the
+   whole visual layer was unverifiable for exactly that reason. */
+const FRAME={lastT:0,lastLoud:0,wrote:-1};
+function voiceFrame(t,dt){
+  {
+    if(!VOICE.on&&VOICE.state!==VS.EXITING) return;
+    const RM=VOICE.reduced;
+
+    /* ---- entry / exit tweens (§4, §23) ------------------------------ */
+    if(VOICE.state===VS.EXITING){
+      /* The entry tween must NOT keep running here. Both ran in the same
+         frame, so leaving cancelled almost all of the fade: 420ms of exit
+         moved the Moon by a fifth of the way out and no further. */
+      VOICE.enter=Math.max(0,VOICE.enter-dt/360);
+      VOICE.glowin=Math.min(VOICE.glowin,VOICE.enter);
+    } else {
+      if(VOICE.enter<1) VOICE.enter=Math.min(1,VOICE.enter+dt/520);
+      /* the glow lags the Moon by ~120ms, so the Moon reads as having lit it */
+      VOICE.glowin=Math.max(0,Math.min(1,(VOICE.enter-0.23)/0.77));
+    }
+
+    /* ---- barge-in duck: fade the already-buffered reply out (§17) ---- */
+    if(VOICE.duck>0){
+      VOICE.duck=Math.max(0,VOICE.duck-dt/130);
+      if(RT&&RT.audio) try{ RT.audio.volume=VOICE.duck; }catch(_){}
+    }
+
+    /* ---- THE SOUND DECIDES WHEN ASTRA IS SPEAKING -------------------
+       Generation events finish long before the voice does, so they cannot
+       be trusted for this. Any real level on the reply stream means Astra
+       is audibly talking; the turn closes when it has actually gone quiet. */
+    const out=replyLevel(), mic=micLevel(), metered=out!=null;
+    /* the pace of ordinary speech, plus a catch-up when the model has run far
+       ahead of its own voice */
+    const backlog=SAY.queue.length-SAY.shown.length;
+    const rate=dt*(0.014+Math.max(0,backlog-90)*0.00012);
+    /* A session that has FAILED must not be pulled back into "speaking" by
+       whatever audio is still draining out of the buffer — the Moon would go
+       back to breathing confidently over a dead connection (§25). */
+    const dead=VOICE.state===VS.ERROR||VOICE.state===VS.RECONNECTING||VOICE.state===VS.EXITING;
+    if(metered&&out>0.05&&VOICE.duck<=0&&!dead){
+      FRAME.lastLoud=t;
+      if(VOICE.state!==VS.ASTRA) gMoonState(VS.ASTRA);
+      rtDrain(rate);
+    } else if(!metered&&SAY.queue&&!dead){
+      /* NO OUTPUT METER. Some browsers will not hand us an AudioContext for
+         the remote stream at all. Falling back to "dump the whole answer at
+         the end" reproduces the exact failure this system exists to fix, so
+         fall back to the CLOCK instead: the words still arrive at a speaking
+         pace, they are just no longer tied to the waveform. */
+      if(VOICE.state!==VS.ASTRA) gMoonState(VS.ASTRA);
+      if(backlog>0) rtDrain(rate);
+      else if(SAY.done) rtSettle();
+    } else if(metered&&VOICE.state===VS.ASTRA&&FRAME.lastLoud&&t-FRAME.lastLoud>700){
+      rtSettle();
+    }
+
+    /* ---- what the glow is being driven BY, this frame ---------------- */
     let target=0;
-    if(VOICE.state==="listening"&&!VOICE.muted){
-      const lv=micLevel(); target=lv==null?VOICE.bump:Math.max(lv,VOICE.bump);
-    } else if(VOICE.state==="speaking"){
-      const rl=replyLevel();
-      /* a floor so the orb never looks dead between syllables, and a ceiling
-         well under 1 so it swells rather than lunges (§75: restraint) */
-      target = rl==null ? 0.16+0.10*Math.sin(t/150)+VOICE.bump
-                        : Math.min(0.92, 0.12 + rl*0.85 + VOICE.bump*0.4);
-    } else if(VOICE.state==="thinking"){
-      target=0.05+0.04*Math.sin(t/650);
+    switch(VOICE.state){
+      case VS.LISTENING: case VS.USER: case VS.INTERRUPTED:
+        /* your voice takes the glow the instant you speak — no waiting for
+           a transcript to come back from the server */
+        target=VOICE.muted?0.02:(mic==null?VOICE.bump:Math.max(mic,VOICE.bump));
+        break;
+      case VS.ASTRA:
+        /* Astra's own output, held a little steadier than yours: listening
+           reads as receptive, speaking as composed */
+        target=out==null?0.16+0.09*breathe(t)+VOICE.bump
+                        :Math.min(0.92,0.12+out*0.82+VOICE.bump*0.4);
+        break;
+      case VS.PROCESSING:
+        /* "I heard you, something is happening" — composed, not a spinner */
+        target=0.05+0.05*breathe(t*1.7);
+        break;
+      case VS.READY: case VS.ENTERING:
+        /* never completely static (§5) — a barely-there resting breath, which
+           also covers a slow connection, where the Moon would otherwise sit
+           dead still for however long the session takes to open */
+        target=0.02+0.05*breathe(t);
+        break;
+      case VS.RECONNECTING: case VS.ERROR:
+        /* the Moon must NOT keep breathing as if all is well when the voice
+           system is actually dead — visual truthfulness (§24, §25) */
+        target=0.015;
+        break;
+      default: target=0;
     }
     VOICE.bump*=0.88;
-    VOICE.amp+=(target-VOICE.amp)*(target>VOICE.amp?0.32:0.10);
-    /* both moons: the big orb in voice mode AND the small one in the chat
-       header, which was never written to and so never moved */
-    const a=Math.min(1,VOICE.amp).toFixed(3);
-    const o=orb(); if(o) o.style.setProperty("--amp",a);
-    const gm=document.getElementById("gmoon"); if(gm) gm.style.setProperty("--amp",a);
+    if(VDEMO.level!=null) target=VDEMO.level;
+    /* Reduce Motion is handled in CSS, where the scaling is removed and the
+       whole signal is carried by opacity instead. Clamping the envelope here
+       as well flattened that signal to a range too small to read — the point
+       is to remove the movement, not the information (§26). */
+    void RM;
+
+    const a1=GLOW.in.push(target,dt),
+          a2=GLOW.mid.push(target,dt),
+          a3=GLOW.out.push(target,dt);
+
+    /* ---- write, but only when something actually changed -------------
+       Writing four custom properties every frame regardless is what makes a
+       visualiser expensive; the style recalc is the cost, not the maths. */
+    const key=Math.round(a1*400)*1e6+Math.round(a2*300)*1e3+Math.round(a3*200)
+              +Math.round(VOICE.enter*100)*1e9;
+    if(key!==FRAME.wrote){
+      FRAME.wrote=key;
+      const o=document.getElementById("gvorb");
+      if(o){ const st=o.style;
+        st.setProperty("--a1",a1.toFixed(3));
+        st.setProperty("--a2",a2.toFixed(3));
+        st.setProperty("--a3",a3.toFixed(3));
+        st.setProperty("--amp",a1.toFixed(3));          /* legacy hook */
+        st.setProperty("--enter",VOICE.enter.toFixed(3));
+        st.setProperty("--glowin",VOICE.glowin.toFixed(3)); }
+      const gm=document.getElementById("gmoon");
+      if(gm) gm.style.setProperty("--amp",a1.toFixed(3));
+    }
+    VOICE.amp=a1;
+  }
+}
+function voiceLoop(){
+  cancelAnimationFrame(VOICE.raf);
+  FRAME.lastT=0; FRAME.lastLoud=0; FRAME.wrote=-1;
+  const step=t=>{
+    if(!VOICE.on&&VOICE.state!==VS.EXITING) return;
+    const dt=FRAME.lastT?Math.min(120,t-FRAME.lastT):16; FRAME.lastT=t;
+    voiceFrame(t,dt);
     VOICE.raf=requestAnimationFrame(step);
   };
   VOICE.raf=requestAnimationFrame(step);
+}
+/* A backgrounded tab gets no animation frames at all. Since the loop is what
+   reveals the reply and what closes the turn, leaving the phone mid-answer
+   would strand the words on screen for ever and never save them. Flush on the
+   way out; pick the loop back up on the way in. */
+addEventListener("visibilitychange",()=>{
+  if(!VOICE.on) return;
+  if(document.hidden){ if(SAY.queue) rtSettle(); }
+  else { VOICE.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches; voiceLoop(); }
+});
+/* ---- MOTION BENCH, dev only (?vdemo=1) ------------------------------
+   A live session needs a microphone and a network, neither of which exists in
+   an automated browser — so until now every state in the matrix above could
+   only be checked by hand on a phone. This drives the state machine and the
+   envelope from a script instead of from audio, so the light can be inspected
+   in all eleven states. Nothing about the app changes without the flag. */
+if(/[?&]vdemo=1/.test(location.search)){
+  window.__vdemo={
+    VS,
+    /* run `ms` of conversation in `step`-sized frames, without rAF */
+    run(ms,step){ step=step||16; for(let i=0;i<Math.round(ms/step);i++){
+      FRAME.lastT+=step; voiceFrame(FRAME.lastT,step); } return this.read(); },
+    open(){ VOICE.on=true; VOICE.muted=false; VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0;
+      VOICE.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+      GLOW.in.v=GLOW.mid.v=GLOW.out.v=0; VDEMO={level:null,mic:null,out:null};
+      voiceUI(true); gMoonState(VS.ENTERING); voiceLoop(); },
+    close(){ VDEMO.level=null; voiceStopNow(true); },
+    state(x){ gMoonState(x); },
+    level(v){ VDEMO.level=v; }, reduced(v){ VOICE.reduced=!!v; },
+    mic(v){ VDEMO.mic=v; }, out(v){ VDEMO.out=v; },
+    settleTo(v){ VDEMO.level=v; GLOW.in.v=GLOW.mid.v=GLOW.out.v=v; },
+    read(){ return {state:VOICE.state,a1:+GLOW.in.v.toFixed(3),a2:+GLOW.mid.v.toFixed(3),
+      a3:+GLOW.out.v.toFixed(3),enter:+VOICE.enter.toFixed(3),glowin:+VOICE.glowin.toFixed(3),
+      reduced:VOICE.reduced,label:document.getElementById("gvstate")?.textContent}; },
+    cue(d){ voiceCue(d); },
+    fail(m){ voiceFail(m); },
+    say(t){ rtSay(t); }, shown(){ return SAY.shown; }, settle(p){ rtSettle(p); }
+  };
 }
 function voiceListen(){
   if(!VOICE.on||VOICE.muted) return;
@@ -4535,7 +4985,22 @@ function voiceMuteToggle(){
     if(!speechSynthesis.speaking) gMoonState("idle"); }
   else { voiceListen(); if(!speechSynthesis.speaking) gMoonState("listening"); }
 }
+/* Stop listening AT ONCE, then let the light resolve. Navigation must never
+   wait on an animation, so the session is torn down immediately and only the
+   glow is given the 420ms to settle. */
 function voiceStop(silent){
+  if(VOICE.on&&!silent&&VOICE.state!==VS.EXITING&&!VOICE.reduced){
+    /* the ear closes immediately; only the light is given time to resolve */
+    try{ RT&&RT.mic&&RT.mic.getTracks().forEach(t=>t.enabled=false); }catch(_){}
+    try{ speechSynthesis.cancel(); }catch(_){}
+    gMoonState(VS.EXITING);
+    voiceCue(-1); buzz(6);
+    setTimeout(()=>voiceStopNow(true),380);
+    return;
+  }
+  voiceStopNow(silent);
+}
+function voiceStopNow(silent){
   if(!VOICE.on){ return; }
   VOICE.on=false;
   try{VOICE.rec&&VOICE.rec.stop()}catch(_){}
@@ -4546,15 +5011,20 @@ function voiceStop(silent){
   try{VOICE.ac&&VOICE.ac.close()}catch(_){}
   VOICE.stream=null; VOICE.ac=null; VOICE.an=null; VOICE.amp=0; VOICE.bump=0;
   try{ if(VOICE.outAc) VOICE.outAc.close(); }catch(_){}
+  if(SAY.queue) rtSettle();
   VOICE.outAc=null; VOICE.outAn=null; VOICE.outBuf=null;
   rtStop();
-  const o=document.getElementById("gvorb"); if(o) o.style.setProperty("--amp","0");
+  const o=document.getElementById("gvorb");
+  if(o){ for(const k of ["--amp","--a1","--a2","--a3","--enter","--glowin"]) o.style.setProperty(k,"0"); }
+  GLOW.in.v=GLOW.mid.v=GLOW.out.v=0;
+  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0;
+  clearTimeout(VOICE.reTimer); clearTimeout(VOICE.noteTimer);
   voiceInterim("");
   voiceNote("");
   VOICE.muted=false;
   voiceUI(false);
-  gMoonState("idle");
-  if(!silent) buzz(6);
+  gMoonState(VS.DISCONNECTED);
+  if(!silent){ voiceCue(-1); buzz(6); }
 }
 const ICONS={
   cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.6h17M8 3.2v3.6M16 3.2v3.6"/>',
@@ -6043,6 +6513,7 @@ function subSettings(){
     <div class="setgroup">
       ${tog("s_nodal","Nodal drishti",!!pr.nodal,"Rahu and Ketu aspect the 5th and 9th")}
       ${tog("s_haptics","Haptics",pr.haptics!==false)}
+      ${tog("s_sound","Voice sounds",pr.sound!==false)}
     </div>
     <div class="setgroup">
       ${tog("s_pro","Astra Pro (preview)",isPro(),"Unlocks Pro features while pricing is decided")}
@@ -6065,6 +6536,9 @@ function wireSettings(){
   n.onclick=()=>{const v=!n.classList.contains("on");n.classList.toggle("on",v);
     n.setAttribute("aria-checked",v);setPref("nodal",v);
     CHART.drishtiNodal=v; buzz(8);};
+  const sn=document.getElementById("s_sound");
+  if(sn) sn.onclick=()=>{const v=sn.getAttribute("aria-checked")!=="true";
+    sn.setAttribute("aria-checked",v);setPref("sound",v);if(v)voiceCue(1);};
   const h=document.getElementById("s_haptics");
   h.onclick=()=>{const v=!h.classList.contains("on");h.classList.toggle("on",v);
     h.setAttribute("aria-checked",v);setPref("haptics",v);if(v)buzz(10)};

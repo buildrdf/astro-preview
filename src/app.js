@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906k";
+import { LEARN_LEVELS } from "./learn.js?v=20260906n";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906k";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906n";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906k";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906n";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2159,10 +2159,10 @@ function renderUniverse(){
         <div class="orbit" id="orbit">
           <svg class="chart" viewBox="0 0 100 100" id="chart"
                aria-label="North Indian chart, twelve houses"></svg>
-          <svg class="asp" viewBox="0 0 100 100" id="asp"></svg>
-          <div class="ghosts" id="ghosts"></div>
+          <svg class="asp" viewBox="0 0 100 100" id="asp" aria-hidden="true"></svg>
+          <div class="ghosts" id="ghosts" aria-hidden="true"></div>
         </div>
-        <div class="plane" id="plane"></div>
+        <div class="plane" id="plane" role="group" aria-label="Grahas on the chart"></div>
       </div>
     </div>
     <section class="yglayer" id="yglayer" hidden aria-label="Yogas in your chart">
@@ -2195,10 +2195,13 @@ function renderUniverse(){
     const sf=el("polygon",{points:HOUSES[h].map(p=>p.join(",")).join(" "),
       class:"hs","data-h":h,tabindex:"0",role:"button"});
     sf.setAttribute("aria-label", speak(
-      `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
+      `${ordinal(h)} house${h===1?", your ascendant":""}. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
       (occ.length?`${occ.map(o=>o.graha).join(", ")} at birth.`:"No graha here at birth.")));
     chart.appendChild(sf);
-    const L=LABEL[h], t=el("text",{class:"sn",x:L[0],y:L[1],"data-h":h});
+    /* The house button already announces "Taurus, sign 2"; this numeral is the
+       same fact drawn. Left readable it interleaved bare numbers — "2", "3",
+       "4" — between the twelve house descriptions (constitution 86). */
+    const L=LABEL[h], t=el("text",{class:"sn",x:L[0],y:L[1],"data-h":h,"aria-hidden":"true"});
     t.textContent=String(sg); chart.appendChild(t);
   }
   chart.appendChild(el("rect",{x:0,y:0,width:100,height:100,class:"fr"}));
@@ -2209,7 +2212,9 @@ function renderUniverse(){
      Vedic rather than geometric */
   chart.appendChild(el("path",{d:RHOMBUS_D,class:"fr in"}));
   chart.appendChild(el("path",{d:LAGNA_D,class:"lg"}));
-  const asc=el("text",{class:"asclbl",x:50,y:9}); asc.textContent="ASC"; chart.appendChild(asc);
+  /* read aloud, "ASC" is an abbreviation a screen reader spells or mangles.
+     The 1st house button names the ascendant in words instead. */
+  const asc=el("text",{class:"asclbl",x:50,y:9,"aria-hidden":"true"}); asc.textContent="ASC"; chart.appendChild(asc);
 
   const SZ={Sun:1.14,Moon:1.0,Mars:.98,Mercury:.9,Jupiter:1.06,Venus:.98,Saturn:1.16,Rahu:.94,Ketu:.9};
   /* instant recognition beats density (DDR 0003) */
@@ -2299,7 +2304,7 @@ function paintHouseSigns(list){
     if(s){
       const occ=list.filter(p=>p.house===h).map(p=>p.graha);
       s.setAttribute("aria-label", speak(
-        `${ordinal(h)} house. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
+        `${ordinal(h)} house${h===1?", your ascendant":""}. ${SIGNS[sg-1]}, sign ${sg}. Ruled by ${SIGN_LORD[sg]}. `+
         (occ.length?`${occ.join(", ")} here.`:"No graha here.")));
     }
   }

@@ -7,7 +7,7 @@
    ephemeris produced; nothing is interpreted.
 
    Rules are classical Parashari, validated cell-for-cell against a
-   professional vendor's 19-varga table for the 26 Mar 1992 reference
+   professional vendor's 19-varga table for the private reference
    chart (all 10 chart points per varga):
 
      PASS with the textbook rule:

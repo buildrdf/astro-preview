@@ -11,7 +11,7 @@
    convention. Nodes: true node.
    Ayanamsa: Lahiri.
 
-   Verified against a professional report for 26 Mar 1992 04:30 UTC:
+   Verified against a professional report for the private reference moment:
    worst error 5.6 arcmin across all nine; every sign, nakshatra,
    pada and retrograde flag correct. A pada is 200 arcmin wide.
    Moon separately validated to <0.05 arcmin against two printed

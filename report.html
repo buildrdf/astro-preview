@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#171A33">
 <title>Astra — Detailed Kundali</title>
@@ -460,11 +461,12 @@ $("f-lang").onclick = e => {
 };
 
 $("tryref").onclick = () => {
-  $("f-name").value = "Sangram";
-  $("f-date").value = "1992-03-26";
-  $("f-time").value = "10:00";
-  pick({ label: "Kopargaon", detail: "Maharashtra, India",
-    lat: 19.885, lon: 74.4728, tz: "Asia/Kolkata" });
+  /* a fictional reference birth — this page is public, a real one is not */
+  $("f-name").value = "Aarav";
+  $("f-date").value = "1990-06-15";
+  $("f-time").value = "09:20";
+  pick({ label: "Bengaluru", detail: "Karnataka, India",
+    lat: 12.9716, lon: 77.5946, tz: "Asia/Kolkata" });
 };
 
 $("go").onclick = async () => {

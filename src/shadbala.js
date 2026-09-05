@@ -134,7 +134,7 @@
    correct house lord.
    =================================================================== */
 
-import { norm, jd, ayanamsa } from "./ephemeris.js?v=20260831a";
+import { norm, jd, ayanamsa } from "./ephemeris.js?v=20260908a";
 import { vargaSign } from "./vargas.js";
 
 const D = Math.PI / 180;

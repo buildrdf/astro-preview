@@ -12,7 +12,7 @@
    telescope. Rahu/Ketu are points, not bodies - alt/az says
    where the node direction sits, nothing is visible there.
 
-   Verified against the Sun: solar noon in Kopargaon puts it
+   Verified against the Sun: solar noon at the reference place puts it
    high in the south, sunrise puts it low in the east, midnight
    puts it below the horizon; near-full Moon is up at 21:00 IST.
    --------------------------------------------------------------- */

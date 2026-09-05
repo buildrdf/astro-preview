@@ -6,7 +6,7 @@ import { LEARN_LEVELS } from "./learn.js?v=20260906x";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
-import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260902";
+import { vargaChart, vargaDetail, vargaMeta, VARGA_META, SUPPORTED as VARGA_SUPPORTED } from "./vargas.js?v=20260908a";
 import { nakIndex, padaIndex, pointGrid, nakshatraRange, signNakshatras, nakLord,
   NAK_META, NAK_SPAN, PADA_SPAN, fmtDMS, SIGN_ELEMENT, SIGN_MODALITY } from "./zodiac.js?v=20260902";
 import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905e";
@@ -17,8 +17,8 @@ import { themeOf } from "./yoga-themes.js?v=20260905e";
 import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906x";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906x";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907v";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260908a";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260908a";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -31,7 +31,7 @@ try{ if(new URLSearchParams(location.search).get("sky")) localStorage.setItem("a
 import { placementRecord, comparePlacement, transitToNatal, timingContext, functionalNature,
          bindu as avBindu, houseClass, aspectOffsets } from "./objectmodel.js?v=20260902e";
 import { positions, retrograde, ayanamsa, jd, norm as ephNorm,
-         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260902e";
+         moonTropical, sunTropical, moonSidereal, sunSidereal } from "./ephemeris.js?v=20260908a";
 const julian = jd;
 const RAD=Math.PI/180;
 const sind=d=>Math.sin(d*RAD);
@@ -214,12 +214,17 @@ function moonPhase(date){
           waxing:f<0.5, elongation:e};
 }
 
-/* Birth: 26 March 1992, 10:00 IST, Kopargaon (19.8824N 74.4761E).
-   Positions are now COMPUTED from that moment rather than transcribed.
-   Cross-checked against the Astrotalk report: worst error 5.6 arcmin,
-   every sign, nakshatra, pada and retrograde flag matching. */
-const BIRTH = new Date("1992-03-26T10:00:00+05:30");
-const BIRTHPLACE = { name:"Kopargaon, Maharashtra", lat:19.8824, lon:74.4761 };
+/* THE BUILT-IN REFERENCE CHART IS FICTIONAL.
+   This is the chart a visitor sees before they have entered their own, and
+   every file in this folder is served to every visitor. It used to be a real
+   person's birth — date, time, town and coordinates — which an audit on
+   5 Sep 2026 found on the live site and in every public commit. A birth is
+   private data; a demo must never be one. Positions are COMPUTED from this
+   moment like any other chart. The engine's accuracy is validated against
+   real, purchased reports in the private tools/ validators, which are never
+   deployed. */
+const BIRTH = new Date("1990-06-15T09:20:00+05:30");
+const BIRTHPLACE = { name:"Bengaluru, Karnataka", lat:12.9716, lon:77.5946 };
 
 /* The ascendant still needs sidereal time and latitude, which the report
    already gives us to the arcsecond. Computing it is the next engine task. */
@@ -281,7 +286,7 @@ function engine(){
 /* ---- ACTIVE USER — the whole app reads one chart at a time.
    Switching rebuilds CHART from the person's birth moment (ascendant
    computed on the fly) and re-renders every tab. Pro feature. ---- */
-let ACTIVE={name:"Sangram", first:"Sangram", p:null};
+let ACTIVE={name:"Aarav", first:"Aarav", p:null};
 function setActiveUser(p){
   if(!p){
     /* "back to me": the onboarded profile when one exists, the
@@ -292,7 +297,7 @@ function setActiveUser(p){
       CHART=chartFor(d, ascendant(d, me.lat, me.lon));
       ACTIVE={name:me.name, first:me.name.split(" ")[0], p:{...me}};
     }else{
-      ACTIVE={name:"Sangram", first:"Sangram", p:null};
+      ACTIVE={name:"Aarav", first:"Aarav", p:null};
       CHART=chartFor(BIRTH, ASCENDANT);
     }
     localStorage.removeItem("astro.activeUser");
@@ -1209,7 +1214,7 @@ function renderToday(){
   }
 
   /* the time basis is stated ONCE, here (spec §2) - nothing below
-     repeats "at Kopargaon, IST" again */
+     repeats "at the birthplace, IST" again */
   setTopBar(`Hi ${ACTIVE.first}`,{sub:viewDate.toLocaleDateString("en-GB",
       {weekday:"short",day:"numeric",month:"short"}).replace(",","")
       /* the day is the reader's own day; naming India's zone on a phone set to
@@ -6630,7 +6635,7 @@ function subReportView(){
       App Store build. Print to PDF from the share menu today.</div>
     <h2 style="font-size:22px">${ACTIVE.name} &#8212; Vedic Birth Chart</h2>
     <p class="evmeta">${ACTIVE.p?`${fmtDateTz(new Date(ACTIVE.p.born),ACTIVE.p.tz)}, ${clockWithZone(new Date(ACTIVE.p.born),ACTIVE.p.tz)} &#183; ${ACTIVE.p.place||""}`
-      :"26 Mar 1992, 10:00 AM IST &#183; Kopargaon"} &#183; Lahiri ayanamsa &#183; whole-sign houses</p>
+      :"15 Jun 1990, 9:20 AM IST &#183; Bengaluru"} &#183; Lahiri ayanamsa &#183; whole-sign houses</p>
     <p class="interp" style="font-style:italic">Every position is computed deterministically
       and every reading names the placement that produced it &#8212; a compass for
       reflection, not a prediction.</p>
@@ -6946,8 +6951,8 @@ function bdOverview(){
           ["Lagna",`${SIGNS_SK[CHART.lagna-1]} &#183; ${fmtDeg(CHART.ascendant)}`],
           ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
           ["Ayanamsa","Lahiri"]])})()
-    : rows([["Date","26 Mar 1992"],["Time","10:00 AM IST"],
-        ["Place","Kopargaon, Maharashtra"],["Coordinates","19.88N  74.48E"],
+    : rows([["Date","15 Jun 1990"],["Time","9:20 AM IST"],
+        ["Place","Bengaluru, Karnataka"],["Coordinates","12.97N  77.59E"],
         ["Lagna",`Vrishabha &#183; ${fmtDeg(CHART.ascendant)}`],
         ["Lagna nakshatra",`${NAK[nakOf(CHART.ascendant)]} &#183; pada ${padaOf(CHART.ascendant)}`],
         ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
@@ -9097,11 +9102,13 @@ const events=()=>{
 const saveEvents=l=>localStorage.setItem(LKEY,JSON.stringify(l));
 const eventDasha=iso=>CHART.dasha.at(new Date(iso+"T12:00:00"));
 
-/* v3: the partner appears as Natasha in the app at Sangram's request;
-   the birth data underneath is real so every computation stays true */
+/* v3: the demo partner is FICTIONAL — name, birth, place. It once carried a
+   real person's birth under a pseudonym, which an audit on 5 Sep 2026 found
+   on the live site; a pseudonym does not make a birth date public-safe. Any
+   real partner lives only in the user's own local storage, never here. */
 const PKEY="astro.partners.v3";
-const DEMO=[{name:"Natasha",born:"1988-10-12T13:56:00+05:30",
-             lat:25.18, lon:75.84, place:"Kota"}];
+const DEMO=[{name:"Natasha",born:"1993-02-21T11:10:00+05:30",
+             lat:26.9124, lon:75.7873, place:"Jaipur"}];
 const partners=()=>{
   try{
     let l=JSON.parse(localStorage.getItem(PKEY)||"null");

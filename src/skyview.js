@@ -20,8 +20,8 @@
    State: SkyMoment - birth | now | custom - each with its own
    timestamp and place. Birth never inherits device time or place.
    =================================================================== */
-import { positions, retrograde, eclipticLatitudes } from "./ephemeris.js?v=20260902e";
-import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from "./sky.js?v=20260906x";
+import { positions, retrograde, eclipticLatitudes } from "./ephemeris.js?v=20260908a";
+import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from "./sky.js?v=20260908a";
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
@@ -200,7 +200,8 @@ const seekSpan=()=>orrTime()?YEAR_MS:864e5;
 const zoomOf=()=>wantOrr>0?FOV_MAX+ORR_SPAN*wantOrr:vFov;
 function setZoom(z){ z=Math.max(FOV_MIN,Math.min(FOV_MAX+ORR_SPAN,z)); vFov=Math.min(FOV_MAX,z); wantOrr=Math.max(0,Math.min(1,(z-FOV_MAX)/ORR_SPAN)); }
 
-let spot={lat:19.8824, lon:74.4761, from:"Kopargaon (approximate)", tz:"Asia/Kolkata"};
+/* the default sky is a city centre, not anyone's birthplace */
+let spot={lat:12.9716, lon:77.5946, from:"Bengaluru (approximate)", tz:"Asia/Kolkata"};
 let cache=null, cacheAt=0, target=null, focusK=0;
 let mode="now", birthOpts=null, proUser=false, custom=null;
 let seek=null;        /* Now/custom mode: a scrubbed absolute Date, or null = live */

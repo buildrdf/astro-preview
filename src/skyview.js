@@ -106,7 +106,7 @@ const tzAbbr=(d,tz)=>{ try{ const p=new Intl.DateTimeFormat("en-IN",{timeZone:tz
 
 /* OFFLINE FALLBACK places (standard offsets; IANA zone when known) */
 const CITIES=[
-["Kopargaon",19.88,74.48,5.5],["Mumbai",19.08,72.88,5.5],["Pune",18.52,73.86,5.5],
+["Aurangabad",19.88,75.34,5.5],["Mumbai",19.08,72.88,5.5],["Pune",18.52,73.86,5.5],
 ["Delhi",28.61,77.21,5.5],["Bengaluru",12.97,77.59,5.5],["Hyderabad",17.39,78.49,5.5],
 ["Chennai",13.08,80.27,5.5],["Kolkata",22.57,88.36,5.5],["Ahmedabad",23.02,72.57,5.5],
 ["Jaipur",26.91,75.79,5.5],["Kota",25.18,75.84,5.5],["Nashik",20.00,73.79,5.5],

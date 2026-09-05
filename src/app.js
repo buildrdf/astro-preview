@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026090
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260908a";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260908a";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260908b2";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -6274,9 +6274,9 @@ function subPeople(){
       Everyone you have added. Charts you add here appear in Relationships too.</p>
     <div class="list">
       <button class="item" data-p="me">
-        <span class="pav" style="background:var(--venus)">S</span>
-        <span style="flex:1"><b style="font-weight:600">Sangram</b>
-          <span style="display:block;font-size:11.5px;color:var(--ink-3)">26 Mar 1992 &#183; ${SIGNS_SK[CHART.lagna-1]} lagna</span></span>
+        <span class="pav" style="background:var(--venus)">${escText(ACTIVE.name[0].toUpperCase())}</span>
+        <span style="flex:1"><b style="font-weight:600">${escText(ACTIVE.name)}</b>
+          <span style="display:block;font-size:11.5px;color:var(--ink-3)">${(ACTIVE.p&&ACTIVE.p.born?new Date(ACTIVE.p.born):BIRTH).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} &#183; ${SIGNS_SK[CHART.lagna-1]} lagna</span></span>
         <svg viewBox="0 0 24 24" class="tick"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
       ${list.map((p,i)=>`<button class="item" data-p="${i}">
         <span class="pav" style="background:${COLOUR(["Venus","Jupiter","Moon","Mars"][i%4])}">${p.name[0].toUpperCase()}</span>
@@ -6751,7 +6751,7 @@ function subRelReportView(){
   <div class="paper report">
     <div class="repbanner">Preview &#8212; purchasing and email delivery arrive with the
       App Store build. Print to PDF from the share menu today.</div>
-    <h2 style="font-size:22px">Sangram &amp; ${p.name} &#8212; Relationship Report</h2>
+    <h2 style="font-size:22px">${escText(ACTIVE.name)} &amp; ${p.name} &#8212; Relationship Report</h2>
     <p class="evmeta">Gun Milan &#183; both charts computed &#183; Lahiri ayanamsa</p>
     <div class="scorecard" style="margin:14px 0">
       <div class="scorenum" style="color:${k.total>=18?"var(--mercury)":"var(--mars)"}">${k.total}<small>/36</small></div>

@@ -2526,6 +2526,13 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .skcap .skpen{font-style:normal;color:var(--brass);font-size:12px}
 .skcap .skreturn{font-size:11.5px;font-weight:700;color:#0B0C1E;background:#F1E7C9;padding:3px 9px;border-radius:99px}
 .sky2 .svclose{background:rgba(20,22,48,.62);border:1px solid rgba(255,255,255,.08)}
+/* The sky is the instrument in both themes — you cannot make a night sky out
+   of paper. Without this the overlay inherited the light palette and drew its
+   card titles in near-black on near-black. */
+body.light .skyview{--ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
+  --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.16);
+  --edge:rgba(190,200,245,.20); --edge-soft:rgba(190,200,245,.12);
+  --brass:#C29B4E; --hot:#A9B2FF; color:var(--ink)}
 .skside{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 66px);display:flex;
   flex-direction:column;gap:8px;z-index:5;transition:opacity .4s}
 .skibtn{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.08);
@@ -2588,7 +2595,8 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
   white-space:nowrap;max-width:calc(100vw - 40px);overflow:hidden;text-overflow:ellipsis}
 .sktoast.in{opacity:1;transform:translate(-50%,0)}
 /* the compact selection card */
-.skfoot{pointer-events:auto;text-align:left;font-size:14px;color:var(--ink);left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 12px)}
+.skfoot{pointer-events:auto;text-align:left;font-size:14px;color:var(--ink);left:12px;right:12px;
+  bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:9}
 .skcard{background:rgba(16,18,42,.9);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:18px;
   border:1px solid rgba(255,255,255,.1);padding:14px 14px 12px;animation:skrise .32s cubic-bezier(.22,1,.36,1)}
 @keyframes skrise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
@@ -2615,7 +2623,15 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 /* immersive: secondary chrome recedes after a few seconds */
 .sky2.quiet .skside,.sky2.quiet .skseek{opacity:.35}
 .sky2.quiet .sktop{opacity:.75}
-.sky2.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 300px)}
+/* measured, not guessed: the lagna card is over 400px tall and the old fixed
+   300px left the seeker's 48px touch strip lying across the card's close
+   button, which then could not be tapped at all. */
+/* ONE rule for the seeker's lower edge. Four had accumulated for this single
+   question, the last of them unconditional and !important, so the seeker's
+   48px touch strip lay across the selection card's close button whatever the
+   earlier rules said. --cardh is measured from the card itself. */
+.skyview .skseek{bottom:calc(env(safe-area-inset-bottom) + 200px)}
+.skyview.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + var(--cardh,300px) + 20px)}
 .sky2 .svedit{top:calc(env(safe-area-inset-top) + 120px)}
 @media (prefers-reduced-motion: reduce){.skcard{animation:none}.sktoast{transition:none}}
 
@@ -2625,7 +2641,6 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .sktoast{top:auto;bottom:calc(env(safe-area-inset-bottom) + 190px)}
 .sky2.hascard .sktoast{bottom:auto;top:46%}
 .sksearch,.sklayers{top:calc(env(safe-area-inset-top) + 122px)}
-.sky2.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 340px)}
 
 /* Guide: long answers fold; evidence cards inside the thread */
 .gasr .astratext.clamp{max-height:168px;overflow:hidden;position:relative}
@@ -2741,7 +2756,6 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .skcompass .skrose line.c{stroke:rgba(255,255,255,.72);stroke-width:1.7}
 .skcompass .skrose .sknpt{fill:#FF453A}
 .skcompass span{position:relative;font-size:13px;font-weight:640;color:#F1EFE8;letter-spacing:.02em;line-height:1}
-.skyview .skseek{bottom:calc(env(safe-area-inset-bottom) + 200px)!important}
 .skyview .skseek .skseekrule i.skmoonm{color:#D6E2FF;font-size:11px;right:-3px}
 /* search: a bottom sheet with categories */
 .skyview .sksearch{position:absolute!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;z-index:9!important;
@@ -2845,7 +2859,6 @@ body.indetail .tabs{transform:translateY(115%);pointer-events:none}
 .skyview .skcard.peek .skacts{gap:8px}
 .skyview.hascard .skstack{bottom:calc(env(safe-area-inset-bottom) + 178px)}
 .skyview.hascard .skcompass{bottom:calc(env(safe-area-inset-bottom) + 352px)}
-.skyview.hascard .skseek{bottom:calc(env(safe-area-inset-bottom) + 190px)!important}
 
 /* Sky: the accessible list of what is in view (off-screen, VoiceOver only) */
 .skyview .svlist{position:absolute;left:0;top:0;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;list-style:none}

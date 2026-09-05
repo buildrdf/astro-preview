@@ -26,7 +26,7 @@ import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
-import { drawOrrery, orreryHit } from "./orrery.js?v=20260905e";
+import { drawOrrery, orreryHit } from "./orrery.js?v=20260905k";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
@@ -393,6 +393,34 @@ function targetPos(){
 const sgOf=L=>Math.floor((((L%360)+360)%360)/30);
 const nkOf=L=>Math.floor((((L%360)+360)%360)/NSPAN);
 
+/* The nakshatra figures. Sangram, twice: "I still don't see the nakshatra
+   shapes." They were being drawn — at sixteen percent of an already-faded
+   star alpha, which on a phone in daylight is nothing at all. They now carry
+   a floor of their own, brighten when their nakshatra is the selected one,
+   and survive into daylight as ink. */
+function drawAsterisms(c,W,starA,dim,focusNak,dayA){
+  const ink=dayA>0;
+  for(let ai=0;ai<cache.asts.length;ai++){
+    const A=cache.asts[ai], on=focusNak===ai;
+    const px=A.pts.map(p=>{ const [x,y]=project(p); return {x,y,up:p.up,m:p.m,on:onScreen(x,y,80)}; });
+    if(!px.some(p=>p.on)) continue;
+    const base=ink?0.42*dayA:(on?0.85:0.38)*starA;
+    const lo=ink?0.15*dayA:(on?0.30:0.12)*starA;
+    for(const [i,j] of A.lines){ const a2=px[i],b2=px[j];
+      if(!a2||!b2||(!a2.on&&!b2.on)||!Number.isFinite(a2.x)||!Number.isFinite(b2.x)) continue;
+      if(Math.hypot(a2.x-b2.x,a2.y-b2.y)>W*0.8) continue;
+      c.strokeStyle=ink?`rgba(52,56,92,${(((a2.up||b2.up)?base:lo)*dim).toFixed(3)})`
+                       :`rgba(168,182,236,${(((a2.up||b2.up)?base:lo)*dim).toFixed(3)})`;
+      c.lineWidth=on&&!ink?1.4:1;
+      c.beginPath(); c.moveTo(a2.x,a2.y); c.lineTo(b2.x,b2.y); c.stroke(); }
+    if(ink) continue;
+    for(const p of px){ if(!p.on||!p.up) continue;
+      const r2=p.m<=1.2?2.1:p.m<=2.6?1.6:p.m<=3.6?1.25:1.0;
+      c.fillStyle=`rgba(235,240,255,${((on?0.95:0.75)*starA*dim).toFixed(3)})`;
+      c.beginPath(); c.arc(p.x,p.y,on?r2*1.25:r2,0,7); c.fill(); }
+  }
+}
+
 function draw(){
   if(!running) return;
   const now=performance.now();
@@ -578,24 +606,21 @@ function draw(){
     for(const s of cache.amb){ if(!s.up) continue; const [x,y]=project({alt:s.alt,az:s.az+slip}); if(!onScreen(x,y,6)) continue;
       const a=(s.m>5?.15:s.m>4.4?.22:.32)*starA;
       c.fillStyle=`rgba(225,232,255,${a})`; c.beginPath(); c.arc(x,y,s.m>4.6?0.7:1.05,0,7); c.fill(); }
-    for(const A of cache.asts){
-      const px=A.pts.map(p=>{ const [x,y]=project(p); return {x,y,up:p.up,m:p.m,on:onScreen(x,y,80)}; });
-      if(!px.some(p=>p.on)) continue;
-      for(const [i,j] of A.lines){ const a2=px[i],b2=px[j]; if(!a2||!b2||(!a2.on&&!b2.on)||!Number.isFinite(a2.x)||!Number.isFinite(b2.x)) continue;
-        if(Math.hypot(a2.x-b2.x,a2.y-b2.y)>W*0.8) continue;
-        c.strokeStyle=`rgba(168,182,236,${((a2.up||b2.up)?0.16:0.05)*starA*dim})`; c.lineWidth=1;
-        c.beginPath(); c.moveTo(a2.x,a2.y); c.lineTo(b2.x,b2.y); c.stroke(); }
-      for(const p of px){ if(!p.on||!p.up) continue;
-        const r2=p.m<=1.2?2.1:p.m<=2.6?1.6:p.m<=3.6?1.25:1.0;
-        c.fillStyle=`rgba(235,240,255,${0.75*starA*dim})`; c.beginPath(); c.arc(p.x,p.y,r2,0,7); c.fill(); }
-    }
+    drawAsterisms(c,W,starA,dim,focusNak);
     for(const s of cache.stars){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,30)) continue;
       starSprite(c,x,y,s.m,starA*dim); }
   }
-  if(day>0.5&&layers.stars){ /* daylight: the bright yogataras as quiet ink points */
-    for(const s of cache.stars){ if(!s.up||s.m>2.6) continue; const [x,y]=project(s); if(!onScreen(x,y,10)) continue;
-      c.fillStyle=`rgba(255,252,244,${0.5*day*dim})`; c.beginPath(); c.arc(x,y,2.6,0,7); c.fill();
-      c.fillStyle=`rgba(38,40,70,${0.55*day*dim})`; c.beginPath(); c.arc(x,y,1.3,0,7); c.fill(); }
+  /* DAYLIGHT. The stars are not really visible, and the nakshatras are the
+     reference frame of the whole system — so the twenty-seven yogataras and
+     their figures stay, drawn as quiet ink on the bright sky rather than as
+     light. All twenty-seven, not the three brightest: a frame with a quarter
+     of its marks missing is not a frame. */
+  if(day>0.5&&layers.stars){
+    drawAsterisms(c,W,0,dim,focusNak,day);
+    for(const s of cache.stars){ if(!s.up) continue; const [x,y]=project(s); if(!onScreen(x,y,10)) continue;
+      const big=s.m<=2.6;
+      c.fillStyle=`rgba(255,252,244,${(big?0.5:0.34)*day*dim})`; c.beginPath(); c.arc(x,y,big?2.6:1.9,0,7); c.fill();
+      c.fillStyle=`rgba(38,40,70,${(big?0.55:0.4)*day*dim})`; c.beginPath(); c.arc(x,y,big?1.3:0.95,0,7); c.fill(); }
   }
 
   /* --- the CELESTIAL RIBBON --- */
@@ -743,14 +768,18 @@ function draw(){
   const track=t=>t.toUpperCase().split("").join("\u2009");   /* letter-spaced small caps look */
   if(layers.naks) for(let i=0;i<27;i++){
     const on=i===focusNak; if(!midLOD&&!on) continue;
-    const m=cache.nakMid[i]; if(!m.up&&mode!=="birth") continue;
+    /* below the horizon the name used to be dropped entirely. The grahas down
+       there are drawn dimmed, not deleted, and the ring of names is the thing
+       that makes the ground legible as sky-you-cannot-see-yet. */
+    const m=cache.nakMid[i];
+    const below=!m.up;
     const f=laneAt(m,cache.nakEdge[i],cache.nakEdge[(i+1)%27]); if(!f) continue;
     const txt=track(NAKS[i]);
     const px=f.x-f.ux*bandW*0.27, py=f.y-f.uy*bandW*0.27;
     const size=on?10.5:Math.min(9.5,Math.max(7.5,bandW*0.15));
     c.font=sysF(size,on?700:600); const w=c.measureText(txt).width;
     if(f.wid>w+12&&L.place(px,py,Math.min(f.wid-6,w),size+3,[[0,0]])){
-      engrave(txt,px,py,f.ang,sysF(size,on?700:600),"rgba(196,188,236,1)",(on?1:0.8)*(on?1:dim));
+      engrave(txt,px,py,f.ang,sysF(size,on?700:600),"rgba(196,188,236,1)",(on?1:0.8)*(on?1:dim)*(below?0.42:1));
     } else if(on){
       const anchors=[[0,bandW/2+14],[0,bandW/2+28],[0,-(bandW/2+14)],[w/2+30,bandW/2+14],[-(w/2+30),bandW/2+14]];
       const pos=L.place(f.x,f.y,w+4,12,anchors);
@@ -845,7 +874,7 @@ function draw(){
       haloText(c,lbl,Math.max(lw,Math.min(W-lw,ex)),ey+(Math.sin(ang)>0?-22:24),"rgba(241,231,201,.95)",sysF(11.5,600));
     }
   }
-  if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
+  if(orr>0.002) drawOrrery(c,W,H,orr,{grahas:cache.grahas,ecl:cache.ecl,sunAlt:cache.sunAlt,sunAz:cache.grahas[0].az,asc:(mode==="birth"&&birthOpts&&birthOpts.asc!=null)?birthOpts.asc:null,
     spot:cache.sp,layers,target,reduced,now,mode,spin:orrSpin,pitch:orrPitch,names:{SIGNS_DEV,SIGNS_EN,SIGNS_SK,NAKS},padBottom:target&&el.root.classList.contains("hascard")?330:150});
   { const cp=el.root.querySelector("#svcompass"); if(cp&&!cp.hidden){ const g=cp.querySelector(".skrose");
       if(g) g.setAttribute("transform",`rotate(${wrap(-viewAz).toFixed(1)} 24 24)`); } }
@@ -910,7 +939,7 @@ function setFoot(){
       const origin=Number.isFinite(x)?{x,y,r:grahaR(g,vFov)}:null;
       buzz(8);
       dispatchEvent(new CustomEvent("astra:open",{detail:{kind:"planet",id:g,mode:mode==="birth"?"birth":"now",at:skyDate().toISOString(),from:"sky",emphasis:mode==="birth"?"birth":"now",origin}})); };
-    document.getElementById("svtrackb").onclick=()=>{ trackTarget=!trackTarget; setFoot(); buzz(5); if(trackTarget) aimAt(targetPos()); };
+    document.getElementById("svtrackb").onclick=()=>{ trackTarget=!trackTarget; setFoot(); buzz(5); if(trackTarget) aimAt(targetPos(),{below:true}); };
   }else if(target.t==="rashi"){
     const s=target.i;
     const here=cache.grahas.filter(x=>sgOf(x.L)===s).map(x=>x.g);
@@ -967,6 +996,18 @@ function setFoot(){
     document.getElementById("svlagna").onclick=()=>{ closeSkyView(); dispatchEvent(new CustomEvent("astra:openhouse",{detail:1})); };
   }
   const cb=document.getElementById("svclear"); if(cb) cb.onclick=()=>clearTarget();
+  measureCard();
+}
+/* The seeker's touch strip is 48px wide down the right edge, and the card can
+   be over 400px tall — so the strip lay across the card's own close button and
+   swallowed every tap on it. The seeker now clears the card by the card's
+   measured height, and sits behind it in the stack besides. */
+function measureCard(){
+  const f=document.getElementById("svfoot"); if(!f||!el) return;
+  const set=()=>{ const card=f.querySelector(".skcard");
+    el.root.style.setProperty("--cardh", card?`${Math.round(card.getBoundingClientRect().height)}px`:"0px"); };
+  set();                       /* the card is in the DOM already; measure it now */
+  requestAnimationFrame(set);  /* and again once its entry animation has laid out */
 }
 function clearTarget(){ target=null; trackTarget=false; ghostBirth=false; cache=null; setFoot(); syncFind(); }
 
@@ -977,7 +1018,15 @@ function aimAt(p,opts={}){
   if(!p) return;
   const detachedOrNoSensors=!(sensing&&followSky);
   if(!detachedOrNoSensors&&!opts.force) return;
-  wantAz=p.az; wantAlt=clampAlt(Math.max(6,Math.min(66,p.alt)));
+  /* The floor of six degrees stops a plain "show me Saturn" from pointing at
+     the dirt. But while TRACKING through time, following a graha down past
+     the horizon is the entire point — Sangram: "when it goes below the Earth,
+     then it stops tracking it." It stopped because the aim was clamped to six
+     and stayed there. Tracking now follows it down, and turns the ground to
+     glass on the way so there is something to see. */
+  const floor=opts.below?-50:6;
+  if(opts.below&&p.alt<0&&!revealBelow){ revealBelow=true; syncFind(); }
+  wantAz=p.az; wantAlt=clampAlt(Math.max(floor,Math.min(66,p.alt)));
   if(reduced||opts.instant){ viewAz=wantAz; viewAlt=wantAlt; }
 }
 function buildIndex(){
@@ -1187,7 +1236,7 @@ function seekTo(ms){
     if(s0!==s1){ buzz(8); toast(`${target.g} entered ${SIGNS_EN[s1]}`); }
     else if(n0!==n1&&(target.g==="Moon"||vFov<45)){ buzz(4); toast(`${target.g} entered ${NAKS[n1]}`); }
     if((prevSel.alt>0)!==(nowSel.alt>0)) buzz(6);
-    if(trackTarget) aimAt(nowSel,{force:true,instant:true}); }
+    if(trackTarget) aimAt(nowSel,{force:true,instant:true,below:true}); }
   prevSeekMs=ms;
   fmtMoment(); paintSeeker(); setFoot();
 }
@@ -1262,8 +1311,25 @@ function onOrient(ev){
   if(azOff==null) return;
   sensing=true; el._lastSensor=performance.now();
   if(!followSky){ syncRecenter(); return; }
-  if(Math.abs(altm)<78) wantAz=((azm+azOff)%360+360)%360;
-  wantAlt=Math.max(-60,Math.min(85,altm));
+  /* THE ZENITH SNAP. Compass heading is a rotation ABOUT the vertical, so it
+     stops meaning anything as the phone points at the sky — the raw reading
+     wanders and can flip by half a turn. The old guard froze the azimuth above
+     78 degrees, which removed the wander but not the snap: coming back down,
+     the view teleported to whatever heading had accumulated while it was
+     frozen, and the chase took the short way round as a fast spin.
+
+     So the heading is TRUSTED PROPORTIONALLY instead. Full weight below 58
+     degrees, none at 80, eased between — and never more than a few degrees
+     from one sample, so a single bad reading cannot turn the sky. Looking
+     straight up the view simply holds still, and lowering the phone eases
+     back onto the true heading rather than jumping to it. */
+  const trust=1-Math.min(1,Math.max(0,(Math.abs(altm)-58)/22));
+  if(trust>0.001){
+    const next=((azm+azOff)%360+360)%360;
+    const step=wrap(next-wantAz)*trust;
+    wantAz=((wantAz+Math.max(-9,Math.min(9,step)))%360+360)%360;
+  }
+  wantAlt=Math.max(-60,Math.min(82,altm));
   const fb=el?.root.querySelector("#svrecenter"); if(fb) fb.hidden=true;
 }
 function armSensors(){ if(watch) return; watch=onOrient;

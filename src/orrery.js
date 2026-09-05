@@ -72,9 +72,22 @@ function globeSprite(D,lat0,lon0,pitch){
       const lon=Math.atan2(x,Zg)+l0;
       let u=(lon/(2*Math.PI)+0.5)%1; if(u<0) u+=1;
       const v=0.5-lat/Math.PI;
-      const sx=Math.min(TW-1,(u*TW)|0), sy=Math.min(TH-1,Math.max(0,(v*TH)|0));
-      const si=(sy*TW+sx)*4, di=(py*S+px)*4;
-      out[di]=src[si]; out[di+1]=src[si+1]; out[di+2]=src[si+2]; out[di+3]=255;
+      /* bilinear, wrapping in longitude: the source is 1024x512 and the near
+         view magnifies it many times over, so point sampling shows the
+         texture's own pixel grid. Four taps costs a cache miss, not a frame. */
+      const fx=u*TW-0.5, fy=Math.max(0,Math.min(TH-1.001,v*TH-0.5));
+      const x0=Math.floor(fx), y0=Math.floor(fy);
+      const tx=fx-x0, ty=fy-y0;
+      const xa=((x0%TW)+TW)%TW, xb=(xa+1)%TW;
+      const ya=Math.max(0,Math.min(TH-1,y0)), yb=Math.min(TH-1,ya+1);
+      const i00=(ya*TW+xa)*4, i10=(ya*TW+xb)*4, i01=(yb*TW+xa)*4, i11=(yb*TW+xb)*4;
+      const di=(py*S+px)*4;
+      for(let ch=0;ch<3;ch++){
+        const top=src[i00+ch]+(src[i10+ch]-src[i00+ch])*tx;
+        const bot=src[i01+ch]+(src[i11+ch]-src[i01+ch])*tx;
+        out[di+ch]=top+(bot-top)*ty;
+      }
+      out[di+3]=255;
     }
   }
   ctx.putImageData(img,0,0);
@@ -143,7 +156,7 @@ function ledger(W,H,top,bottom){
 }
 
 /* ---- the Earth ------------------------------------------------------ */
-function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
+function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch,texA,sun){
   const lat0=(spot?.lat||0)*D2R, lon0=((spot?.lon||0)+(spin||0))*D2R;
   const tilt=lat0-26*D2R+(pitch||0)*D2R;                       /* the observer sits a little above the disc centre */
   const proj=(la,lo)=>{ const f=la*D2R, l=lo*D2R-lon0;
@@ -156,18 +169,27 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
   c.fillStyle=ar; c.beginPath(); c.arc(cx,cy,R*1.18,0,7); c.fill();
   /* the globe itself: photography where it has loaded, the drawn emblem until then */
   const dpr=(typeof devicePixelRatio!=="undefined"?devicePixelRatio:1)||1;
-  const sprite=globeSprite(Math.min(1400,2*R*dpr),spot?.lat||0,(spot?.lon||0)+(spin||0),pitch||0);
+  const tA=texA==null?1:texA;
+  /* Under the surface of the photograph, a plain lit sphere. It carries the
+     first stretch of the climb on its own: a 1024px Blue Marble magnified
+     across a phone is a picture of its own pixels, and from a hundred metres
+     up you would not be seeing continents anyway. The photograph fades in as
+     the magnification becomes honest. */
+  const gg=c.createRadialGradient(cx+light.x*R*0.35,cy+light.y*R*0.35,R*0.02,cx,cy,R);
+  gg.addColorStop(0,"#3f7fae"); gg.addColorStop(0.5,"#28577f"); gg.addColorStop(1,"#12294a");
+  c.fillStyle=gg; c.beginPath(); c.arc(cx,cy,R,0,7); c.fill();
+  const sprite=tA>0.004?globeSprite(Math.min(1400,2*R*dpr),spot?.lat||0,(spot?.lon||0)+(spin||0),pitch||0):null;
   if(sprite){
     c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
+    const wasA=c.globalAlpha; c.globalAlpha=wasA*tA;
     c.drawImage(sprite,cx-R,cy-R,2*R,2*R);
+    c.globalAlpha=wasA;
     c.restore();
-  } else {
-    const og=c.createRadialGradient(cx+light.x*R*0.4,cy+light.y*R*0.4,R*0.05,cx,cy,R);
-    og.addColorStop(0,"#4a93d6"); og.addColorStop(0.55,"#20579a"); og.addColorStop(1,"#0d2a55");
-    c.fillStyle=og; c.beginPath(); c.arc(cx,cy,R,0,7); c.fill();
+  } else if(!EARTH_READY){
+    /* nothing extra: the lit sphere above stands in until the texture loads */
   }
   c.save(); c.beginPath(); c.arc(cx,cy,R,0,7); c.clip();
-  if(!sprite){
+  if(!sprite&&!EARTH_READY){
     c.globalAlpha*=landA;
     for(const [la,lo,rad] of LAND){ const p=proj(la,lo); if(p.z<=0.03) continue;
       const rr=rad*D2R*R*0.95; const ang=Math.atan2(p.y-cy,p.x-cx);
@@ -176,14 +198,38 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
       c.beginPath(); c.ellipse(p.x,p.y,Math.max(1,rr*Math.max(0.12,p.z)),Math.max(1,rr),ang,0,7); c.fill(); }
     c.globalAlpha/=Math.max(0.001,landA);
   }
+  /* the limb hazes over with air. Close in this is most of what you would
+     actually see; far out it is a thin blue edge. */
+  const hz=c.createRadialGradient(cx,cy,R*lerp(0.15,0.78,Math.min(1,tA)),cx,cy,R);
+  hz.addColorStop(0,"rgba(126,172,224,0)");
+  hz.addColorStop(1,`rgba(126,172,224,${(0.55-0.3*Math.min(1,tA)).toFixed(3)})`);
+  c.fillStyle=hz; c.fillRect(cx-R,cy-R,2*R,2*R);
   /* a thin veil of cloud on the lit side */
   const cg=c.createRadialGradient(cx+light.x*R*0.5,cy+light.y*R*0.5,R*0.1,cx+light.x*R*0.2,cy+light.y*R*0.2,R*1.1);
   cg.addColorStop(0,"rgba(255,255,255,.22)"); cg.addColorStop(0.5,"rgba(255,255,255,.08)"); cg.addColorStop(1,"rgba(255,255,255,0)");
   c.fillStyle=cg; c.fillRect(cx-R,cy-R,2*R,2*R);
-  /* night: the terminator runs across the light vector */
-  const tg=c.createLinearGradient(cx+light.x*R,cy+light.y*R,cx-light.x*R,cy-light.y*R);
-  tg.addColorStop(0,"rgba(2,4,16,0)"); tg.addColorStop(0.40,"rgba(2,4,16,0)"); tg.addColorStop(0.58,"rgba(2,4,16,.62)"); tg.addColorStop(1,"rgba(2,4,16,.90)");
-  c.fillStyle=tg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  /* NIGHT. This used to run across the light vector taken from the ring, with
+     the sphere's centre as its anchor — and near the surface that centre is far
+     off-screen, so at half past eight in the evening India was painted in full
+     afternoon. The observer's own solar altitude and azimuth fix it: the
+     terminator is the ring of points 90 degrees from the subsolar point, which
+     from the observer lies -sunAlt away along the Sun's azimuth. Exact under
+     the observer, and it degrades gently toward the limb. */
+  if(sun&&sun.alt!=null&&sun.az!=null&&spot){
+    const o=proj(spot.lat,spot.lon);
+    const A=sun.az*D2R;
+    let ux=Math.sin(A), uy=-Math.cos(A)*Math.cos(tilt);
+    const ul=Math.hypot(ux,uy)||1; ux/=ul; uy/=ul;
+    const off=R*Math.sin(clamp(-sun.alt,-89,89)*D2R);
+    const tx=o.x+ux*off, ty=o.y+uy*off, w=Math.max(6,R*0.16);
+    const tg=c.createLinearGradient(tx-ux*w,ty-uy*w,tx+ux*w,ty+uy*w);
+    tg.addColorStop(0,"rgba(2,4,16,.90)"); tg.addColorStop(0.5,"rgba(2,4,16,.5)"); tg.addColorStop(1,"rgba(2,4,16,0)");
+    c.fillStyle=tg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  } else {
+    const tg=c.createLinearGradient(cx+light.x*R,cy+light.y*R,cx-light.x*R,cy-light.y*R);
+    tg.addColorStop(0,"rgba(2,4,16,0)"); tg.addColorStop(0.40,"rgba(2,4,16,0)"); tg.addColorStop(0.58,"rgba(2,4,16,.62)"); tg.addColorStop(1,"rgba(2,4,16,.90)");
+    c.fillStyle=tg; c.fillRect(cx-R,cy-R,2*R,2*R);
+  }
   /* limb darkening + a bright edge on the day side */
   const lg=c.createRadialGradient(cx,cy,R*0.72,cx,cy,R);
   lg.addColorStop(0,"rgba(0,0,0,0)"); lg.addColorStop(1,"rgba(0,4,20,.45)");
@@ -197,7 +243,10 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
     const a=(e-0.55)/0.45; const pulse=reduced?0:0.5+0.5*Math.sin(now/600);
     c.strokeStyle=`rgba(255,244,214,${0.5*a})`; c.lineWidth=1.2; c.beginPath(); c.arc(p.x,p.y,4+pulse*3,0,7); c.stroke();
     c.fillStyle=`rgba(255,250,235,${a})`; c.beginPath(); c.arc(p.x,p.y,2.4,0,7); c.fill();
-    if(R>44) text(c,"You",p.x+9,p.y,`rgba(241,231,201,${0.95*a})`,sysF(10,600),"left");
+    /* the halo has to fade with the label, or the first moments of the fade-in
+       are a black word on a lit continent */
+    if(R>44) text(c,"You",p.x+9,p.y,`rgba(241,231,201,${(0.95*a).toFixed(3)})`,sysF(10,600),"left",
+      `rgba(4,5,18,${(0.82*a).toFixed(3)})`);
   } }
 }
 
@@ -205,9 +254,21 @@ function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch){
 export function drawOrrery(c,W,H,k,env){
   const e=smooth(k); if(k<=0.002) return;
   earthTexture();
-  const cover=smooth(clamp(k*2.2,0,1));                     /* the sky is gone well before the chart settles */
-  const sc=smooth(clamp((k-0.12)/0.88,0,1));               /* ring + bodies */
-  const landA=smooth(clamp((k-0.5)/0.4,0,1));              /* continents only once it is a globe */
+  /* PACING (5 Sep). Sangram: "when you zoom out of the Earth, it directly
+     starts showing the Earth." It did: space reached full opacity a fifth of
+     the way through the pinch and the globe had already shrunk a third of the
+     way, so the first moment of pulling back was also the moment the sky
+     disappeared. The four curves below now describe an ascent — ground, then
+     altitude, then orbit — and each one starts only once the previous has
+     given the eye something to hold. */
+  const cover=smooth(clamp((k-0.14)/0.46,0,1));            /* space arrives after you leave the ground */
+  /* the ground itself is opaque almost at once: at k=0 this disc's upper edge
+     sits exactly where the flat horizon does, so the handover is a flat ground
+     BECOMING a curved one rather than a globe fading in over the sky */
+  const earthA=smooth(clamp(k/0.16,0,1));
+  const sc=smooth(clamp((k-0.30)/0.70,0,1));               /* ring + bodies, once there is sky to hang them in */
+  const texA=smooth(clamp((k-0.20)/0.34,0,1));             /* photography, once the magnification is sane */
+  const landA=smooth(clamp((k-0.55)/0.35,0,1));            /* continents only once it is a globe */
   const {grahas,layers,target,names,reduced,now}=env;
   const spin=env.spin||0, pitch=env.pitch||0;   /* dragged yaw and elevation */
   const S=clamp(Math.min(W,H)/390,0.9,1.5);                /* phone → tablet scale */
@@ -222,7 +283,9 @@ export function drawOrrery(c,W,H,k,env){
      a giant arc on its way to a small disc. The ring rides the same curve so the two never
      cut through each other. */
   const R1=Math.min(W,H)*0.175, cy1=H*0.47, BIG=Math.max(W,H)*1.15;
-  const eR=Math.pow(e,0.45);
+  /* the globe leaves slowly and then quickly: near the surface a small change
+     in altitude barely changes what you see, which is what standing feels like */
+  const eR=Math.pow(e,1.5);
   const RE=lerp(BIG,R1,eR);
   const topY=lerp(H*0.66,cy1-R1,eR);
   const ecx=W/2, ecy=topY+RE;
@@ -323,7 +386,7 @@ export function drawOrrery(c,W,H,k,env){
       c.beginPath(); c.moveTo(sx,sy2); c.lineTo(a.x-dx/dl*band*0.55,a.y-dy/dl*band*0.55); c.stroke(); c.setLineDash([]); c.restore(); }
   }
 
-  c.globalAlpha=cover; drawEarth(c,ecx,ecy,RE,light,env.spot,e,now,reduced,landA,spin,pitch); c.globalAlpha=sc;
+  c.globalAlpha=earthA; drawEarth(c,ecx,ecy,RE,light,env.spot,e,now,reduced,landA,spin,pitch,texA,{alt:env.sunAlt,az:env.sunAz}); c.globalAlpha=sc;
   drawRing(false);
   for(const b of bodies) if(b.d<=0) drawBody(b);
 

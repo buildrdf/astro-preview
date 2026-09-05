@@ -4103,13 +4103,26 @@ function renderGuide(){
         `<button class="gchip">${q}</button>`).join("")}</div>`:""}
     </div>
     <div class="composer glight" id="gcomposer">
-      <div class="cmp-pill">
+      <!-- A ROUNDED RECTANGLE, NOT A CAPSULE, with its controls on their own row
+           underneath the text (Sangram's screenshots of Claude). A capsule is
+           right for one line and wrong for four, and a button sitting beside
+           four lines of text has nothing to align to. -->
+      <div class="cmp-box">
         <textarea id="cmpin" rows="1" placeholder="Ask Guide" aria-label="Message"
           autocomplete="off" enterkeyhint="enter"></textarea>
-        <button class="cmp-go" id="cmpgo" aria-label="Talk to Guide">
-          <svg class="ico-voice" viewBox="0 0 24 24"><path d="M4.5 10v4M8.25 7v10M12 4.5v15M15.75 8v8M19.5 10.5v3"/></svg>
-          <svg class="ico-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
-        </button>
+        <div class="cmp-row">
+          <!-- DICTATION, not the voice conversation. This one only types: it
+               turns speech into text in the box and leaves the sending to you.
+               The round button beside it still opens the full voice mode. -->
+          <button class="cmp-mic" id="cmpmic" aria-label="Dictate your question">
+            <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/>
+              <path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v3"/></svg>
+          </button>
+          <button class="cmp-go" id="cmpgo" aria-label="Talk to Guide">
+            <svg class="ico-voice" viewBox="0 0 24 24"><path d="M4.5 10v4M8.25 7v10M12 4.5v15M15.75 8v8M19.5 10.5v3"/></svg>
+            <svg class="ico-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+          </button>
+        </div>
       </div>
     </div>
     <div class="gvoice" id="gvoice" hidden>
@@ -4190,7 +4203,8 @@ function renderGuide(){
   const swap=()=>{ const has=!!inp.value.trim();
     goB.classList.toggle("has",has);
     goB.setAttribute("aria-label",has?"Send":"Talk to Guide");
-    grow(); };
+    grow();
+  wireDictation(inp,swap); };
   inp.oninput=swap;
   /* Sangram: "the Enter key should not send the message. There's a button for
      sending." So Return inserts a line, the way it does in every other message
@@ -4227,6 +4241,49 @@ function renderGuide(){
 }
 
 const CMP_MAX=132;   /* about five lines; longer than that scrolls */
+
+/* ---- DICTATION -----------------------------------------------------
+   Sangram: "we can give the mic button as well ... it can type the text and it
+   can be different than the voice mode that we have." So this is deliberately
+   NOT the realtime conversation: no model, no reply, no audio out. It writes
+   into the composer and stops, and you still decide whether to send.
+   Interim words appear as they are heard and are replaced when the phrase
+   settles, so the box never shows a sentence that was never said. */
+let DICT=null;
+function wireDictation(inp,swap){
+  const b=document.getElementById("cmpmic"); if(!b) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ b.hidden=true; return; }     /* absent, never a dead control */
+  b.hidden=false;
+  const stop=()=>{ try{ DICT&&DICT.stop(); }catch(_){} };
+  b.onclick=()=>{
+    if(DICT){ stop(); return; }
+    let base=inp.value, settled="";
+    const r=new SR();
+    r.lang=(PREFS().lang==="hi")?"hi-IN":"en-IN";
+    r.continuous=true; r.interimResults=true;
+    r.onstart=()=>{ DICT=r; b.classList.add("on");
+      b.setAttribute("aria-label","Stop dictating"); buzz(8); };
+    r.onresult=e=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal) settled+=t; else interim+=t;
+      }
+      const joiner=base&&!/\s$/.test(base)?" ":"";
+      inp.value=base+joiner+(settled+interim).replace(/^\s+/,"");
+      swap();
+    };
+    r.onerror=()=>{ stop(); };
+    r.onend=()=>{ DICT=null; b.classList.remove("on");
+      b.setAttribute("aria-label","Dictate your question");
+      /* keep what was heard, put the cursor after it */
+      try{ inp.focus({preventScroll:true});
+        inp.setSelectionRange(inp.value.length,inp.value.length); }catch(_){}
+      swap(); };
+    try{ r.start(); }catch(_){ DICT=null; }
+  };
+}
 async function guideSend(q,opts={}){
   if(GUIDE.busy) return;
   GUIDE.busy=true;

@@ -2161,27 +2161,35 @@ body.guidefull .composer.glight{border:0;box-shadow:none;
 body.guidefull .composer.glight::before{content:"";position:absolute;left:0;right:0;
   bottom:100%;height:46px;pointer-events:none;
   background:linear-gradient(180deg,rgba(247,245,239,0),rgba(247,245,239,.72))}
-.cmp-pill{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#FFFFFF;
-  border:1px solid rgba(23,26,51,.13);border-radius:26px;padding:5px 5px 5px 18px;
-  box-shadow:0 4px 22px rgba(23,26,51,.08)}
-/* A 99px capsule is right at one line and wrong at four — the corners bow into
-   the text. 26px reads as a capsule while the field is short and as a rounded
-   box once it grows, which is what it now is. */
-/* the field is a textarea now, so it can hold the multi-line questions the
-   Ask Guide buttons type into it; it grows to its content and then scrolls */
-.composer .cmp-pill textarea{flex:1;min-width:0;background:none;border:0;border-radius:0;
-  resize:none;overflow-y:auto;max-height:132px;line-height:1.35;padding:9px 0;
+/* THE COMPOSER IS A ROUNDED RECTANGLE, and its controls live on their own row
+   beneath the text. Sangram, with screenshots: "square/rectangle with rounded
+   edges not oval". A capsule is right at one line and wrong at four — the
+   corners bow into the text — and a send button beside four lines has nothing
+   to align to. */
+.cmp-box{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;
+  background:#FFFFFF;border:1px solid rgba(23,26,51,.13);border-radius:22px;
+  padding:10px 10px 8px 14px;box-shadow:0 4px 22px rgba(23,26,51,.08)}
+.composer .cmp-box textarea{width:100%;background:none;border:0;border-radius:0;
+  resize:none;overflow-y:auto;max-height:132px;line-height:1.35;padding:2px 0;
   font-family:var(--ff);font-size:16px;color:#171A33;scrollbar-width:none}
-.composer .cmp-pill textarea::-webkit-scrollbar{display:none}
-.composer .cmp-pill textarea:focus{outline:none;background:none;border:0}
-.composer .cmp-pill textarea::placeholder{color:#9A9DB0}
-/* the field can be tall now, so the send button sits at the BOTTOM of the pill
-   rather than floating in the middle of four lines of text */
-.cmp-pill{align-items:flex-end}
-.composer .cmp-pill input{flex:1;min-width:0;background:none;border:0;border-radius:0;
-  padding:9px 4px 9px 0;font-size:16px;color:#171A33}
-.composer .cmp-pill input:focus{outline:none;background:none;border:0}
-.composer .cmp-pill input::placeholder{color:#9A9DB0}
+.composer .cmp-box textarea::-webkit-scrollbar{display:none}
+.composer .cmp-box textarea:focus{outline:none;background:none;border:0}
+.composer .cmp-box textarea::placeholder{color:#9A9DB0}
+.cmp-row{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+
+/* dictation — it types, it does not converse */
+.cmp-mic{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;cursor:pointer;
+  background:none;color:#5B5F78;display:grid;place-items:center;
+  transition:background .18s,color .18s,transform .15s cubic-bezier(.2,.8,.2,1)}
+.cmp-mic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.cmp-mic:active{transform:scale(.9)}
+.cmp-mic[hidden]{display:none!important}
+/* listening: the control states it in colour AND in its accessible name, which
+   the handler rewrites — never colour alone */
+.cmp-mic.on{background:#D8543F;color:#FFFFFF}
+.cmp-mic:focus-visible{outline:2px solid #171A33;outline-offset:2px}
+
 .cmp-go{position:relative;width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;
   background:#171A33;color:#F7F5EF;cursor:pointer;display:grid;place-items:center;
   transition:transform .18s cubic-bezier(.2,.8,.2,1)}

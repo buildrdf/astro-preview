@@ -158,13 +158,18 @@ export function sunTimes(date, lat, lon){
   };
   /* coarse scan for the two crossings */
   let rise=null,set=null,prev=altAt(0);
+  let everUp=prev>-0.833, everDown=prev<=-0.833;
   for(let h=1;h<=24;h++){
     const cur=altAt(h);
     if(prev<=-0.833&&cur>-0.833) rise=cross(h-1,h,true);
     if(prev>-0.833&&cur<=-0.833) set=cross(h-1,h,false);
+    if(cur>-0.833) everUp=true; else everDown=true;
     prev=cur;
   }
-  return {rise,set};
+  /* Above the polar circles there is no crossing for weeks at a time, and a
+     caller that only sees {rise:null,set:null} cannot tell midnight sun from
+     polar night. It is already sampling every hour — say which. */
+  return {rise, set, alwaysUp: everUp&&!everDown, alwaysDown: everDown&&!everUp};
 }
 
 /* ---------------------------------------------------------------

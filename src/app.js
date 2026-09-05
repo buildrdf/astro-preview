@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906n";
+import { LEARN_LEVELS } from "./learn.js?v=20260906p";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906n";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906p";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906n";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906p";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906p";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -1329,12 +1329,30 @@ function renderToday(){
                 panchang carries (Sangram, 30 Aug). Sequence follows the
                 classical hora order from the day lord; night restarts
                 five lords on. */
-      if(!st.rise||!st.set) return "";
+      /* Above the Arctic and Antarctic circles the sun does not rise or set for
+         weeks at a time, and every one of these windows is a division of the
+         span between the two. Returning nothing left the reader wondering
+         where the section went; the real reason is worth saying
+         (constitution 112). */
+      if(!st.rise||!st.set) return `
+        <div class="card special" style="margin-top:12px">
+          <b>No sunrise or sunset here today</b>
+          <p>At ${Math.abs(sp0.lat).toFixed(1)}&#176;${sp0.lat>=0?"N":"S"} the sun stays
+          ${st.alwaysUp?"above":st.alwaysDown?"below":"on one side of"}
+          the horizon all day at this time of year. Choghadiya, hora, rahu kalam and
+          abhijit are all divisions of the span between sunrise and sunset, so there is
+          nothing to divide. Everything else on this page &#8212; tithi, nakshatra, yoga,
+          karana and your own periods &#8212; is unaffected.</p>
+        </div>`;
       const HORA_ORDER=["Sun","Venus","Mercury","Moon","Saturn","Jupiter","Mars"];
       const CHOG={Sun:["Udveg","avoid"],Venus:["Char","good"],Mercury:["Labh","good"],
         Moon:["Amrit","good"],Saturn:["Kaal","avoid"],Jupiter:["Shubh","good"],
         Mars:["Rog","avoid"]};
-      const st2=sunTimes(new Date(viewDate.getTime()+864e5),BIRTHPLACE.lat,BIRTHPLACE.lon);
+      /* the same place the day's sunrise came from. This read BIRTHPLACE while
+         `st` above reads the live location, so the night choghadiya ended at a
+         sunrise in a different city — minutes out between Indian cities, hours
+         out for anyone abroad. */
+      const st2=sunTimes(new Date(viewDate.getTime()+864e5),sp0.lat,sp0.lon);
       const nowT=Date.now();
       const seg8=(t0,t1,i0)=>Array.from({length:8},(_,i)=>{
         const a=t0+(t1-t0)*i/8, b=t0+(t1-t0)*(i+1)/8;

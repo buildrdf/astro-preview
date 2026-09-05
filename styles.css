@@ -2185,6 +2185,31 @@ body.guidefull .composer.glight::before{content:"";position:absolute;left:0;righ
 .composer .cmp-box textarea::placeholder{color:#9A9DB0}
 .cmp-row{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:6px}
 
+/* THE DICTATION STRIP: cancel, a wave, accept. It replaces the control row
+   while the mic is open; the field stays where it is with the words landing
+   in it. The bars are scaled from their base, so the wave grows upward the
+   way a level meter reads. */
+.cmp-dict{flex:1 1 100%;display:flex;align-items:center;gap:10px;min-height:44px}
+.cmp-dict[hidden]{display:none!important}
+.cmp-box.dicting .cmp-row{display:none}
+.dictbtn{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;cursor:pointer;
+  display:grid;place-items:center;transition:transform .15s cubic-bezier(.2,.8,.2,1)}
+.dictbtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round}
+.dictbtn:active{transform:scale(.9)}
+.dictbtn.x{background:rgba(23,26,51,.07);color:#3B3F5C}
+.dictbtn.ok{background:#171A33;color:#F7F5EF}
+.dictbtn:focus-visible{outline:2px solid #171A33;outline-offset:2px}
+/* 40px visual, 44pt target — the same enlarged hit rect the other small
+   controls carry, so cancel and keep are never a near-miss on a phone */
+.dictbtn{position:relative}
+.dictbtn::before{content:"";position:absolute;inset:-2px;border-radius:50%}
+.dictwave{flex:1;min-width:0;height:28px;display:flex;align-items:center;gap:3px;
+  padding:0 4px;overflow:hidden}
+.dictwave i{flex:1 1 0;height:24px;border-radius:2px;background:#171A33;
+  transform:scaleY(.12);transform-origin:center;will-change:transform}
+@media (prefers-reduced-motion: reduce){ .dictwave i{transform:scaleY(.32)} }
+
 /* dictation — it types, it does not converse */
 .cmp-mic{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;cursor:pointer;
   background:none;color:#5B5F78;display:grid;place-items:center;

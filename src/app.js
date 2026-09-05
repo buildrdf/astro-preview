@@ -4184,6 +4184,16 @@ function renderGuide(){
       <div class="cmp-box">
         <textarea id="cmpin" rows="1" placeholder="Ask Astra" aria-label="Message"
           autocomplete="off" enterkeyhint="enter"></textarea>
+        <!-- WHILE DICTATING the controls give way to this: cancel, a wave that
+             moves with your speech, accept. Sangram's reference is the Claude
+             app's own dictation strip. -->
+        <div class="cmp-dict" id="cmpdict" hidden>
+          <button class="dictbtn x" id="dictx" aria-label="Cancel dictation">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <div class="dictwave" id="dictwave" aria-hidden="true">${"<i></i>".repeat(28)}</div>
+          <button class="dictbtn ok" id="dictok" aria-label="Keep what was heard">
+            <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        </div>
         <div class="cmp-row">
           <!-- DICTATION, not the voice conversation. This one only types: it
                turns speech into text in the box and leaves the sending to you.
@@ -4354,34 +4364,85 @@ function wireDictation(inp,swap){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ b.hidden=true; return; }     /* absent, never a dead control */
   b.hidden=false;
+  const box=inp.closest(".cmp-box"), strip=document.getElementById("cmpdict"),
+        wave=document.getElementById("dictwave"), bx=document.getElementById("dictx"),
+        bok=document.getElementById("dictok");
+  const bars=wave?[...wave.querySelectorAll("i")]:[];
   const stop=()=>{ try{ DICT&&DICT.stop(); }catch(_){} };
+
+  /* THE WAVE. SpeechRecognition hands back words, not audio, and opening a
+     second microphone capture beside it stops Safari's recogniser dead — the
+     reason voiceMeterStart() bails on iOS. So this wave is driven by the
+     recogniser's own activity: it surges as words arrive and settles in the
+     silences. It moves with your speech; it is not the waveform of it, and
+     that is stated here rather than pretended otherwise. Under Reduce Motion
+     the bars hold a quiet mid-height and only the buttons say "listening". */
+  let lvl=0, raf=0, seed=0;
+  const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const paint=()=>{
+    if(!DICT) return;
+    lvl*=0.90; seed+=0.13;
+    bars.forEach((el,i)=>{
+      const base=reduced()?0.32:0.12+0.10*Math.sin(seed+i*0.55);
+      const h=reduced()?0.32:Math.min(1,base+lvl*(0.4+0.6*Math.abs(Math.sin(seed*1.7+i*0.9))));
+      el.style.transform=`scaleY(${h.toFixed(3)})`;
+    });
+    raf=requestAnimationFrame(paint);
+  };
+  const bump=v=>{ lvl=Math.min(1,lvl+v); };
+
+  const enter=()=>{
+    if(box) box.classList.add("dicting");
+    if(strip) strip.hidden=false;
+    b.classList.add("on"); b.setAttribute("aria-label","Stop dictating");
+    voiceCue(1); buzz(8);                       /* Astra's own note: "listening" */
+    cancelAnimationFrame(raf); raf=requestAnimationFrame(paint);
+  };
+  const leave=()=>{
+    cancelAnimationFrame(raf);
+    if(box) box.classList.remove("dicting");
+    if(strip) strip.hidden=true;
+    b.classList.remove("on"); b.setAttribute("aria-label","Dictate your question");
+    voiceCue(-1); buzz(6);                      /* the falling note: "done" */
+  };
+
+  let cancelled=false;
   b.onclick=()=>{
     if(DICT){ stop(); return; }
     let base=inp.value, settled="";
+    cancelled=false;
     const r=new SR();
     r.lang=(PREFS().lang==="hi")?"hi-IN":"en-IN";
     r.continuous=true; r.interimResults=true;
-    r.onstart=()=>{ DICT=r; b.classList.add("on");
-      b.setAttribute("aria-label","Stop dictating"); buzz(8); };
+    r.onstart=()=>{ DICT=r; enter(); };
+    r.onsoundstart=()=>bump(0.5);
+    r.onspeechstart=()=>bump(0.6);
     r.onresult=e=>{
       let interim="";
       for(let i=e.resultIndex;i<e.results.length;i++){
         const t=e.results[i][0].transcript;
         if(e.results[i].isFinal) settled+=t; else interim+=t;
       }
+      bump(0.45);
       const joiner=base&&!/\s$/.test(base)?" ":"";
       inp.value=base+joiner+(settled+interim).replace(/^\s+/,"");
       swap();
     };
     r.onerror=()=>{ stop(); };
-    r.onend=()=>{ DICT=null; b.classList.remove("on");
-      b.setAttribute("aria-label","Dictate your question");
-      /* keep what was heard, put the cursor after it */
+    r.onend=()=>{
+      DICT=null;
+      /* ✕ means "as if I had never spoken": the text goes back to exactly
+         what was there before the mic opened */
+      if(cancelled){ inp.value=base; cancelled=false; }
+      leave();
       try{ inp.focus({preventScroll:true});
         inp.setSelectionRange(inp.value.length,inp.value.length); }catch(_){}
-      swap(); };
+      swap();
+    };
     try{ r.start(); }catch(_){ DICT=null; }
   };
+  if(bx)  bx.onclick =()=>{ if(!DICT) return; cancelled=true; buzz(5); stop(); };
+  if(bok) bok.onclick=()=>{ if(!DICT) return; buzz(7); stop(); };
 }
 async function guideSend(q,opts={}){
   if(GUIDE.busy) return;

@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906j";
+import { LEARN_LEVELS } from "./learn.js?v=20260906k";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906j";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906k";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906j";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906k";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -4259,7 +4259,13 @@ function voiceStart(){
     console.warn("realtime unavailable, falling back:",err&&err.message);
     rtStop();
     gMoonState("listening");
-    if(window.SpeechRecognition||window.webkitSpeechRecognition) voiceListen();
+    if(window.SpeechRecognition||window.webkitSpeechRecognition){
+      /* The fallback is a DIFFERENT voice — the phone's flat engine, not
+         Astra's. Swapping it in silently reads as Astra's voice having got
+         worse; say which one is speaking (constitution 104). */
+      voiceNote("Astra\u2019s own voice couldn\u2019t connect \u2014 using your phone\u2019s voice for now");
+      voiceListen();
+    }
     else voiceNote("Voice needs a microphone and a connection \u2014 type instead");
   });
 }

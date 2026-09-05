@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906r";
+import { LEARN_LEVELS } from "./learn.js?v=20260906t";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906r";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906t";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906r";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906r";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906t";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906t";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -937,6 +937,50 @@ function nextIngressMap(from){
   }
   ingressCache={key,map};
   return map;
+}
+
+/* ---- HOW CLOSE IS THE MOON TO AN EDGE? ---------------------------
+   The Moon decides the nakshatra, the nakshatra decides five of the eight
+   kootas and where the Vimshottari dasha starts. It moves about 13 degrees a
+   day, so a nakshatra boundary is only about 24 hours of arc away at most —
+   and a birth time recalled to the nearest half hour can land on the wrong
+   side of one. Eight minutes either side of the Aries/Taurus boundary on
+   3 Sep 2026 moves a real Gun Milan score from 27.5 to 18.5, across the
+   classical threshold of 18.
+
+   So: measure the distance to the nearest sign and nakshatra edge in MINUTES
+   OF BIRTH TIME, using the Moon's actual speed at that moment. A number that
+   turns on a coin toss should say so (constitution 104, 143). ---- */
+function moonEdge(born){
+  try{
+    const L=moonSidereal(born);
+    const perMin=(moonSidereal(new Date(born.getTime()+36e5))-L+360)%360/60;  /* deg per minute */
+    if(!(perMin>0)) return null;
+    const toEdge=(span)=>{ const into=((L%span)+span)%span;
+      return {before:into/perMin, after:(span-into)/perMin}; };
+    const sg=toEdge(30), nk=toEdge(360/27);
+    return {
+      signMins:Math.min(sg.before,sg.after), nakMins:Math.min(nk.before,nk.after),
+      nearestIsSign:Math.min(sg.before,sg.after)<Math.min(nk.before,nk.after),
+      signNext:sg.after<sg.before, nakNext:nk.after<nk.before };
+  }catch(_){ return null; }
+}
+const fmtMins=m=>m<1?"under a minute":m<90?`${Math.round(m)} minutes`:`${(m/60).toFixed(1)} hours`;
+/* the sentence, or nothing at all when the Moon is comfortably inside both */
+function moonEdgeNote(born,who){
+  const e=moonEdge(born); if(!e) return "";
+  const tight=Math.min(e.signMins,e.nakMins);
+  if(tight>30) return "";
+  const isSign=e.nearestIsSign;
+  const what=isSign?"sign":"nakshatra";
+  const dir=(isSign?e.signNext:e.nakNext)?"entered":"left";
+  return `<p class="note open"><b>${who} Moon sits ${fmtMins(tight)} from a ${what} boundary.</b>
+    It ${dir==="entered"?"would have entered the next":"had only just left the previous"}
+    ${what} ${fmtMins(tight)} ${dir==="entered"?"later":"earlier"}. The Moon covers about
+    thirteen degrees a day, so a birth time recalled to the nearest half hour can land on
+    either side &#8212; and the ${what} decides
+    ${isSign?"the Moon sign every koota is counted from":"five of the eight kootas and where the dasha sequence starts"}.
+    Worth confirming the time against a record if one exists.</p>`;
 }
 
 /* ---- THE YEAR AHEAD ------------------------------------------------
@@ -6055,6 +6099,7 @@ function subBirth(){
 }
 
 function bdOverview(){
+  const edge=moonEdgeNote(CHART.birthDate,"Your");
   const idRows=ACTIVE.p
     ? (()=>{const p=ACTIVE.p, d=new Date(p.born);
         return rows([["Name",ACTIVE.name],["Date",fmtDateTz(d,p.tz)],
@@ -6071,6 +6116,7 @@ function bdOverview(){
         ["Ayanamsa","Lahiri"]]);
   return `
     ${idRows}
+    ${edge}
     ${!ACTIVE.p?`
     <div class="eyebrow" style="margin:22px 0 8px">Panchang at birth</div>
     ${rows(Object.entries(birthPanchang()))}
@@ -8050,7 +8096,12 @@ function wireAddPartner(){
     const [yy,mm,dd]=date.split("-").map(Number), [hh,mi]=time.split(":").map(Number);
     const tz=fPlace?fPlace.tz:(subArg!=null?partners()[subArg]?.tz:null);
     let d;
-    try{ d=tz?utcFromLocalTz(yy,mm,dd,hh,mi,tz):new Date(`${date}T${time}:00+05:30`); }
+    /* The no-place fallback goes through the zone too, not a literal +05:30.
+       India has not always been +5:30: the IANA database has +5:21 before the
+       war and +6:30 through 1942-45, so a grandparent's birth entered without
+       a place was an hour out under a fixed offset and exactly right under
+       the zone. Identical for every modern date. */
+    try{ d=utcFromLocalTz(yy,mm,dd,hh,mi,tz||"Asia/Kolkata"); }
     catch(_){ d=new Date(`${date}T${time}:00+05:30`); }
     if(isNaN(d)){alert("That date could not be read.");return}
     const l=partners();
@@ -8263,6 +8314,8 @@ function subPartner(){
       <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Download relationship report
       <span class="sub">&#8377;399 &#183; $11.99</span><span class="chev">&#8250;</span>
     </button>
+    ${p.approx?"":moonEdgeNote(new Date(p.born),`${p.name.split(" ")[0]}&#8217;s`)}
+    ${moonEdgeNote(CHART.birthDate,"Your")}
     <p class="note open">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}

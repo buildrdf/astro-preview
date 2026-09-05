@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905y";
+import { LEARN_LEVELS } from "./learn.js?v=20260906b";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905y";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906b";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -308,6 +308,18 @@ const COLOUR=g=>`var(--${g.toLowerCase()})`;
 const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
 /* "Sun", "Sun and Moon", "Sun, Moon and Mars" — prose, not a comma-joined array */
 const listOf=a=>a.length<2?(a[0]||""):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
+/* manglik() in match.js takes (marsSign, refSign) and returns an OBJECT.
+   Every call site here handed it a whole chart and used the result as a
+   boolean — and an object is always truthy, so the app told EVERY person that
+   they were Manglik, whatever their Mars actually did. In a matrimonial
+   context that is not a cosmetic bug. Mars is counted from the lagna, or from
+   the Moon where there is no birth time and so no reliable lagna. */
+const manglikOf=(chart,fromMoon)=>{
+  const mars=chart&&chart.get&&chart.get("Mars");
+  if(!mars) return {manglik:false, house:null};
+  const ref=fromMoon?chart.get("Moon").sign:chart.lagna;
+  return manglik(mars.sign, ref);
+};
 /* HAPTICS.
    Safari has never implemented the Vibration API — not on iOS, not on the desktop, not in
    any version (caniuse: unsupported through 26.6 / TP). So every buzz() in this app has
@@ -4396,7 +4408,7 @@ const GLOSSARY=[
   ["Gun Milan","Ashtakoota matching. Eight tests worth 36 points between two charts, weighted toward Nadi and Bhakoot."],
   ["Gana","Temperament by nakshatra - Deva, Manushya or Rakshasa. A classification, not a judgement."],
   ["Nadi","Constitution by nakshatra - Aadi, Madhya or Antya. The heaviest koota in matching, and the most argued over."],
-  ["Manglik","A chart with Mars in the 1st, 2nd, 4th, 7th, 8th or 12th. Traditionally flagged in matching; treated with far more weight in some regions than others."]]],
+  ["Manglik","Mars in the 1st, 4th, 7th, 8th or 12th house from the lagna &#8212; the rule Astra applies. Some southern traditions add the 2nd; where they disagree Astra names the narrower rule rather than the alarming one. Traditionally flagged in matching, and weighed far more heavily in some regions than others."]]],
  ["Combinations",[
   ["Yoga","A named combination of placements. Hundreds exist; most charts carry several."],
   ["Dosha","An affliction or flaw in a chart. Traditionally something to be aware of, not a sentence."],
@@ -4430,7 +4442,7 @@ const PERSONAL={
  "Vimshottari":()=>`Yours started from <b>${CHART.get("Moon").nak}</b>, so Ketu ran first.`,
  "Gana":()=>`Yours is <b>${avakhadaOf(CHART.get("Moon").L).Gana}</b>.`,
  "Nadi":()=>`Yours is <b>${avakhadaOf(CHART.get("Moon").L).Nadi}</b>.`,
- "Manglik":()=>manglik(CHART)?"You are <b>Manglik</b>.":"You are <b>not</b> Manglik.",
+ "Manglik":()=>manglikOf(CHART).manglik?"You are <b>Manglik</b>.":"You are <b>not</b> Manglik.",
  "Ayanamsa":()=>`Your chart uses <b>${PREFS().ayanamsa||"Lahiri"}</b>.`,
  "Kendra":()=>{const k=CHART.placements.filter(p=>[1,4,7,10].includes(p.house)).map(p=>p.graha);
    return k.length?`In yours, <b>${k.join(", ")}</b> sit in kendras.`:"No graha sits in a kendra in your chart."},
@@ -5654,7 +5666,7 @@ function subReportView(){
     <div class="eyebrow" style="margin:20px 0 8px">Doshas</div>
     ${E.doshas.map(d=>`<p class="interp"><b>${d.name}: ${d.present?"present":"absent"}.</b>
       ${d.because}</p>`).join("")}
-    <p class="interp"><b>Manglik: ${manglik(CHART)?"yes":"no"}.</b> Mars occupies house
+    <p class="interp"><b>Manglik: ${manglikOf(CHART).manglik?"yes":"no"}.</b> Mars occupies house
       ${CHART.get("Mars").house}; the dosha counts houses 1, 4, 7, 8 and 12 from the
       lagna (some schools add the 2nd).</p>
 
@@ -5700,8 +5712,8 @@ function subRelReportView(){
     ${k.kootas.map(x=>`<p class="interp"><b>${x.name} &#183; ${x.got}/${x.max}</b> &#8212;
       you: ${x.a}, ${p.name.split(" ")[0]}: ${x.b}. ${x.about}</p>`).join("")}
     <div class="eyebrow" style="margin:20px 0 8px">Manglik</div>
-    <p class="interp">You: <b>${manglik(CHART)?"yes":"no"}</b> (Mars in house ${CHART.get("Mars").house}).
-      ${p.name.split(" ")[0]}: <b>${manglik(pchart)?"yes":"no"}</b> (Mars in house ${pchart.get("Mars").house}).</p>
+    <p class="interp">You: <b>${manglikOf(CHART).manglik?"yes":"no"}</b> (Mars in house ${CHART.get("Mars").house}).
+      ${p.name.split(" ")[0]}: <b>${manglikOf(pchart).manglik?"yes":"no"}</b> (Mars in house ${pchart.get("Mars").house}).</p>
     <div class="eyebrow" style="margin:20px 0 8px">Your seasons, side by side</div>
     <p class="ameta" style="margin:0 0 8px">Each year: your maha/antar &#183; theirs</p>
     ${rows(years)}
@@ -7952,7 +7964,7 @@ function subPartner(){
             ["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
             ["Nakshatra",`${NAK[nakOf(p.moonL)]} &#183; pada ${padaOf(p.moonL)}`],
             ["Yours",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
-            ["Manglik (yours)",manglik(CHART)?"Yes":"No"]])}
+            ["Manglik (yours)",manglikOf(CHART).manglik?`Yes &#183; Mars in your ${ordinal(manglikOf(CHART).house)}`:`No &#183; Mars in your ${ordinal(manglikOf(CHART).house)}`]])}
     <div class="eyebrow" style="margin:22px 0 10px">The eight kootas</div>
     ${k.kootas.map(x=>`
       <div class="koota">
@@ -7963,9 +7975,8 @@ function subPartner(){
         </div>
         <div class="kbar"><i style="width:${(x.got/x.max)*100}%;
           background:${x.got===0?"var(--mars)":x.got===x.max?"var(--mercury)":"var(--hot)"}"></i></div>
-        <p class="kabout">${x.about}</p>
-        <p class="kvals">You: <b>${SK[x.a]?gIcon(x.a,15):""}${x.a}</b> &#183; ${p.name}: <b>${SK[x.b]?gIcon(x.b,15):""}${x.b}</b>${
-          x.simplified?` <span class="pill">simplified rule</span>`:``}</p>
+        <p class="kabout">${x.why}</p>
+        <p class="kvals">${x.detail}</p>
       </div>`).join("")}
     <button class="item repentry" id="prelrep" style="margin-top:18px">
       <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Download relationship report
@@ -7975,8 +7986,7 @@ function subPartner(){
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
       Gun Milan is one traditional method among several, and a score is not a verdict on a
-      relationship. Kootas marked <i>simplified rule</i> use a reduced version of a longer
-      classical table and will be completed later.</p>`;
+      relationship.</p>`;
 }
 
 function wirePartner(){

@@ -8553,8 +8553,12 @@ function subAddPartner(){
       Compatibility is read from the Moon, so the date and time of birth are what matter.
       Time especially &#8212; the Moon moves about 13&#176; a day.</p>
     ${field("f_name","Name","text",ed?ed.name:"","Their name")}
-    ${field("f_date","Date of birth","date",b?`${b.getFullYear()}-${pad(b.getMonth()+1)}-${pad(b.getDate())}`:"")}
+    ${field("f_date","Date of birth","date",b?`${b.getFullYear()}-${pad(b.getMonth()+1)}-${pad(b.getDate())}`:"","",
+      `max="${new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)}"`)}
     ${field("f_time","Time of birth","time",b?`${pad(b.getHours())}:${pad(b.getMinutes())}`:"","",'')}
+    <p class="fnote">Leave the time blank if it isn&#8217;t known &#8212; Astra assumes midday and
+      says so wherever the reading depends on it. The Moon moves about 13&#176; a day, so the
+      nakshatra and five of the eight kootas can shift.</p>
     ${field("f_place","Birth place","search",ed?ed.place||"":"","Start typing a city")}
     <div class="svplist" id="f_plist"></div>
     <p class="fnote" id="f_tznote">${ed&&ed.tz
@@ -8608,6 +8612,10 @@ function wireAddPartner(){
     const time=document.getElementById("f_time").value||"12:00";
     const place=document.getElementById("f_place").value.trim();
     if(!name||!date){alert("A name and a date of birth are needed.");return}
+    /* Same hole as the user's own form had: no bound on the year, and a
+       slipped digit gives a person not yet born. */
+    if(date>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)){
+      alert("That date hasn\u2019t happened yet \u2014 check the year."); return; }
     /* The birth time is a LOCAL clock reading. This used to be parsed as
        `${date}T${time}+05:30` whatever place was typed, so every person born
        outside India got a chart for a moment they were not born at — up to

@@ -219,6 +219,35 @@ const ROSE=(()=>{ let out="";
   return out; })();
 
 const LAYER_DEFAULT={planets:true,rashis:true,naks:true,art:true,horizon:true,stars:true,starNames:false,sanskrit:false};
+
+/* THE CLOUD FIELD, built once and never rebuilt.
+   Fixed azimuth and altitude, so a cloud stays over the same part of the
+   horizon however the phone is turned — the thing that separates a sky from a
+   backdrop. Deterministic: the same seed every launch, so the sky a reader
+   learns is the sky they come back to. Every cloud sits under 26 degrees of
+   altitude, low where real weather stacks and where no reading happens. */
+const CLOUDS=(()=>{
+  let s0=20260907;                                   /* a fixed seed, not Math.random */
+  const r=()=>{ s0=(s0*1103515245+12345)&0x7fffffff; return s0/0x7fffffff; };
+  const out=[];
+  for(let i=0;i<34;i++){
+    const w=5+r()*11;
+    const puffs=[];
+    /* the vertical was being squashed TWICE — once by the puff spread and again
+       by the ellipse scale below — which made streaks rather than clouds. The
+       spread is wider now and the puffs sit a little above centre, so the top
+       piles and the base stays flat, which is what a cumulus looks like. */
+    const n=4+Math.floor(r()*4);
+    for(let j=0;j<n;j++)
+      puffs.push([(r()-0.5)*1.05, (r()-0.62)*0.62, 0.34+r()*0.30, 0.55+r()*0.45]);
+    /* spread up the sky, not squashed onto the horizon: r()*r() piled them
+       all into the first few degrees, where the haze band washes them out and
+       the ridges cover what is left */
+    out.push({ az:r()*360, alt:5+r()*32, w, h:w*(0.40+r()*0.24),
+               a:0.42+r()*0.34, p:puffs });
+  }
+  return out;
+})();
 /* display radius per body (px): a controlled informational scale, not angular size;
    grows gently as the field narrows so close views stay balanced */
 const R_BASE={Sun:26,Moon:22,Rahu:15,Ketu:15};
@@ -281,6 +310,7 @@ function computeSky(){
       ?siderealPointAltAz(birthOpts.natal[target.g], d, sp.lat, sp.lon):null,
   };
   cache.sunAlt=cache.grahas[0].alt;
+  cache.sunAz=cache.grahas[0].az;    /* the clouds take their lit edge from this */
   cacheAt=Date.now();
   if(tween) cache.key="tween"+performance.now();
 }
@@ -527,6 +557,50 @@ function draw(){
     c.fillStyle=sg; c.fillRect(0,0,W,H);
   }
 
+  /* --- CLOUDS, by day ------------------------------------------------
+     Sangram, with a photograph: "when it's daytime, can we make the landscape
+     look beautiful ... mountains, some clouds, sky? Because currently it looks
+     very plain."
+
+     They are pinned to fixed sky coordinates and projected like everything
+     else, so they hold still while the phone turns — a cloud that slid with
+     the camera would break the illusion the whole AR view depends on. They sit
+     BEHIND the astronomy on purpose: this is an instrument, and a cloud that
+     hides a graha is a cloud that has cost the reader the thing they opened
+     the app for. Low in the sky, where real cloud stacks up and where nothing
+     is being read anyway.
+
+     No photograph, no sprite sheet: two dozen soft ellipses whose lit edge
+     follows the real Sun, so they warm at dusk with everything else. */
+  if(day>0.30&&layers.horizon){
+    const sunAz=cache.sunAz||0;
+    for(const cl of CLOUDS){
+      const [x,y,z]=project({alt:cl.alt,az:cl.az});
+      if(!Number.isFinite(x)||z<0) continue;
+      const w=cl.w*ppd, h=cl.h*ppd;
+      if(x<-w*2||x>W+w*2||y<-h*3||y>H+h*3) continue;
+      /* brighter on the side facing the Sun, greyer away from it */
+      let d=((cl.az-sunAz+540)%360)-180;
+      const lit=Math.max(0,1-Math.abs(d)/150);
+      /* Nearly white. Mixed a third of the way into the sky's own tint they
+         were the same luminance as the sky and simply did not read — a cloud
+         has to be BRIGHTER than the blue behind it, not a tinted version of
+         it. Only a touch of the sky colour, for the shadowed underside. */
+      const base=mixc([250,252,255],t2,0.10);
+      const warm=mixc(base,[255,238,210],0.5*lit*(1-Math.min(1,Math.max(0,cache.sunAlt/25))));
+      const a=cl.a*day*Math.min(1,Math.max(0,(cl.alt-2)/8));
+      c.save(); c.translate(x,y); c.scale(1,h/w);
+      for(const puff of cl.p){
+        const g=c.createRadialGradient(puff[0]*w,puff[1]*w,0,puff[0]*w,puff[1]*w,puff[2]*w);
+        g.addColorStop(0,`rgba(${warm.join(",")},${(a*puff[3]).toFixed(3)})`);
+        g.addColorStop(0.55,`rgba(${warm.join(",")},${(a*puff[3]*0.45).toFixed(3)})`);
+        g.addColorStop(1,`rgba(${base.join(",")},0)`);
+        c.fillStyle=g; c.beginPath(); c.arc(puff[0]*w,puff[1]*w,puff[2]*w,0,7); c.fill();
+      }
+      c.restore();
+    }
+  }
+
   /* --- horizon: a cool material line with ground beneath it --- */
   if(layers.horizon){
     const horizon=hz?hz.pts:[];
@@ -561,9 +635,17 @@ function draw(){
           const e=ord[ord.length-1], f=ord[0];
           c.lineTo(e.x+dx*L,e.y+dy*L); c.lineTo(e.x+dx*L+nx*L,e.y+dy*L+ny*L);
           c.lineTo(f.x-dx*L+nx*L,f.y-dy*L+ny*L); c.lineTo(f.x-dx*L,f.y-dy*L); c.closePath(); c.fill(); };
-        const farC=mixc(hazeC,[8,10,24],day>0.5?0.22:0.45), nearC=mixc(farC,[5,6,15],0.6);
-        ridge(2.2,0.4,`rgba(${farC.join(",")},${0.92*ga})`);
-        ridge(1.2,2.1,`rgba(${nearC.join(",")},${0.94*ga})`);
+        /* FOUR RANGES, not two, and taller — the old pair were 2.2 and 1.2
+           degrees of sky, which is a bump rather than a horizon. Aerial
+           perspective does the work: the far range is almost the sky's own
+           haze, each nearer one steps darker, so distance is read as colour
+           rather than drawn as outline. Still the same land at every azimuth
+           of this spot — a sense of place, not scenery. */
+        const step=k=>mixc(hazeC,day>0.5?[36,44,66]:[6,8,20],k);
+        ridge(5.4,0.4,`rgba(${step(day>0.5?0.16:0.34).join(",")},${0.90*ga})`);
+        ridge(3.8,2.1,`rgba(${step(day>0.5?0.34:0.52).join(",")},${0.93*ga})`);
+        ridge(2.4,4.3,`rgba(${step(day>0.5?0.56:0.70).join(",")},${0.95*ga})`);
+        ridge(1.3,5.9,`rgba(${step(day>0.5?0.78:0.86).join(",")},${0.97*ga})`);
       }
       /* haze rising from the line into the sky: airy by day, a thin breath at night */
       const hzC=mixc(t2,[255,255,255],0.3*day);

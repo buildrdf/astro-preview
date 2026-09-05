@@ -730,28 +730,34 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#93AEEA;background:tra
 .barsearch input::-webkit-search-cancel-button{display:none}
 .barsearch input::placeholder{color:var(--ink-3)}
 .barsearch input:focus{outline:none;background:rgba(255,255,255,.13)}
-.azrail{position:fixed;right:1px;top:50%;transform:translateY(-50%);z-index:20;
-  display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:none;
+/* The index runs ACROSS the top, pinned under the nav, and the terms scroll
+   behind it. Same drag-scrub as the iOS edge rail, turned ninety degrees:
+   it no longer overlays the definitions, and the letters sit where the eye
+   already is when a page is being scanned rather than read. */
+.azrail{position:sticky;top:0;z-index:20;margin:-12px -20px 0;padding:7px 12px 8px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(23,26,51,.86);
+  -webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px);
+  border-bottom:.5px solid rgba(170,180,235,.14);
   touch-action:none;cursor:grab}
 .azrail button{border:0;background:none;color:var(--hot);font-family:var(--ff);
-  font-size:10.5px;font-weight:640;line-height:1.34;padding:0;width:16px;pointer-events:none}
+  font-size:11.5px;font-weight:640;line-height:1;padding:3px 0;flex:1 1 0;
+  min-width:0;text-align:center;pointer-events:none}
 .azrail button.off{opacity:.22}
-.azbubble{position:fixed;right:46px;top:50%;transform:translateY(-50%) scale(.8);z-index:21;
+.azbubble{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.8);z-index:21;
   width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
   font-size:28px;font-weight:680;color:var(--ink);background:rgba(60,68,120,.94);
   border:1px solid var(--edge);opacity:0;pointer-events:none;
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   transition:opacity .16s var(--ease),transform .16s var(--ease)}
-.azbubble.on{opacity:1;transform:translateY(-50%) scale(1)}
+.azbubble.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .gsec{margin:0}
-.gletter{position:sticky;top:0;z-index:5;
+.gletter{position:sticky;top:33px;z-index:5;
   margin:0;padding:5px 0 5px 2px;
   font-size:12.5px;font-weight:680;letter-spacing:.04em;color:var(--ink-2);
   background:rgba(23,26,51,.88);
   -webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px);
   border-bottom:.5px solid rgba(170,180,235,.13)}
-/* rows never run under the index rail */
-body.glossary .gsec{padding-right:22px}
 .gterm{padding:14px 2px 15px;border-bottom:.5px solid rgba(170,180,235,.09)}
 .gterm:last-child{border-bottom:0}
 .gterm h4{margin:0 0 5px;font-size:16px;font-weight:640;letter-spacing:-.015em;color:var(--ink)}
@@ -760,7 +766,6 @@ body.glossary .gsec{padding-right:22px}
   font-size:13.5px;line-height:1.45;color:var(--brass);max-width:52ch}
 .gmine b{color:var(--brass);font-weight:660}
 .gempty{font-size:14px;color:var(--ink-3);margin:26px 0}
-body.glossary .page{padding-right:30px}
 
 /* ---- Universe: mode switch, ghosts, time scrubber ---- */
 /* one capsule, one highlight that slides between its two labels */
@@ -2238,11 +2243,16 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 .scseg span{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:#FFFFFF;text-shadow:0 1px 2px rgba(0,0,0,.25)}
 .scseg.p1{background:#7C86A8}.scseg.p2{background:#8A7FBF}.scseg.p3{background:#9AA3BE}
+.scpre{position:absolute;left:0;top:0;bottom:0;pointer-events:none;
+  background:rgba(23,26,51,.62);backdrop-filter:saturate(.15)}
+.scbirth{position:absolute;top:0;bottom:0;width:2px;transform:translateX(-1px);
+  background:var(--brass);pointer-events:none}
+.scbirthlab{position:absolute;transform:translateX(-50%);color:var(--brass)}
 .scnow{position:absolute;top:0;bottom:0;transform:translateX(-50%);pointer-events:none;
   font-size:9px;color:#171A33;white-space:nowrap;display:flex;flex-direction:column;
   align-items:center;justify-content:flex-end;padding-bottom:1px;font-weight:700}
 .scnow i{flex:1;width:2px;background:#171A33;border-radius:1px;margin-bottom:1px}
-.scycscale{display:flex;justify-content:space-between;font-size:11px;color:#8A8DA3;
+.scycscale{position:relative;display:flex;justify-content:space-between;font-size:11px;color:#8A8DA3;
   margin:5px 2px 0}
 .sphcard{margin-top:16px;padding:14px 15px;border-radius:15px;background:#FFFFFF;
   border:1px solid rgba(23,26,51,.1)}
@@ -2391,7 +2401,7 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
   color:var(--ink-3);opacity:0;transition:opacity .35s}
 .vwmap b{color:var(--ink);font-size:14px}.vwmap i{font-style:normal}
 .vwfig{max-width:210px;margin:8px auto 4px;opacity:.25;transition:opacity .4s}
-.vfig{width:100%;height:auto;display:block}
+.vfig{width:100%;height:auto;display:block;color:var(--ink)}
 .vwsteps{list-style:none;margin:8px 0 0;padding:0;counter-reset:ws}
 .vwsteps li{position:relative;padding:8px 0 8px 32px;border-top:1px solid var(--edge-soft);
   opacity:.45;transition:opacity .3s;cursor:pointer}
@@ -2871,6 +2881,18 @@ body.light .tbseg button{color:var(--ink-2)} body.light .tbseg button.on{color:v
 body.light .segmented button{color:var(--ink-2)}
 body.light .paper{box-shadow:0 1px 2px rgba(23,26,51,.04),0 10px 30px -22px rgba(23,26,51,.3);background:#FFFFFF}
 body.light .advd.dark{background:rgba(23,26,51,.04);border-color:var(--edge-soft)}
+/* The glossary is a reading, so its index strip and letter headings are paper.
+   Both carried a hard-coded indigo, which read as black bars once the reading
+   pages turned white. */
+body.light .azrail{background:rgba(247,245,239,.86);border-bottom-color:rgba(23,26,51,.10)}
+/* the scrim over unlived time has to READ as receding on both materials —
+   a dark veil on paper makes the part that never happened the loudest thing */
+body.light .scpre{background:rgba(247,245,239,.7)}
+body.light .slifeseg.prebirth{opacity:.4}
+body.light .gletter{background:rgba(247,245,239,.9);color:var(--ink-3);
+  border-bottom-color:rgba(23,26,51,.10)}
+body.light .azbubble{background:rgba(255,255,255,.96);color:var(--ink);
+  border-color:var(--edge);box-shadow:0 10px 30px -12px rgba(23,26,51,.4)}
 
 /* the tab bar as a floating glass capsule — the same shape on both materials */
 .tabs{left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 10px);
@@ -3479,6 +3501,18 @@ body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
 .ygmeta{display:flex;align-items:center;gap:8px}
 .ygmeta .ygn{font-size:11px;color:var(--ink-3)}
 .ygtheme{font-size:12px;color:var(--ink-3);line-height:1.35}
+.yglist{display:flex;flex-direction:column;gap:9px}
+/* Same card, stacked instead of scrolled — it opens a page rather than
+   selecting, so it takes the full width and carries a chevron. */
+.ygcard.row{flex:1 1 auto;max-width:none;scroll-snap-align:none;
+  display:grid;grid-template-columns:1fr 14px;
+  grid-template-areas:"art chev" "name chev" "meta chev" "theme chev";
+  align-items:center;column-gap:8px}
+.ygcard.row .ygart{grid-area:art}
+.ygcard.row .ygname{grid-area:name}
+.ygcard.row .ygmeta{grid-area:meta}
+.ygcard.row .ygtheme{grid-area:theme}
+.ygcard.row .chev{grid-area:chev;justify-self:end;color:var(--ink-3);font-size:19px}
 .ygcard.on{background:rgba(194,155,78,.14);border-color:rgba(194,155,78,.5)}
 .ygcard:active{opacity:.85}
 .ygcard:focus-visible{outline:2px solid var(--brass);outline-offset:2px}

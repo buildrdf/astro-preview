@@ -411,7 +411,7 @@ export const LEARN_LEVELS = [
   sections:[
     {h:"Why vargas exist"},
     {p:"The chart you know &#8212; grahas in twelve houses &#8212; is the D1, or rashi chart. It describes life broadly. But a 30&#176; sign is a wide net: two people with Jupiter in the same sign can differ by nearly thirty degrees. Vargas recover that lost precision."},
-    {graphic:"varga-split"},
+    {graphic:"varga-hero"},
     {p:"A divisional chart slices each sign into N parts and reassembles the pieces into a new twelve-sign chart. The arithmetic uses the same longitudes you already have; no new data is needed. Each varga is then read for one domain of life."},
     {term:"Varga", means:"divisional chart &#8212; a chart derived by subdividing each sign"},
     {list:[
@@ -420,7 +420,11 @@ export const LEARN_LEVELS = [
       "D10 &#183; Dashamsha &#8212; career and public action"]},
     {h:"The D9 above all"},
     {p:"The navamsa divides each sign into nine parts of 3&#176;20' &#8212; exactly one pada each &#8212; and is read alongside the D1 almost always, not only for marriage. A graha weak in the D1 but strong in the D9 is traditionally read as coming good over time, like a tree whose roots are better than its branches. Checking a graha's sign in both charts &#8212; and noting when the two agree, called vargottama &#8212; is standard practice."},
-    {try:"Open a graha's advanced details and note its pada. That pada is precisely its navamsa position &#8212; you have been looking at D9 data all along."}
+    {h:"Why a graha changes house"},
+    {p:"Nothing has moved. Pick any point below and follow its exact birth longitude through the division, one step at a time, until it lands in a D9 house."},
+    {graphic:"varga-walk"},
+    {try:"Open a graha's advanced details and note its pada. That pada is precisely its navamsa position &#8212; you have been looking at D9 data all along."},
+    {try:"Your own sixteen charts are in You &#8226; Birth details &#8226; Divisional charts."}
   ]},
 
 { id:"yogas", title:"Yogas",

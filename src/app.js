@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905e";
+import { LEARN_LEVELS } from "./learn.js?v=20260905f";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -2194,59 +2194,6 @@ function paintHouseSigns(list){
    yoga and the grahas that make it light up, joined by a drawn line,
    with the classical rule's working underneath. Rashi chart only - a
    yoga is a D1 pattern, so the chip hides under a varga lens. */
-function yogaListBody(){
-  const ys=engine().yogas;
-  return `${peekBlock("Yogas in your chart", `${ys.length} active &#183; tap one to see it`)}
-    <div>
-      ${ys.map((y,i)=>`
-        <button class="vrow" data-y="${i}">
-          <b>${y.name}${y.strength?` &#183; ${y.strength}`:""}</b>
-          <span>${y.planets?y.planets.join(" + "):""}</span>
-        </button>`).join("")}
-      <p class="note" style="margin-top:10px">Every yoga here fired from the classical rule run
-        against your actual placements &#8212; open one and the chart shows the planets that make
-        it. Doshas and the agree/disagree ledger stay in You &#8594; Yogas &amp; doshas.</p>
-    </div>`;
-}
-function openYogaSheet(){
-  if(mode) resetChart();
-  mode="yogas"; buzz(9);
-  document.getElementById("sheetbody").innerHTML=yogaListBody();
-  showSheetPeek(); expandSheet();
-  wireYogaSheet();
-}
-/* the sheet machinery clears sheetbody.onclick as it opens, so the handler is re-attached
-   with every body we render rather than once at the start */
-function wireYogaSheet(){
-  const sb=document.getElementById("sheetbody"); if(!sb) return;
-  sb.onclick=e=>{
-    if(e.target.closest("#ygback")){ buzz(6); clearMarks();
-      sb.innerHTML=yogaListBody(); wireYogaSheet(); return; }
-    const b=e.target.closest(".vrow"); if(!b) return;
-    showYoga(+b.dataset.y);
-  };
-}
-/* one yoga: the chart lights the planets that make it, and the sheet says which planets,
-   under what rule, and how the tradition reads it — with a way back to the list. */
-function showYoga(i){
-  const y=engine().yogas[i]; if(!y) return;
-  buzz(9); focusYoga(y);
-  const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
-  const where=uniPlacements().filter(p=>(y.planets||[]).includes(p.graha));
-  document.getElementById("sheetbody").innerHTML=`
-    <div class="ygtop"><button class="ygback" id="ygback" aria-label="Back to all yogas">&#8249;</button>
-      <b>${y.name}${y.sanskrit?` <small class="hiname">${y.sanskrit}</small>`:""}</b>
-      ${y.strength?`<span class="ygtag">${y.strength}</span>`:""}</div>
-    <div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
-      ? `<span class="ygg">${gIcon(g,20)}${g}</span>`
-      : `<span class="ygg role">${g}</span>`).join("")}</div>
-    ${where.length?`<p class="ygwhere">${where.map(p=>
-      `${p.graha} in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}`).join(" &#183; ")}</p>`:""}
-    <p class="ygrule">${y.because||""}</p>
-    <p class="note">Highlighted on the chart above. Doshas and the agree/disagree ledger stay in
-      You &#8594; Yogas &amp; doshas.</p>`;
-  wireYogaSheet();
-}
 /* ===================================================================
    THE YOGA LAYER — a map layer and a bottom sheet
    -------------------------------------------------------------------
@@ -2294,17 +2241,25 @@ const ygKeyOf=y=>y.key||y.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(
 const ygOf=key=>(engine().yogas||[]).find(x=>ygKeyOf(x)===key);
 const ygParts=y=>(y&&y.formation)?YF.parts(y.formation):[];
 
-function ygCard(y){
+/* ONE yoga card. The carousel in Universe and the full list in Birth details
+   are the same object in two arrangements — a yoga that reads one way on the
+   chart and another way in a list is two products. `link:true` turns the
+   listbox option into a row that opens the reading page directly. */
+function ygCard(y,opts){
+  opts=opts||{};
   const t=themeOf(y), who=(y.planets||[]).slice(0,4);
   const n=ygParts(y).length;
-  return `<button class="ygcard${ygKey===ygKeyOf(y)?" on":""}" data-k="${ygKeyOf(y)}"
-      role="option" aria-selected="${ygKey===ygKeyOf(y)}"
-      aria-label="${escText(y.name)}. ${escText(y.strength)}. ${escText(who.join(" and "))}. Show it on the chart.">
+  const sel=!opts.link&&ygKey===ygKeyOf(y);
+  return `<button class="ygcard${opts.link?" row":""}${sel?" on":""}" data-k="${ygKeyOf(y)}"
+      ${opts.link?"":`role="option" aria-selected="${sel}"`}
+      aria-label="${escText(y.name)}. ${escText(y.strength)}. ${escText(who.join(" and "))}. ${
+        opts.link?"Open the reading.":"Show it on the chart."}">
     <span class="ygart">${who.map(g=>gIcon(g,24)).join("")}</span>
     <b class="ygname">${escText(y.name)}</b>
     <span class="ygmeta"><span class="ygstr s-${y.strength}">${escText(y.strength)}</span>${
       n>1?`<span class="ygn">${n} formations</span>`:""}</span>
     <span class="ygtheme">${escText(t.words)}</span>
+    ${opts.link?`<span class="chev">&#8250;</span>`:""}
   </button>`;
 }
 
@@ -2473,7 +2428,9 @@ function wireYogaLayer(){
     if(row) return ygFocusPart(row.dataset.p);
     if(e.target.closest("#ygall-f")) return ygFocusPart(null);
     if(e.target.closest("#ygopen")) return ygExplore();
-    if(e.target.closest("#ygall")) return openYogaSheet();
+    if(e.target.closest("#ygall")){ closeYogaLayer();
+      go(YOU_INDEX); bdTab="yogas"; subView="birth"; renderSub();
+      const pg=document.getElementById("pg-you"); if(pg) pg.scrollTop=0; return; }
     if(e.target.closest("#ygclose")) return closeYogaLayer();
   };
 }
@@ -3321,11 +3278,17 @@ const GUIDE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 /* ---- TEXT DENSITY ------------------------------------------------
    Methodology belongs in the app, not on top of it. Any standing note
    long enough to be a paragraph folds behind one line; short ones are
-   left where they are. One rule, every surface, nothing deleted. */
+   left where they are. One rule, every surface, nothing deleted.
+
+   The exception, marked `.note.open`: a note that is a CAVEAT rather than
+   methodology. "No birth time was given, so noon was assumed" changes how
+   much the reader should trust the number above it, and a caveat behind a
+   fold is a caveat the reader never sees. */
 function foldNotes(root){
   const host=root||document;
   for(const n of host.querySelectorAll("p.note:not([data-fold])")){
     n.dataset.fold="1";
+    if(n.classList.contains("open")) continue;
     if((n.textContent||"").trim().length<=120) continue;
     const d=document.createElement("details");
     d.className="notefold";
@@ -4499,6 +4462,9 @@ function subGlossary(){
     let v=""; try{v=f()}catch(_){}; return v?`<p class="gmine">${v}</p>`:""};
 
   return `
+    <nav class="azrail" id="azrail" aria-label="Jump to letter">
+      ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
+    </nav>
     ${Object.keys(groups).length?Object.keys(groups).sort().map(L=>`
       <section class="gsec">
         <h3 class="gletter" id="L-${L}">${L}</h3>
@@ -4510,10 +4476,7 @@ function subGlossary(){
           </article>`).join("")}
       </section>`).join("")
       :`<p class="gempty">No results for &#8220;${escg(glossQ)}&#8221;</p>`}
-    <div class="azbubble" id="azbubble" aria-hidden="true"></div>
-    <nav class="azrail" id="azrail" aria-label="Jump to letter">
-      ${letters.map(L=>`<button data-l="${L}" class="${groups[L]?"":"off"}">${L}</button>`).join("")}
-    </nav>`;
+    <div class="azbubble" id="azbubble" aria-hidden="true"></div>`;
 }
 
 function wireGlossary(){
@@ -4542,28 +4505,32 @@ function wireGlossaryRail(){
   const page=document.getElementById("pg-you");
   const rail=document.getElementById("azrail"), bubble=document.getElementById("azbubble");
   if(!rail) return;
+  /* The strip sits under the top bar, so a letter has to land BELOW it, not
+     under it. Measured rather than assumed — the bar grows with Dynamic Type. */
   const jump=L=>{
     const el=document.getElementById("L-"+L); if(!el) return;
-    page.scrollTop = page.scrollTop + el.getBoundingClientRect().top - 62;
+    const clear=rail.getBoundingClientRect().bottom - page.getBoundingClientRect().top;
+    page.scrollTop = page.scrollTop + el.getBoundingClientRect().top
+      - page.getBoundingClientRect().top - clear;
     if(bubble){bubble.textContent=L;bubble.classList.add("on")}
     buzz(4);
   };
-  const letterAt=cy=>{
+  const letterAt=cx=>{
     let best=null,bd=1e9;
     rail.querySelectorAll("button").forEach(b=>{
-      const r=b.getBoundingClientRect(), d=Math.abs(cy-(r.top+r.height/2));
+      const r=b.getBoundingClientRect(), d=Math.abs(cx-(r.left+r.width/2));
       if(d<bd){bd=d;best=b}
     });
     return best && !best.classList.contains("off") ? best.dataset.l : null;
   };
   let dragging=false,last=null;
-  const move=cy=>{const L=letterAt(cy); if(L&&L!==last){last=L;jump(L)}};
+  const move=cx=>{const L=letterAt(cx); if(L&&L!==last){last=L;jump(L)}};
   rail.addEventListener("pointerdown",e=>{
     dragging=true;last=null;
     try{rail.setPointerCapture(e.pointerId)}catch(_){}
-    move(e.clientY); e.preventDefault();
+    move(e.clientX); e.preventDefault();
   });
-  rail.addEventListener("pointermove",e=>{if(dragging)move(e.clientY)});
+  rail.addEventListener("pointermove",e=>{if(dragging)move(e.clientX)});
   const end=()=>{dragging=false;last=null;
     if(bubble) setTimeout(()=>bubble.classList.remove("on"),240)};
   rail.addEventListener("pointerup",end);
@@ -5127,12 +5094,12 @@ const GRAPHIC={
     </svg>
     <figcaption>The Vimshottari cycle: 120 years split unevenly between the nine
       grahas. Where you enter the wheel is set by your birth nakshatra.</figcaption></figure>`},
-  "varga-split":()=>`<figure class="lg"><div class="vargarow">
-    ${miniChart(h=>h===1?"D1":"" ,{lagna:true})}
-    <span class="varga-arrow">&#8594;</span>
-    ${miniChart(h=>h===1?"D9":"" ,{lagna:true})}
-    </div><figcaption>Every sign can be subdivided. The ninth division builds a
-      second chart, the navamsha (D9), read alongside the birth chart.</figcaption></figure>`,
+  /* The two varga teaching pieces live here, not in Birth details. Birth
+     details is a reference sheet; explaining how a division works is Learn's
+     job, and the piece is the same interactive object in both senses of the
+     word — it reads the user's own chart. */
+  "varga-hero":()=>vargaHeroHTML(),
+  "varga-walk":()=>vargaWalkHTML(9),
   "nakshatra-belt":()=>`<figure class="lg">
     <svg class="lgfig wide" viewBox="0 0 240 52" aria-hidden="true">
       <line x1="10" y1="26" x2="230" y2="26" stroke="var(--line-2)" stroke-width="1.4"/>
@@ -5200,6 +5167,9 @@ function subLearnTopic(){
   </article>`;
 }
 function wireLearn(){
+  /* the divisional-charts topic opens on the hero animation playing itself
+     once — it is the one figure that has to move to be understood */
+  if(document.getElementById("vhero")) vargaHeroAutoplay();
   const labSeat=h=>{
     if(!lab.g) return;
     labClear();
@@ -5207,6 +5177,7 @@ function wireLearn(){
     lab.h=h; buzz(9); labPaint();
   };
   document.getElementById("pg-you").onclick=e=>{
+    if(vargaTeachClick(e)) return;
     const gb=e.target.closest(".alabg");
     if(gb){ labClear(); lab.g=gb.dataset.g; buzz(7); labPaint(); return; }
     const cellEl=e.target.closest(".ahs");
@@ -5365,26 +5336,9 @@ function wirePlans(){
 function subYogas(){
   const E=engine();
   return `
-    <p class="skylead">Every combination below was detected by the rule engine, and
-      every one shows the rule that fired it &#8212; the &#8220;because&#8221; no
-      other app prints.</p>
-    ${E.yogas.map(y=>{
-      /* the same four parts as everywhere else: which planets, where they sit, the rule,
-         then the reading — a yoga is never just a name and a paragraph */
-      const REAL=new Set(["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"]);
-      const inv=(y.planets||[]).filter(g=>REAL.has(g));
-      const seats=inv.map(g=>{ const p=CHART.get(g); return p?`${g} in ${SIGNS[p.sign-1]}, your ${ordinal(p.house)}`:null; }).filter(Boolean);
-      return `
-      <div class="card" style="margin-bottom:10px;padding:13px 15px">
-        <div class="areahead"><span class="aname">${y.name}</span>
-          ${y.strength?`<span class="atone ${y.strength==="strong"?"favourable":"balanced"}">${y.strength}</span>`:""}</div>
-        ${y.sanskrit?`<p class="ameta" style="margin:2px 0 6px">${y.sanskrit}</p>`:""}
-        ${(y.planets||[]).length?`<div class="yggr">${(y.planets||[]).map(g=>REAL.has(g)
-          ? `<span class="ygg">${gIcon(g,20)}${g}</span>`
-          : `<span class="ygg role">${g}</span>`).join("")}</div>`:""}
-        ${seats.length?`<p class="ygwhere">${seats.join(" &#183; ")}</p>`:""}
-        <p class="interp" style="margin:9px 0 0">${y.because}</p>
-      </div>`}).join("")}
+    <p class="skylead">Every combination the rule engine found, strongest first.
+      Open one to see which grahas form it, and under what rule.</p>
+    <div class="yglist">${ygRank(E.yogas).map(y=>ygCard(y,{link:true})).join("")}</div>
     <div class="eyebrow" style="margin:22px 0 10px">Doshas</div>
     ${E.doshas.map(d=>`
       <div class="card" style="margin-bottom:10px;padding:13px 15px">
@@ -5707,7 +5661,7 @@ function subRelReportView(){
     <div class="eyebrow" style="margin:20px 0 8px">Your seasons, side by side</div>
     <p class="ameta" style="margin:0 0 8px">Each year: your maha/antar &#183; theirs</p>
     ${rows(years)}
-    <p class="note" style="margin-top:16px">Gun Milan is one traditional method among
+    <p class="note open" style="margin-top:16px">Gun Milan is one traditional method among
       several; kootas marked simplified in the app use reduced classical tables. Nothing
       here predicts a relationship&#8217;s course.</p>
     <button class="primary printbtn" id="doprint">Print / save as PDF</button>
@@ -6147,6 +6101,10 @@ function openSatiCycle(ci,card){
     :on?"Your current Sade Sati"
     :w.end<=nowD?"Your previous Sade Sati":"Your next Sade Sati";
   const total=w.end-w.start;
+  /* A cycle can be running when someone is born. Drawing that stretch in full
+     colour claims lived time that was not lived; it is greyed, and the birth
+     itself is marked, so the bar reads as "this had already started". */
+  const bpc=Math.min(Math.max((CHART.birthDate-w.start)/total,0),1)*100;
   const crossings=satiCrossings(w);
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const actIdx=on?SATI_IDX[satiAt(nowD)?.ph.fromMoon]:null;
@@ -6161,12 +6119,15 @@ function openSatiCycle(ci,card){
       <p class="awlead" style="margin:4px 0 2px"><b>${sub}.</b>
         ${fmtDate(w.start)} to ${fmtDate(w.end)} &#183; ${w.start<CHART.birthDate?"from birth":"age "+ageAt(w.start)} to age ${ageAt(w.end)}.</p>
       ${satiJourney(moonSign,actIdx||1,{light:true})}
-      <div class="scyc" role="img" aria-label="${merged.map(m=>`Phase ${m.idx} ${m.phase}, ${fmtDate(m.start)} to ${fmtDate(m.end)}`).join(". ")}">
+      <div class="scyc" role="img" aria-label="${merged.map(m=>`Phase ${m.idx} ${m.phase}, ${fmtDate(m.start)} to ${fmtDate(m.end)}`).join(". ")}${bpc>0?`. The first ${bpc.toFixed(0)} percent of this cycle ran before you were born.`:""}">
         ${merged.map(m=>`<i class="scseg p${m.idx}" style="width:${(((m.end-m.start)/total)*100).toFixed(1)}%">
           <span>${m.phase}</span></i>`).join("")}
+        ${bpc>0?`<span class="scpre" style="width:${bpc.toFixed(2)}%"></span>
+          <span class="scbirth" style="left:${bpc.toFixed(2)}%"></span>`:""}
         ${on?`<span class="scnow" style="left:${(((nowD-w.start)/total)*100).toFixed(1)}%"><i></i>you are here</span>`:""}
       </div>
-      <div class="scycscale"><span>${w.start.getFullYear()}</span><span>${w.end.getFullYear()}</span></div>
+      <div class="scycscale"><span>${w.start.getFullYear()}</span>${
+        bpc>0?`<span class="scbirthlab" style="left:${bpc.toFixed(2)}%">born</span>`:""}<span>${w.end.getFullYear()}</span></div>
       ${merged.map(m=>{
         const pOn=nowD>=m.start&&nowD<m.end;
         return `<div class="sphcard${pOn?" on":""}">
@@ -6175,7 +6136,10 @@ function openSatiCycle(ci,card){
           <span class="evmeta">Saturn in ${SIGNS[m.sign-1]} &#183; ${SATI_REL[m.fromMoon]}</span>
         </div>
         <p class="awbody" style="margin:6px 0 8px">${SATI_STORY[m.phase].s}</p>
-        <p class="evmeta">${fmtDate(m.start)} &#8211; ${fmtDate(m.end)} &#183; ${durTxt(m.start,m.end)}${
+        <p class="evmeta">${m.start<CHART.birthDate&&m.end<=CHART.birthDate
+            ?`Before you were born &#183; ${m.start.getFullYear()}&#8211;${m.end.getFullYear()}`
+            :`${ageSpan(m.start,m.end)||`age ${ageAt(m.start)}`} &#183; ${fmtDate(m.start)} &#8211; ${fmtDate(m.end)}`
+          } &#183; ${durTxt(m.start,m.end)}${
           m.spans.length>1?` &#183; ${m.spans.length} crossings (retrograde)`:""}${pOn?" &#183; now":""}</p>
         <button class="awcta" data-ph="${m.idx}" style="margin-top:9px">Understand this phase</button>
       </div>`}).join("")}
@@ -6425,7 +6389,7 @@ function tlSeek(date){
    comes from vargaDetail()/vargaChart() in vargas.js; the views never
    divide a sign themselves (part 54). ---- */
 const G_ABBR={Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke",Asc:"As"};
-let vgMajorOnly=true, vgSort="uses", vgWalkG="Jupiter", vgWalkStep=1, vgHeroD=9, vgHeroTimer=null;
+let vgWalkG="Jupiter", vgWalkStep=1, vgHeroD=9, vgHeroTimer=null;
 
 const birthApprox=()=>!!((ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime));
 
@@ -6457,22 +6421,25 @@ function vargaFigure(view,opts={}){
   const focus=opts.focus||null;
   const byHouse={};
   for(const g of GRAHA_ORDER){ const h=view.houses[g]; (byHouse[h]=byHouse[h]||[]).push(g); }
+  /* currentColor, not white: this figure now renders on the paper reading
+     material as well as the indigo instrument, and a hard-coded white chart
+     is an invisible chart on paper. */
   return `<svg class="vfig" viewBox="-3 -3 106 106" role="img" aria-label="${opts.aria||"chart"}">
-    <rect x="0" y="0" width="100" height="100" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.4"/>
-    <line x1="0" y1="0" x2="100" y2="100" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
-    <line x1="100" y1="0" x2="0" y2="100" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
-    <path d="${RHOMBUS_D}" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
-    <path d="${LAGNA_D}" fill="rgba(194,155,78,.12)" stroke="none"/>
+    <rect x="0" y="0" width="100" height="100" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="1.4"/>
+    <line x1="0" y1="0" x2="100" y2="100" stroke="currentColor" stroke-opacity=".22" stroke-width="1"/>
+    <line x1="100" y1="0" x2="0" y2="100" stroke="currentColor" stroke-opacity=".22" stroke-width="1"/>
+    <path d="${RHOMBUS_D}" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1"/>
+    <path d="${LAGNA_D}" fill="var(--brass)" fill-opacity=".14" stroke="none"/>
     ${Object.keys(LABEL).map(h=>{
       const hh=+h, sg=adv(view.lagna,hh), lst=byHouse[hh]||[];
       const [x,y]=LABEL[h];
-      return `<text x="${x}" y="${y-(lst.length?4.2:0)}" font-size="5.2" fill="rgba(236,237,242,.55)"
+      return `<text x="${x}" y="${y-(lst.length?4.2:0)}" font-size="5.2" fill="var(--ink-3)"
           text-anchor="middle" dominant-baseline="middle" font-family="var(--fm)">${sg}</text>
         ${lst.length?(()=>{const rowsOf=[]; for(let i=0;i<lst.length;i+=3) rowsOf.push(lst.slice(i,i+3));
           const fs=lst.length>3?5:5.6;
           return `<text x="${x}" y="${y+3.4-(rowsOf.length-1)*2.6}" font-size="${fs}" font-weight="600"
-            text-anchor="middle" dominant-baseline="middle" font-family="var(--ff)" fill="#F1E7C9">${
-            rowsOf.map((row,ri)=>`<tspan x="${x}" dy="${ri?fs+0.4:0}">${row.map(g=>`<tspan fill="${focus===g?"#FFD37A":"#F1E7C9"}">${G_ABBR[g]}</tspan>`).join(" ")}</tspan>`).join("")}</text>`})():""}`;
+            text-anchor="middle" dominant-baseline="middle" font-family="var(--ff)" fill="var(--ink)">${
+            rowsOf.map((row,ri)=>`<tspan x="${x}" dy="${ri?fs+0.4:0}">${row.map(g=>`<tspan fill="${focus===g?"var(--brass)":"var(--ink)"}"${focus===g?' font-weight="700"':''}>${G_ABBR[g]}</tspan>`).join(" ")}</tspan>`).join("")}</text>`})():""}`;
     }).join("")}
   </svg>`;
 }
@@ -6555,8 +6522,10 @@ function vargaWalkHTML(D=9){
 
 /* ---- directory (parts 13-16) ---- */
 function vargaRows(){
-  let list=VARGA_META.filter(m=>vgMajorOnly?m.tier==="major":true);
-  list=vgSort==="uses"?[...list].sort((a,b)=>a.uses-b.uses):[...list].sort((a,b)=>a.D-b.D);
+  /* One ordering, by D-number. A sort control and a major-only switch were two
+     decisions asked of someone reading a reference sheet; the sheet answers
+     "what do I have", and D order is the order the tradition names them in. */
+  const list=[...VARGA_META].sort((a,b)=>a.D-b.D);
   return list.map(m=>{
     const v=vargaViewFor(m.D);
     return `<button class="vrowx" data-vd="${m.D}">
@@ -6570,63 +6539,52 @@ function vargaRows(){
 function bdVargas(){
   const approx=birthApprox();
   return `
-    <p class="skylead">Different lenses on the same birth positions. Each divisional chart
-      mathematically remaps the same natal planetary longitudes to examine one dimension
-      of the chart &#8212; nothing moves in the sky.</p>
+    <p class="skylead">Every divisional chart is the same birth longitudes, remapped.
+      Nothing moves in the sky.</p>
     <div class="vconf${approx?" warn":""}">${approx
       ?`<b>Approximate birth time.</b> D27, D40, D45 and especially D60 are sensitive to small time errors; treat their placements as low confidence.`
       :`<b>Exact birth time.</b> All sixteen classical vargas can be read; D60 still rewards a birth time known to the minute.`}</div>
-    <h3 class="secttl" style="margin-top:20px">How a varga divides a sign</h3>
-    ${vargaHeroHTML()}
-    <h3 class="secttl" style="margin-top:22px">Why planets appear in different houses</h3>
-    <p class="interp" style="margin-top:2px">Pick any point and watch its exact D1 longitude
-      become a D9 placement, step by step.</p>
-    ${vargaWalkHTML(9)}
-    <h3 class="secttl" style="margin-top:24px">The charts</h3>
-    <div class="vctl">
-      <div class="setrow" style="padding:8px 0">
-        <div class="setlabel"><b>Major vargas only</b><span>Astra shows the sixteen principal classical vargas by default</span></div>
-        <button class="switch${vgMajorOnly?" on":""}" id="vgmajor" role="switch" aria-checked="${vgMajorOnly}"><i></i></button>
-      </div>
-      <div class="tbseg subseg" id="vgsort" role="tablist" aria-label="Sort">
-        <span class="thumb" aria-hidden="true"></span>
-        <button class="${vgSort==="uses"?"on":""}" data-s="uses" role="tab" aria-selected="${vgSort==="uses"}">Most used</button>
-        <button class="${vgSort==="trad"?"on":""}" data-s="trad" role="tab" aria-selected="${vgSort==="trad"}">Traditional order</button>
-      </div>
-    </div>
     <div id="vdir">${vargaRows()}</div>
-    <p class="note">&#8220;Most used&#8221; is one reasonable ordering, not a universal ranking.
-      Astra lists only vargas it has a validated rule for &#8212; D5 and D6 are absent because
-      no reliable published rule could be confirmed, and no D-number is invented to fill a gap.</p>`;
+    <button class="item lrnnext" id="vgolearn" data-l="divisional-charts">
+      <span style="flex:1"><small class="gdef">Learn</small>
+        <b style="font-weight:600">How a divisional chart is built</b></span>
+      <span class="chev">&#8250;</span></button>
+    <p class="note">In traditional order. Astra lists only vargas it has a validated rule
+      for &#8212; D5 and D6 are absent because no reliable published rule could be
+      confirmed, and no D-number is invented to fill a gap.</p>`;
+}
+
+/* The hero and the walkthrough are one interactive object each, and they now
+   appear inside a Learn topic rather than inside Birth details. Their click
+   handling is a function so whichever screen hosts them can defer to it. */
+function vargaTeachClick(e){
+  const hd=e.target.closest("[data-hd]");
+  if(hd){ clearInterval(vgHeroTimer); vargaHeroSet(+hd.dataset.hd); buzz(5); return true; }
+  const wg=e.target.closest("[data-wg]");
+  if(wg){ vgWalkG=wg.dataset.wg; vgWalkStep=1; buzz(6);
+    document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return true; }
+  const ws=e.target.closest("[data-ws]");
+  if(ws){ vgWalkStep=+ws.dataset.ws; buzz(4);
+    document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return true; }
+  if(e.target.closest("[data-wnext]")){ vgWalkStep=vgWalkStep>=5?1:vgWalkStep+1; buzz(5);
+    document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return true; }
+  if(e.target.closest("[data-wprev]")){ vgWalkStep=Math.max(1,vgWalkStep-1); buzz(5);
+    document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return true; }
+  return false;
 }
 
 function wireVargasTab(){
   const bb=document.getElementById("bdbody"); if(!bb) return;
-  vargaHeroAutoplay();
   bb.addEventListener("click",e=>{
-    const hd=e.target.closest("[data-hd]");
-    if(hd){ clearInterval(vgHeroTimer); vargaHeroSet(+hd.dataset.hd); buzz(5); return; }
-    const wg=e.target.closest("[data-wg]");
-    if(wg){ vgWalkG=wg.dataset.wg; vgWalkStep=1; buzz(6);
-      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
-    const ws=e.target.closest("[data-ws]");
-    if(ws){ vgWalkStep=+ws.dataset.ws; buzz(4); document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
-    if(e.target.closest("[data-wnext]")){ vgWalkStep=vgWalkStep>=5?1:vgWalkStep+1; buzz(5);
-      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
-    if(e.target.closest("[data-wprev]")){ vgWalkStep=Math.max(1,vgWalkStep-1); buzz(5);
-      document.getElementById("vwalk").outerHTML=vargaWalkHTML(9); return; }
-    const sw=e.target.closest("#vgmajor");
-    if(sw){ vgMajorOnly=!vgMajorOnly; sw.classList.toggle("on",vgMajorOnly); sw.setAttribute("aria-checked",vgMajorOnly);
-      buzz(6); document.getElementById("vdir").innerHTML=vargaRows(); return; }
-    const so=e.target.closest("#vgsort button[data-s]");
-    if(so){ vgSort=so.dataset.s; buzz(5);
-      so.parentElement.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b===so);b.setAttribute("aria-selected",b===so)});
-      setThumb(so.parentElement,false);
-      document.getElementById("vdir").innerHTML=vargaRows(); return; }
+    /* renderSub() attaches Learn's own #pg-you handler mid-flight, and this
+       very click is still bubbling — without stopping it, Learn sees the
+       detached button a second time and lands on the index. */
+    if(e.target.closest("#vgolearn")){ e.stopPropagation(); buzz(7);
+      learnTopic="divisional-charts"; subView="learntopic"; renderSub();
+      document.getElementById("pg-you").scrollTop=0; return; }
     const vr=e.target.closest("[data-vd]");
     if(vr){ buzz(8); openVargaPage(+vr.dataset.vd, vr); return; }
   });
-  requestAnimationFrame(()=>{ const s=document.getElementById("vgsort"); if(s) setThumb(s,true); });
 }
 
 /* ---- the varga page (parts 17-29) ---- */
@@ -6998,6 +6956,15 @@ function wireSigns(){
 /* the sign and nakshatra pages retired 2 Sep 2026 — objectdetail.js answers every kind */
 function wireBirth(){
   if(bdTab==="vargas") wireVargasTab();
+  if(bdTab==="yogas"){
+    const bb=document.getElementById("bdbody");
+    if(bb) bb.addEventListener("click",e=>{
+      const c=e.target.closest(".ygcard[data-k]"); if(!c) return;
+      buzz(8);
+      openObject({kind:"yoga", id:c.dataset.k, mode:"birth", from:"birth-details",
+        emphasis:"birth", origin:rectOrigin(c)});
+    });
+  }
   document.querySelector("#bdrail button.on")?.scrollIntoView({inline:"center",block:"nearest"});
   const r=document.getElementById("bdrail");
   if(r) r.onclick=e=>{
@@ -7960,7 +7927,7 @@ function subPartner(){
       <svg class="ico" viewBox="0 0 24 24">${ICONS.doc}</svg>Download relationship report
       <span class="sub">&#8377;399 &#183; $11.99</span><span class="chev">&#8250;</span>
     </button>
-    <p class="note">${p.approx?`No birth time was given, so noon was assumed. The Moon
+    <p class="note open">${p.approx?`No birth time was given, so noon was assumed. The Moon
       moves about 13&#176; a day, so the nakshatra may be wrong by one either way &#8212;
       which changes several kootas. Add the real time for a reliable score.<br><br>`:``}
       Gun Milan is one traditional method among several, and a score is not a verdict on a

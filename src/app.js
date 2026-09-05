@@ -8199,6 +8199,9 @@ function openYearAhead(card){
       <p class="awlead" style="margin:4px 0 2px"><b>${list.length} dated changes</b> between
         ${fmtDate(from)} and ${fmtDate(new Date(from.getTime()+372*864e5))} &#8212; sign
         changes, stations and period boundaries, each against the house it falls in for you.</p>
+      ${birthApprox()?`<p class="awnote">Birth time unknown &#8212; every house named below
+        depends on your ascendant, so read those as provisional. The dates themselves, and
+        the dasha boundaries, do not depend on the birth time.</p>`:""}
       ${months.map(m=>`
         <h2 class="awh2">${m.key}</h2>
         ${m.items.map(e=>`
@@ -9049,12 +9052,25 @@ setInterval(()=>{
 /* the onboarded person's own chart takes over from the built-in
    reference chart before anything paints */
 const __me=meProfile();
+let __meFutureBirth=false;
 if(__me){ try{
-  const d=new Date(__me.born);
-  CHART=chartFor(d, ascendant(d, __me.lat, __me.lon));
-  ACTIVE={name:__me.name, first:__me.name.split(" ")[0], p:{...__me}};
+  let d=new Date(__me.born);
+  /* A profile saved before the check above — or edited by hand — can still
+     carry a date in the future. Rather than render an app whose main tab is
+     blank, fall back to the sample chart and say why. */
+  if(!(d.getTime()<=Date.now())){
+    __meFutureBirth=true;
+  } else {
+    CHART=chartFor(d, ascendant(d, __me.lat, __me.lon));
+    ACTIVE={name:__me.name, first:__me.name.split(" ")[0], p:{...__me}};
+  }
 }catch(_){} }
 
+if(__meFutureBirth) setTimeout(()=>{ try{
+  toastG("That birth date is in the future \u2014 showing the sample chart. Fix it in You \u203a Birth details.");
+  const n=document.getElementById("gtoast");
+  if(n){ clearTimeout(n._t); n._t=setTimeout(()=>n.classList.remove("on"),6000); }
+}catch(_){} },900);
 document.body.insertAdjacentHTML("afterbegin",MOON_DEFS);
 renderUniverse(); renderGuide(); renderYou(); renderTimelineTab(); renderToday();
 
@@ -9155,10 +9171,12 @@ function paintOnb(){
         <input id="ob_name" type="text" autocomplete="name" value="${esc2(d.name||"")}" placeholder="Your name"></label>
       <div class="sverow">
         <label class="fld"><span class="flabel">Birth date</span>
-          <input id="ob_date" type="date" value="${d.date||""}"></label>
+          <input id="ob_date" type="date" value="${d.date||""}"
+            max="${new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)}"></label>
         <label class="fld"><span class="flabel">Birth time</span>
           <input id="ob_time" type="time" value="${d.time||""}" ${d.noTime?"disabled":""}></label>
       </div>
+      <p class="obwhy" id="ob_datewhy" role="alert" hidden></p>
       <button class="obcheck${d.noTime?" on":""}" id="ob_notime" role="checkbox"
         aria-checked="${!!d.noTime}"><i></i>I don&#8217;t know my birth time</button>
       ${d.noTime?`<p class="obnote">We&#8217;ll assume midday. Your Moon sign, nakshatra and
@@ -9212,7 +9230,19 @@ function obWireBirth(){
   const valid=()=>{
     obDraft.name=$o("#ob_name").value; obDraft.date=$o("#ob_date").value;
     obDraft.time=$o("#ob_time").value;
-    $o("#ob_go").disabled=!(obDraft.name.trim()&&obDraft.date&&
+    /* A BIRTH DATE CANNOT BE IN THE FUTURE, and mistyping 2088 for 1988 is an
+       easy slip on a date field. Nothing stopped it, and the result was not a
+       harmless odd chart: no dasha period covers "now" for someone not yet
+       born, so the Today tab — which reads the current period — rendered
+       completely EMPTY. Caught by sweeping birth dates the engine had never
+       been given (constitution 112). */
+    const future=obDraft.date&&obDraft.date>new Date(Date.now()
+      -new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+    const why=$o("#ob_datewhy");
+    if(why){ why.textContent=future?"That date hasn\u2019t happened yet \u2014 check the year.":"";
+      why.hidden=!future; }
+    $o("#ob_date").setAttribute("aria-invalid",String(!!future));
+    $o("#ob_go").disabled=!(obDraft.name.trim()&&obDraft.date&&!future&&
       (obDraft.noTime||obDraft.time)&&obPlace);
   };
   ["#ob_name","#ob_date","#ob_time"].forEach(id=>$o(id).addEventListener("input",valid));

@@ -2302,6 +2302,11 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
            drop-shadow(0 14px 44px rgba(90,110,170,.16))
            brightness(calc(1.02 + var(--a1)*.05))}
 }
+/* why a birth date was refused — stated where it happened, not as an alert */
+.obwhy{margin:6px 0 0;font-size:13px;line-height:1.4;color:#8A4A3A}
+.obwhy[hidden]{display:none!important}
+.onb input[aria-invalid="true"]{border-color:#B04A32}
+
 /* the hidden attribute must beat authored display values */
 .cmp-btn[hidden],.composer[hidden]{display:none!important}
 

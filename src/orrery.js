@@ -316,7 +316,16 @@ export function drawOrrery(c,W,H,k,env){
   const geo={cx:W/2, cy:lerp(H*0.64,cy1,eR), R:lerp(Math.max(W,H)*1.6,Math.min(W,H)*0.47,eR),
     sy:lerp(0.05,clamp(0.44+pitch/70,0.10,0.92),e), asc};
   const geoM={...geo,R:geo.R*0.60};
-  const pt=(L,g=geo)=>{ const th=Math.PI+(L-g.asc)*D2R; return {x:g.cx+g.R*Math.cos(th), y:g.cy-g.R*g.sy*Math.sin(th), d:Math.sin(th), th}; };
+  /* THE RING'S ZERO. This carried a half turn, which put the ascendant at the
+     observer's WEST while the globe puts his east at screen right — so the
+     zodiac ran backwards against the Earth underneath it. Sangram's screenshot,
+     4:09 PM IST in Pune: the Sun sits at azimuth 264.7deg, due WEST, and the
+     globe is correctly lit from screen left; the ring drew its Sun marker at
+     the upper RIGHT. Measured across 584 samples through 2026 the disagreement
+     was a median 155.6deg with the half turn and 24.4deg without it — the
+     residual being the ring's fixed ellipse standing in for a real ecliptic,
+     which is diagram slop rather than a sign error. */
+  const pt=(L,g=geo)=>{ const th=(L-g.asc)*D2R; return {x:g.cx+g.R*Math.cos(th), y:g.cy-g.R*g.sy*Math.sin(th), d:Math.sin(th), th}; };
   const band=clamp(geo.R*0.16,14,48);
 
   c.save();

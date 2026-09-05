@@ -3,37 +3,38 @@
   "manifestVersion": "1.0.0",
   "promptVersion": "1.0.0",
   "styleBible": "docs/ASSET_STYLE_BIBLE.md",
-  "updated": "2026-09-02",
-
+  "updated": "2026-09-05",
   "schema": {
-    "id": "string — stable asset id, lowercase (e.g. 'mesha'). Matches the key in prompts.json.",
-    "kind": "'rashi' | 'graha' — rashis are translucent starlight sculpture; grahas are dimensional bodies. See style bible §8.",
-    "usage": "string[] — where the asset is used: 'sky-art' (the sky/universe scene), 'hero' (detail sheets, 300px+), 'chart' (kundali occupants and inline icons, 18–96px).",
-    "size": "string — master render size, always '1024x1024'. Ship sizes are downscaled at build time.",
-    "transparent": "boolean — always true. A non-transparent background pixel is an automatic rejection (criterion 5).",
-    "lightDark": "'both' — every asset must survive night indigo #1B1F3C, day sky #7A9AD0 and reading page #F7F5EF. See style bible §3.2.",
-    "frameFill": "number — fraction of the frame the form must occupy, matched to the measured constants in prototype/src/celestial-art.js. Missing it silently mis-scales the asset at every call site.",
-    "promptVersion": "string — the prompts.json version this asset was generated from. Never ship a batch with mixed promptVersions.",
-    "prompt": "string | null — the exact full prompt sent to the model, filled in at generation time. Null until generated.",
-    "model": "string | null — the model id actually chosen by gen_assets.mjs at generation time. Null until generated.",
-    "generatedAt": "string | null — ISO 8601 timestamp of generation. Null until generated.",
-    "file": "string | null — filename relative to prototype/assets/gen/, as '<id>-<variant>.png'. Null until generated.",
-    "status": "'planned' | 'pending-review' | 'approved' | 'rejected' — 'planned' means no prompt or no render yet; 'pending-review' is set automatically on generation; 'approved' and 'rejected' are set by Sangram only, after the contact sheet.",
-    "notes": "string — review notes, the rejection criterion that was hit, or the constraint that governs this asset."
+    "id": "string \u2014 stable asset id, lowercase (e.g. 'mesha'). Matches the key in prompts.json.",
+    "kind": "'rashi' | 'graha' \u2014 rashis are translucent starlight sculpture; grahas are dimensional bodies. See style bible \u00a78.",
+    "usage": "string[] \u2014 where the asset is used: 'sky-art' (the sky/universe scene), 'hero' (detail sheets, 300px+), 'chart' (kundali occupants and inline icons, 18\u201396px).",
+    "size": "string \u2014 master render size, always '1024x1024'. Ship sizes are downscaled at build time.",
+    "transparent": "boolean \u2014 always true. A non-transparent background pixel is an automatic rejection (criterion 5).",
+    "lightDark": "'both' \u2014 every asset must survive night indigo #1B1F3C, day sky #7A9AD0 and reading page #F7F5EF. See style bible \u00a73.2.",
+    "frameFill": "number \u2014 fraction of the frame the form must occupy, matched to the measured constants in prototype/src/celestial-art.js. Missing it silently mis-scales the asset at every call site.",
+    "promptVersion": "string \u2014 the prompts.json version this asset was generated from. Never ship a batch with mixed promptVersions.",
+    "prompt": "string | null \u2014 the exact full prompt sent to the model, filled in at generation time. Null until generated.",
+    "model": "string | null \u2014 the model id actually chosen by gen_assets.mjs at generation time. Null until generated.",
+    "generatedAt": "string | null \u2014 ISO 8601 timestamp of generation. Null until generated.",
+    "file": "string | null \u2014 filename relative to prototype/assets/gen/, as '<id>-<variant>.png'. Null until generated.",
+    "status": "'planned' | 'pending-review' | 'approved' | 'rejected' \u2014 'planned' means no prompt or no render yet; 'pending-review' is set automatically on generation; 'approved' and 'rejected' are set by Sangram only, after the contact sheet.",
+    "notes": "string \u2014 review notes, the rejection criterion that was hit, or the constraint that governs this asset."
   },
-
   "statusCounts": {
-    "planned": 21,
+    "planned": 18,
     "pending-review": 0,
-    "approved": 0,
+    "approved": 3,
     "rejected": 0
   },
-
   "assets": [
     {
       "id": "mesha",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -42,14 +43,20 @@
       "prompt": null,
       "model": null,
       "generatedAt": null,
-      "file": null,
-      "status": "planned",
-      "notes": "Style test 1 of 5 — tests animal form. Reading gesture is the horn spiral; it must survive the 96px silhouette test."
+      "file": "assets/gen/mesha.png",
+      "status": "approved",
+      "notes": "Style test 1 of 5 \u2014 tests animal form. Reading gesture is the horn spiral; it must survive the 96px silhouette test.",
+      "variant": "A",
+      "note": "approved by Sangram 5 Sep 2026; shipped downscaled to 512px and trimmed to its own bounds"
     },
     {
       "id": "mithuna",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -58,14 +65,20 @@
       "prompt": null,
       "model": null,
       "generatedAt": null,
-      "file": null,
-      "status": "planned",
-      "notes": "Style test 2 of 5 — tests human figures. A couple (man with mace, woman with vina), not twins and not the Gemini glyph. Iconography needs practitioner confirmation before approval."
+      "file": "assets/gen/mithuna.png",
+      "status": "approved",
+      "notes": "Style test 2 of 5 \u2014 tests human figures. A couple (man with mace, woman with vina), not twins and not the Gemini glyph. Iconography needs practitioner confirmation before approval.",
+      "variant": "A",
+      "note": "approved by Sangram 5 Sep 2026; shipped downscaled to 512px and trimmed to its own bounds"
     },
     {
       "id": "dhanu",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -74,14 +87,20 @@
       "prompt": null,
       "model": null,
       "generatedAt": null,
-      "file": null,
-      "status": "planned",
-      "notes": "Style test 3 of 5 — tests human figure with an object. Variant A is the classical horse-bodied archer; variant B the simplified standing archer. Sangram picks; a practitioner confirms."
+      "file": "assets/gen/dhanu.png",
+      "status": "approved",
+      "notes": "Style test 3 of 5 \u2014 tests human figure with an object. Variant A is the classical horse-bodied archer; variant B the simplified standing archer. Sangram picks; a practitioner confirms.",
+      "variant": "A",
+      "note": "approved by Sangram 5 Sep 2026; shipped downscaled to 512px and trimmed to its own bounds"
     },
     {
       "id": "saturn",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -92,12 +111,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Style test 4 of 5 — tests a dimensional body with rings. OPEN CONFLICT (style bible §6.2): baked shaded rings contradict the shipped procedural ring renderer in celestial-art.js, which samples only the globe at 0.477 so rings can have real depth ordering. Decide and record in docs/decisions/ before this moves to approved."
+      "notes": "Style test 4 of 5 \u2014 tests a dimensional body with rings. OPEN CONFLICT (style bible \u00a76.2): baked shaded rings contradict the shipped procedural ring renderer in celestial-art.js, which samples only the globe at 0.477 so rings can have real depth ordering. Decide and record in docs/decisions/ before this moves to approved."
     },
     {
       "id": "rahu",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -108,12 +131,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Style test 5 of 5 — tests the node language: crescent, shadow, ascending direction. Never a sphere. Take the head and the serpent's line, leave the gore. Must read as Ketu's opposite."
+      "notes": "Style test 5 of 5 \u2014 tests the node language: crescent, shadow, ascending direction. Never a sphere. Take the head and the serpent's line, leave the gore. Must read as Ketu's opposite."
     },
     {
       "id": "vrishabha",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -129,7 +156,11 @@
     {
       "id": "karka",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -145,7 +176,11 @@
     {
       "id": "simha",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -156,12 +191,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Must not collide with Mesha's silhouette at 96px — check the two together."
+      "notes": "Scale batch. Must not collide with Mesha's silhouette at 96px \u2014 check the two together."
     },
     {
       "id": "kanya",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -172,12 +211,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Classically a maiden in a boat holding grain and a lamp — confirm iconography with a practitioner before writing the prompt."
+      "notes": "Scale batch. Classically a maiden in a boat holding grain and a lamp \u2014 confirm iconography with a practitioner before writing the prompt."
     },
     {
       "id": "tula",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -188,12 +231,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Classically a man holding a balance, not free-floating scales — confirm with a practitioner."
+      "notes": "Scale batch. Classically a man holding a balance, not free-floating scales \u2014 confirm with a practitioner."
     },
     {
       "id": "vrischika",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -204,12 +251,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Thin claws and tail risk failing the 96px test — the reading gesture must be the raised tail curve."
+      "notes": "Scale batch. Thin claws and tail risk failing the 96px test \u2014 the reading gesture must be the raised tail curve."
     },
     {
       "id": "makara",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -220,12 +271,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. MUST be the traditional makara — crocodilian snout, fish tail. Not a Western Capricorn goat, not a goat-fish. Non-negotiable."
+      "notes": "Scale batch. MUST be the traditional makara \u2014 crocodilian snout, fish tail. Not a Western Capricorn goat, not a goat-fish. Non-negotiable."
     },
     {
       "id": "kumbha",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -236,12 +291,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Classically a man carrying or tipping a water pot, not a disembodied urn — confirm with a practitioner."
+      "notes": "Scale batch. Classically a man carrying or tipping a water pot, not a disembodied urn \u2014 confirm with a practitioner."
     },
     {
       "id": "meena",
       "kind": "rashi",
-      "usage": ["sky-art", "hero", "chart"],
+      "usage": [
+        "sky-art",
+        "hero",
+        "chart"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -257,7 +316,11 @@
     {
       "id": "sun",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -268,12 +331,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Ball only at 0.52 of the frame — celestial-art.js discards baked flame rays and rebuilds the corona at runtime."
+      "notes": "Scale batch. Ball only at 0.52 of the frame \u2014 celestial-art.js discards baked flame rays and rebuilds the corona at runtime."
     },
     {
       "id": "moon",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -284,12 +351,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. Broad soft patches, no crater clusters — the existing set is deliberately trypophobia-safe and that must be kept."
+      "notes": "Scale batch. Broad soft patches, no crater clusters \u2014 the existing set is deliberately trypophobia-safe and that must be kept."
     },
     {
       "id": "mars",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -305,7 +376,11 @@
     {
       "id": "mercury",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -321,7 +396,11 @@
     {
       "id": "jupiter",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -337,7 +416,11 @@
     {
       "id": "venus",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",
@@ -348,12 +431,16 @@
       "generatedAt": null,
       "file": null,
       "status": "planned",
-      "notes": "Scale batch. The brightest body in the set — the one most at risk of vanishing on the reading page."
+      "notes": "Scale batch. The brightest body in the set \u2014 the one most at risk of vanishing on the reading page."
     },
     {
       "id": "ketu",
       "kind": "graha",
-      "usage": ["chart", "hero", "sky-art"],
+      "usage": [
+        "chart",
+        "hero",
+        "sky-art"
+      ],
       "size": "1024x1024",
       "transparent": true,
       "lightDark": "both",

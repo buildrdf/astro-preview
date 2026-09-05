@@ -29,7 +29,7 @@
              fmtDeg, nav:{push(ov,closeFn)}, actions:{seeOnChart,
              showInSky, askGuide, openHouse, openPlanet}}
    =================================================================== */
-import { grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js";
+import { preloadGrahaArt } from "./celestial-art.js";
 import { SIGN_LORDS, SIGN_ELEMENT, SIGN_MODALITY, NAK_META, nakLord, nakIndex, padaIndex, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { taraBala } from "./panchang.js";
 
@@ -201,8 +201,18 @@ function mountHero(el, model, px, mode) {
   if (!el) return;
   el.innerHTML = "";
   if (model.kind === "planet") {
-    const c = grahaSprite(model.id, px, { ground: "light", quality: px > 60 ? "high" : "low", phase: model.phase, tilt: 22 });
-    el.appendChild(c);
+    /* THE SAME GRAHA MUST LOOK THE SAME EVERYWHERE.
+       This drew the planet procedurally on a canvas, so the Moon you tapped on
+       the chart — the designed full-moon art — became a different, shaded
+       sphere on its own detail page, and likewise every other graha. Two
+       renderings of one object is exactly what a design system exists to
+       prevent (constitution 90). The chart's artwork is the artwork. */
+    const img = document.createElement("img");
+    img.src = `assets/graha/${String(model.id).toLowerCase()}.png`;
+    img.width = px; img.height = px;
+    img.alt = ""; img.draggable = false;
+    img.className = "codheroart";
+    el.appendChild(img);
   } else {
     el.innerHTML = model.heroSVG(px, mode);
     /* frame the cell itself, not the whole chart square */

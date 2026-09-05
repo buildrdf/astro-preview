@@ -2958,7 +2958,9 @@ body.light .skyview{--ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#9EA4C8;
   transform:translate(calc(var(--hx,0px) * var(--p,0)),calc(var(--hy,0px) * var(--p,0)))
     scale(calc(1 + (var(--hsT,.13) - 1) * var(--p,0)));
   opacity:1}
-.codheroslot canvas,.codheroslot svg{display:block;filter:drop-shadow(0 18px 40px rgba(20,22,43,.18))}
+.codheroslot canvas,.codheroslot svg,.codheroslot .codheroart{display:block;
+  filter:drop-shadow(0 18px 40px rgba(20,22,43,.18))}
+.codheroart{object-fit:contain}
 .codtitle{margin-top:-6px}
 .codeyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cta)}
 .cod h1{font-size:34px;line-height:1.1;letter-spacing:-.01em;margin:4px 0 6px;font-weight:700}
@@ -3598,60 +3600,63 @@ body.tabmin .tabthumb{opacity:0}
 .fmlab.on{opacity:.92;animation:none}
 
 /* ===================================================================
-   THE YOGA LAYER — a bottom sheet OVER the chart
+   THE YOGAS — PILLS IN FLOW, not a drawer
    -------------------------------------------------------------------
-   The first version put this in document flow under the chart, which
-   made the page taller and pushed the chart up until its top was cut
-   off. Activating an explanatory layer must never damage the object
-   being explained, so the sheet is FIXED to the viewport: the chart
-   keeps its exact geometry and the sheet passes in front of it.
+   This was a fixed bottom sheet with a drag handle, two detents and a
+   horizontally-scrolling carousel, and it hid the five-tab bar while
+   open. Sangram: "I don't like the drawer UI anywhere ... why can't we
+   just show pills with each yoga - single or double row ... when you
+   click the houses highlight and a button below these pills takes you
+   to details page ... so no scroll on universe tab".
 
-   Two detents. Peek is the carousel. Medium adds the selected yoga and
-   its formations, and hides the five-tab bar — a focused mode should
-   not carry two competing navigations at the bottom of the screen.
+   He is right, and it is the better interaction: the drawer covered the
+   lower third of the chart it was explaining, and a carousel shows two
+   of eleven yogas at a time. The pills sit under the chart in normal
+   flow, so the chart simply takes the height that is left — which is
+   also what stops the page ever scrolling.
    =================================================================== */
-.yglayer{position:fixed;left:0;right:0;bottom:0;z-index:40;
-  transform:translateY(100%);transition:transform .3s var(--ease);
-  padding:0 0 env(safe-area-inset-bottom)}
-.yglayer.in{transform:none}
-.yglayer[hidden]{display:none!important}
-@media (prefers-reduced-motion: reduce){ .yglayer{transition:none} }
+.ygpills{flex:0 0 auto;padding:8px 0 2px;display:flex;flex-direction:column;gap:8px}
+.ygpills[hidden]{display:none!important}
+/* 4px of vertical padding so the 44pt tap bands below are not clipped away by
+   the two-row clamp; the fit maths reads this padding rather than assuming it */
+.ygrow{display:flex;flex-wrap:wrap;gap:8px;overflow:hidden;padding:4px 0}
+/* 36px tall with an 8px gap, so the 44pt target below overlaps its neighbours
+   by exactly 4px each — they meet in the middle of the gap and neither steals
+   the other's tap. A 31px pill in a 6px gap could not do that. */
+.ygpill{position:relative;border:1px solid var(--line-2);background:rgba(255,255,255,.045);
+  color:var(--ink);font-family:var(--ff);font-size:12px;font-weight:560;
+  letter-spacing:-.01em;line-height:1;padding:0 11px;height:36px;border-radius:99px;
+  cursor:pointer;white-space:nowrap;
+  transition:background .18s,border-color .18s,color .18s}
+/* the visual stays a pill; the TARGET is 44pt (constitution: Apple's minimum) */
+.ygpill::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;
+  transform:translateY(-50%)}
+.ygpill[hidden]{display:none!important}
+.ygpill:active{opacity:.75}
+.ygpill:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.ygpill.on{background:rgba(194,155,78,.18);border-color:rgba(194,155,78,.62);
+  color:#F3E6C9;font-weight:640}
+/* the overflow pill reads as a way out of the list, not as another yoga */
+.ygpill.all{background:none;border-style:dashed;color:var(--ink-3)}
 
-.ygsheet{background:rgba(24,26,52,.92);
-  -webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);
-  border-top:1px solid var(--edge-soft);border-radius:22px 22px 0 0;
-  box-shadow:0 -12px 40px rgba(0,0,0,.4);
-  padding:8px 0 calc(var(--tabh) + 10px);
-  max-height:var(--ygmax,42vh);overflow-y:auto;scrollbar-width:none;
-  transition:max-height .3s var(--ease),padding-bottom .3s var(--ease)}
-.ygsheet::-webkit-scrollbar{display:none}
-/* at medium the tab bar is gone, so the sheet reclaims exactly that height —
-   never more, because above it is the chart */
-.yglayer.med .ygsheet{max-height:calc(var(--ygmax,42vh) + var(--tabh));padding-bottom:14px}
-@supports not (backdrop-filter:blur(1px)){.ygsheet{background:#181A34}}
+/* the button BELOW the pills — names what is lit, how strong in WORDS (never
+   colour alone, constitution 87), the one sentence the chart is drawing, and
+   the way into the reading */
+.ygopen{display:grid;grid-template-columns:1fr auto;align-items:center;
+  gap:2px 10px;width:100%;text-align:left;cursor:pointer;
+  border:1px solid rgba(194,155,78,.34);border-radius:16px;
+  background:rgba(194,155,78,.10);padding:10px 14px;font-family:var(--ff);
+  color:var(--ink);min-height:56px}
+.ygopen[hidden]{display:none!important}
+.ygopen:active{opacity:.8}
+.ygopen:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.ygotop{grid-column:1;display:flex;align-items:center;gap:8px;min-width:0}
+.ygotop b{font-size:14.5px;font-weight:660;letter-spacing:-.015em}
+.ygosay{grid-column:1;font-size:12px;line-height:1.35;color:var(--ink-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ygopen .chev{grid-column:2;grid-row:1 / span 2;color:var(--brass);font-size:20px}
+@media (prefers-reduced-motion: reduce){ .ygpill{transition:none} }
 
-.yggrab{display:block;width:38px;height:4px;border-radius:99px;margin:0 auto 8px;
-  background:rgba(255,255,255,.22)}
-
-/* the five-tab bar steps aside for a focused interaction and comes back
-   the moment yoga mode closes */
-body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
-.tabs{transition:transform .28s var(--ease)}
-@media (prefers-reduced-motion: reduce){ .tabs{transition:none} }
-
-.yghead{display:flex;align-items:center;gap:8px;padding:0 20px 10px}
-.yghead b{font-size:15.5px;font-weight:660;letter-spacing:-.015em;color:var(--ink)}
-.yghead .ygn{font-size:12px;color:var(--ink-3);flex:1}
-.yglink{border:0;background:none;padding:4px 2px;cursor:pointer;font-family:var(--ff);
-  font-size:13px;font-weight:650;color:var(--brass);min-height:34px}
-.yglink:active{opacity:.6}
-.ygx{width:30px;height:30px;flex:0 0 auto;border:0;border-radius:50%;cursor:pointer;
-  background:rgba(255,255,255,.08);color:var(--ink-2);font-size:13px;line-height:1;
-  font-family:var(--ff)}
-
-.ygstrip{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;
-  scroll-snap-type:x mandatory;padding:2px 20px 4px}
-.ygstrip::-webkit-scrollbar{display:none}
 .ygcard{flex:0 0 72%;max-width:280px;scroll-snap-align:start;text-align:left;
   display:flex;flex-direction:column;gap:5px;cursor:pointer;
   padding:11px 13px 12px;border-radius:16px;font-family:var(--ff);
@@ -3710,17 +3715,6 @@ body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
 .ygfhow{font-size:12px;color:var(--ink-3);line-height:1.35}
 .ygform.on{background:rgba(194,155,78,.15);border-color:rgba(194,155,78,.45)}
 .ygform:active{opacity:.85}
-.ygalllink{margin-top:9px;border:0;background:none;padding:6px 2px;cursor:pointer;
-  font-family:var(--ff);font-size:12.5px;font-weight:650;color:var(--brass);min-height:38px}
-
-/* one way onward, and it is a link rather than a slab of gold */
-/* a link, not a gold slab: the chart is the hero here and one more filled
-   rectangle competing with it was the thing that read as clutter */
-.ygopen{display:block;width:100%;margin:12px 0 2px;min-height:44px;cursor:pointer;
-  border:0;background:none;text-align:left;
-  color:var(--brass);font-family:var(--ff);font-size:14.5px;font-weight:650}
-.ygopen:active{opacity:.75}
-
 /* The control: three connected points — a formation, not a sparkle. */
 .yogapill i{width:15px;height:15px;border-radius:0;background:none;position:relative;
   display:inline-block;flex:0 0 auto}
@@ -3818,8 +3812,14 @@ body.ygfocus .tabs{transform:translateY(120%);pointer-events:none}
 /* start, not centre: centring in the leftover space dropped the chart to the
    middle of the screen and left the yoga sheet nowhere to go. The chart keeps
    its place at the top and simply stops growing when the height runs out. */
-#pg-universe .stagewrap{flex:1 1 auto;min-height:0;align-content:start;
-  justify-items:center}
+/* THE ROW MUST BE DEFINITE, or the max-height below is a no-op. .stagewrap is
+   a grid whose single row was `auto`, so `max-height:100%` on the square had
+   nothing to resolve against: the chart stayed as tall as it was WIDE at every
+   viewport height, and on a short screen — an iPhone with Safari's chrome —
+   the scrubber climbed into it. Giving the row minmax(0,1fr) is what makes the
+   cap real. */
+#pg-universe .stagewrap{flex:1 1 auto;min-height:0;
+  grid-template-rows:minmax(0,1fr);align-items:center;justify-items:center}
 /* the square is bounded by BOTH axes now, so it can never push the page taller */
 #pg-universe .stage{width:min(92vw,430px,100%);
   max-height:100%;max-width:100%;

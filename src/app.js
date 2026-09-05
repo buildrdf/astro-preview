@@ -22,7 +22,7 @@ import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906x";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
-import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260905e";
+import { openObjectDetail, isDetailOpen, currentSpec } from "./objectdetail.js?v=20260907d";
 import * as INTERP from "./interpret.js";
 import * as LORE from "./lore.js";
 /* test states (?sky=1 …) run headless without a saved profile: skip onboarding so
@@ -2196,8 +2196,8 @@ function safeYogaCount(){
 function setUniverseBar(){
   const yn=safeYogaCount();
   setTopBar("",{lead: yn?`
-    <button class="tb-btn ychip${ygOpen?" on":""}" id="ychip" aria-haspopup="dialog"
-      aria-expanded="${ygOpen}" aria-label="Yogas in your chart, ${yn} detected">
+    <button class="tb-btn ychip" id="ychip"
+      aria-label="See all ${yn} yogas in your chart">
       <!-- three connected points: a formation, not a sparkle. It reads as a
            chart layer opposite the sky control rather than as decoration. -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2265,18 +2265,16 @@ function renderUniverse(){
         <div class="plane" id="plane" role="group" aria-label="Grahas on the chart"></div>
       </div>
     </div>
-    <section class="yglayer" id="yglayer" hidden aria-label="Yogas in your chart">
-      <div class="ygsheet">
-        <span class="yggrab" aria-hidden="true"></span>
-        <div class="yghead">
-          <b>Your Yogas</b><span class="ygn"><span id="ygcount"></span></span>
-          <button class="yglink" id="ygall">See all</button>
-          <button class="ygx" id="ygclose" aria-label="Close yogas">&#10005;</button>
-        </div>
-        <div class="ygstrip" id="ygstrip" role="listbox" aria-label="Your yogas"></div>
-        <div class="ygsel" id="ygsel" hidden aria-live="polite"></div>
-      </div>
-    </section>
+    <!-- THE YOGAS, IN FLOW. This was a fixed bottom sheet with a drag handle
+         that covered the lower third of the screen — Sangram: "I don't like
+         the drawer UI anywhere ... why can't we just show pills with each yoga
+         - single or double row". Pills sit under the chart, tapping one lights
+         its houses, and the button below opens the reading. Nothing overlays
+         the chart and the page never scrolls. -->
+    <div class="ygpills" id="ygpills" hidden>
+      <div class="ygrow" id="ygrow" role="listbox" aria-label="Yogas in your chart"></div>
+      <button class="ygopen" id="ygopen" hidden></button>
+    </div>
     <div class="reading" id="reading" hidden></div>
     <div class="scrubwrap" id="scrubwrap">
       <div class="scrubdatehead"><b id="scrubdate"></b>
@@ -2335,6 +2333,7 @@ function renderUniverse(){
 
   document.getElementById("reading").addEventListener("click",readingClicks);
   wireYogaLayer();
+  renderYogaPills();
   chart.onclick=e=>{const t=e.target.closest(".hs"); if(t){ buzz(9); openObject({kind:"house",id:+t.dataset.h,mode:uniMode==="birth"?"birth":"now",at:uniMode==="birth"?null:uniDate,from:"chart",emphasis:uniMode==="birth"?"birth":"now",origin:rectOrigin(t)}); }};
   chart.onkeydown=e=>{const t=e.target.closest(".hs");
     if(t&&(e.key==="Enter"||e.key===" ")){e.preventDefault();openHouse(+t.dataset.h)}};
@@ -2401,11 +2400,14 @@ function paintUniverse(instant){
        In Today's sky the control does not EXIST — not disabled, absent. */
     const n=safeYogaCount();
     yc.hidden=!n;
-    if(yc.hidden&&ygOpen) closeYogaLayer();
+    if(yc.hidden&&ygKey) ygDeselect();
     const c=yc.querySelector(".ycount"); if(c) c.textContent=String(n);
     yc.onclick=toggleYogaLayer;
   }
   document.getElementById("scrubwrap").classList.toggle("on", uniMode==="today");
+  /* birth/D1 only — and the row must be rebuilt on every mode change, because
+     leaving Birth must take the pills with it, not just the chip */
+  renderYogaPills();
   if(instant) requestAnimationFrame(()=>stage.classList.remove("instant"));
 }
 
@@ -2462,7 +2464,7 @@ function paintHouseSigns(list){
    chart — the previous version pushed the chart up until its top was
    cut off, which destroyed the object being explained.
    =================================================================== */
-let ygOpen=false, ygKey=null, ygPart=null;
+let ygKey=null, ygPart=null;
 
 /* Rank, never alphabetise. Formation confidence first, then band, then how
    much of the chart it reaches. Deterministic: same order every render. */
@@ -2502,70 +2504,125 @@ function ygCard(y,opts){
   </button>`;
 }
 
-/* One row per validated relationship, ALL visible together. The founder's
-   words: "All visible together. The user can tap any row to focus that
-   specific relationship on the chart. That's much more powerful than nine
-   Next taps." */
-function ygFormationRows(y){
-  const ps=ygParts(y);
-  if(ps.length<2 && !(ps.length===1&&!ps[0].whole)) return "";
-  return `
-    <div class="ygforms" role="listbox" aria-label="Formations in this yoga">
-      ${ps.map(p=>`
-        <button class="ygform${ygPart===p.id?" on":""}" data-p="${escText(p.id)}"
-          role="option" aria-selected="${ygPart===p.id}"
-          aria-label="${escText(ygPartLabel(p))}. ${escText(p.how)} ${
-            p.verdict==="contested"?"Disputed between authorities.":""} Show it on the chart.">
-          <span class="ygfart">${p.grahas.map(g=>gIcon(g,22)).join("")}</span>
-          <b class="ygflords">${escText(ygPartLabel(p))}</b>
-          <span class="ygfmeta">
-            ${p.strength?`<span class="ygstr s-${p.strength.band}">${escText(p.strength.band)}</span>`:""}
-            ${p.verdict==="contested"?`<span class="ygdisp">Disputed</span>`:""}
-            ${p.classicalName?`<span class="ygclass">${escText(p.classicalName)}</span>`:""}
-          </span>
-          <span class="ygfhow">${escText(p.how)}</span>
-          ${ygAlsoLine(p)?`<span class="ygfalso">${escText(ygAlsoLine(p))}</span>`:""}
-        </button>`).join("")}
-    </div>
-    ${ygPart?`<button class="ygalllink" id="ygall-f">Show all formations</button>`:""}`;
-}
+/* The per-formation list the drawer carried is gone with it. Drilling into one
+   relationship inside a multi-formation yoga now happens on the reading page,
+   which has the room to weigh it — the chart surface names the yoga and lights
+   it, and that is all it should do. */
 
-/* the row's headline: who, and which houses they hold. Qualifying houses only
-   here — the FULL lordship, including the inconvenient ones, is in the fact's
-   own sentence and on the reading page, where there is room to weigh it. */
-function ygPartLabel(p){
-  if(!p.lords||!p.lords.length) return p.grahas.join(" + ");
-  return p.lords.map(l=>`${l.g} · ${l.qual.map(ordinal).join(" + ")} lord`).join("  +  ");
-}
-/* the co-lordships, on their own line. Not hidden, not crowding the headline —
-   this is the thing that decides whether the pair is disputed, so it earns a
-   line of its own rather than being crammed into the title. */
-function ygAlsoLine(p){
-  const bits=(p.lords||[]).filter(l=>l.also&&l.also.length)
-    .map(l=>`${l.g} also rules your ${l.also.map(ordinal).join(" and ")}`);
-  return bits.length?bits.join(" · ")+".":"";
-}
+/* THE PILL ROW. One pill per yoga, ranked strongest-first, never alphabetised.
+   The pill carries the WHOLE name. objectdetail.js:615 settles this: "a yoga's
+   qualifier is part of its identity" — dropping the parenthetical turns
+   "Raja Yoga (Kendra-Trikona)" into "Raja Yoga", which a chart carrying two
+   Raja variants could not tell apart. Full names cost width, so fewer pills
+   fit two rows; the count of what did not fit is stated on the last pill
+   rather than quietly dropped. The open button below may still shorten — it
+   names something already identified by the lit pill above it. */
+const ygShort=y=>y.name.replace(/\s*\(.*\)$/,"");
 
-function renderYogaSheet(){
-  const list=ygRank(engine().yogas||[]);
-  const strip=document.getElementById("ygstrip");
-  const n=document.getElementById("ygcount");
-  if(strip) strip.innerHTML=list.map(ygCard).join("");
-  if(n) n.textContent=String(list.length);
-  const sel=document.getElementById("ygsel");
-  const y=ygKey&&ygOf(ygKey);
-  if(!sel) return;
-  if(!y){ sel.hidden=true; sel.innerHTML=""; }
-  else {
-    sel.hidden=false;
-    sel.innerHTML=`
-      <div class="ygseltop"><b>${escText(y.name)}</b>
-        <span class="ygstr s-${y.strength}">${escText(y.strength)}</span></div>
-      <h3 class="ygwhy">Why it forms in your chart</h3>
-      ${ygFormationRows(y)||`<p class="ygsay">${escText(ygLead(y))}</p>`}
-      <button class="ygopen" id="ygopen">Explore ${escText(y.name.replace(/\s*\(.*\)$/,""))} &#8594;</button>`;
+/* THE PILL LABEL, measured rather than assumed.
+   Full names give TWO pills in two rows out of eleven — "Raja Yoga
+   (Kendra-Trikona)" alone is most of a row. So the pill drops " Yoga" (every
+   pill is one) and the qualifier — EXCEPT where dropping it would merge two
+   yogas into one label, which is the case objectdetail.js:615 rightly refuses
+   to allow. Those keep their qualifier. The full name is always the pill's
+   accessible name, and the button below names it again the moment it is lit,
+   so nothing is only ever seen in short form. */
+function ygPillLabels(list){
+  const base=y=>y.name.replace(/\s*\(.*\)$/,"").replace(/\s+Yoga$/i,"");
+  const n={};
+  for(const y of list){ const b=base(y); n[b]=(n[b]||0)+1; }
+  const m=new Map();
+  for(const y of list){
+    const b=base(y);
+    m.set(ygKeyOf(y), n[b]>1 ? y.name.replace(/\s+Yoga\b/i,"") : b);
   }
-  ygDetent();
+  return m;
+}
+
+function renderYogaPills(){
+  const wrap=document.getElementById("ygpills"), row=document.getElementById("ygrow");
+  if(!wrap||!row) return;
+  /* Only the birth rashi chart is read for yogas, and drawFormation refuses to
+     draw anywhere else — so outside birth/D1 the pills do not EXIST, the same
+     rule the top-bar chip follows. */
+  const list=safeYogaCount()?ygRank(engine().yogas||[]):[];
+  if(!list.length){ wrap.hidden=true; row.innerHTML=""; return; }
+  wrap.hidden=false;
+  const lab=ygPillLabels(list);
+  row.innerHTML=list.map(y=>{
+    const k=ygKeyOf(y), sel=k===ygKey;
+    return `<button class="ygpill${sel?" on":""}" data-k="${k}" role="option"
+      aria-selected="${sel}"
+      aria-label="${escText(y.name)}. ${escText(y.strength)}. Show it on the chart.">${
+      escText(lab.get(k)||y.name)}</button>`;
+  }).join("")+
+  `<button class="ygpill all" id="ygall" aria-label="See all ${list.length} yogas">All ${list.length}</button>`;
+  ygOpenBtn();
+  ygFitRows();
+  ygWatchWidth(row);
+}
+
+/* WHEN to measure. renderYogaPills runs while the page is still being built,
+   so every offsetHeight is 0 and the trim silently does nothing — the row grew
+   six rows deep and pushed the chart. requestAnimationFrame was the obvious
+   retry and is the wrong one: it does not fire at all in a backgrounded tab,
+   so the layout would be correct only on a visible page. The row's WIDTH is
+   the honest trigger — it goes 0 → real on first layout and changes again on
+   rotation, and hiding pills never changes it, so this cannot loop. */
+let ygFitW=0, ygRO=null;
+function ygWatchWidth(row){
+  if(typeof ResizeObserver!=="function") return;
+  if(!ygRO) ygRO=new ResizeObserver(es=>{
+    const w=Math.round(es[0].contentRect.width);
+    if(w&&w!==ygFitW){ ygFitW=w; ygFitRows(); }
+  });
+  ygRO.disconnect(); ygFitW=0; ygRO.observe(row);
+}
+
+/* Two rows, and the truth about what did not fit.
+   Eleven full yoga names do not fit two rows on a phone, so rather than
+   silently clipping them — or letting the row grow and push the chart — the
+   overflow is counted and named on the trailing pill. */
+function ygFitRows(){
+  const row=document.getElementById("ygrow"); if(!row) return;
+  const pills=[...row.querySelectorAll(".ygpill:not(.all)")];
+  const all=row.querySelector(".ygpill.all");
+  if(!pills.length) return;
+  pills.forEach(p=>{ p.hidden=false; });
+  /* Measure the gap and padding rather than hardcoding them: a constant here
+     silently disagreed with the stylesheet the moment the gap changed, and the
+     row trimmed itself to ONE row. */
+  const cs=getComputedStyle(row);
+  const one=pills[0].offsetHeight;
+  const gap=parseFloat(cs.rowGap)||0;
+  const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
+  const twoRows=one*2+gap+pad+1;
+  let vis=pills.length;
+  while(vis>1&&row.offsetHeight>twoRows) pills[--vis].hidden=true;
+  /* a yoga selected from elsewhere (the reading page's "Show in chart") must
+     never be the one that got trimmed */
+  const on=pills.find(p=>p.classList.contains("on"));
+  if(on&&on.hidden){
+    on.hidden=false;
+    for(let i=vis-1;i>=0;i--) if(!pills[i].classList.contains("on")){ pills[i].hidden=true; break; }
+  }
+  const hid=pills.filter(p=>p.hidden).length;
+  if(all) all.textContent=hid?`+${hid} more`:`All ${pills.length}`;
+}
+
+/* The button below the pills. It names what is lit, says how strong in WORDS
+   (never colour alone), gives the one sentence the chart is drawing, and opens
+   the reading. */
+function ygOpenBtn(){
+  const b=document.getElementById("ygopen"); if(!b) return;
+  const y=ygKey&&ygOf(ygKey);
+  if(!y){ b.hidden=true; b.innerHTML=""; return; }
+  b.hidden=false;
+  b.innerHTML=`<span class="ygotop"><b>${escText(ygShort(y))}</b>
+      <span class="ygstr s-${y.strength}">${escText(y.strength)}</span></span>
+    <span class="ygosay">${escText(ygLead(y))}</span>
+    <span class="chev" aria-hidden="true">&#8250;</span>`;
+  b.setAttribute("aria-label",`Open ${y.name}. ${y.strength}. ${ygLead(y)}`);
 }
 
 /* one sentence for a yoga with a single formation — the chart is doing the
@@ -2576,101 +2633,51 @@ function ygLead(y){
   return req.length?req[0].says:(y.because||"").split(". ")[0]+".";
 }
 
-/* Two detents. Peek is the carousel; medium adds the selected yoga and its
-   formations. The tab bar hides at medium — a focused mode should not carry
-   two navigations competing at the bottom of the screen. */
-function ygDetent(){
-  const L=document.getElementById("yglayer"); if(!L) return;
-  const med=!!ygKey;
-  L.classList.toggle("med",med);
-  document.body.classList.toggle("ygfocus",med);
-  /* The sheet must not cover the chart. The chart is the explanatory surface
-     here — a formation sitting in the lower houses would otherwise be hidden
-     behind the very thing describing it. The chart never moves, so the SHEET
-     is what gives way: it is capped at the space below the chart, measured,
-     with a floor so it stays usable on a short screen. */
-  const st=document.getElementById("stage");
-  if(st){
-    const room=Math.round(innerHeight-st.getBoundingClientRect().bottom-8);
-    L.style.setProperty("--ygmax",Math.max(Math.round(innerHeight*0.34),room)+"px");
-  }
-}
-
 function ygSelect(key,opts){
   opts=opts||{};
   const y=ygOf(key); if(!y) return;
   ygKey=key; ygPart=null;
   if(y.formation) drawFormation(y.formation); else focusYoga(y);
-  renderYogaSheet();
+  renderYogaPills();
   if(!opts.quiet) buzz(9);
-  const card=document.querySelector(`.ygcard[data-k="${key}"]`);
-  if(card&&!opts.quiet) card.scrollIntoView({behavior:ygSmooth(),inline:"center",block:"nearest"});
 }
-const ygSmooth=()=>matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
 
 /* Tapping a formation row focuses THAT relationship on the chart. Tapping it
    again, or "Show all formations", returns to the whole yoga. */
-function ygFocusPart(id){
-  const y=ygOf(ygKey); if(!y||!y.formation) return;
-  const ps=ygParts(y);
-  const p=ps.find(x=>x.id===id);
-  ygPart=(ygPart===id||!p)?null:id;
-  if(ygPart&&p) drawFormation(y.formation,{marks:p.marks, says:p.facts.map(f=>f.says).join(" ")});
-  else drawFormation(y.formation);
-  buzz(6);
-  renderYogaSheet();
-}
+/* There is no layer to open any more — the pills are simply present whenever
+   the chart has yogas. These three keep their names because the reading page's
+   "Show in chart" action and the top-bar chip both call them. */
+function openYogaLayer(){ renderYogaPills(); }
+function closeYogaLayer(){ ygDeselect(); }
+function toggleYogaLayer(){ ygSeeAll(); }
 
-function openYogaLayer(){
-  const L=document.getElementById("yglayer"); if(!L) return;
-  ygOpen=true; L.hidden=false; buzz(9);
-  renderYogaSheet();
-  const c=document.getElementById("ychip");
-  c.classList.add("on"); c.setAttribute("aria-expanded","true");
-  requestAnimationFrame(()=>L.classList.add("in"));
+function ygSeeAll(){
+  buzz(7);
+  go(YOU_INDEX); bdTab="yogas"; subView="birth"; renderSub();
+  const pg=document.getElementById("pg-you"); if(pg) pg.scrollTop=0;
 }
-function closeYogaLayer(){
-  const L=document.getElementById("yglayer"); if(!L) return;
-  ygOpen=false; ygKey=null; ygPart=null; buzz(6);
-  L.classList.remove("in","med");
-  document.body.classList.remove("ygfocus");
-  const done=()=>{ L.hidden=true; };
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches) done(); else setTimeout(done,240);
-  clearMarks();
-  const c=document.getElementById("ychip");
-  c.classList.remove("on"); c.setAttribute("aria-expanded","false");
-  const chart=document.getElementById("chart");
-  if(chart) chart.setAttribute("aria-label","North Indian chart, twelve houses");
-}
-function toggleYogaLayer(){ ygOpen?closeYogaLayer():openYogaLayer(); }
 
 function ygDeselect(){
   ygKey=null; ygPart=null; clearMarks();
-  renderYogaSheet();
+  renderYogaPills();
   const chart=document.getElementById("chart");
   if(chart) chart.setAttribute("aria-label","North Indian chart, twelve houses");
 }
 
 function ygExplore(){
   const y=ygOf(ygKey); if(!y) return;
-  const card=document.querySelector(`.ygcard[data-k="${ygKey}"] .ygart`);
+  const pill=document.querySelector(`.ygpill[data-k="${ygKey}"]`);
   openObject({kind:"yoga", id:ygKey, mode:"birth", from:"chart",
-    emphasis:"birth", origin:rectOrigin(card||document.getElementById("stage"))});
+    emphasis:"birth", origin:rectOrigin(pill||document.getElementById("stage"))});
 }
 
 function wireYogaLayer(){
-  const L=document.getElementById("yglayer"); if(!L) return;
-  L.onclick=e=>{
-    const card=e.target.closest(".ygcard");
-    if(card) return card.dataset.k===ygKey?ygDeselect():ygSelect(card.dataset.k);
-    const row=e.target.closest(".ygform");
-    if(row) return ygFocusPart(row.dataset.p);
-    if(e.target.closest("#ygall-f")) return ygFocusPart(null);
+  const wrap=document.getElementById("ygpills"); if(!wrap) return;
+  wrap.onclick=e=>{
+    if(e.target.closest("#ygall")) return ygSeeAll();
     if(e.target.closest("#ygopen")) return ygExplore();
-    if(e.target.closest("#ygall")){ closeYogaLayer();
-      go(YOU_INDEX); bdTab="yogas"; subView="birth"; renderSub();
-      const pg=document.getElementById("pg-you"); if(pg) pg.scrollTop=0; return; }
-    if(e.target.closest("#ygclose")) return closeYogaLayer();
+    const p=e.target.closest(".ygpill");
+    if(p&&p.dataset.k) return p.dataset.k===ygKey?ygDeselect():ygSelect(p.dataset.k);
   };
 }
 
@@ -3718,7 +3725,7 @@ function codCtx(){
       /* a key, never an index: the index changes when the catalogue does, and a
          detail page reopened after a profile switch would land on another yoga */
       openYoga:key=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode("birth");
-        setTimeout(()=>{ if(!ygOpen) openYogaLayer(); ygSelect(String(key)); },320); }); },
+        setTimeout(()=>{ openYogaLayer(); ygSelect(String(key)); },320); }); },
       openHouse:(h,mode)=>{ closeDetailThen(()=>{ go(CHART_INDEX); setMode(mode==="now"?"today":"birth"); setTimeout(()=>openHouse(h,{focusOnly:true}),260); }); },
       show:(k,id,spec)=>{
         if(k==="planet") openObject({kind:"planet",id,mode:spec.mode,at:spec.at,from:"detail",emphasis:spec.emphasis});

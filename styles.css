@@ -2296,7 +2296,11 @@ body.guidefull .composer.glight::before{content:"";position:absolute;left:0;righ
    that lunges is a toy, and the light is doing the talking. */
 .gvorb img{position:relative;display:block;width:100%;height:100%;
   opacity:var(--enter);
-  transform:scale(calc((.94 + var(--enter)*.06) * (1 + var(--a1)*.04)));
+  /* The Moon itself moves with the voice now, not only its glow. Sangram:
+     "just like ChatGPT, the blue orb becomes big and small — our Moon should
+     also, slightly. Otherwise it looks very static." 4% was invisible; 14% is
+     a breath, not a lunge, and the glow layers still carry the loudness. */
+  transform:scale(calc((.94 + var(--enter)*.06) * (1 + var(--a1)*.14)));
   filter:drop-shadow(0 0 calc(14px + var(--a1)*26px) rgba(150,172,232,calc(.40 + var(--a1)*.34)))
          drop-shadow(0 18px 70px rgba(90,110,170,calc(.14 + var(--a2)*.24)))
          brightness(calc(1.02 + var(--a1)*.09))}

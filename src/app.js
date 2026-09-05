@@ -3604,7 +3604,7 @@ function astraCard(text,chips){
   const list=typeof chips==="function"?chips():(chips||[]);
   const idx=list.map(c=>{CHIP_ACTS.push(c.act); return CHIP_ACTS.length-1});
   return `<div class="astrareply">
-    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Guide</div>
+    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
     <div class="astratext">${text}</div>
     ${list.length?`<div class="chiprow">${list.map((c,i)=>
       `<button class="entchip" data-ca="${idx[i]}">${c.t}</button>`).join("")}</div>`:""}
@@ -3968,7 +3968,7 @@ function guideMsgHTML(m,i,prev){
     return `${sep}<div class="bubble me">${escText(m.content)}</div>`;
   const long=m.content.length>520;
   return `${sep}<div class="gasr">
-    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Guide</div>
+    <div class="astrahead"><span class="orbdot" aria-hidden="true"></span>Astra</div>
     <div class="astratext${long?" clamp":""}">${fmtGuide(m.content)}</div>
     ${long?`<button class="gshowmore">Show more</button>`:""}
     ${m.actions?actChips(m.actions,i):""}
@@ -4462,7 +4462,7 @@ async function guideSend(q,opts={}){
   }
   const chat=document.getElementById("chat");
   if(chat){ chat.insertAdjacentHTML("beforeend",
-    `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Guide</div>
+    `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Astra</div>
      <div class="astratext gthink">Reading your chart&#8230;</div></div>`);
     chat.lastElementChild.scrollIntoView({behavior:"smooth",block:"nearest"}); }
   gMoonState("thinking");
@@ -4579,7 +4579,7 @@ function rtSayEl(){
   let pend=document.getElementById("gpending");
   if(!pend){
     chat.insertAdjacentHTML("beforeend",
-      `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Guide</div>
+      `<div class="gasr" id="gpending"><div class="astrahead"><span class="orbdot"></span>Astra</div>
        <div class="astratext"></div></div>`);
     pend=document.getElementById("gpending");
   }
@@ -4807,8 +4807,14 @@ async function rtStart(){
                           prefix_padding_ms:300, silence_duration_ms:700 } },
                 output:{ voice:"marin", speed:1 } },
         instructions:
-          "You are Guide, the calm, warm astrology companion in the Astra app. "+
+          "You are Astra, the calm, warm astrology companion — the voice of this app. "+
           "Only discuss astrology and this chart, using the facts below. "+
+          /* Sangram: "whenever I say hello, it immediately starts telling me
+             'you're in Moon mahadasha, Venus antardasha' — too much for hello."
+             A greeting gets a greeting. The chart waits to be asked. */
+          "If the person only greets you or makes small talk, greet them back by "+
+          "their first name and ask what is on their mind — ONE short sentence, and do "+
+          "NOT read any part of the chart, dasha or transit unprompted. "+
           "Keep answers short — twenty to sixty seconds spoken — then offer to go deeper. "+
           "SPEAK THE USER'S OWN LANGUAGE. Whatever language or mix they speak — English, Hindi, "+
           "Hinglish, Marathi or any other — reply in that same language and speak it aloud "+
@@ -8178,7 +8184,7 @@ function moonArt(date,size,opts={}){
   const ph=opts.full?{illum:1,waxing:true}:moonPhase(date), r=size/2-0.5, id="mc"+(++mcid);
   return `<svg class="mn" viewBox="${-size/2} ${-size/2} ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
     <defs><clipPath id="${id}"><path d="${moonPath(r,ph.illum,ph.waxing)}"/></clipPath></defs>
-    <circle r="${r}" fill="#1B1F3C" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>
+    ${opts.full?``:`<circle r="${r}" fill="#1B1F3C" stroke="rgba(150,175,225,.22)" stroke-width=".7"/>`}
     ${ph.illum>0.012?`<image href="assets/graha/moon.png" x="${-r}" y="${-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})"/>`:``}
   </svg>`;
 }

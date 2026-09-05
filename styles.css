@@ -1,7 +1,12 @@
 :root{--barh:calc(54px + env(safe-area-inset-top));
   --void:#171A33; --void-2:#1E2240; --raise:#272B4B;
   --line:#2C3155; --line-2:#3B4170; --hot:#8E97C8;
-  --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
+  /* --ink-3 measured 2.90:1 against the instrument's own ground — it is the
+     token every piece of secondary text uses there (tab labels, the Universe
+     hint, the Sanskrit graha names), so one value failed AA across the whole
+     dark material. #9EA4C8 measures 4.82:1. --ink-2 already passed at 5.37
+     and is left alone. */
+  --ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#9EA4C8;
   --brass:#C29B4E;
     --edge:rgba(150,162,235,.30);
     --edge-soft:rgba(150,162,235,.16);
@@ -2035,14 +2040,14 @@ body.guidefull .wash{opacity:0}
   align-self:flex-end;border-bottom-right-radius:6px}
 .gasr{align-self:stretch}
 .gasr .astrahead{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
-  letter-spacing:.08em;text-transform:uppercase;color:#8A8DA3;margin-bottom:6px}
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
 .gasr .orbdot{width:8px;height:8px;border-radius:50%;
   background:radial-gradient(circle at 35% 30%,#F2F5FC,#8B99B8)}
 .gasr .astratext{font-size:15px;line-height:1.62;color:#23263E}
 .gasr .astratext p{margin:0 0 10px}
 .gasr .astratext p:last-child{margin-bottom:0}
-.gasr .astratext.gthink{color:#8A8DA3;font-style:italic}
-.gsep{align-self:center;font-size:11px;font-weight:600;color:#9A9DB0;
+.gasr .astratext.gthink{color:var(--ink-3);font-style:italic}
+.gsep{align-self:center;font-size:11px;font-weight:600;color:var(--ink-3);
   padding:2px 12px;margin:6px 0 -2px}
 
 /* structured action chips under an answer (spec 40) */
@@ -2529,7 +2534,7 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
 /* The sky is the instrument in both themes — you cannot make a night sky out
    of paper. Without this the overlay inherited the light palette and drew its
    card titles in near-black on near-black. */
-body.light .skyview{--ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#767CA2;
+body.light .skyview{--ink:#F3F4FA; --ink-2:#A8AECB; --ink-3:#9EA4C8;
   --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.16);
   --edge:rgba(190,200,245,.20); --edge-soft:rgba(190,200,245,.12);
   --brass:#C29B4E; --hot:#A9B2FF; color:var(--ink)}
@@ -2870,6 +2875,9 @@ body.indetail .tabs{transform:translateY(115%);pointer-events:none}
    body.light flips the shared tokens so the 380+ var(--ink…) uses follow; the surfaces
    below are the hard-coded ones that matter on the light tabs.
    ====================================================================== */
+/* the one frame in which the app changes material: no easing, so every
+   var-driven colour resolves against the palette that is now in force */
+body.matflip, body.matflip *{transition:none!important}
 body.light{
   --ink:#171A33; --ink-2:#4A4F6E; --ink-3:#7B809E;
   --line:rgba(23,26,51,.12); --line-2:rgba(23,26,51,.18);
@@ -2928,7 +2936,10 @@ body.light .tab.on .tabico{filter:none}
   body.light .tabs{background:rgba(255,255,255,.96)}
 }
 /* R2: planet hues on paper — the same identities, deepened to read on warm white (AA on #F5F3EC) */
-body.light{--sun:#A8661A;--moon:#4A5C86;--mars:#B03A28;--mercury:#25795C;--jupiter:#8E6E14;
+/* Sun and Jupiter were the only two grahas whose paper tone missed AA for
+   body text (4.20 and 4.39 against the reading ground). Same hue, one step
+   deeper: 4.83 and 4.93. */
+body.light{--sun:#9C5D15;--moon:#4A5C86;--mars:#B03A28;--mercury:#25795C;--jupiter:#856611;
   --venus:#A04B6A;--saturn:#485A98;--rahu:#684C8C;--ketu:#775A44}
 /* R3: glyphs inside category segments and the Birth-details rail */
 .segico{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;
@@ -3161,7 +3172,7 @@ body.light .tabs::before{background:conic-gradient(from 200deg at 50% 50%,
 .festname{display:block;font-size:14.5px;font-weight:620;letter-spacing:-.01em}
 .festwhat{display:block;font-size:12px;line-height:1.45;color:var(--ink-3);margin-top:2px}
 .festrow .festkind{flex:0 0 auto;font-family:var(--fm);font-size:9px;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);
+  text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-2);
   border-radius:99px;padding:2px 7px}
 .festrow .chev{flex:0 0 auto;color:var(--ink-3);font-size:17px}
 .hiname{font-size:12px;font-weight:500;color:var(--ink-3)}

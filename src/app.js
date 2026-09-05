@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905k";
+import { LEARN_LEVELS } from "./learn.js?v=20260905s";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905k";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905s";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2657,6 +2657,7 @@ function setMode(m){
   updateScrubLabel();
 }
 
+let matflipT=null;
 let mode=null,current=null;
 const sheet=document.getElementById("sheet"), closeBtn=document.getElementById("close");
 /* Layer 1 is the sheet itself, opened at a collapsed detent: one line and
@@ -8042,7 +8043,25 @@ function go(i){
   const from=activeTab;
   activeTab=i;
   /* two materials: the instrument (Universe) keeps its night; every reading tab is paper */
-  document.body.classList.toggle("light", i!==CHART_INDEX);
+  /* A `transition` on a property whose value comes from a custom property does
+     not reliably re-resolve when that property flips — the tab labels kept the
+     paper ink on the instrument (1.78:1, effectively invisible) and stayed
+     stale indefinitely, not just for the transition's duration. Transitions are
+     suppressed for the frame the material changes, so every var-driven colour
+     lands on its new value; the fade is only wanted for a SELECTION change,
+     which does not coincide with a material change. */
+  if(document.body.classList.contains("light")!==(i!==CHART_INDEX)){
+    document.body.classList.add("matflip");
+    document.body.classList.toggle("light", i!==CHART_INDEX);
+    void document.body.offsetHeight;                    /* settle before easing returns */
+    /* rAF alone is not enough to take it off again: a backgrounded or throttled
+       page never runs the callback, and `matflip` disables every transition in
+       the app — so the class has to be able to clear itself without a frame. */
+    clearTimeout(matflipT);
+    const unflip=()=>document.body.classList.remove("matflip");
+    requestAnimationFrame(unflip);
+    matflipT=setTimeout(unflip,140);
+  }
   requestAnimationFrame(()=>moveTabThumb(false));
   if(i===CHART_INDEX) setTimeout(wireUniParallax,80); else if(uniParStop) uniParStop();
   /* the bar belongs to the tab, so it has to be reset on every switch -

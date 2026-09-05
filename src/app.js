@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260905w";
+import { LEARN_LEVELS } from "./learn.js?v=20260905y";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026083
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905w";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260905y";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -306,6 +306,8 @@ function setActiveUser(p){
 const gIcon=(g,sz=18)=>`<img class="gico" src="assets/graha/${g.toLowerCase()}.png" width="${sz}" height="${sz}" alt="" draggable="false">`;
 const COLOUR=g=>`var(--${g.toLowerCase()})`;
 const ordinal=n=>n+(["th","st","nd","rd"][(n%100-20)%10]||["th","st","nd","rd"][n%100]||"th");
+/* "Sun", "Sun and Moon", "Sun, Moon and Mars" — prose, not a comma-joined array */
+const listOf=a=>a.length<2?(a[0]||""):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
 /* HAPTICS.
    Safari has never implemented the Vibration API — not on iOS, not on the desktop, not in
    any version (caniuse: unsupported through 26.6 / TP). So every buzz() in this app has
@@ -3290,6 +3292,10 @@ function foldNotes(root){
   for(const n of host.querySelectorAll("p.note:not([data-fold])")){
     n.dataset.fold="1";
     if(n.classList.contains("open")) continue;
+    /* Never inside a report. A report is a document — it is read straight
+       through and printed, and a <details> prints collapsed, so folding there
+       silently deletes the methodology from a PDF someone paid for. */
+    if(n.closest(".paper.report")) continue;
     if((n.textContent||"").trim().length<=120) continue;
     const d=document.createElement("details");
     d.className="notefold";
@@ -5549,8 +5555,23 @@ function subReportView(){
   })();
   const moonSign=CHART.get("Moon").sign;
   const sati=sadeSatiWindows(moonSign, CHART.birthDate).slice(0,3);
-  const VD=[1,2,3,9,10,12,30];
-  const vtables=VD.map(D=>({D,ch:E.varga(D)}));
+  /* Every varga Astra computes, not a selection of seven. Split so each table
+     fits a printed page — this document is meant to be printed. */
+  const GR9=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+  const MAJOR=VARGA_META.filter(m=>m.tier==="major").map(m=>m.D);
+  const EXTRA=VARGA_META.filter(m=>m.tier!=="major").map(m=>m.D);
+  const vcache={}; const vch=D=>(vcache[D]=vcache[D]||E.varga(D));
+  const vtable=(ds,caption)=>`
+    <div class="tblwrap-x"><table class="reptable"><thead><tr><th></th>
+      ${ds.map(D=>`<th>D${D}</th>`).join("")}</tr></thead><tbody>
+      ${GR9.map(g=>`<tr><td>${g}</td>${ds.map(D=>{const c=vch(D);
+        return `<td>${c[g]?SIGNS[c[g]-1].slice(0,3):"&#8212;"}</td>`;}).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    ${caption?`<p class="note" style="margin:4px 0 12px">${caption}</p>`:""}`;
+  /* vargottama: the same sign in the rashi chart and the navamsha, which the
+     tradition reads as a graha more fully itself */
+  const d9=vch(9);
+  const vgttm=GR9.filter(g=>{const p=CHART.get(g); return p&&d9[g]===p.sign;});
   return `
   <div class="paper report">
     <div class="repbanner">Preview &#8212; purchasing and email delivery arrive with the
@@ -5570,14 +5591,20 @@ function subReportView(){
     ${rows(Array.from({length:12},(_,i)=>{const h=i+1,sg=CHART.signOfHouse(h),l=SIGN_LORD[sg];
       return [`House ${h} &#183; ${SIGNS[sg-1]}`,`${gIcon(l,15)}${l} &#8594; house ${CHART.get(l).house}`]}))}
 
-    <div class="eyebrow" style="margin:20px 0 8px">Divisional charts</div>
-    <div class="tblwrap-x"><table class="reptable"><thead><tr><th></th>
-      ${VD.map(D=>`<th>D${D}</th>`).join("")}</tr></thead><tbody>
-      ${["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"].map(g=>
-        `<tr><td>${g}</td>${vtables.map(v=>`<td>${v.ch[g]?SIGNS[v.ch[g]-1].slice(0,3):"&#8212;"}</td>`).join("")}</tr>`).join("")}
-    </tbody></table></div>
-    <p class="note" style="margin-top:6px">18 divisional charts are computed and validated;
-      seven shown here, the full set ships in the purchased PDF.</p>
+    <div class="eyebrow" style="margin:20px 0 8px">Divisional charts &#8212; the sixteen classical vargas</div>
+    ${vtable(MAJOR.slice(0,8))}
+    ${vtable(MAJOR.slice(8),`The Shodashavarga in full. Each divides every sign into
+      D parts by a classical rule and remaps the same natal longitudes &#8212; nothing
+      moves in the sky. D5 and D6 are absent because no reliable published rule could be
+      confirmed; no D-number is invented to fill a gap.`)}
+    <div class="eyebrow" style="margin:16px 0 8px">Beyond the Shodashavarga</div>
+    ${vtable(EXTRA,`Non-Parashari. Used by some modern software traditions and shown
+      for completeness, clearly separated from the sixteen.`)}
+    ${vgttm.length?`<p class="interp"><b>Vargottama:</b> ${listOf(vgttm)} ${vgttm.length>1?"hold":"holds"}
+      the same sign in the rashi chart and the navamsha. Within this tradition that is read as a
+      graha more completely itself &#8212; steadier in what it signifies, in both charts at once.</p>`
+      :`<p class="interp">No graha is vargottama here &#8212; none holds the same sign in both the
+      rashi chart and the navamsha. That is common, and not a weakness.</p>`}
 
     <div class="eyebrow" style="margin:20px 0 8px">Vimshottari &#8212; the 120 years</div>
     ${rows(E.d3.mahadashas.map(m=>[`${gIcon(m.lord,15)}${m.lord}`,
@@ -5586,13 +5613,29 @@ function subReportView(){
       <b>${m3.lord} &#8594; ${a3.lord}${p3?` &#8594; ${p3.lord}`:""}</b>
       ${p3?`(pratyantar to ${fmtDate(p3.end)})`:""}.</p>`:""}
 
-    <div class="eyebrow" style="margin:20px 0 8px">Ashtakavarga &#8212; sarvashtakavarga</div>
-    <div class="tblwrap-x"><table class="reptable"><thead><tr>
-      ${SIGNS.map(s=>`<th>${s.slice(0,3)}</th>`).join("")}</tr></thead>
-      <tbody><tr>${E.sav.map(b=>`<td${b>=30?' class="hi"':b<=25?' class="lo"':""}>${b}</td>`).join("")}</tr></tbody>
+    <div class="eyebrow" style="margin:20px 0 8px">Ashtakavarga</div>
+    <div class="tblwrap-x"><table class="reptable"><thead><tr><th></th>
+      ${SIGNS.map(s=>`<th>${s.slice(0,3)}</th>`).join("")}<th>&#931;</th></tr></thead>
+      <tbody>
+      ${["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Lagna"].map(g=>{
+        const row=E.bav[g]; if(!row) return "";
+        return `<tr><td>${g}</td>${row.map(b=>`<td${b>=6?' class="hi"':b<=2?' class="lo"':""}>${b}</td>`).join("")}<td>${row.reduce((a,b)=>a+b,0)}</td></tr>`;}).join("")}
+      <tr class="reptot"><td><b>Sarva</b></td>${E.sav.map(b=>`<td${b>=30?' class="hi"':b<=25?' class="lo"':""}><b>${b}</b></td>`).join("")}<td><b>${E.sav.reduce((a,b)=>a+b,0)}</b></td></tr>
+      </tbody>
     </table></div>
-    <p class="note" style="margin-top:6px">Total 337 &#183; average 28 per sign. Strong and
-      lean signs marked.</p>
+    <p class="note" style="margin-top:6px">Each row is one graha&#8217;s bhinnashtakavarga
+      &#8212; the bindus it receives in every sign from the seven grahas and the lagna. The
+      sarvashtakavarga is the seven graha rows added together (the lagna row is excluded by the
+      classical definition), and always totals 337 across an average of 28 per sign. Generous
+      and lean cells are marked.</p>
+    ${(()=>{ const idx=E.sav.map((b,i)=>({b,i})).sort((a,b)=>b.b-a.b);
+      const hi=idx[0], lo=idx[idx.length-1];
+      const hh=CHART.houseOfSign(hi.i+1), lh=CHART.houseOfSign(lo.i+1);
+      return `<p class="interp">Your strongest sign by bindu count is
+        <b>${SIGNS[hi.i]}</b> (${hi.b}), your ${ordinal(hh)} house; the leanest is
+        <b>${SIGNS[lo.i]}</b> (${lo.b}), your ${ordinal(lh)} house. Traditionally a transit
+        through a generous sign is read as better supported than the same transit through a
+        lean one &#8212; a matter of degree, not of good and bad.</p>`;})()}
 
     ${E.sb?(()=>{ const gs=Object.entries(E.sb.grahas)
         .sort((a,b)=>b[1].rupas-a[1].rupas);

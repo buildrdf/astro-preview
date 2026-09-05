@@ -1664,6 +1664,8 @@ body.guidefull #pg-guide{padding-bottom:26px}
   border-radius:10px;padding:8px 12px;margin-bottom:14px}
 .tblwrap-x{overflow-x:auto;border:1px solid var(--edge-soft);border-radius:12px;
   background:#fff}
+/* the sarva line closes the ashtakavarga block, so it reads as a total */
+.reptable tr.reptot td{border-top:1.5px solid var(--line-2)}
 .reptable{border-collapse:collapse;font-size:12px;min-width:100%;
   font-variant-numeric:tabular-nums}
 .reptable th{font-family:var(--fm);font-size:9px;letter-spacing:.06em;
@@ -1679,6 +1681,13 @@ body.guidefull #pg-guide{padding-bottom:26px}
   body,.app{background:#fff !important}
   .page{padding:0 !important;overflow:visible !important}
   .paper{box-shadow:none;margin:0;border-radius:0}
+  /* anything folded on screen prints open — paper has no disclosure triangle */
+  details{display:block}
+  details>summary{display:none}
+  details>*{display:revert}
+  .tblwrap-x{overflow:visible !important}
+  .reptable{font-size:9px}
+  tr,.card,.sphcard{break-inside:avoid}
 }
 .skyview.hascard .svsearch,.skyview.hascard .svres{display:none}
 

@@ -4233,7 +4233,9 @@ let VOICE={on:false,muted:false,rec:null,utter:null,state:"disconnected",
   amp:0,bump:0,raf:0,ac:null,an:null,buf:null,stream:null,
   /* entry/exit tween 0..1, glow lags it; duck ramps the reply out on barge-in;
      reduced is sampled once per session so the loop never queries matchMedia */
-  enter:0,glowin:0,duck:0,reduced:false,reTimer:0,noteTimer:0,cueAc:null};
+  enter:0,glowin:0,duck:0,reduced:false,reTimer:0,noteTimer:0,cueAc:null,
+  /* set the moment the person cuts in, cleared when a NEW reply starts */
+  yielded:false};
 const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 function voiceNote(t){ const r=document.getElementById("gvreply"); if(r) r.textContent=t||""; }
 /* what you are saying, shown where your messages live — a pale bubble at the end of
@@ -4369,6 +4371,12 @@ function rtBargeIn(){
     RT.active=false;
   }
   VOICE.duck=1;
+  /* AND STOP LISTENING TO THE OLD REPLY. Ducking the audio element silences
+     it for the person but not for us: the analyser taps the MediaStream
+     upstream of the volume control, so the cancelled reply still metered as
+     loud and dragged the Moon straight back to "speaking" while they were
+     mid-sentence. Ignore that stream until a new response begins. */
+  VOICE.yielded=true;
   rtSettle(true);                  /* preserve what was actually spoken */
   gMoonState(VS.INTERRUPTED);
   buzz(6);
@@ -4412,7 +4420,8 @@ function rtEvent(m){
     case "response.created":
       /* a new turn: undo any barge-in duck so this reply is audible */
       if(RT) RT.active=true;
-      VOICE.duck=0; if(RT&&RT.audio) try{ RT.audio.volume=1; }catch(_){}
+      VOICE.duck=0; VOICE.yielded=false;
+      if(RT&&RT.audio) try{ RT.audio.volume=1; }catch(_){}
       if(VOICE.state!==VS.USER) gMoonState(VS.PROCESSING); break;
     /* Text arrives here; it is REVEALED by voiceLoop at the pace the voice is
        actually speaking. The state is not set from this event — deltas land
@@ -4602,7 +4611,7 @@ function voiceStart(){
     return;
   }
   VOICE.on=true; VOICE.muted=false; VOICE.amp=0; VOICE.bump=0;
-  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0;
+  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0; VOICE.yielded=false;
   VOICE.reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   GLOW.in.v=GLOW.mid.v=GLOW.out.v=0;
   const mb=document.getElementById("gvmute");
@@ -4746,7 +4755,7 @@ function voiceFrame(t,dt){
        Generation events finish long before the voice does, so they cannot
        be trusted for this. Any real level on the reply stream means Astra
        is audibly talking; the turn closes when it has actually gone quiet. */
-    const out=replyLevel(), mic=micLevel(), metered=out!=null;
+    const out=VOICE.yielded?null:replyLevel(), mic=micLevel(), metered=out!=null;
     /* the pace of ordinary speech, plus a catch-up when the model has run far
        ahead of its own voice */
     const backlog=SAY.queue.length-SAY.shown.length;
@@ -4881,7 +4890,7 @@ if(/[?&]vdemo=1/.test(location.search)){
       a3:+GLOW.out.v.toFixed(3),enter:+VOICE.enter.toFixed(3),glowin:+VOICE.glowin.toFixed(3),
       reduced:VOICE.reduced,label:document.getElementById("gvstate")?.textContent}; },
     cue(d){ voiceCue(d); },
-    fail(m){ voiceFail(m); },
+    fail(m){ voiceFail(m); }, barge(){ VOICE.yielded=true; VOICE.duck=1; rtSettle(true); gMoonState(VS.INTERRUPTED); },
     say(t){ rtSay(t); }, shown(){ return SAY.shown; }, settle(p){ rtSettle(p); }
   };
 }
@@ -5017,7 +5026,7 @@ function voiceStopNow(silent){
   const o=document.getElementById("gvorb");
   if(o){ for(const k of ["--amp","--a1","--a2","--a3","--enter","--glowin"]) o.style.setProperty(k,"0"); }
   GLOW.in.v=GLOW.mid.v=GLOW.out.v=0;
-  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0;
+  VOICE.enter=0; VOICE.glowin=0; VOICE.duck=0; VOICE.yielded=false;
   clearTimeout(VOICE.reTimer); clearTimeout(VOICE.noteTimer);
   voiceInterim("");
   voiceNote("");

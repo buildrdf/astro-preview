@@ -1743,7 +1743,7 @@ function openAreaWhy(i, card){
   const STATUS={favourable:"Supportive",balanced:"Steady",slow:"Caution"};
   const rankTop=[...R.areas].sort((x,y)=>y.score-x.score)[0];
   const status=(a===rankTop&&a.tone==="favourable")?"Strong":STATUS[a.tone];
-  const noTime=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&meProfile()?.noTime);
+  const noTime=birthApprox();
   const ev=a.evidence.filter(e=>!e.tara)
     .sort((x,y)=>(y.occupies?1:0)-(x.occupies?1:0));
   const tara=a.evidence.find(e=>e.tara);
@@ -4287,7 +4287,15 @@ function rtSayEl(){
   }
   return pend;
 }
-function rtSay(text){ SAY.queue+=text||""; }
+function rtSay(text){
+  /* A cancelled response can still emit a few transcript deltas after the
+     cancel lands. Those words were never spoken, so they must not be typed
+     out — and because the meter is deliberately ignored after a barge-in,
+     the clock fallback would otherwise have taken them and dragged the Moon
+     back into "speaking" over the person who just interrupted. */
+  if(VOICE.yielded) return;
+  SAY.queue+=text||"";
+}
 
 /* ---- FOLLOWING THE CONVERSATION (§19) -------------------------------
    Scrolled to the bottom by every token is jitter; scrolled to the bottom
@@ -4768,7 +4776,7 @@ function voiceFrame(t,dt){
       FRAME.lastLoud=t;
       if(VOICE.state!==VS.ASTRA) gMoonState(VS.ASTRA);
       rtDrain(rate);
-    } else if(!metered&&SAY.queue&&!dead){
+    } else if(!metered&&!VOICE.yielded&&SAY.queue&&!dead){
       /* NO OUTPUT METER. Some browsers will not hand us an AudioContext for
          the remote stream at all. Falling back to "dump the whole answer at
          the end" reproduces the exact failure this system exists to fix, so
@@ -5007,7 +5015,7 @@ function voiceStop(silent){
     setTimeout(()=>voiceStopNow(true),380);
     return;
   }
-  voiceStopNow(silent);
+  voiceStopNow(silent||VOICE.state===VS.EXITING);
 }
 function voiceStopNow(silent){
   if(!VOICE.on){ return; }
@@ -6735,7 +6743,7 @@ function bdSati(){
   const curWin=wins.find(w=>nowD>=w.start&&nowD<w.end);
   const prevWin=[...wins].reverse().find(w=>w.end<=nowD);
   const nxt=wins.find(w=>w.start>nowD);
-  const approx=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime);
+  const approx=birthApprox();
   const mdeg=CHART.get("Moon").L%30;
   if(approx&&(mdeg<2||mdeg>28)) return `
     <div class="card special">
@@ -6985,7 +6993,7 @@ function openSatiPhase(ci,idx,card){
   const M=satiAreaModel(m);
   const moon=CHART.get("Moon"), sat=CHART.get("Saturn");
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const approx=(ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime);
+  const approx=birthApprox();
   /* antardashas overlapping this ~2.5y phase (spec 24) */
   const antars=[];
   for(const mh of CHART.dasha.mahas){
@@ -7145,7 +7153,21 @@ function tlSeek(date){
 const G_ABBR={Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke",Asc:"As"};
 let vgWalkG="Jupiter", vgWalkStep=1, vgHeroD=9, vgHeroTimer=null;
 
-const birthApprox=()=>!!((ACTIVE.p&&ACTIVE.p.approx)||(!ACTIVE.p&&typeof meProfile==="function"&&meProfile()?.noTime));
+/* IS THE BIRTH TIME ONLY APPROXIMATE?
+   Onboarding writes this flag as `approx` — but every reader asked the user's
+   own profile for `noTime`, which is never written, so for the user THEMSELVES
+   the answer was permanently no. It worked only for saved partners, whose
+   field is read correctly. The consequences were not cosmetic: the varga page
+   told someone who had ticked "I don't know my birth time" that their birth
+   time was EXACT and all sixteen classical charts could be read; the Moon
+   sign-boundary warning never fired; the Year Ahead house caveat never
+   appeared. `noTime` stays as an alias so any profile already carrying it
+   keeps working. */
+const birthApprox=()=>{
+  if(ACTIVE.p) return !!ACTIVE.p.approx;
+  const me=(typeof meProfile==="function")?meProfile():null;
+  return !!(me&&(me.approx||me.noTime));
+};
 
 /* sign-level dignity only: the stretched "varga degree" is a
    convention, not a measurement, so no deep-exaltation claims (part 23) */

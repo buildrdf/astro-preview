@@ -2169,16 +2169,21 @@ body.guidefull .composer.glight::before{content:"";position:absolute;left:0;righ
    edges not oval". A capsule is right at one line and wrong at four — the
    corners bow into the text — and a send button beside four lines has nothing
    to align to. */
-.cmp-box{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;
-  background:#FFFFFF;border:1px solid rgba(23,26,51,.13);border-radius:22px;
-  padding:10px 10px 8px 14px;box-shadow:0 4px 22px rgba(23,26,51,.08)}
-.composer .cmp-box textarea{width:100%;background:none;border:0;border-radius:0;
-  resize:none;overflow-y:auto;max-height:132px;line-height:1.35;padding:2px 0;
-  font-family:var(--ff);font-size:16px;color:#171A33;scrollbar-width:none}
+/* ONE LINE WHEN EMPTY. A wrapping flex row: the field and the controls share
+   the line until the field asks for its full width (`.tall`, set by the
+   grow() that measures the text), at which point the controls wrap beneath.
+   Sangram: "when there is no text the composer should stay as single line". */
+.cmp-box{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-end;
+  gap:4px 8px;background:#FFFFFF;border:1px solid rgba(23,26,51,.13);border-radius:22px;
+  padding:6px 8px 6px 16px;box-shadow:0 4px 22px rgba(23,26,51,.08)}
+.composer .cmp-box textarea{flex:1 1 120px;min-width:0;background:none;border:0;border-radius:0;
+  resize:none;overflow-y:auto;max-height:132px;line-height:1.35;padding:9px 0;
+  font-family:var(--ff);font-size:16px;color:#171A33;caret-color:#171A33;scrollbar-width:none}
+.cmp-box.tall textarea{flex-basis:100%}
 .composer .cmp-box textarea::-webkit-scrollbar{display:none}
 .composer .cmp-box textarea:focus{outline:none;background:none;border:0}
 .composer .cmp-box textarea::placeholder{color:#9A9DB0}
-.cmp-row{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.cmp-row{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:6px}
 
 /* dictation — it types, it does not converse */
 .cmp-mic{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:0;cursor:pointer;

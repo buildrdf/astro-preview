@@ -4182,7 +4182,7 @@ function renderGuide(){
            right for one line and wrong for four, and a button sitting beside
            four lines of text has nothing to align to. -->
       <div class="cmp-box">
-        <textarea id="cmpin" rows="1" placeholder="Ask Guide" aria-label="Message"
+        <textarea id="cmpin" rows="1" placeholder="Ask Astra" aria-label="Message"
           autocomplete="off" enterkeyhint="enter"></textarea>
         <div class="cmp-row">
           <!-- DICTATION, not the voice conversation. This one only types: it
@@ -4274,14 +4274,37 @@ function renderGuide(){
      of those questions run to three lines — in a single-line <input> the
      reader could only ever see the end of their own question. It is a textarea
      now, sized to its content up to five lines and scrolling after that. */
-  const grow=()=>{ inp.style.height="auto";
-    inp.style.height=Math.min(inp.scrollHeight,CMP_MAX)+"px"; };
+  /* THE BOX SITS ON ONE LINE UNTIL THE TEXT NEEDS TWO. Empty, it is exactly
+     one line with the controls beside the placeholder — Sangram's reference.
+     Only once the text wraps do the controls drop beneath it.
+     The old version set an explicit height from scrollHeight, and the first
+     call ran before layout, read scrollHeight as ZERO and pinned the field at
+     0px — so the placeholder and the caret were there, clipped inside a box
+     four pixels tall. Empty, the field now carries no inline height at all
+     and rows=1 governs; a measured height is only ever applied to text. */
+  const box=inp.closest(".cmp-box");
+  const grow=()=>{
+    if(!inp.value){ inp.style.height=""; if(box) box.classList.remove("tall"); return; }
+    /* Measure at the width the text will actually live in. Beside the
+       controls the field is narrow, so a sentence that fits one full-width
+       line wrapped to two there, went tall on that reading, and then kept
+       the two-line height even once it had the whole width — one keystroke
+       behind the truth. Try inline first; only if it genuinely needs more
+       than a line there, give it the full width and measure again. */
+    const line=parseFloat(getComputedStyle(inp).lineHeight)||22;
+    const measure=()=>{ inp.style.height="auto"; return Math.min(inp.scrollHeight,CMP_MAX); };
+    if(box) box.classList.remove("tall");
+    let h=measure();
+    if(box&&h>line*1.6){ box.classList.add("tall"); h=measure(); }
+    inp.style.height=Math.max(line,h)+"px";
+  };
   const swap=()=>{ const has=!!inp.value.trim();
     goB.classList.toggle("has",has);
     goB.setAttribute("aria-label",has?"Send":"Talk to Guide");
     grow();
   wireDictation(inp,swap); };
   inp.oninput=swap;
+  inp.onfocus=grow;
   /* Sangram: "the Enter key should not send the message. There's a button for
      sending." So Return inserts a line, the way it does in every other message
      box he uses. Sending is the button, and only the button. */

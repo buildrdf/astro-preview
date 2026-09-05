@@ -2313,7 +2313,6 @@ function renderUniverse(){
            appeared and took height; reserving it means the chart is sized once
            when the strip opens and never moves again. -->
       <div class="ygact" id="ygact">
-        <span class="ygactname" id="ygactname"></span>
         <button class="ygdetail" id="ygopen">Check in detail</button>
       </div>
     </div>
@@ -2597,17 +2596,35 @@ function renderYogaPills(){
   const list=(ygOpen&&safeYogaCount())?ygRank(engine().yogas||[]):[];
   if(!list.length){ wrap.hidden=true; row.innerHTML=""; return; }
   wrap.hidden=false;
-  const lab=ygPillLabels(list);
+  /* THE WHOLE NAME, ON THE PILL. Sangram: "you can write the full name of the
+     yoga in the pill itself and along with the green, amber or grey dot which
+     shows the strength, so you don't have to write the full name again below
+     the pill, because the button is getting cramped up." The line under the
+     strip is gone with it, which is what buys the second row of pills. The dot
+     is never the only carrier of strength — the pill's accessible name says
+     the word. */
   row.innerHTML=list.map(y=>{
     const k=ygKeyOf(y), sel=k===ygKey;
     return `<button class="ygpill${sel?" on":""}" data-k="${k}" role="option"
       aria-selected="${sel}"
-      aria-label="${escText(y.name)}. ${escText(y.strength)}. Show it on the chart.">${
-      escText(lab.get(k)||y.name)}</button>`;
+      aria-label="${escText(y.name)}. ${escText(y.strength)}. Show it on the chart."
+      ><i class="ygdot s-${escText(y.strength)}" aria-hidden="true"></i>${
+      escText(y.name)}</button>`;
   }).join("")+
-  `<button class="ygpill all" id="ygall" aria-label="See all ${list.length} yogas">See all</button>`;
+  `<button class="ygpill all" id="ygall" aria-label="See all ${list.length} yogas">See all</button>`+
+  `<button class="ygpill shut" id="ygshut" aria-label="Close yogas and clear the chart">&#10005;</button>`;
   ygOpenBtn();
   ygFitRows();
+  /* THREE CHANCES TO MEASURE, because each one alone has failed here:
+     the synchronous call runs while the page is still being built and sees
+     zero heights; requestAnimationFrame does not fire in a backgrounded tab;
+     and the width observer only speaks when the width actually changes. A
+     timeout fires regardless. Without a successful measurement the row does
+     not trim, and `overflow:hidden` then CLIPS the pills instead — which is
+     the one outcome worse than trimming, because the reader cannot tell that
+     anything is missing. */
+  setTimeout(ygFitRows,0);
+  requestAnimationFrame(ygFitRows);
   ygWatchWidth(row);
 }
 
@@ -2634,7 +2651,7 @@ function ygWatchWidth(row){
    overflow is counted and named on the trailing pill. */
 function ygFitRows(){
   const row=document.getElementById("ygrow"); if(!row) return;
-  const pills=[...row.querySelectorAll(".ygpill:not(.all)")];
+  const pills=[...row.querySelectorAll(".ygpill:not(.all):not(.shut)")];   /* the exits never trim */
   const all=row.querySelector(".ygpill.all");
   if(!pills.length) return;
   pills.forEach(p=>{ p.hidden=false; });
@@ -2653,11 +2670,18 @@ function ygFitRows(){
      two, because the third name is the longest one there is — while two short
      ones behind it would both have fitted. Walk in rank order and keep every
      pill that still fits, skipping only the ones that do not. */
-  const oneRow=one+pad+1;
+  /* TWO rows now. The name line under the strip is gone, so the space it was
+     using goes back to pills — "we can show a few more yogas". */
+  const oneRow=one*2+gap+pad+1;
+  /* scrollHeight, NOT offsetHeight. The row is a flex child inside a box of
+     fixed height, so flex shrinks it to whatever is left — 82px here — and
+     offsetHeight reports that box, not the content. It read 82 with two pills
+     and 82 with thirteen, the loop never saw an overflow, and overflow:hidden
+     quietly clipped eleven pills off the bottom. scrollHeight is the content. */
   pills.forEach(p=>{ p.hidden=true; });
   for(const p of pills){
     p.hidden=false;
-    if(row.offsetHeight>oneRow) p.hidden=true;
+    if(row.scrollHeight>oneRow) p.hidden=true;
   }
   let vis=pills.filter(p=>!p.hidden).length;
   /* a yoga selected from elsewhere (the reading page's "Show in chart") must
@@ -2667,7 +2691,7 @@ function ygFitRows(){
     on.hidden=false;
     /* make room by dropping the last one that is showing and is not the
        selection, until the strip is one row again */
-    for(let i=pills.length-1;i>=0&&row.offsetHeight>oneRow;i--)
+    for(let i=pills.length-1;i>=0&&row.scrollHeight>oneRow;i--)
       if(!pills[i].hidden&&pills[i]!==on) pills[i].hidden=true;
   }
   void vis;
@@ -2684,15 +2708,14 @@ function ygFitRows(){
    words — never colour alone. Hidden by visibility, not by `hidden`, so the
    row keeps its height and the chart above never moves. */
 function ygOpenBtn(){
-  const act=document.getElementById("ygact"), nm=document.getElementById("ygactname"),
-        b=document.getElementById("ygopen");
-  if(!act||!nm||!b) return;
+  const act=document.getElementById("ygact"), b=document.getElementById("ygopen");
+  if(!act||!b) return;
   const y=ygKey&&ygOf(ygKey);
-  if(!y){ act.classList.add("off"); nm.textContent=""; b.tabIndex=-1;
-    b.setAttribute("aria-hidden","true"); return; }
+  if(!y){ act.classList.add("off"); b.tabIndex=-1; b.setAttribute("aria-hidden","true"); return; }
   act.classList.remove("off"); b.tabIndex=0; b.removeAttribute("aria-hidden");
-  nm.innerHTML=`<b>${escText(y.name)}</b>
-    <span class="ygstr s-${y.strength}">${escText(y.strength)}</span>`;
+  /* the lit pill above already names it; repeating it here is what crowded
+     this row. The accessible name still carries it, because a screen reader
+     has no lit pill to look at. */
   b.setAttribute("aria-label",`Check ${y.name} in detail`);
 }
 
@@ -2775,6 +2798,7 @@ function ygExplore(){
 function wireYogaLayer(){
   const wrap=document.getElementById("ygpills"); if(!wrap) return;
   wrap.onclick=e=>{
+    if(e.target.closest("#ygshut")) return closeYogaLayer();
     if(e.target.closest("#ygall")) return ygSeeAll();
     if(e.target.closest("#ygopen")) return ygExplore();
     const p=e.target.closest(".ygpill");

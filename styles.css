@@ -3625,9 +3625,16 @@ body.tabmin .tabthumb{opacity:0}
 .p.p-flaw{opacity:1}
 .p.p-flaw .art{filter:grayscale(.55) drop-shadow(0 2px 8px rgba(0,0,0,.5))}
 
-.al.fmdash{stroke-dasharray:2.2 2;opacity:.75}
+/* THE CONNECTORS ARE SECONDARY. Sangram: "there are so many lines, I don't
+   know what those lines indicate — it's very confusing on the birth chart when
+   the yogas are active." They were nearly as strong as the lit houses, so the
+   eye read a web of lines rather than "these houses carry this yoga". The
+   houses are the message; the links are the grammar between them, and they now
+   sit clearly under the fills instead of competing with them. */
+#asp .al.on{opacity:.34}
+.al.fmdash{stroke-dasharray:2.2 2;opacity:.30}
 .al.fmhead{opacity:0}
-.al.fmhead.on{opacity:.9;animation:none}
+.al.fmhead.on{opacity:.40;animation:none}
 .fmlab{fill:var(--ink-2);font-family:var(--fm);font-size:3.6px;font-weight:600;
   stroke:none;opacity:0}
 .fmlab.on{opacity:.92;animation:none}
@@ -3653,19 +3660,29 @@ body.tabmin .tabthumb{opacity:0}
    resized by either of them appearing, changing mode, or being switched off.
    118px is the taller of the two: strip 44 + gap 8 + action row 44, against the
    scrubber's date line + 56px rail + note. */
-.unibottom{flex:0 0 auto;position:relative;height:118px;margin-bottom:2px}
+.unibottom{flex:0 0 auto;position:relative;height:132px;margin-bottom:2px}
 .ygpills{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px}
 .ygpills[hidden]{display:none!important}
 /* ONE strip. The overflow is not hidden information — "See all" opens the lot. */
-.ygrow{display:flex;flex-wrap:wrap;gap:8px;overflow:hidden;padding:4px 0}
+.ygrow{display:flex;flex-wrap:wrap;gap:7px;overflow:hidden;padding:4px 0}
 /* 36px tall with an 8px gap, so the 44pt target below overlaps its neighbours
    by exactly 4px each — they meet in the middle of the gap and neither steals
    the other's tap. */
-.ygpill{position:relative;border:1px solid var(--line-2);background:rgba(255,255,255,.045);
-  color:var(--ink);font-family:var(--ff);font-size:12px;font-weight:560;
-  letter-spacing:-.01em;line-height:1;padding:0 11px;height:36px;border-radius:99px;
+/* ONE SHAPE FAMILY. Sangram: "it's too many shapes — the button is almost a
+   rounded rectangle and the pills are oval, so we should follow the same
+   shape." Capsules beside a rounded rectangle read as two design systems. */
+.ygpill{position:relative;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.045);
+  color:var(--ink);font-family:var(--ff);font-size:11.5px;font-weight:560;
+  letter-spacing:-.012em;line-height:1;padding:0 9px;height:34px;border-radius:11px;
   cursor:pointer;white-space:nowrap;
   transition:background .18s,border-color .18s,color .18s}
+/* strength at a glance. Colour is never the only carrier — the pill's
+   accessible name says "strong" / "moderate" / "weak" in words. */
+.ygdot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--ink-3)}
+.ygdot.s-strong{background:#4FA97A}
+.ygdot.s-moderate{background:#D9A63F}
+.ygdot.s-weak{background:#8B8FA6}
 /* the visual stays a pill; the TARGET is 44pt (Apple's minimum) */
 .ygpill::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;
   transform:translateY(-50%)}
@@ -3676,12 +3693,15 @@ body.tabmin .tabthumb{opacity:0}
   color:#F3E6C9;font-weight:640}
 /* the way out of the list, not another yoga */
 .ygpill.all{background:none;border-style:dashed;color:var(--ink-3)}
+/* the way OUT of yoga mode, stated rather than hidden behind the top chip */
+.ygpill.shut{background:none;border-color:var(--line-2);color:var(--ink-3);
+  padding:0 12px;font-size:13px}
 
 /* THE ACTION ROW — always in the layout, so selecting a yoga never resizes the
    chart above it. Emptied with `visibility`, never with `display`. */
 /* the action row fills the width the chart occupies — Sangram: "the check in
    detail button should be the entire length of the chart" */
-.ygact{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-height:44px}
+.ygact{display:flex;flex-direction:column;align-items:stretch;min-height:42px}
 .ygact.off{visibility:hidden}
 /* the name WRAPS to at most two lines rather than truncating to
    "Raja Yoga (Ken..." — two lines of 13px still fit inside the row's reserved
@@ -3692,7 +3712,7 @@ body.tabmin .tabthumb{opacity:0}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 /* Sangram: "a white button with black text, and it should look different".
    On the indigo instrument this is the one solid, unambiguous way onward. */
-.ygdetail{width:100%;height:42px;padding:0 18px;border-radius:14px;border:0;
+.ygdetail{width:100%;height:42px;padding:0 18px;border-radius:12px;border:0;
   background:#FFFFFF;color:#12142B;cursor:pointer;
   font-family:var(--ff);font-size:13.5px;font-weight:660;letter-spacing:-.01em;
   box-shadow:0 2px 14px rgba(0,0,0,.28);transition:transform .15s var(--ease),opacity .15s}
@@ -3713,6 +3733,17 @@ body.tabmin .tabthumb{opacity:0}
 .ygmeta .ygn{font-size:11px;color:var(--ink-3)}
 .ygtheme{font-size:12px;color:var(--ink-3);line-height:1.35}
 .yglist{display:flex;flex-direction:column;gap:9px}
+/* THE SEE-ALL PAGE IS PAPER, NOT THE INSTRUMENT. `.ygname` carries no colour
+   of its own, so on the dark drawer it inherited the instrument's light ink —
+   and when this list moved onto the light reading page it kept inheriting it,
+   putting near-white titles on cream. Sangram: "the see all page has the
+   contrast missing." The two materials need their own values, stated. */
+.awpage .ygcard{background:#FFFFFF;border-color:rgba(23,26,51,.12);
+  box-shadow:0 2px 12px rgba(23,26,51,.05)}
+.awpage .ygname{color:#171A33}
+.awpage .ygtheme{color:#5B5F78}
+.awpage .ygmeta .ygn{color:#5B5F78}
+.awpage .ygcard .chev{color:#8A8EA3}
 /* Same card, stacked instead of scrolled — it opens a page rather than
    selecting, so it takes the full width and carries a chevron. */
 .ygcard.row{flex:1 1 auto;max-width:none;scroll-snap-align:none;

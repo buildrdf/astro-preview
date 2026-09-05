@@ -49,8 +49,17 @@ export function vimshottari(moonSiderealLongitude, birthDate, yearDays=YEAR_DAYS
   const yms=yearDays*DAY;                         /* one dasha year, ms */
   const t0=birthDate.getTime()-DASHA_YEARS[birthLord]*frac*yms;
 
+  /* The Vimshottari does not stop after 120 years — it begins again from the
+     same lord. One cycle was enough for every chart the app had been tested
+     with, but a birth before about 1906 runs out of sequence before today:
+     dasha.at(now) returned null, and Today rendered blank with an uncaught
+     TypeError on `.maha`. Build as many cycles as the chart actually needs to
+     reach a few years past now, so an ordinary chart still has exactly nine
+     mahadashas and the Timeline spine is unchanged. */
+  const needTo=Math.max(t0+120*yms, Date.now()+5*365.2425*DAY);
+  const cycles=Math.max(1,Math.min(4,Math.ceil((needTo-t0)/(120*yms))));
   const mahadashas=[]; let mc=t0;
-  for(let i=0;i<9;i++){
+  for(let i=0;i<9*cycles;i++){
     const lord=DASHA_ORDER[(li+i)%9], years=DASHA_YEARS[lord];
     const mEnd=mc+years*yms;
     const antardashas=[]; let ac=mc;

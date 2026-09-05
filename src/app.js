@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906t";
+import { LEARN_LEVELS } from "./learn.js?v=20260906w";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906t";
-import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906w";
+import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906w";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906t";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906t";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906w";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906w";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -46,8 +46,12 @@ const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya","Tula","Vr
 const SIGN_LORD={1:"Mars",2:"Venus",3:"Mercury",4:"Moon",5:"Sun",6:"Mercury",7:"Venus",8:"Mars",9:"Jupiter",10:"Saturn",11:"Saturn",12:"Jupiter"};
 const NAK=["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
 const ORDER=["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
-const YEARS={Ketu:7,Venus:20,Sun:6,Moon:10,Mars:7,Rahu:18,Jupiter:16,Saturn:19,Mercury:17};
-const NSPAN=360/27, PSPAN=NSPAN/4, YDAYS=365.2425;
+/* The dasha period table, the dasha year length and the nakshatra fraction all
+   used to live here as a second copy of dasha3.js's. That copy is what made
+   the Timeline and the printed report disagree — it counted a dasha year as
+   365.2425 days where the validated engine counts 365.25. Deleted rather than
+   left lying around for the next person to reach for. */
+const NSPAN=360/27;
 
 const BHAVA=[
  ["Tanu","The self","Your body, temperament and the face you show the world. The lens every other house is read through."],
@@ -88,7 +92,6 @@ const degIn=L=>norm(L)%30;
 /* one grid engine for every screen (spec part 54) */
 const nakOf=L=>nakIndex(L);
 const padaOf=L=>padaIndex(L);
-const nakFrac=L=>(norm(L)%NSPAN)/NSPAN;
 const sep=(a,b)=>{const r=Math.abs(norm(a)-norm(b));return r>180?360-r:r};
 const spokenDeg=L=>{const d=degIn(L),i=Math.floor(d);
   return `${i} degrees ${Math.floor((d-i)*60)} minutes`};
@@ -121,24 +124,28 @@ function dignity(g,L){
 const DR={Mars:[4,7,8],Jupiter:[5,7,9],Saturn:[3,7,10]};
 const offsets=g=>DR[g]||((g==="Rahu"||g==="Ketu")&&PREFS().nodal?[5,7,9]:[7]);
 
+/* ONE Vimshottari, not two. This used to be a second implementation living
+   beside dasha3.js — the one the whole UI read, while dasha3 (the one the
+   validators check against two printed vendor reports) was used only by the
+   reports. They disagreed: this copy used 365.2425 days to a dasha year and
+   dasha3 uses the classical 365.25, which drifts to eleven hours by 2053 and
+   was already enough to print "10 Jun 2012" on the Timeline where the report
+   said the 11th. It also stopped after one 120-year cycle, so a chart born
+   before about 1906 had no current period at all and Today rendered blank.
+
+   Now an adapter over the validated engine, keeping the field names the UI
+   already uses. The one shaping choice: dasha3's first mahadasha begins
+   BEFORE the birth — that is what a "balance at birth" means — and the UI has
+   always drawn the sequence from the birth itself, so the first entry is
+   clipped to it and its span reduced to the part actually lived. Every
+   boundary after that is dasha3's. */
 function vimshottari(birth,moonL){
-  const li=nakOf(moonL)%9, birthLord=ORDER[li];
-  const balance=YEARS[birthLord]*(1-nakFrac(moonL));
-  const mahas=[]; let c=new Date(birth);
-  for(let i=0;i<10;i++){
-    const lord=ORDER[(li+i)%9], y=i===0?balance:YEARS[lord];
-    const end=new Date(c.getTime()+y*YDAYS*864e5);
-    mahas.push({lord,start:new Date(c),end,years:y}); c=end;
-  }
-  const antars=m=>{const st=ORDER.indexOf(m.lord),out=[];let c=m.start.getTime();
-    const span=m.end-m.start;
-    for(let i=0;i<9;i++){const lord=ORDER[(st+i)%9];
-      const end=c+span*(YEARS[lord]/120);
-      out.push({lord,start:new Date(c),end:new Date(end)});c=end}
-    return out};
-  const at=d=>{const m=mahas.find(x=>d>=x.start&&d<x.end);
-    return m?{maha:m,antar:antars(m).find(x=>d>=x.start&&d<x.end)}:null};
-  return {birthLord,balance,mahas,antars,at};
+  const v=vimshottari3(moonL,birth);
+  const mahas=v.mahadashas.map((m,i)=>i===0
+    ? {...m,start:new Date(birth),years:v.balanceYears}
+    : m);
+  return {birthLord:v.birthLord, balance:v.balanceYears, mahas,
+          antars:m=>m.antardashas||[], at:v.at};
 }
 
 function buildChart({ascendant,placements,birthDate}){
@@ -7441,8 +7448,13 @@ function closeCalendar(){
 let tlT=null;
 const TL_H=780;                     // full column height, px
 function tlBounds(){
-  const m=CHART.dasha.mahas.slice(0,9);
-  return {m, t0:m[0].start.getTime(), t1:m[8].end.getTime()};
+  /* the WHOLE generated sequence, not the first nine. For every ordinary
+     chart those are the same thing — but the Vimshottari repeats after 120
+     years, and someone born before about 1906 has outlived the first cycle.
+     Capping the spine at nine pinned the needle to the end of the rail and
+     showed a period from 2005 as though it were current. */
+  const m=CHART.dasha.mahas;
+  return {m, t0:m[0].start.getTime(), t1:m[m.length-1].end.getTime()};
 }
 const tlNowT=()=>{const {t0,t1}=tlBounds();
   return Math.min(Math.max((Date.now()-t0)/(t1-t0),0),1)};

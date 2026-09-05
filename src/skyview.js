@@ -21,12 +21,12 @@
    timestamp and place. Birth never inherits device time or place.
    =================================================================== */
 import { positions, retrograde, eclipticLatitudes } from "./ephemeris.js?v=20260902e";
-import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from "./sky.js?v=20260906t";
+import { raDecToAltAz, siderealPointAltAz, siderealPointAltAzB, sunTimes } from "./sky.js?v=20260906w";
 import { ASTERISMS } from "./asterisms.js?v=20260831";
 import { GRAHA_MEANING, PLANET_STORY, HOUSE_TRANSIT_SENSE } from "./interpret.js";
 import { NAK_META, nakLord, pointGrid, nakshatraRange, signNakshatras, fmtDMS } from "./zodiac.js?v=20260902";
 import { drawGraha, grahaSprite, preloadGrahaArt, GRAHA_BASE } from "./celestial-art.js?v=20260902e";
-import { drawOrrery, orreryHit } from "./orrery.js?v=20260906t";
+import { drawOrrery, orreryHit } from "./orrery.js?v=20260906w";
 preloadGrahaArt();
 
 const SIGNS_SK=["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",

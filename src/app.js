@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906i";
+import { LEARN_LEVELS } from "./learn.js?v=20260906j";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906i";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906j";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906i";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906j";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -7953,9 +7953,14 @@ function wireAddPartner(){
         <b>its</b> clock. Without it Astra has to assume Indian time.`;
       if(q.length<2){ plist.innerHTML=""; return; }
       fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`)
-        .then(r=>r.json()).then(j=>{
+        .then(r=>{ if(!r.ok) throw new Error("http"); return r.json(); }).then(j=>{
           if(s!==seq) return;
           const hits=j.results||[];
+          /* "no such city" and "the search is unreachable" used to look
+             identical — an empty list — so a reader could not tell whether to
+             fix their spelling or their connection (constitution 112). */
+          if(!hits.length){ plist.innerHTML=`<p class="svpnone">No place found for
+            &#8220;${escText(q)}&#8221;. Try a larger town nearby.</p>`; return; }
           plist.innerHTML=hits.map((x,i)=>`<button class="svpitem" data-i="${i}">
             ${escText(x.name)} <span class="svpsub">${escText([x.admin1,x.country].filter(Boolean).join(", "))}</span></button>`).join("");
           plist.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
@@ -7966,7 +7971,9 @@ function wireAddPartner(){
             if(note) note.innerHTML=`Times read on <b>${String(x.timezone||"").replace(/_/g," ")}</b>&#8217;s
               own clock, daylight saving included.`;
           });
-        }).catch(()=>{});
+        }).catch(()=>{ if(s===seq) plist.innerHTML=`<p class="svpnone">Couldn&#8217;t reach the
+          place search. Check your connection &#8212; or save without a place and add it later,
+          and Astra will read the time on Indian clocks until you do.</p>`; });
     });
   }
   document.getElementById("fsave").onclick=()=>{
@@ -8589,10 +8596,12 @@ function obWireBirth(){
     const list=$o("#ob_plist");
     if(q.length<2){ list.innerHTML=""; return; }
     fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`)
-      .then(r=>r.json()).then(j=>{
+      .then(r=>{ if(!r.ok) throw new Error("http"); return r.json(); }).then(j=>{
         if(s!==seq||!obEl) return;
         const esc2=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         const hits=j.results||[];
+        if(!hits.length){ list.innerHTML=`<p class="svpnone">No place found for
+          &#8220;${esc2(q)}&#8221;. Try a larger town nearby.</p>`; return; }
         list.innerHTML=hits.map((x,i)=>`<button class="svpitem" data-i="${i}">
           ${esc2(x.name)} <span class="svpsub">${esc2([x.admin1,x.country].filter(Boolean).join(", "))}</span></button>`).join("");
         list.querySelectorAll(".svpitem").forEach(b=>b.onclick=()=>{
@@ -8603,7 +8612,9 @@ function obWireBirth(){
           $o("#ob_place").value=obDraft.placeText;
           list.innerHTML=""; buzz(6); valid();
         });
-      }).catch(()=>{});
+      }).catch(()=>{ if(s===seq&&obEl) list.innerHTML=`<p class="svpnone">Couldn&#8217;t reach the
+        place search. Check your connection and try again &#8212; your birth place sets the
+        clock your birth time is read on, so it is worth getting right.</p>`; });
   });
   $o("#ob_go").onclick=()=>{
     const [y,mo,da]=obDraft.date.split("-").map(Number);

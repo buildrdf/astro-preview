@@ -156,7 +156,31 @@ function ledger(W,H,top,bottom){
 }
 
 /* ---- the Earth ------------------------------------------------------ */
+/* THE GLOBE IS LIT BY THE SUN, NOT BY THE RING.
+   `light` arrives as a direction taken from the Sun's position on the zodiac
+   ring. The terminator below does not use it — it is built from the observer's
+   own solar altitude and azimuth, which is what fixed "at half past eight in
+   the evening India was painted in full afternoon". So the day-side highlight
+   and the bright limb arc were being drawn from one frame while the night was
+   drawn from another: the bright limb was painted over the NIGHT limb, which
+   is what reads as the lit face pointing the wrong way.
+
+   sun.alt/sun.az are already passed in. Building the light from them puts every
+   part of the globe in one frame by construction. The observer's own basis in
+   screen space is E=(1,0,0), N=(0,cos k,-sin k), Z=(0,sin k,cos k) with
+   k = 26deg - pitch, so a Sun at azimuth 90 and altitude 0 gives (1,0) — due
+   east, screen right, the same as the terminator's own `ux=sin A`; and a Sun
+   overhead gives (0,-1), pointing exactly at the observer's mark. */
+function sunLight(sun,pitch,fallback){
+  if(!sun||sun.alt==null||sun.az==null) return fallback;
+  const k=(26-(pitch||0))*D2R, ca=Math.cos(sun.alt*D2R), sa=Math.sin(sun.alt*D2R);
+  const rx=ca*Math.sin(sun.az*D2R);
+  const ry=ca*Math.cos(sun.az*D2R)*Math.cos(k)+sa*Math.sin(k);
+  const n=Math.hypot(rx,ry)||1;
+  return {x:rx/n, y:-ry/n};
+}
 function drawEarth(c,cx,cy,R,light,spot,e,now,reduced,landA,spin,pitch,texA,sun){
+  light=sunLight(sun,pitch,light);
   const lat0=(spot?.lat||0)*D2R, lon0=((spot?.lon||0)+(spin||0))*D2R;
   const tilt=lat0-26*D2R+(pitch||0)*D2R;                       /* the observer sits a little above the disc centre */
   const proj=(la,lo)=>{ const f=la*D2R, l=lo*D2R-lon0;

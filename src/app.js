@@ -18,7 +18,7 @@ import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=2026090
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260906x";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906x";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906x";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260907m";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -2196,8 +2196,8 @@ function safeYogaCount(){
 function setUniverseBar(){
   const yn=safeYogaCount();
   setTopBar("",{lead: yn?`
-    <button class="tb-btn ychip" id="ychip"
-      aria-label="See all ${yn} yogas in your chart">
+    <button class="tb-btn ychip${ygOpen?" on":""}" id="ychip" aria-expanded="${ygOpen}"
+      aria-label="Yogas in your chart, ${yn} detected">
       <!-- three connected points: a formation, not a sparkle. It reads as a
            chart layer opposite the sky control rather than as decoration. -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2273,7 +2273,15 @@ function renderUniverse(){
          the chart and the page never scrolls. -->
     <div class="ygpills" id="ygpills" hidden>
       <div class="ygrow" id="ygrow" role="listbox" aria-label="Yogas in your chart"></div>
-      <button class="ygopen" id="ygopen" hidden></button>
+      <!-- The action row is ALWAYS in the layout, even with nothing selected.
+           Sangram: "when you click on any yoga, the kundali shrinks in the box
+           above. That doesn't look nice." It only shrank because this row
+           appeared and took height; reserving it means the chart is sized once
+           when the strip opens and never moves again. -->
+      <div class="ygact" id="ygact">
+        <span class="ygactname" id="ygactname"></span>
+        <button class="ygdetail" id="ygopen">Check in detail</button>
+      </div>
     </div>
     <div class="reading" id="reading" hidden></div>
     <div class="scrubwrap" id="scrubwrap">
@@ -2400,7 +2408,7 @@ function paintUniverse(instant){
        In Today's sky the control does not EXIST — not disabled, absent. */
     const n=safeYogaCount();
     yc.hidden=!n;
-    if(yc.hidden&&ygKey) ygDeselect();
+    if(yc.hidden&&ygOpen) closeYogaLayer();
     const c=yc.querySelector(".ycount"); if(c) c.textContent=String(n);
     yc.onclick=toggleYogaLayer;
   }
@@ -2464,7 +2472,7 @@ function paintHouseSigns(list){
    chart — the previous version pushed the chart up until its top was
    cut off, which destroyed the object being explained.
    =================================================================== */
-let ygKey=null, ygPart=null;
+let ygOpen=false, ygKey=null, ygPart=null;
 
 /* Rank, never alphabetise. Formation confidence first, then band, then how
    much of the chart it reaches. Deterministic: same order every render. */
@@ -2545,7 +2553,7 @@ function renderYogaPills(){
   /* Only the birth rashi chart is read for yogas, and drawFormation refuses to
      draw anywhere else — so outside birth/D1 the pills do not EXIST, the same
      rule the top-bar chip follows. */
-  const list=safeYogaCount()?ygRank(engine().yogas||[]):[];
+  const list=(ygOpen&&safeYogaCount())?ygRank(engine().yogas||[]):[];
   if(!list.length){ wrap.hidden=true; row.innerHTML=""; return; }
   wrap.hidden=false;
   const lab=ygPillLabels(list);
@@ -2556,7 +2564,7 @@ function renderYogaPills(){
       aria-label="${escText(y.name)}. ${escText(y.strength)}. Show it on the chart.">${
       escText(lab.get(k)||y.name)}</button>`;
   }).join("")+
-  `<button class="ygpill all" id="ygall" aria-label="See all ${list.length} yogas">All ${list.length}</button>`;
+  `<button class="ygpill all" id="ygall" aria-label="See all ${list.length} yogas">See all</button>`;
   ygOpenBtn();
   ygFitRows();
   ygWatchWidth(row);
@@ -2596,33 +2604,55 @@ function ygFitRows(){
   const one=pills[0].offsetHeight;
   const gap=parseFloat(cs.rowGap)||0;
   const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
-  const twoRows=one*2+gap+pad+1;
-  let vis=pills.length;
-  while(vis>1&&row.offsetHeight>twoRows) pills[--vis].hidden=true;
+  /* ONE strip. Sangram: "just show one strip of all the yogas ... just show
+     the top 4-5, and then show a See all button". Two rows cost the chart
+     height it did not need to give up.
+
+     PACK, don't truncate. Cutting at the first pill that overflows stopped at
+     two, because the third name is the longest one there is — while two short
+     ones behind it would both have fitted. Walk in rank order and keep every
+     pill that still fits, skipping only the ones that do not. */
+  const oneRow=one+pad+1;
+  pills.forEach(p=>{ p.hidden=true; });
+  for(const p of pills){
+    p.hidden=false;
+    if(row.offsetHeight>oneRow) p.hidden=true;
+  }
+  let vis=pills.filter(p=>!p.hidden).length;
   /* a yoga selected from elsewhere (the reading page's "Show in chart") must
      never be the one that got trimmed */
   const on=pills.find(p=>p.classList.contains("on"));
   if(on&&on.hidden){
     on.hidden=false;
-    for(let i=vis-1;i>=0;i--) if(!pills[i].classList.contains("on")){ pills[i].hidden=true; break; }
+    /* make room by dropping the last one that is showing and is not the
+       selection, until the strip is one row again */
+    for(let i=pills.length-1;i>=0&&row.offsetHeight>oneRow;i--)
+      if(!pills[i].hidden&&pills[i]!==on) pills[i].hidden=true;
   }
+  void vis;
   const hid=pills.filter(p=>p.hidden).length;
-  if(all) all.textContent=hid?`+${hid} more`:`All ${pills.length}`;
+  if(all) all.setAttribute("aria-label",hid?`See all ${pills.length} yogas, ${hid} not shown`
+    :`See all ${pills.length} yogas`);
 }
 
 /* The button below the pills. It names what is lit, says how strong in WORDS
    (never colour alone), gives the one sentence the chart is drawing, and opens
    the reading. */
+/* The action row. The pill above carries a shortened label, so this is where
+   the WHOLE name appears the moment something is lit, with its strength in
+   words — never colour alone. Hidden by visibility, not by `hidden`, so the
+   row keeps its height and the chart above never moves. */
 function ygOpenBtn(){
-  const b=document.getElementById("ygopen"); if(!b) return;
+  const act=document.getElementById("ygact"), nm=document.getElementById("ygactname"),
+        b=document.getElementById("ygopen");
+  if(!act||!nm||!b) return;
   const y=ygKey&&ygOf(ygKey);
-  if(!y){ b.hidden=true; b.innerHTML=""; return; }
-  b.hidden=false;
-  b.innerHTML=`<span class="ygotop"><b>${escText(ygShort(y))}</b>
-      <span class="ygstr s-${y.strength}">${escText(y.strength)}</span></span>
-    <span class="ygosay">${escText(ygLead(y))}</span>
-    <span class="chev" aria-hidden="true">&#8250;</span>`;
-  b.setAttribute("aria-label",`Open ${y.name}. ${y.strength}. ${ygLead(y)}`);
+  if(!y){ act.classList.add("off"); nm.textContent=""; b.tabIndex=-1;
+    b.setAttribute("aria-hidden","true"); return; }
+  act.classList.remove("off"); b.tabIndex=0; b.removeAttribute("aria-hidden");
+  nm.innerHTML=`<b>${escText(y.name)}</b>
+    <span class="ygstr s-${y.strength}">${escText(y.strength)}</span>`;
+  b.setAttribute("aria-label",`Check ${y.name} in detail`);
 }
 
 /* one sentence for a yoga with a single formation — the chart is doing the
@@ -2647,14 +2677,44 @@ function ygSelect(key,opts){
 /* There is no layer to open any more — the pills are simply present whenever
    the chart has yogas. These three keep their names because the reading page's
    "Show in chart" action and the top-bar chip both call them. */
-function openYogaLayer(){ renderYogaPills(); }
-function closeYogaLayer(){ ygDeselect(); }
-function toggleYogaLayer(){ ygSeeAll(); }
+function openYogaLayer(){ ygOpen=true; renderYogaPills(); setUniverseBar(); }
+function closeYogaLayer(){ ygOpen=false; ygKey=null; ygPart=null; clearMarks();
+  renderYogaPills(); setUniverseBar();
+  const chart=document.getElementById("chart");
+  if(chart) chart.setAttribute("aria-label","North Indian chart, twelve houses"); }
+function toggleYogaLayer(){ buzz(7); ygOpen?closeYogaLayer():openYogaLayer(); }
 
+/* THE FULL LIST, AS ITS OWN PAGE OVER THE UNIVERSE.
+   It used to `go(YOU_INDEX)` and open Birth details, so Back landed the reader
+   on the Profile tab they never asked for. Sangram: "when you click on Find
+   More and go to Back, it doesn't take you to the Universe tab ... When you
+   click Back, it should take you to the Universe." An awpage opens over
+   whichever tab you are on and its history entry returns you there, so the
+   same content now comes back to the chart. */
 function ygSeeAll(){
   buzz(7);
-  go(YOU_INDEX); bdTab="yogas"; subView="birth"; renderSub();
-  const pg=document.getElementById("pg-you"); if(pg) pg.scrollTop=0;
+  const list=ygRank(engine().yogas||[]);
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop"><button class="awback" aria-label="Back to Universe">&#8249;</button>
+      <span>Your yogas</span></header>
+    <div class="awscroll">
+      <p class="awlead" style="margin:4px 0 10px"><b>${list.length} yoga${list.length===1?"":"s"}</b>
+        detected by rule from your actual placements, strongest first. Tap one to read it.</p>
+      <div class="yglist">${list.map(y=>ygCard(y,{link:true})).join("")}</div>
+      <p class="awfoot">A yoga describes a pattern the tradition names &#8212; it does not
+        predict an outcome.</p>
+    </div>`;
+  const src=awOpen(ov,document.getElementById("ygall"));
+  ov.querySelector(".awback").onclick=()=>awClose(ov,src);
+  ov.querySelector(".yglist").onclick=e=>{
+    const card=e.target.closest(".ygcard"); if(!card) return;
+    const k=card.dataset.k;
+    awClose(ov,src,()=>{ ygOpen=true; renderYogaPills(); setUniverseBar(); ygSelect(k,{quiet:true});
+      openObject({kind:"yoga", id:k, mode:"birth", from:"chart", emphasis:"birth",
+        origin:rectOrigin(document.querySelector(`.ygpill[data-k="${k}"]`)||document.getElementById("stage"))}); });
+  };
 }
 
 function ygDeselect(){

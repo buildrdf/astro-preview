@@ -20,7 +20,11 @@
   --tabh:70px;
 ;
   /* reading surfaces (warm off-white, dark ink) — the only light palette */
-  --rd-bg:#F7F5EF; --rd-bg2:#FFFFFF; --rd-ink:#171A33; --rd-ink2:#4A4F6E; --rd-ink3:#7B809E;
+  --rd-bg:#F7F5EF; --rd-bg2:#FFFFFF; --rd-ink:#171A33; --rd-ink2:#4A4F6E;
+  /* #7B809E measured 3.55:1 on the reading ground — under AA for body text,
+     and this is the token every overlay page's section headings and metadata
+     use. Same value the main --ink-3 already settled on. */
+  --rd-ink3:#646989;
   --rd-line:rgba(23,26,51,.12); --rd-edge:rgba(23,26,51,.24); --rd-brass:#7F5F18; --rd-hot:#5A5FB0;
   --rd-good:#3E8E5C; --rd-warn:#B8702A}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1880,6 +1884,28 @@ body.guidefull #pg-guide{padding-bottom:26px}
   padding:7px 14px;cursor:pointer;font-family:var(--ff);font-size:12.5px;
   font-weight:600;color:var(--rd-brass)}
 .awcta:active{opacity:.6}
+/* The year ahead: a dated list, not a chart. The date block leads because
+   "when" is the question the page answers; the mark says what KIND of change
+   it is without a legend to learn. */
+.yarow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  border:0;background:none;cursor:pointer;font-family:var(--ff);color:var(--ink);
+  padding:11px 2px;border-bottom:.5px solid var(--line)}
+.yarow:last-of-type{border-bottom:0}
+.yarow:active{opacity:.6}
+.yadate{flex:0 0 34px;text-align:center;line-height:1.05}
+.yadate b{display:block;font-size:17px;font-weight:640;letter-spacing:-.02em}
+.yadate small{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.yamark{flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--fm);font-size:10px;font-weight:700;color:var(--ink-2);
+  background:rgba(127,127,160,.14);border:1px solid var(--edge-soft)}
+.yak-ingress{color:var(--hot)}
+.yak-retro,.yak-direct{color:var(--brass)}
+.yak-maha,.yak-antar,.yak-sati{color:var(--ink)}
+.yabody{flex:1;min-width:0}
+.yabody b{display:block;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.yabody .evmeta{display:block;margin-top:2px;line-height:1.4}
+.yarow .chev{flex:0 0 auto;color:var(--ink-3);font-size:17px}
+.item.yearahead{margin-top:10px}
 .awfoot{font-size:11.5px;line-height:1.55;color:var(--rd-ink3);margin-top:20px}
 @media (prefers-reduced-motion: reduce){
   .awpage{transition:opacity .2s}
@@ -2339,8 +2365,11 @@ body.gvoicemode #pg-guide .chatwrap{padding-bottom:190px}
    Skimmers read the dark text; the astrology is always one glance
    deeper. Applied across all warm-light reading pages. */
 .tellme{font-size:15px;line-height:1.62;color:#23263E;margin:0 0 6px}
-.because{font-size:12.5px;line-height:1.58;color:#8A8DA3;margin:0 0 12px}
-.because b{color:#6B6E85;font-weight:600}
+/* the working behind a reading — hard-coded greys that measured 3.0:1 on the
+   reading ground. This is the sentence that makes a claim checkable; it is
+   the last thing that should be hard to read. */
+.because{font-size:12.5px;line-height:1.58;color:var(--rd-ink3);margin:0 0 12px}
+.because b{color:var(--rd-ink2);font-weight:600}
 
 /* language chips on the onboarding welcome */
 .oblang{display:flex;gap:8px;justify-content:center;margin-top:18px}

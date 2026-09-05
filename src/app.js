@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906e";
+import { LEARN_LEVELS } from "./learn.js?v=20260906h";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906e";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906h";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
 import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260902e";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906e";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906h";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -909,6 +909,74 @@ function nextIngressMap(from){
   }
   ingressCache={key,map};
   return map;
+}
+
+/* ---- THE YEAR AHEAD ------------------------------------------------
+   One daily sweep of the next twelve months, collecting only things that
+   ACTUALLY HAPPEN on a date: a graha changes sign, a graha turns
+   retrograde or direct, a dasha period ends, a sade sati phase begins or
+   ends. No forecast is computed here and none should be — the value is
+   that these are dated facts about the sky, placed against the reader's
+   own houses so they can see which part of their chart is involved.
+   Cached per day; the sweep costs ~370 positions() calls. ---- */
+const YA_SLOW=["Jupiter","Saturn","Rahu","Ketu","Mars"];
+const YA_STATION=["Mercury","Venus","Mars","Jupiter","Saturn"];
+let yaCache={key:null,list:null};
+function yearAheadEvents(from){
+  const key=from.toDateString()+"|"+ACTIVE.name;
+  if(yaCache.key===key) return yaCache.list;
+  const DAY=864e5, days=372;
+  const out=[];
+  let prevPos=positions(from), prevRet=retrograde(from);
+  for(let d=1;d<=days;d++){
+    const t=new Date(from.getTime()+d*DAY);
+    const pos=positions(t), ret=retrograde(t);
+    for(const g of YA_SLOW){
+      const a=signOf(prevPos[g]), b=signOf(pos[g]);
+      if(a!==b) out.push({t, kind:"ingress", g, sign:b,
+        house:CHART.houseOfSign(b),
+        title:`${g} enters ${SIGNS[b-1]}`,
+        note:`Your ${ordinal(CHART.houseOfSign(b))} house. ${g} stays there ${g==="Mars"?"about six weeks":g==="Jupiter"?"about a year":g==="Saturn"?"about two and a half years":"about eighteen months"}.`});
+    }
+    for(const g of YA_STATION){
+      if(!!prevRet[g]===!!ret[g]) continue;
+      const sg=signOf(pos[g]);
+      out.push({t, kind:ret[g]?"retro":"direct", g, sign:sg,
+        house:CHART.houseOfSign(sg),
+        title:`${g} turns ${ret[g]?"retrograde":"direct"}`,
+        note:`In ${SIGNS[sg-1]}, your ${ordinal(CHART.houseOfSign(sg))}. ${ret[g]
+          ?"Traditionally read as a matter of that house returned to rather than settled first time."
+          :"Traditionally read as that house resuming its ordinary forward pace."}`});
+    }
+    prevPos=pos; prevRet=ret;
+  }
+  /* period boundaries from the Vimshottari engine, not from the sweep */
+  const end=new Date(from.getTime()+days*DAY);
+  const D=CHART.dasha;
+  for(const ma of (engine().d3.mahadashas||[])){
+    if(ma.end>from && ma.end<end) out.push({t:new Date(ma.end), kind:"maha", g:ma.lord,
+      title:`${ma.lord} mahadasha ends`,
+      note:`A ${ma.lord} period of ${((ma.end-ma.start)/(365.2425*DAY)).toFixed(0)} years closes.`});
+    for(const an of (ma.antardashas||[])){
+      if(an.end>from && an.end<end && an.end<ma.end)
+        out.push({t:new Date(an.end), kind:"antar", g:an.lord,
+          title:`${ma.lord}/${an.lord} antardasha ends`,
+          note:`The sub-period inside the ${ma.lord} mahadasha changes hands.`});
+    }
+  }
+  /* sade sati edges, if any fall inside the window */
+  try{
+    for(const wdw of satiWindows()){
+      for(const [when,what] of [[wdw.start,"begins"],[wdw.end,"ends"]]){
+        if(when>from && when<end) out.push({t:new Date(when), kind:"sati", g:"Saturn",
+          title:`Sade sati ${what}`,
+          note:`Saturn ${what==="begins"?"enters":"leaves"} the three signs around your natal Moon.`});
+      }
+    }
+  }catch(_){}
+  out.sort((a,b)=>a.t-b.t);
+  yaCache={key,list:out};
+  return out;
 }
 
 /* ===================================================================
@@ -7480,6 +7548,67 @@ function periodEvidence(g,role,extra=""){
   </div>`;
 }
 
+/* THE YEAR AHEAD. Twelve months of dated sky, grouped by month, each event
+   placed against the reader's own houses. Every line names a thing that
+   happens on a date — a sign changed, a station, a period boundary — and
+   what the tradition associates with it. Nothing here forecasts an outcome
+   (constitution 143); the point is that a person can see WHEN their chart is
+   involved and go look. */
+const YA_ICON={ingress:"\u2192", retro:"R", direct:"D", maha:"\u25C6", antar:"\u25C7", sati:"\u25CF"};
+function openYearAhead(card){
+  const from=new Date(); from.setHours(12,0,0,0);
+  const list=yearAheadEvents(from);
+  const months=[];
+  for(const e of list){
+    const key=e.t.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+    let m=months.find(x=>x.key===key);
+    if(!m){ m={key,items:[]}; months.push(m); }
+    m.items.push(e);
+  }
+  const ov=document.createElement("div");
+  ov.className="awpage";
+  ov.innerHTML=`
+    <header class="awtop">
+      <button class="awback" aria-label="Back to Timeline">&#8249;</button>
+      <span>The year ahead</span>
+    </header>
+    <div class="awscroll">
+      <p class="awlead" style="margin:4px 0 2px"><b>${list.length} dated changes</b> between
+        ${fmtDate(from)} and ${fmtDate(new Date(from.getTime()+372*864e5))} &#8212; sign
+        changes, stations and period boundaries, each against the house it falls in for you.</p>
+      ${months.map(m=>`
+        <h2 class="awh2">${m.key}</h2>
+        ${m.items.map(e=>`
+          <button class="yarow" data-g="${e.g}"${e.house?` data-h="${e.house}"`:""}>
+            <span class="yadate"><b>${e.t.getDate()}</b><small>${e.t.toLocaleDateString("en-GB",{month:"short"})}</small></span>
+            <span class="yamark yak-${e.kind}" aria-hidden="true">${YA_ICON[e.kind]||""}</span>
+            <span class="yabody"><b>${e.title}</b><span class="evmeta">${e.note}</span></span>
+            <span class="chev">&#8250;</span>
+          </button>`).join("")}`).join("")}
+      ${list.length?"":`<p class="interp">Nothing changes sign or direction in the next twelve
+        months, which is unusual &#8212; if you are seeing this, something is wrong with the
+        sweep rather than with the sky.</p>`}
+      <p class="awfoot">Sign changes and stations come from the ephemeris, swept a day at a
+      time, so each date is accurate to the day. Period boundaries come from the Vimshottari
+      engine. Traditional associations within Vedic astrology &#8212; dated facts about the
+      sky and what the tradition reads into them, not a forecast of events.</p>
+    </div>`;
+  const src=awOpen(ov,card);
+  const close=then=>awClose(ov,src,then);
+  ov.querySelector(".awback").onclick=()=>close();
+  ov.onclick=e=>{
+    const r=e.target.closest(".yarow"); if(!r) return;
+    buzz(8);
+    const g=r.dataset.g;
+    /* a graha the chart actually carries opens as a graha; a period boundary
+       whose lord is a node still does. Everything else opens its house. */
+    if(g&&GRAHA_ORDER.includes(g)) close(()=>openObject({kind:"planet", id:g, mode:"birth",
+      from:"timeline", emphasis:"birth", origin:rectOrigin(r)}));
+    else if(r.dataset.h) close(()=>openObject({kind:"house", id:+r.dataset.h, mode:"birth",
+      from:"timeline", emphasis:"birth", origin:rectOrigin(r)}));
+  };
+}
+
 function openPeriodWhy(maha,antar,when,p3,sati,card){
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const mp=CHART.get(maha.lord), apn=CHART.get(antar.lord);
@@ -7712,6 +7841,11 @@ function wireTimeline(){
           <span class="satibar"><i style="width:${(sp*100).toFixed(0)}%"></i></span></div>
       </div>`})():""}
       <button class="understand" id="understand">Understand this period<span class="chev">&#8250;</span></button>
+      <button class="item yearahead" id="yearahead">
+        <svg class="ico" viewBox="0 0 24 24">${ICONS.clock}</svg>
+        <span style="flex:1"><b style="font-weight:600">The year ahead</b>
+          <span class="evmeta" style="display:block">every dated change in the sky, to ${fmtDate(new Date(Date.now()+372*864e5))}</span></span>
+        <span class="chev">&#8250;</span></button>
       ${inPeriod.length?`<div class="eyebrow" style="margin:28px 0 8px">Your life around this time</div>`:""}
       ${inPeriod.map(e=>{const ed=eventDasha(e.d);
         return `<button class="evrow tap" data-ev="${e._i}">
@@ -7726,6 +7860,8 @@ function wireTimeline(){
     if(tn) tn.onclick=()=>{tlT=tlNowT();buzz(10);paint()};
     const un=document.getElementById("understand");
     if(un) un.onclick=()=>openPeriodWhy(now.maha, now.antar, when, p3, sati, un);
+    const ya=document.getElementById("yearahead");
+    if(ya) ya.onclick=()=>openYearAhead(ya);
     const ss=document.getElementById("satistrip");
     if(ss) ss.onclick=()=>{ buzz(8); go(YOU_INDEX); bdTab="sati"; subView="birth"; renderSub(); };
     document.querySelectorAll(".evrow.tap").forEach(b=>b.onclick=()=>{

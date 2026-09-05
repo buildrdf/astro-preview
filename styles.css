@@ -245,6 +245,17 @@ body.insub .page{padding-bottom:30px}
 .dchip.on b{color:var(--ink)}
 
 
+/* Apple's minimum comfortable target is 44pt. These controls are small on
+   purpose — a text link should read as a text link — so the TARGET grows
+   while the visual does not: a transparent pseudo-element centred on the
+   control, the same thing an enlarged hit rect does on iOS. Applied only
+   where the extra band falls inside existing margin, so it cannot swallow
+   a tap meant for a neighbour. */
+.seewhy, .gshowmore, .editlink, .planbadge, .segmented button, .tbseg button{position:relative}
+.seewhy::before, .gshowmore::before, .editlink::before, .planbadge::before,
+.segmented button::before, .tbseg button::before{
+  content:"";position:absolute;left:0;right:0;top:50%;height:44px;
+  transform:translateY(-50%);pointer-events:auto}
 .segmented{display:flex;gap:8px;margin:15px 0 20px}
 .segmented button{flex:1;cursor:pointer;font-family:var(--ff);font-size:13.5px;font-weight:560;
   color:var(--ink-2);padding:9px 0;border-radius:99px;background:none;
@@ -399,6 +410,12 @@ svg.asp{pointer-events:none}
 @keyframes breathe{50%{filter:drop-shadow(0 6px 22px rgba(0,0,0,.7)) drop-shadow(0 0 46px var(--fill))}}
 @keyframes bob{50%{transform:translateY(-3%)}}
 
+/* The name, the degree tag and the retrograde badge are annotations placed
+   OUTSIDE the disc, and as children of the button they extended its hit area
+   over whatever sat next to it — Rahu's "R" badge landed squarely on the
+   Moon's disc, so the Moon could not be selected at all. The graha's target is
+   its disc; the writing around it is writing. */
+.p .tag, .p .retro, .p .name{pointer-events:none}
 .p .tag{position:absolute;left:50%;top:calc(100% + 2px);transform:translateX(-50%);
   font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.06em;
   color:var(--ink-2);white-space:nowrap;
@@ -1064,7 +1081,13 @@ details.adv[open] summary::after{transform:rotate(-90deg)}
 details.adv .rows{margin-bottom:6px}
 
 /* ---- idle life: the grahas breathe, very slowly ---- */
+/* The aura is decoration and must never take a tap. inset:-26% made every
+   graha's hit box half again its disc, and for two conjunct grahas that meant
+   the one drawn later covered the other's centre — the Moon could not be
+   tapped at all with Rahu beside it. z-index:-1 paints it behind but does not
+   remove it from hit-testing; pointer-events does. */
 .p::before{content:"";position:absolute;inset:-26%;border-radius:50%;z-index:-1;
+  pointer-events:none;
   background:radial-gradient(circle,var(--fill) 0%,transparent 62%);
   opacity:.12;animation:auraglow 11s ease-in-out infinite;
   animation-delay:var(--idled,0s)}

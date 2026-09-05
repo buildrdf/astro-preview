@@ -2,7 +2,7 @@ import { limbs, vara, taraBala, houseFrom, gocharaFavourable,
          chandrashtama, GOCHARA_GOOD } from "./panchang.js?v=20260831a";
 import { GRAHA_MEANING, GOCHARA_FEEL, HOUSE_TRANSIT_SENSE, SPECIAL,
          DAY_DO, DAY_AVOID, VARA_PRACTICE, PLANET_STORY } from "./interpret.js";
-import { LEARN_LEVELS } from "./learn.js?v=20260906p";
+import { LEARN_LEVELS } from "./learn.js?v=20260906r";
 import { AREA_HOUSES, AREA_LINE, TONE_WORD, PLAIN_DAY, VARA_COLOUR,
          VARA_NUM, RAHU_KALAM_SEGMENT, DASHA_THEME, ANTAR_FLAVOR, MANTRA } from "./narrative.js?v=20260901";
 import { sadeSatiWindows, saturnFromMoon, satiCrossings } from "./sadesati.js?v=20260901e";
@@ -14,11 +14,11 @@ import { buildYogaChart, detectYogas, detectDoshas } from "./yogas.js?v=20260905
    and the engine read the same code */
 import * as YF from "./yoga-formation.js?v=20260905e";
 import { themeOf } from "./yoga-themes.js?v=20260905e";
-import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906p";
+import { bhinnashtakavarga, sarvashtakavarga } from "./ashtakavarga.js?v=20260906r";
 import { vimshottari as vimshottari3 } from "./dasha3.js?v=20260831";
 import { shadbala } from "./shadbala.js?v=20260831a";
-import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906p";
-import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906p";
+import { whereIs, riseSetHint, ascendant, sunTimes } from "./sky.js?v=20260906r";
+import { openSkyView, utcFromLocalTz } from "./skyview.js?v=20260906r";
 import { ashtakoota, manglik } from "./match.js?v=20260831a";
 import { avakhadaOf } from "./avakhada.js?v=20260905e";
 import { festivalsBetween, todayObservance, whatIs } from "./festivals.js?v=20260905e";
@@ -359,6 +359,34 @@ const fmtDate=d=>d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:
 /* 12-hour clock everywhere a human reads a time; the zone is named once per
    surface, not per value (Sangram, 29 Aug: "it should say full timing"). */
 const fmtClock=d=>d?d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):"&#8211;";
+/* A BIRTH TIME belongs to the place it happened, not to the phone reading it
+   and not to India. fmtClock renders in the browser's zone, and every call
+   site used to append a hard-coded "IST" — so a Sydney birth showed an Indian
+   clock reading, and an Indian birth on a Sydney phone showed Sydney's time
+   still labelled IST. Both wrong, in opposite directions. */
+const fmtClockTz=(d,tz)=>{ if(!d) return "&#8211;";
+  try{ return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:tz||"Asia/Kolkata"}); }
+  catch(_){ return fmtClock(d); } };
+/* Zone abbreviations are locale-dependent and no single locale gets them all:
+   en-IN gives IST for Kolkata but GMT+11 for Sydney, en-AU the reverse. So the
+   default is the GMT offset, which is never wrong anywhere — with ONE named
+   exception for the app's home zone, where "IST" is what every reader and
+   every printed report already says and an offset would read as a downgrade.
+   Add to ZONE_ABBR only where the same is true. */
+const ZONE_ABBR={"Asia/Kolkata":"IST","Asia/Calcutta":"IST"};
+const zoneAbbr=(d,tz)=>{ const z=tz||"Asia/Kolkata";
+  if(ZONE_ABBR[z]) return ZONE_ABBR[z];
+  try{
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:z,timeZoneName:"short"}).formatToParts(d||new Date());
+    return (parts.find(x=>x.type==="timeZoneName")||{}).value||"";
+  }catch(_){ return ""; } };
+/* The DATE has to come from the same zone as the time, or a birth just after
+   midnight in Sydney shows the previous day beside a 1:25 AM reading. */
+const fmtDateTz=(d,tz)=>{ if(!d) return "&#8211;";
+  try{ return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:tz||"Asia/Kolkata"}); }
+  catch(_){ return fmtDate(d); } };
+/* one call: "1:25 AM GMT+11", or "10:00 AM IST" where no zone was recorded */
+const clockWithZone=(d,tz)=>`${fmtClockTz(d,tz)}${zoneAbbr(d,tz)?" "+zoneAbbr(d,tz):""}`;
 
 /* &#9552;&#9552;&#9552; GEOMETRY &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; */
 const PT={tl:[0,0],tr:[100,0],br:[100,100],bl:[0,100],t:[50,0],r:[100,50],
@@ -1132,7 +1160,10 @@ function renderToday(){
   /* the time basis is stated ONCE, here (spec §2) - nothing below
      repeats "at Kopargaon, IST" again */
   setTopBar(`Hi ${ACTIVE.first}`,{sub:viewDate.toLocaleDateString("en-GB",
-      {weekday:"short",day:"numeric",month:"short"}).replace(",","")+" · IST",
+      {weekday:"short",day:"numeric",month:"short"}).replace(",","")
+      /* the day is the reader's own day; naming India's zone on a phone set to
+         another one was simply false */
+      +(zoneAbbr(viewDate,Intl.DateTimeFormat().resolvedOptions().timeZone)?" · "+zoneAbbr(viewDate,Intl.DateTimeFormat().resolvedOptions().timeZone):""),
     actions:`${isToday(viewDate)?"":`<button class="tb-btn txt" id="totoday">Today</button>`}
      <button class="tb-btn" id="calbtn" aria-label="Choose a date">
        <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/>
@@ -5720,7 +5751,7 @@ function subReportView(){
     <div class="repbanner">Preview &#8212; purchasing and email delivery arrive with the
       App Store build. Print to PDF from the share menu today.</div>
     <h2 style="font-size:22px">${ACTIVE.name} &#8212; Vedic Birth Chart</h2>
-    <p class="evmeta">${ACTIVE.p?`${fmtDate(new Date(ACTIVE.p.born))}, ${fmtClock(new Date(ACTIVE.p.born))} IST &#183; ${ACTIVE.p.place||""}`
+    <p class="evmeta">${ACTIVE.p?`${fmtDateTz(new Date(ACTIVE.p.born),ACTIVE.p.tz)}, ${clockWithZone(new Date(ACTIVE.p.born),ACTIVE.p.tz)} &#183; ${ACTIVE.p.place||""}`
       :"26 Mar 1992, 10:00 AM IST &#183; Kopargaon"} &#183; Lahiri ayanamsa &#183; whole-sign houses</p>
     <p class="interp" style="font-style:italic">Every position is computed deterministically
       and every reading names the placement that produced it &#8212; a compass for
@@ -6026,8 +6057,8 @@ function subBirth(){
 function bdOverview(){
   const idRows=ACTIVE.p
     ? (()=>{const p=ACTIVE.p, d=new Date(p.born);
-        return rows([["Name",ACTIVE.name],["Date",fmtDate(d)],
-          ["Time",p.approx?"not given (noon assumed)":`${fmtClock(d)} IST`],
+        return rows([["Name",ACTIVE.name],["Date",fmtDateTz(d,p.tz)],
+          ["Time",p.approx?"not given (noon assumed)":clockWithZone(d,p.tz)],
           ["Place",p.place||"&#8212;"],
           ["Lagna",`${SIGNS_SK[CHART.lagna-1]} &#183; ${fmtDeg(CHART.ascendant)}`],
           ["Moon",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
@@ -8210,7 +8241,7 @@ function subPartner(){
         <p class="muted" style="font-size:12.5px;margin:0">${verdict}.</p>
       </div>
     </div>
-    ${rows([["Born",`${fmtDate(new Date(p.born))}, ${fmtClock(new Date(p.born))} IST`],
+    ${rows([["Born",`${fmtDateTz(new Date(p.born),p.tz)}, ${clockWithZone(new Date(p.born),p.tz)}`],
             ["Their Moon",`${SIGNS[signOf(p.moonL)-1]} ${fmtDeg(p.moonL)}`],
             ["Nakshatra",`${NAK[nakOf(p.moonL)]} &#183; pada ${padaOf(p.moonL)}`],
             ["Yours",`${SIGNS[CHART.get("Moon").sign-1]} &#183; ${CHART.get("Moon").nak}`],
